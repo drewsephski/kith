@@ -33,6 +33,15 @@ test("setup exposes all integration choices and saves only the selected provider
   }
   await expect(page.getByLabel("API key", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "integration-setup-options");
+  await page.getByRole("button", { name: "Direct MCP", exact: true }).click();
+  await page.getByRole("button", { name: "Connection settings", exact: true }).click();
+  const serverName = page.getByRole("textbox", { name: "Server name", exact: true });
+  await serverName.focus();
+  await expect(serverName).toBeFocused();
+  await captureScreenshot(page, testInfo, "integration-setup-focused-input");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await captureScreenshot(page, testInfo, "integration-setup-focused-input-mobile");
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole("button", { name: "Pipedream", exact: true }).click();
   await expect(page.getByLabel("Client ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Project ID", { exact: true })).toBeVisible();
@@ -41,6 +50,15 @@ test("setup exposes all integration choices and saves only the selected provider
   await page.getByRole("button", { name: "Composio", exact: true }).click();
   await page.getByLabel("API key", { exact: true }).fill("fake-composio-key");
   await captureScreenshot(page, testInfo, "integration-setup-composio");
+  await page.getByRole("button", { name: "Custom OAuth apps", exact: true }).click();
+  const authConfigs = page.getByRole("textbox", { name: "Toolkit to auth-config IDs (JSON)" });
+  await authConfigs.focus();
+  await expect(authConfigs).toBeFocused();
+  await captureScreenshot(page, testInfo, "integration-setup-focused-textarea");
+  await page.setViewportSize({ width: 375, height: 812 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await captureScreenshot(page, testInfo, "integration-setup-focused-textarea-mobile");
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect
     .poll(() => saved)

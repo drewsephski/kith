@@ -66,7 +66,7 @@ test("header toggle persists across reloads and recolors mounted components", as
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto(fixture);
   await expectTheme(page, "dark");
-  await expect(page.locator(".xterm-screen canvas").first()).toBeVisible();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
   await expect(page.getByTestId("computer-terminal")).toContainText("ready");
   const terminal = await page.locator(".xterm").elementHandle();
   const darkBackground = await page
@@ -84,7 +84,9 @@ test("header toggle persists across reloads and recolors mounted components", as
     .not.toBe(darkBackground);
   await expect
     .poll(() =>
-      page.locator(".xterm-viewport").evaluate((el) => getComputedStyle(el).backgroundColor),
+      page
+        .locator(".xterm-scrollable-element")
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
     )
     .toBe("rgb(250, 250, 251)");
   expect(await terminal?.evaluate((el) => el.isConnected)).toBe(true);

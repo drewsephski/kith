@@ -9,7 +9,7 @@ for the sharing and persistence contract.
 | Goal | Set | Also need |
 | --- | --- | --- |
 | Local Docker computers | `SANDBOX_PROVIDER=docker` | `SANDBOX_SUPERVISOR_TOKEN`, computer image, Docker socket for supervisor |
-| UI only, no computers | `SANDBOX_PROVIDER=none` | No provider credential; published-images Compose still requires `SANDBOX_SUPERVISOR_TOKEN` |
+| Chat without computers | `SANDBOX_PROVIDER=none` | No provider credential; published-images Compose still requires `SANDBOX_SUPERVISOR_TOKEN` |
 | Managed remote desktop | `e2b` / `daytona` / `box` | `SANDBOX_SUPERVISOR_TOKEN` (published-images Compose), matching API key (and optional URL knobs for Daytona/Box) |
 
 Published-images [Compose](../infra/compose/docker-compose.images.yml) defaults to **`docker`**.
@@ -41,7 +41,9 @@ Signup and local Docker computers work **without** an E2B (or other remote) acco
 
 ## `none`
 
-Runs API/web without provisioning bot computers.
+Runs API, worker, and web without provisioning bot computers. Conversations, model calls,
+memory, and configured integrations remain available. Filesystem, shell, and desktop tools
+are omitted from runs. A model connection or deployment-wide model credential is still required.
 
 ## Remote providers
 
