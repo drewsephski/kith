@@ -1,10 +1,14 @@
 import { I18nProvider } from "@lingui/react";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ProductEvent, ThreadMessage, ThreadSnapshot } from "@rakazo/contracts";
-import { isToolActivityBlock, withLiveStreamingProgress } from "@rakazo/core";
+import {
+  isAssistantResponding,
+  isToolActivityBlock,
+  withLiveStreamingProgress,
+} from "@rakazo/core";
 import { DEFAULT_GROK_BOT_COLOR } from "@rakazo/ui-web";
 import { createRoot } from "react-dom/client";
-import { ActiveBotGlyph } from "../../src/components/ai/CollaborationMarker";
+import { ActiveBotGlyph, AssistantResponseRow } from "../../src/components/ai/CollaborationMarker";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { setResponseStreamingPreference } from "../../src/lib/response-streaming";
 import { reduceThreadSnapshot } from "../../src/lib/thread-events";
@@ -15,6 +19,7 @@ const params = new URLSearchParams(location.search);
 const view = params.get("view") === "settings" ? "settings" : "thread";
 const streamResponses = params.get("stream") !== "off";
 const phase = params.get("phase") === "done" ? "done" : "live";
+const assistantId = params.get("bot") === "other" ? "other-bot" : "bot-1";
 
 const USER_TEXT = "What's the capital of Portugal?";
 const LIVE_TOKENS = "Lisbon is the cap";
@@ -107,7 +112,7 @@ function fixtureNote(): string {
   return "Fixture: thread reducer · Stream replies on · mid-turn token progress";
 }
 
-function MessageRow({ message }: { message: ThreadMessage }) {
+function MessageRow({ message, responding }: { message: ThreadMessage; responding: boolean }) {
   const narration = message.blocks.filter(
     (block) => (block.kind === "text" || block.kind === "progress") && !isToolActivityBlock(block),
   );
@@ -132,34 +137,52 @@ function MessageRow({ message }: { message: ThreadMessage }) {
   if (narration.length === 0 && activity.length === 0) return null;
   return (
     <div className="relative flex flex-col items-start gap-2" data-message-id={message.id}>
-      {activity.map((block, i) => (
-        <div
-          key={`${message.id}-activity-${i}`}
-          data-testid="tool-activity"
-          className="text-[13px] text-muted-foreground"
-        >
-          {block.kind === "steps"
-            ? block.steps
-                .map((step) => `${step.label}${step.count > 1 ? ` ×${step.count}` : ""}`)
-                .join(" · ")
-            : block.kind === "progress"
-              ? block.text
-              : null}
-        </div>
-      ))}
-      {narration.length > 0 ? (
-        <div
-          data-testid="message-bot-bubble"
-          className="max-w-full space-y-2.5 rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
-          dir="auto"
-        >
-          {narration.map((block, i) => (
-            <div key={`${message.id}-${i}`}>
-              <ChatMarkdown streaming={block.kind === "progress"}>{block.text}</ChatMarkdown>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+        {activity.map((block, i) => (
+          <div
+            key={`${message.id}-activity-${i}`}
+            data-testid="tool-activity"
+            className="text-[13px] text-muted-foreground"
+          >
+            {block.kind === "steps"
+              ? block.steps
+                  .map((step) => `${step.label}${step.count > 1 ? ` ×${step.count}` : ""}`)
+                  .join(" · ")
+              : block.kind === "progress"
+                ? block.text
+                : null}
+          </div>
+        ))}
+        {narration.length > 0 ? (
+          responding ? (
+            <AssistantResponseRow>
+              <div
+                data-testid="message-bot-bubble"
+                className="min-w-0 px-1 py-1 text-[15.5px] leading-[1.7] text-foreground"
+                dir="auto"
+              >
+                {narration.map((block, i) => (
+                  <ChatMarkdown key={`${message.id}-${i}`} streaming={block.kind === "progress"}>
+                    {block.text}
+                  </ChatMarkdown>
+                ))}
+              </div>
+            </AssistantResponseRow>
+          ) : (
+            <div
+              data-testid="message-bot-bubble"
+              className="max-w-full space-y-2.5 rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+              dir="auto"
+            >
+              {narration.map((block, i) => (
+                <div key={`${message.id}-${i}`}>
+                  <ChatMarkdown streaming={block.kind === "progress"}>{block.text}</ChatMarkdown>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
+          )
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -173,6 +196,15 @@ function ThreadFixture({ snapshot }: { snapshot: ThreadSnapshot }) {
         (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
       ),
   );
+  const workingBots = [
+    {
+      botId: "bot-1",
+      name: "Chief",
+      color: DEFAULT_GROK_BOT_COLOR,
+      status: snapshot.run?.status,
+    },
+  ];
+  const assistantResponding = isAssistantResponding(assistantId, workingBots);
   return (
     <main className="flex min-h-screen flex-col justify-end bg-background px-4 py-5 text-foreground md:px-7 md:py-6">
       <p data-testid="fixture-note" className="mb-4 text-[12.5px] text-muted-foreground/80">
@@ -180,13 +212,16 @@ function ThreadFixture({ snapshot }: { snapshot: ThreadSnapshot }) {
       </p>
       <div data-testid="transcript" className="flex flex-col gap-3">
         {snapshot.messages.map((message) => (
-          <MessageRow key={message.id} message={message} />
+          <MessageRow
+            key={message.id}
+            message={message}
+            responding={
+              assistantResponding && message.role === "bot" && message.id.startsWith("progress:")
+            }
+          />
         ))}
         {running && !hasLiveProgressText ? (
-          <ActiveBotGlyph
-            bots={[{ botId: "bot-1", name: "Chief", color: DEFAULT_GROK_BOT_COLOR }]}
-            label="Chief is working"
-          />
+          <ActiveBotGlyph bots={workingBots} assistantId={assistantId} label="Chief is working" />
         ) : null}
       </div>
     </main>

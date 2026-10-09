@@ -22,9 +22,11 @@ import {
   forwardProbeAfterPage,
   groupVoiceChats,
   isApprovalAskBlock,
+  isAssistantResponding,
   isPeerReceiptBlocks,
   isRunTerminalEvent,
   isSecretAskBlock,
+  isToolActivityBlock,
   latestAnswerableAskMessageId,
   leaveThreadWindow,
   mentionChipKey,
@@ -95,6 +97,7 @@ import { FailedSendBubble } from "../components/failed-send-bubble";
 import { GlassSurface } from "../components/glass-surface";
 import type { ImageArtifactPreviewTarget } from "../components/image-artifact-viewer";
 import { InlineImageAttachment } from "../components/inline-image-attachment";
+import { KithWorkingAvatar } from "../components/kith-working-avatar";
 import { McpApprovalCard } from "../components/McpApprovalCard";
 import type { MarkdownArtifactPreviewTarget } from "../components/markdown-artifact-preview";
 import { MarkdownArtifactPreview } from "../components/markdown-artifact-preview";
@@ -382,6 +385,8 @@ function createThreadHeaderStyles() {
 }
 
 function Thread() {
+  const focused = useIsFocused();
+  const [assistantId, setAssistantId] = useState<string | null>(null);
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
   const styles = useThemedStyles(createThreadHeaderStyles);
@@ -450,6 +455,18 @@ function Thread() {
   const autoSpoken = useRef<string | null>(null);
   const autoSpokenBotId = useRef<string | null>(null);
   const threadKey = groupId ?? botId;
+  useEffect(() => {
+    let current = true;
+    setAssistantId(null);
+    void rpc<{ botId: string | null }>("assistant/get")
+      .then((assistant) => {
+        if (current) setAssistantId(assistant.botId);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [threadKey]);
   const [threadScrollState, setThreadScrollState] = useState<ThreadScrollState>(() =>
     scrollBehavior.current.state(),
   );
@@ -621,6 +638,18 @@ function Thread() {
   const notificationThreadId = snap?.threadId ?? requestedThreadId ?? currentBot?.threadId;
   activeThreadId.current = notificationThreadId;
   const currentBotStatus = snap ? snap.run?.status : currentBot?.status;
+  const assistantResponding = isAssistantResponding(assistantId, [
+    { botId, status: currentBotStatus ?? undefined },
+  ]);
+  const hasAssistantProgress = visibleMessages.some(
+    (message) =>
+      message.role === "bot" &&
+      message.id.startsWith("progress:") &&
+      (message.botId ?? (!inGroup ? botId : undefined)) === assistantId &&
+      message.blocks.some(
+        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
+      ),
+  );
   const hasLiveProgress = visibleMessages.some((message) => message.id.startsWith("progress:"));
   const workingGroupBots = useMemo(() => {
     if (!inGroup) return [];
@@ -635,6 +664,9 @@ function Thread() {
     });
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
   const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
+  const footerGroupBots = workingGroupBots.filter(
+    (bot) => bot.botId !== assistantId || !hasAssistantProgress,
+  );
 
   const speakFinishedReply = useCallback(() => {
     if (!botId || inGroup || !currentBot) return;
@@ -2031,9 +2063,25 @@ function Thread() {
           displayName ??
           t("Bot"));
     const messageReactions = reactionView.reactions.get(message.id);
+    const messageBotId = message.botId ?? (!inGroup ? botId : undefined);
+    const showAssistantAvatar =
+      message.role === "bot" &&
+      message.id.startsWith("progress:") &&
+      isAssistantResponding(assistantId, [
+        {
+          botId: messageBotId,
+          status:
+            (inGroup
+              ? workingGroupBots.find((bot) => bot.botId === messageBotId)?.status
+              : currentBotStatus) ?? undefined,
+        },
+      ]);
     const activityBotId =
-      !inGroup && message.role === "bot" && message.id.startsWith("progress:")
-        ? (message.botId ?? botId)
+      message.role === "bot" &&
+      message.id.startsWith("progress:") &&
+      !inGroup &&
+      !showAssistantAvatar
+        ? (message.botId ?? (!inGroup ? botId : undefined))
         : undefined;
     const activityBot = activityBotId
       ? (snap?.members?.find((member) => member.botId === activityBotId) ??
@@ -2137,6 +2185,9 @@ function Thread() {
                   botId={botId ?? snap?.members?.[0]?.botId ?? ""}
                   groupId={groupId}
                   message={message}
+                  assistantAvatarActive={
+                    showAssistantAvatar ? focused && !threadScrollState.detached : undefined
+                  }
                   botName={displayName}
                   bots={mentionBots}
                   members={snap?.members}
@@ -2203,7 +2254,10 @@ function Thread() {
   }
 
   const workingFooter =
-    !inGroup && currentBot && isWorkingStatus(currentBotStatus) && !hasLiveProgress ? (
+    !inGroup &&
+    currentBot &&
+    isWorkingStatus(currentBotStatus) &&
+    (assistantResponding ? !hasAssistantProgress : !hasLiveProgress) ? (
       <View
         accessibilityLabel={t("{name} is working", { name: currentBot.name })}
         accessibilityRole="text"
@@ -2215,20 +2269,24 @@ function Thread() {
           marginTop: 12,
         }}
       >
-        <BotAvatar
-          color={currentBot.color}
-          identity={currentBot.id}
-          size={28}
-          status={currentBotStatus}
-        />
+        {assistantResponding ? (
+          <KithWorkingAvatar active={focused && !threadScrollState.detached} />
+        ) : (
+          <BotAvatar
+            color={currentBot.color}
+            identity={currentBot.id}
+            size={28}
+            status={currentBotStatus}
+          />
+        )}
         <WorkingIndicator />
       </View>
-    ) : inGroup && workingGroupBots.length > 0 ? (
+    ) : inGroup && footerGroupBots.length > 0 ? (
       <View
         accessibilityLabel={
-          workingGroupBots.length === 1
-            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
-            : t("{count} agents working", { count: workingGroupBots.length })
+          footerGroupBots.length === 1
+            ? t("{name} is working", { name: footerGroupBots[0]?.name ?? t("Agent") })
+            : t("{count} agents working", { count: footerGroupBots.length })
         }
         accessibilityRole="text"
         style={{
@@ -2239,15 +2297,19 @@ function Thread() {
         }}
       >
         <View style={{ flexDirection: "row", paddingRight: 8 }}>
-          {workingGroupBots.map((bot, index) => (
+          {footerGroupBots.map((bot, index) => (
             <View
               key={bot.botId}
               style={{
                 marginLeft: index === 0 ? 0 : -8,
-                zIndex: workingGroupBots.length - index,
+                zIndex: footerGroupBots.length - index,
               }}
             >
-              <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
+              {isAssistantResponding(assistantId, [bot]) ? (
+                <KithWorkingAvatar active={focused && !threadScrollState.detached} />
+              ) : (
+                <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
+              )}
             </View>
           ))}
         </View>
@@ -3280,6 +3342,7 @@ const MessageBubble = memo(function MessageBubble({
   onPreviewMarkdown,
   onPreviewImage,
   actionProps,
+  assistantAvatarActive,
 }: {
   botId: string;
   botName?: string;
@@ -3295,6 +3358,7 @@ const MessageBubble = memo(function MessageBubble({
   onPreviewMarkdown: (target: MarkdownArtifactPreviewTarget) => void;
   onPreviewImage: (target: ImageArtifactPreviewTarget) => void;
   actionProps: MessageActionProps;
+  assistantAvatarActive?: boolean;
 }) {
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
@@ -3894,6 +3958,7 @@ const MessageBubble = memo(function MessageBubble({
       {segments.map((segment, index) => (
         <MessageTextCard
           key={`${message.id}-content-${index}`}
+          assistantAvatarActive={segment.kind === "content" ? assistantAvatarActive : undefined}
           message={{ ...message, blocks: segment.blocks }}
           speaker={index === firstContent ? speaker : undefined}
           speakerColor={index === firstContent ? speakerColor : undefined}
@@ -3944,17 +4009,19 @@ function MessageTextCard({
   speaker,
   speakerColor,
   actionProps,
+  assistantAvatarActive,
 }: {
   message: MobileMessage;
   speaker?: string;
   speakerColor?: string;
   actionProps: MessageActionProps;
+  assistantAvatarActive?: boolean;
 }) {
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
   const contentText = blockText(message);
   if (!contentText) return null;
-  return (
+  const card = (
     <Pressable
       {...actionProps}
       style={{
@@ -3986,6 +4053,14 @@ function MessageTextCard({
         streaming={message.id.startsWith("progress:")}
       />
     </Pressable>
+  );
+  return assistantAvatarActive === undefined ? (
+    card
+  ) : (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      <KithWorkingAvatar active={assistantAvatarActive} />
+      <View style={{ flex: 1, minWidth: 0 }}>{card}</View>
+    </View>
   );
 }
 

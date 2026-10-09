@@ -1,0 +1,12 @@
+{
+  "origin": "User-supplied blue companion animation",
+  "sourceSha256": "fc5f2ed154c193655678345df1179a46b12a14e907279baf17ccdaecaad46d89",
+  "exports": ["kith-companion-working.webp", "kith-companion-working.gif"],
+  "width": 96,
+  "height": 96,
+  "durationMs": 10000,
+  "frameCount": 120,
+  "loop": "infinite",
+  "audio": false,
+  "processing": "Crop 640x640 at (320,32); derive alpha from blue chroma and foreground luminance, retain connected foreground and enclosed facial features, remove dark backdrop contribution from partial alpha, resize with Lanczos, export at 12 fps. WebP quality 78, method 3. GIF uses 127 shared colors, reserved transparency index 255, disposal 2."
+}

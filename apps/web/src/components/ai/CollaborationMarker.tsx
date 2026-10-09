@@ -1,5 +1,17 @@
-import { BotAvatar, type GroupAvatarMember, KithAvatar } from "@rakazo/ui-web";
+import { isAssistantResponding } from "@rakazo/core";
+import type { GroupAvatarMember } from "@rakazo/ui-web";
+import { BotAvatar, GroupAvatar, KithAvatar } from "@rakazo/ui-web";
+import type { ReactNode } from "react";
 import { LoadingState } from "./primitives";
+
+export function AssistantResponseRow({ children }: { children: ReactNode }) {
+  return (
+    <div data-testid="assistant-response-row" className="flex max-w-full items-center gap-2.5">
+      <KithAvatar size={36} working />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
 
 /** Lightweight peer event shown without exposing the exchanged message body. */
 export function CollaborationMarker({
@@ -33,14 +45,29 @@ export function CollaborationMarker({
   );
 }
 
-export function ActiveBotGlyph({ label }: { bots: GroupAvatarMember[]; label: string }) {
+export function ActiveBotGlyph({
+  bots,
+  label,
+  assistantId,
+}: {
+  bots: GroupAvatarMember[];
+  label: string;
+  assistantId?: string | null;
+}) {
+  const assistantResponding = isAssistantResponding(assistantId, bots);
   return (
-    <div className="flex min-h-10 items-center px-1">
+    <div data-testid="active-bot-glyph" className="flex min-h-10 items-center px-1">
       <LoadingState
         indicator={
           <>
-            <KithAvatar size={28} />
-            <span className="text-sm text-muted-foreground">{label}</span>
+            {assistantResponding ? (
+              <KithAvatar size={36} working />
+            ) : (
+              <GroupAvatar members={bots} size={28} />
+            )}
+            <span aria-hidden="true" className="text-sm text-muted-foreground">
+              {label}
+            </span>
           </>
         }
         label={label}

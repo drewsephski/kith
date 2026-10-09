@@ -230,18 +230,19 @@ describe("Android mobile platform contract", () => {
     expect(scroll).toContain('this.contentReady && !this.currentState.detached ? "jump" : null');
   });
 
-  it("stacks every currently working agent in a group footer", () => {
+  it("stacks working agents without duplicating the assistant beside its live reply", () => {
     const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
-    expect(thread).toContain("workingGroupBots.map");
-    expect(thread).toContain("inGroup && workingGroupBots.length > 0 ?");
-    expect(thread).toContain("workingGroupBots.length - index");
+    expect(thread).toContain("footerGroupBots.map");
+    expect(thread).toContain("inGroup && footerGroupBots.length > 0 ?");
+    expect(thread).toContain("footerGroupBots.length - index");
+    expect(thread).toContain("bot.botId !== assistantId || !hasAssistantProgress");
     expect(thread).toContain("agents working");
     // Visible chrome is avatar-only; copy stays on accessibilityLabel.
     expect(thread).toMatch(
-      /accessibilityLabel=\{\s*workingGroupBots\.length === 1[\s\S]*agents working/,
+      /accessibilityLabel=\{\s*footerGroupBots\.length === 1[\s\S]*agents working/,
     );
     expect(thread).not.toMatch(
-      /workingGroupBots\.length === 1\s*\?[\s\S]*<Text[^>]*>\s*\{t\("\{name\} is working"/,
+      /footerGroupBots\.length === 1\s*\?[\s\S]*<Text[^>]*>\s*\{t\("\{name\} is working"/,
     );
   });
 

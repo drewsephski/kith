@@ -2,6 +2,8 @@
 
 `kith-companion-source.png` is the canonical user-supplied blue bot artwork, with transparency preserved and metadata stripped. `kith-companion.webp` is the shared web/Electron avatar, and `kith-companion.png` is the native UI mark. `kith-app-icon.png` is the opaque, unmasked native icon master. The WebP sidecar records the source checksum and export command.
 
+`kith-companion-working.webp` (web/Electron) and `kith-companion-working.gif` (native) are silent, transparent loops derived from the supplied avatar video. They appear beside the personal assistant's live message, or beside its loading label before text arrives. Other bots keep their own avatars. Playback requires a generating run, visible UI, an active app, and no Reduce Motion preference; unavailable media falls back to the still companion. The animation sidecar records source provenance and export details. These assets are independent of the static brand generator.
+
 `Rakazo.icon` retains its compatibility filename and is the shared editable source for macOS and iOS. It uses the Kith foreground on the shared light background token. Open it in Apple Icon Composer with Xcode 26 or newer. Its `orange-bot.png` layer filename is also retained for compatibility; the artwork is Kith.
 
 Platform exports:

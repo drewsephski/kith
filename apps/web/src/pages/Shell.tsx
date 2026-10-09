@@ -43,6 +43,7 @@ import {
   groupVoiceChats,
   inferAttachmentMimeType,
   isActive,
+  isAssistantResponding,
   isPeerReceiptBlocks,
   isRunTerminalEvent,
   isToolActivityBlock,
@@ -144,7 +145,11 @@ import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
-import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import {
+  ActiveBotGlyph,
+  AssistantResponseRow,
+  CollaborationMarker,
+} from "../components/ai/CollaborationMarker";
 import { CalendarConnection } from "../components/CalendarConnection";
 import { CalendarReceipt } from "../components/CalendarReceipt";
 import { CloudAgentCard } from "../components/CloudAgentCard";
@@ -3849,6 +3854,7 @@ export function ShellPage() {
             answerableAskMessageId={answerableAskMessageId}
             running={transcriptRunning}
             workingBots={workingBots}
+            assistantId={assistantId}
             onLoadOlder={loadOlder}
             onOpenBot={openBot}
             onAnswer={answerMessage}
@@ -5062,6 +5068,7 @@ const Transcript = memo(function Transcript({
   answerableAskMessageId,
   running,
   workingBots,
+  assistantId,
   onLoadOlder,
   onOpenBot,
   onAnswer,
@@ -5094,6 +5101,7 @@ const Transcript = memo(function Transcript({
   answerableAskMessageId: string | null;
   running: boolean;
   workingBots: GroupAvatarMember[];
+  assistantId: string | null;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
   onAnswer: (message: ThreadMessage, text: string, username?: string) => Promise<void>;
@@ -5146,6 +5154,20 @@ const Transcript = memo(function Transcript({
     workingBotName != null && workingBotName !== ""
       ? t`${workingBotName} is working`
       : t`Kith is working`;
+  const assistantResponding = isAssistantResponding(assistantId, workingBots);
+  const isLiveAssistantMessage = (message: ThreadMessage) =>
+    assistantResponding &&
+    message.role === "bot" &&
+    message.id.startsWith("progress:") &&
+    (message.botId ?? ("botId" in artifactTarget ? artifactTarget.botId : undefined)) ===
+      assistantId;
+  const hasAssistantProgress = messages.some(
+    (message) =>
+      isLiveAssistantMessage(message) &&
+      message.blocks.some(
+        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
+      ),
+  );
   const [quoteDraft, setQuoteDraft] = useState<{
     message: ThreadMessage;
     text: string;
@@ -5434,6 +5456,7 @@ const Transcript = memo(function Transcript({
           const message = item.message;
           if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
+          const showAssistantAvatar = !peerReceipt && isLiveAssistantMessage(message);
           const messageReactions = reactionView.reactions.get(message.id);
           return (
             <Fragment key={message.id}>
@@ -5493,6 +5516,7 @@ const Transcript = memo(function Transcript({
                       onSpeak={() => onSpeak(message)}
                       onOpenComputer={onOpenComputer}
                       showToolActivity={showToolActivity}
+                      showAssistantAvatar={showAssistantAvatar}
                     />
                     {peerReceipt ? null : (
                       <MessageHoverActions
@@ -5551,15 +5575,17 @@ const Transcript = memo(function Transcript({
           );
         })}
         {running &&
-        !messages.some(
-          (message) =>
-            message.id.startsWith("progress:") &&
-            message.blocks.some(
-              (block) =>
-                block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-            ),
-        ) ? (
-          <ActiveBotGlyph bots={workingBots} label={workingLabel} />
+        (assistantResponding
+          ? !hasAssistantProgress
+          : !messages.some(
+              (message) =>
+                message.id.startsWith("progress:") &&
+                message.blocks.some(
+                  (block) =>
+                    block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
+                ),
+            )) ? (
+          <ActiveBotGlyph bots={workingBots} label={workingLabel} assistantId={assistantId} />
         ) : null}
       </div>
       {quoteDraft ? (
@@ -6934,6 +6960,7 @@ const MessageView = memo(function MessageView({
   onSpeak,
   onOpenComputer,
   showToolActivity,
+  showAssistantAvatar = false,
 }: {
   artifactTarget: ArtifactTarget;
   canAnswer: boolean;
@@ -6954,6 +6981,7 @@ const MessageView = memo(function MessageView({
   onSpeak: () => void;
   onOpenComputer: (botId?: string) => void;
   showToolActivity: boolean;
+  showAssistantAvatar?: boolean;
 }) {
   const { t } = useLingui();
   const isNarration =
@@ -7045,7 +7073,17 @@ const MessageView = memo(function MessageView({
                     key={i}
                     data-quote-message-id={block.kind === "text" ? quoteMessageId : undefined}
                   >
-                    <ChatMarkdown streaming={block.kind === "progress"}>{block.text}</ChatMarkdown>
+                    {showAssistantAvatar ? (
+                      <AssistantResponseRow>
+                        <ChatMarkdown streaming={block.kind === "progress"}>
+                          {block.text}
+                        </ChatMarkdown>
+                      </AssistantResponseRow>
+                    ) : (
+                      <ChatMarkdown streaming={block.kind === "progress"}>
+                        {block.text}
+                      </ChatMarkdown>
+                    )}
                   </div>
                 );
               }
@@ -7150,7 +7188,13 @@ const MessageView = memo(function MessageView({
                 className="max-w-full px-1 py-1 text-[15.5px] leading-[1.7] text-foreground"
                 dir="auto"
               >
-                <ChatMarkdown streaming>{block.text}</ChatMarkdown>
+                {showAssistantAvatar ? (
+                  <AssistantResponseRow>
+                    <ChatMarkdown streaming>{block.text}</ChatMarkdown>
+                  </AssistantResponseRow>
+                ) : (
+                  <ChatMarkdown streaming>{block.text}</ChatMarkdown>
+                )}
               </div>
             </div>
           );

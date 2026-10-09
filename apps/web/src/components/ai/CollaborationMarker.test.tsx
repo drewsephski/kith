@@ -24,16 +24,31 @@ describe("collaboration transcript markers", () => {
     expect(html).not.toContain("{peer}");
   });
 
-  it("shows the companion and a readable progress status", () => {
+  it("shows another bot's own avatar and readable progress status", () => {
     const html = renderToString(
       <ActiveBotGlyph
         bots={[{ botId: "research", color: "#14B8A6", status: "running" }]}
         label="Research is working"
+        assistantId="first"
       />,
     );
 
     expect(html).toContain('role="status"');
     expect(html).toContain("Research is working");
+    expect(html).toContain("rakazo-bot-avatar");
+    expect(html).not.toContain("kith-companion");
+  });
+
+  it("uses the working companion only when the bound assistant is generating", () => {
+    const html = renderToString(
+      <ActiveBotGlyph
+        bots={[{ botId: "first", color: "#14B8A6", status: "running" }]}
+        assistantId="first"
+        label="Kith is working"
+      />,
+    );
     expect(html).toContain("kith-companion");
+    expect(html).toContain('data-working="true"');
+    expect(html).toContain('role="status"');
   });
 });
