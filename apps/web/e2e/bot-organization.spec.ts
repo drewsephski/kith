@@ -1,12 +1,21 @@
 import { expect, test } from "@playwright/test";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `bot-organize-${stamp}@rakazo.test`, "password12", "Test User");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const bot = sidebar.getByRole("button", { name: /^Kith/ });
@@ -36,6 +45,7 @@ test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
   await captureScreenshot(page, testInfo, "bot-sections");
 
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(projects).toContainText("Projects");
   await expect(projects).toContainText("Kith");
 
@@ -65,8 +75,10 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   const stamp = Date.now();
   await signup(page, `bot-reorder-${stamp}@rakazo.test`, "password12", "Bot Order");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
   const alpha = await rpc<{ id: string }>(page, "bots/create", {
@@ -86,6 +98,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
     computerMode: "team",
   });
   await page.reload();
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const rows = sidebar.locator("[data-roster-bot-id]");
@@ -132,6 +145,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await staleListDelivered;
   await expect.poll(order).toEqual([beta.id, chiefId, alpha.id]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([beta.id, chiefId, alpha.id]);
 
   const betaRow = sidebar.locator(`[data-roster-bot-id="${beta.id}"]`);
@@ -139,6 +153,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await page.keyboard.press("Alt+ArrowDown");
   await expect.poll(order).toEqual([chiefId, beta.id, alpha.id]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([chiefId, beta.id, alpha.id]);
 
   let releaseRejectedReorder!: () => void;
@@ -173,6 +188,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await queuedReorderSaved;
   await expect.poll(order).toEqual([beta.id, alpha.id, chiefId]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([beta.id, alpha.id, chiefId]);
 });
 
@@ -180,6 +196,7 @@ test("chat composer controls are vertically centered", async ({ page }, testInfo
   const stamp = Date.now();
   await signup(page, `composer-layout-${stamp}@rakazo.test`, "password12", "Composer Layout");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const bar = page.getByTestId("composer-bar");
   const composer = page.getByRole("combobox", { name: "Message Kith" });
@@ -251,8 +268,10 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
   const stamp = Date.now();
   await signup(page, `group-organize-${stamp}@rakazo.test`, "password12", "Group Menu");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
   const partner = await rpc<{ id: string }>(page, "bots/create", {
@@ -268,6 +287,7 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
     botIds: [chiefId, partner.id],
   });
   await page.reload();
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const group = sidebar.getByRole("button", { name: /^Group menu/ });

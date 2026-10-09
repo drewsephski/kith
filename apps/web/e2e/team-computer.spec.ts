@@ -4,6 +4,7 @@ import {
   captureScreenshot,
   completeOnboarding,
   createNamedBot,
+  openAdvancedNavigation,
   realSandboxTimeout,
   rpc,
   signup,
@@ -19,6 +20,7 @@ test("Team Computer gives bots a home folder plus shared space while Private sta
 
   await signup(page, `team-computer-${stamp}@rakazo.test`, "password12", "Team Computer");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const chiefId = activeBotId(page);
 
   await openComputerPanel(page);
@@ -87,6 +89,7 @@ test("user control leaves another Team bot's screen available", async ({ page },
 
   await signup(page, `team-control-${stamp}@rakazo.test`, "password12", "Team Control");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const chiefId = activeBotId(page);
   const workerId = await createBot(page, "Worker", "team");
 
@@ -128,6 +131,7 @@ test("user control leaves another Team bot's screen available", async ({ page },
 test("a failed control release keeps the computer open for retry", async ({ page }, testInfo) => {
   await signup(page, `team-release-${Date.now()}@rakazo.test`, "password12", "Team Release");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.getByTitle("Agent computer").click();
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
@@ -156,6 +160,7 @@ test("an active Team bot must be stopped before user takeover", async ({ page },
     "Active Team Control",
   );
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const chiefId = activeBotId(page);
 
   await sendMessage(page, "keep working until I stop you");

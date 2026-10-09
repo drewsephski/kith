@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, createNamedBot, signup } from "./helpers";
+import {
+  captureScreenshot,
+  completeOnboarding,
+  createNamedBot,
+  openAdvancedNavigation,
+  signup,
+} from "./helpers";
 
 async function captureSidebarSearchSelected(
   page: Page,
@@ -48,6 +54,7 @@ test("account settings appearance control switches to light mode", async ({ page
   const stamp = Date.now();
   await signup(page, `ui-appearance-${stamp}@rakazo.test`, "password12", "Appearance QA");
   await completeOnboarding(page, testInfo);
+  await openAdvancedNavigation(page);
 
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -101,6 +108,7 @@ test("sidebar bot rows hover with the same tone as the integrations row", async 
   const stamp = Date.now();
   await signup(page, `ui-hover-${stamp}@rakazo.test`, "password12", "Hover QA");
   await completeOnboarding(page, testInfo);
+  await openAdvancedNavigation(page);
   await createNamedBot(page, "Second Bot");
 
   const sidebar = page.locator("aside").first();

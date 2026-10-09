@@ -3,6 +3,7 @@ import {
   activeBotId,
   captureScreenshot,
   completeOnboarding,
+  openAdvancedNavigation,
   realSandboxTimeout,
   rpc,
   signup,
@@ -25,10 +26,12 @@ test("two users are isolated and a bot completes durable work", async ({ browser
   const stamp = Date.now();
   await signup(pageA, `ada-${stamp}@rakazo.test`, "password12", "Ada", testInfo);
   await completeOnboarding(pageA, testInfo);
+  await openAdvancedNavigation(pageA);
   await expect(pageA.getByText("Kith").first()).toBeVisible();
 
   await signup(pageB, `bob-${stamp}@rakazo.test`, "password12", "Bob");
   await completeOnboarding(pageB);
+  await openAdvancedNavigation(pageB);
   await expect(pageB.getByText("Kith").first()).toBeVisible();
   await expect(pageB.getByText("Ada", { exact: true })).toHaveCount(0);
 
@@ -42,6 +45,7 @@ test("two users are isolated and a bot completes durable work", async ({ browser
   });
 
   await pageA.reload();
+  await openAdvancedNavigation(pageA);
   await expect(pageA.getByText(/isolation-ok|writing that into my home/i).first()).toBeVisible();
   await captureScreenshot(pageA, testInfo, "07-durable-bot-work");
 
@@ -53,6 +57,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   const stamp = Date.now();
   await signup(page, `flow-${stamp}@rakazo.test`, "password12", "Flow");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("install the gsc cli and sign in");
@@ -343,6 +348,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   const email = `shell-${stamp}@rakazo.test`;
   await signup(page, email, "password12", "Shell");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.evaluate(() => {
     Object.defineProperty(globalThis.crypto, "randomUUID", {
       value: undefined,
@@ -431,6 +437,7 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   const stamp = Date.now();
   await signup(page, `menu-${stamp}@rakazo.test`, "password12", "Menu");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const chief = page.getByRole("button", { name: /Kith/ }).first();
   await chief.click({ button: "right" });

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test.afterEach(async ({ page }) => {
   // Polling can leave a route.fetch response in use when the assertions finish.
@@ -83,6 +83,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   const userName = `Messenger ${stamp}`;
   await signup(page, `messaging-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
   await page.getByRole("button", { name: "Settings" }).click();
@@ -203,6 +204,7 @@ test("team conversation settings open from messaging overlay", async ({ page }, 
   const userName = `TeamChat ${stamp}`;
   await signup(page, `team-chat-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
   await page.getByRole("button", { name: "Settings" }).click();

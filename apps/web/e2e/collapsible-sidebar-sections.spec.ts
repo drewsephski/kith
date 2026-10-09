@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test("titled sidebar section expands and collapses", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `sidebar-collapse-${stamp}@rakazo.test`, "password12", "Test User");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const bot = sidebar.getByRole("button", { name: /^Kith/ });

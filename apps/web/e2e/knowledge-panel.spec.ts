@@ -5,6 +5,7 @@ import {
   activeBotId,
   captureScreenshot,
   completeOnboarding,
+  openAdvancedNavigation,
   openUserSettings,
   rpc,
   signup,
@@ -15,8 +16,10 @@ test("memory and skills are readable and editable in the app", async ({ page }, 
   const userName = `Knowledge ${stamp}`;
   await signup(page, `knowledge-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   // Space-wide documents live in Settings → Memory. Open that before bot
   // settings so the Knowledge Memory tab cannot steal this click.
