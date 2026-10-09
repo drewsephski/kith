@@ -22,7 +22,7 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await expect(picker).toBeVisible();
   await expect(picker.getByPlaceholder("Search")).toBeVisible();
   await expect(picker.getByTestId("create-new-bot")).toBeVisible();
-  await expect(picker.getByText("Chief", { exact: true })).toBeVisible();
+  await expect(picker.getByText("Kith", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "plus-picker-bots");
 
   await picker.getByTestId("create-new-bot").click();

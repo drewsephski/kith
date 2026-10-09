@@ -90,7 +90,7 @@ test("user control leaves another Team bot's screen available", async ({ page },
   const chiefId = activeBotId(page);
   const workerId = await createBot(page, "Worker", "team");
 
-  await openBot(page, "Chief");
+  await openBot(page, "Kith");
   await page.getByTitle("Agent computer").click();
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();

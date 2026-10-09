@@ -117,7 +117,10 @@ interface FinalizeRunBase {
   attemptId: string;
   leaseOwner: string;
   leaseFence: number;
+  calendarConnection?: { id: string; generation: string };
 }
+
+export class CalendarConnectionChangedError extends Error {}
 
 export type FinalizeRunInput = FinalizeRunBase &
   (
@@ -1111,6 +1114,18 @@ async function finalizeRunOnce(
 ): Promise<{ threadId: string; seq: number; continuationRunId: string | null } | null> {
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
+    if (input.outcome === "completed" && input.calendarConnection) {
+      await tx.$queryRaw`SELECT id FROM connections WHERE id = ${input.calendarConnection.id} FOR UPDATE`;
+      const connection = await tx.connection.findFirst({
+        where: {
+          id: input.calendarConnection.id,
+          spaceId: input.spaceId,
+          status: "connected",
+          metadata: { path: ["generation"], equals: input.calendarConnection.generation },
+        },
+      });
+      if (!connection) throw new CalendarConnectionChangedError();
+    }
     let writableRun: { startedAt: Date | null } | undefined;
     try {
       writableRun = await assertRunCanWriteHistory(tx, input.runId);

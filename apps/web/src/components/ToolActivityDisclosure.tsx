@@ -1,4 +1,4 @@
-import { Plural } from "@lingui/react/macro";
+import { Plural, Trans } from "@lingui/react/macro";
 import type { ThreadMessage } from "@rakazo/contracts";
 import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
@@ -34,7 +34,7 @@ export function ToolSteps({
         return (
           <div key={index} className="flex min-w-0 items-center gap-2 leading-5">
             <span
-              className={`text-[12px] ${isCurrent ? "text-warning" : "text-success"}`}
+              className={`text-[12px] motion-reduce:animate-none ${isCurrent ? "text-warning" : "text-success"}`}
               style={{ animation: isCurrent ? "rkPulse 1.2s ease-in-out infinite" : undefined }}
             >
               {isCurrent ? "◷" : "✓"}
@@ -55,12 +55,7 @@ export function ToolSteps({
   );
 }
 
-/**
- * The tool-activity card. It starts open while the run is live and folds when the run
- * ends: the `key` swap remounts the element, so `open` restarts from `live`. A manual
- * collapse during the run holds, because React only rewrites `open` when the prop
- * changes, and it stays `true` for the whole run.
- */
+/** Details stay quiet by default. A completed run folds an expanded live card. */
 export function ToolActivityDisclosure({
   live,
   stepCount,
@@ -76,7 +71,6 @@ export function ToolActivityDisclosure({
   return (
     <details
       key={live ? "working" : "actions"}
-      open={live}
       data-testid="tool-activity"
       data-live={live || undefined}
       className="group"
@@ -93,10 +87,10 @@ export function ToolActivityDisclosure({
           className="transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
         />
         {live ? (
-          <Plural value={stepCount} one="Working… · # tool" other="Working… · # tools" />
+          <Trans>Working…</Trans>
         ) : (
           <>
-            <Plural value={stepCount} one="Done · # tool" other="Done · # tools" />
+            <Plural value={stepCount} one="Activity · # step" other="Activity · # steps" />
             {duration ? ` · ${duration}` : null}
           </>
         )}

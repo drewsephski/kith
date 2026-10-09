@@ -166,6 +166,17 @@ Optional `CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_SHAPE`, and
 `CREATEOS_SANDBOX_ROOTFS` default to `https://api.sb.createos.sh`, `s-2vcpu-2gb`,
 and `desktop:1`.
 
+## Run without Docker
+
+Use managed PostgreSQL (including Neon) or a native PostgreSQL installation, and run the API,
+worker, and web app as Node processes. Set `DATABASE_URL`, set `DATABASE_DIRECT_URL` when using
+a transaction pooler, and choose `SANDBOX_PROVIDER=none` or an existing remote computer provider.
+Then run `pnpm db:generate`, `pnpm db:migrate`, and `pnpm dev:host`.
+
+For production, build the web app and use `pnpm start:host` behind HTTPS. API and worker share
+one persistent data directory. See the [Docker-free host deployment guide](./docs/host-deployment.md)
+for setup, connection routing, production commands, and verification.
+
 ## Desktop and mobile
 
 The Electron and Expo apps are clients of the same Rakazo API used by the web app.

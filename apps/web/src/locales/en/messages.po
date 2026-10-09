@@ -170,12 +170,8 @@ msgid "{size} B"
 msgstr "{size} B"
 
 #: src/components/ToolActivityDisclosure.tsx
-msgid "{stepCount, plural, one {Done · # tool} other {Done · # tools}}"
-msgstr "{stepCount, plural, one {Done · # tool} other {Done · # tools}}"
-
-#: src/components/ToolActivityDisclosure.tsx
-msgid "{stepCount, plural, one {Working… · # tool} other {Working… · # tools}}"
-msgstr "{stepCount, plural, one {Working… · # tool} other {Working… · # tools}}"
+msgid "{stepCount, plural, one {Activity · # step} other {Activity · # steps}}"
+msgstr "{stepCount, plural, one {Activity · # step} other {Activity · # steps}}"
 
 #: src/pages/ActivityList.tsx
 msgid "{title}, {label}"
@@ -197,6 +193,10 @@ msgstr "@{0}"
 #: src/pages/shell/message-cards.tsx
 msgid "A bit of everything"
 msgstr "A bit of everything"
+
+#: src/pages/Welcome.tsx
+msgid "A little help with life."
+msgstr "A little help with life."
 
 #. placeholder {0}: oauth.verificationUri.replace(/^https:\/\//, "")
 #: src/pages/ModelSettingsOverlay.tsx
@@ -270,6 +270,10 @@ msgstr "Active"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Active model"
 msgstr "Active model"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Active threads"
+msgstr "Active threads"
 
 #: src/components/computer/TerminalApp.tsx
 #: src/pages/Shell.tsx
@@ -395,6 +399,10 @@ msgstr "Adding…"
 msgid "Advanced"
 msgstr "Advanced"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Advanced navigation"
+msgstr "Advanced navigation"
+
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr "Advanced..."
@@ -411,9 +419,13 @@ msgstr "Agent connections"
 msgid "Agents:"
 msgstr "Agents:"
 
+#: src/components/CalendarReceipt.tsx
+msgid "AI suggestions"
+msgstr "AI suggestions"
+
 #: src/pages/Artifacts.tsx
-msgid "All bots"
-msgstr "All bots"
+msgid "All conversations"
+msgstr "All conversations"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "All providers"
@@ -557,7 +569,6 @@ msgstr "Archived. Chat, memory, and files kept."
 msgid "Arguments"
 msgstr "Arguments"
 
-#: src/pages/Artifacts.tsx
 #: src/pages/Shell.tsx
 msgid "Artifacts"
 msgstr "Artifacts"
@@ -597,6 +608,18 @@ msgstr "Ask before sending external email"
 msgid "Ask the server owner to configure this provider."
 msgstr "Ask the server owner to configure this provider."
 
+#: src/components/CalendarConnection.tsx
+msgid "Ask the server owner to set up Google Calendar."
+msgstr "Ask the server owner to set up Google Calendar."
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Assistant"
+msgstr "Assistant"
+
+#: src/pages/Shell.tsx
+msgid "Assistant settings"
+msgstr "Assistant settings"
+
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
 msgid "at {0}"
@@ -618,6 +641,10 @@ msgstr "Attached {path}"
 #: src/pages/shell/chat-context.tsx
 msgid "Attachment"
 msgstr "Attachment"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Attempts"
+msgstr "Attempts"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -669,6 +696,10 @@ msgstr "Avatars"
 #: src/pages/RoutineEditor.tsx
 msgid "Back"
 msgstr "Back"
+
+#: src/pages/Shell.tsx
+msgid "Back to Kith"
+msgstr "Back to Kith"
 
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
@@ -748,14 +779,6 @@ msgstr "Bot to link"
 msgid "Bot's model"
 msgstr "Bot's model"
 
-#: src/pages/Artifacts.tsx
-msgid "Bots"
-msgstr "Bots"
-
-#: src/pages/Shell.tsx
-msgid "Bots are working"
-msgstr "Bots are working"
-
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
 msgstr "Bots with their own computer and browser"
@@ -763,6 +786,14 @@ msgstr "Bots with their own computer and browser"
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Brain label"
 msgstr "Brain label"
+
+#: src/components/CalendarConnection.tsx
+msgid "Briefing preferences"
+msgstr "Briefing preferences"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Briefing receipt"
+msgstr "Briefing receipt"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Browse MCP servers"
@@ -775,6 +806,14 @@ msgstr "Browser"
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
 msgstr "Built-in"
+
+#: src/components/CalendarConnection.tsx
+msgid "Calendar"
+msgstr "Calendar"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Calendar briefing · View receipt"
+msgstr "Calendar briefing · View receipt"
 
 #: src/App.tsx
 msgid "Can't reach the server."
@@ -789,6 +828,7 @@ msgstr "Can't reach the server."
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
@@ -914,8 +954,8 @@ msgid "Choose file"
 msgstr "Choose file"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "Choose which connected model Rakazo uses."
-msgstr "Choose which connected model Rakazo uses."
+msgid "Choose which connected model Kith uses."
+msgstr "Choose which connected model Kith uses."
 
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
@@ -947,6 +987,8 @@ msgstr "Client ID"
 msgid "Client secret"
 msgstr "Client secret"
 
+#: src/components/CalendarConnection.tsx
+#: src/components/CalendarReceipt.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1030,6 +1072,11 @@ msgstr "Code"
 msgid "Collapse {0}"
 msgstr "Collapse {0}"
 
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Collapse sidebar"
+msgstr "Collapse sidebar"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color"
 msgstr "Color"
@@ -1054,6 +1101,10 @@ msgstr "Command variable"
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "Complete"
+
+#: src/pages/ActivityList.tsx
+msgid "Completed"
+msgstr "Completed"
 
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -1138,6 +1189,10 @@ msgstr "Connect API key"
 msgid "Connect Executor"
 msgstr "Connect Executor"
 
+#: src/components/CalendarConnection.tsx
+msgid "Connect Google Calendar"
+msgstr "Connect Google Calendar"
+
 #: src/pages/shell/message-cards.tsx
 msgid "Connect MCP server “{name}”"
 msgstr "Connect MCP server “{name}”"
@@ -1183,14 +1238,23 @@ msgstr "Connected and using {0}."
 msgid "Connected. Its tools are available from your next message."
 msgstr "Connected. Its tools are available from your next message."
 
+#: src/components/CalendarConnection.tsx
+msgid "Connecting Calendar…"
+msgstr "Connecting Calendar…"
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
+#: src/pages/Onboarding.tsx
 #: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connecting…"
 msgstr "Connecting…"
+
+#: src/pages/Onboarding.tsx
+msgid "Connection details"
+msgstr "Connection details"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Connection test failed."
@@ -1200,6 +1264,15 @@ msgstr "Connection test failed."
 #: src/pages/PluginsOverlay.tsx
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "Connection to {0} is still pending. You can close this and check again."
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Connections"
+msgstr "Connections"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Context"
+msgstr "Context"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -1223,6 +1296,18 @@ msgstr "Continue with {0}"
 #: src/pages/Auth.tsx
 msgid "Continue with email"
 msgstr "Continue with email"
+
+#: src/pages/Artifacts.tsx
+msgid "Conversation"
+msgstr "Conversation"
+
+#: src/pages/Shell.tsx
+msgid "Conversation details"
+msgstr "Conversation details"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Conversations"
+msgstr "Conversations"
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/ModelSettingsOverlay.tsx
@@ -1335,10 +1420,6 @@ msgstr "Could not create section"
 msgid "Could not create space"
 msgstr "Could not create space"
 
-#: src/pages/Onboarding.tsx
-msgid "Could not create your bot"
-msgstr "Could not create your bot"
-
 #: src/pages/shell/dialogs.tsx
 msgid "Could not delete bot"
 msgstr "Could not delete bot"
@@ -1350,6 +1431,10 @@ msgstr "Could not delete group"
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not delete MCP server"
 msgstr "Could not delete MCP server"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not delete memory"
+msgstr "Could not delete memory"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Could not delete routine"
@@ -1404,6 +1489,10 @@ msgstr "Could not download {name}. Try again."
 msgid "Could not download file"
 msgstr "Could not download file"
 
+#: src/pages/KnowledgeSection.tsx
+msgid "Could not forget"
+msgstr "Could not forget"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not install connector"
 msgstr "Could not install connector"
@@ -1441,6 +1530,10 @@ msgstr "Could not load billing"
 msgid "Could not load bots. Reload to try again."
 msgstr "Could not load bots. Reload to try again."
 
+#: src/components/CalendarConnection.tsx
+msgid "Could not load Calendar connection"
+msgstr "Could not load Calendar connection"
+
 #: src/components/computer/TerminalApp.tsx
 msgid "Could not load commands"
 msgstr "Could not load commands"
@@ -1458,13 +1551,33 @@ msgstr "Could not load integrations"
 msgid "Could not load MCP servers"
 msgstr "Could not load MCP servers"
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not load memory"
+msgstr "Could not load memory"
+
+#: src/pages/Onboarding.tsx
+msgid "Could not load model providers"
+msgstr "Could not load model providers"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not load model settings"
 msgstr "Could not load model settings"
 
+#: src/components/CalendarConnection.tsx
+msgid "Could not load preferences"
+msgstr "Could not load preferences"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Could not load receipt"
+msgstr "Could not load receipt"
+
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
 msgstr "Could not load run history"
+
+#: src/pages/Onboarding.tsx
+msgid "Could not load setup"
+msgstr "Could not load setup"
 
 #: src/lib/account-security.ts
 #: src/pages/Auth.tsx
@@ -1494,6 +1607,10 @@ msgstr "Could not load update status"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Could not load voice settings"
 msgstr "Could not load voice settings"
+
+#: src/pages/Shell.tsx
+msgid "Could not open a conversation"
+msgstr "Could not open a conversation"
 
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/Paywall.tsx
@@ -1567,6 +1684,10 @@ msgstr "Could not render chart"
 msgid "Could not reset password"
 msgstr "Could not reset password"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Could not retry. Check your Calendar connection."
+msgstr "Could not retry. Check your Calendar connection."
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not revoke connection"
 msgstr "Could not revoke connection"
@@ -1592,6 +1713,10 @@ msgstr "Could not save backup models"
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "Could not save group"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not save memory"
+msgstr "Could not save memory"
 
 #: src/pages/Onboarding.tsx
 msgid "Could not save model"
@@ -1649,6 +1774,10 @@ msgstr "Could not start OAuth"
 msgid "Could not start teaching"
 msgstr "Could not start teaching"
 
+#: src/pages/Onboarding.tsx
+msgid "Could not start your assistant"
+msgstr "Could not start your assistant"
+
 #: src/components/AskCard.tsx
 msgid "Could not submit this answer"
 msgstr "Could not submit this answer"
@@ -1664,6 +1793,10 @@ msgstr "Could not update"
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not update agent access"
 msgstr "Could not update agent access"
+
+#: src/components/CalendarConnection.tsx
+msgid "Could not update Calendar. Try again."
+msgstr "Could not update Calendar. Try again."
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Could not update computer"
@@ -1716,7 +1849,6 @@ msgstr "Create account"
 msgid "Create group"
 msgstr "Create group"
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-picker.tsx
 msgid "Create new Bot"
 msgstr "Create new Bot"
@@ -1739,10 +1871,11 @@ msgid "Create space"
 msgstr "Create space"
 
 #: src/pages/Auth.tsx
-msgid "Create your Rakazo"
-msgstr "Create your Rakazo"
+msgid "Create your Kith"
+msgstr "Create your Kith"
 
 #: src/components/AskCard.tsx
+#: src/components/CalendarReceipt.tsx
 msgid "Created"
 msgstr "Created"
 
@@ -1843,6 +1976,7 @@ msgstr "Default scope"
 #: src/pages/BotContextMenu.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
@@ -1858,6 +1992,7 @@ msgstr "Delete \"{0}\"?"
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.name
 #: src/pages/Artifacts.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/Shell.tsx
 msgid "Delete {0}"
 msgstr "Delete {0}"
@@ -1883,6 +2018,10 @@ msgstr "Delete memories too"
 #: src/pages/Shell.tsx
 msgid "Delete space"
 msgstr "Delete space"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Delete this memory?"
+msgstr "Delete this memory?"
 
 #: src/pages/Shell.tsx
 msgid "deleted"
@@ -1945,6 +2084,10 @@ msgstr "Disconnect"
 msgid "Disconnect {disconnectName}?"
 msgstr "Disconnect {disconnectName}?"
 
+#: src/components/CalendarConnection.tsx
+msgid "Disconnect Calendar"
+msgstr "Disconnect Calendar"
+
 #. placeholder {0}: selected.providerName ?? selected.provider
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Disconnected {0}."
@@ -1990,7 +2133,6 @@ msgstr "Docker limits access to your computer for added security. Using {hostLab
 msgid "Don’t have an account?"
 msgstr "Don’t have an account?"
 
-#: src/pages/ActivityList.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "Done"
@@ -2038,6 +2180,11 @@ msgstr "Duplicate"
 #: src/pages/shell/bot-panel.tsx
 msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
 msgstr "e.g. Hivenet Agent, Presales, Timesheets bot"
+
+#. placeholder {0}: memoryTitle(doc.path)
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Edit {0}"
+msgstr "Edit {0}"
 
 #: src/components/AskCard.tsx
 msgid "Edit first"
@@ -2097,6 +2244,10 @@ msgstr "Enter a whole number from 1 to 1000 for the image limit."
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "Enter an API key before testing."
+
+#: src/components/CalendarReceipt.tsx
+msgid "events retrieved"
+msgstr "events retrieved"
 
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -2198,6 +2349,8 @@ msgid "File is too large to upload."
 msgstr "File is too large to upload."
 
 #: src/components/computer/ComputerWorkspace.tsx
+#: src/pages/Artifacts.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Files"
 msgstr "Files"
 
@@ -2233,6 +2386,10 @@ msgstr "Finish subscription sign-in, then test again."
 msgid "finished"
 msgstr "finished"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Finished"
+msgstr "Finished"
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Finished."
@@ -2245,6 +2402,11 @@ msgstr "Finishing MCP connection…"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Flag unexpected actions"
 msgstr "Flag unexpected actions"
+
+#: src/components/CalendarConnection.tsx
+#: src/pages/KnowledgeSection.tsx
+msgid "Forget"
+msgstr "Forget"
 
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
@@ -2291,6 +2453,26 @@ msgstr "Getting ready"
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr "Git event"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Goals"
+msgstr "Goals"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good afternoon"
+msgstr "Good afternoon"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good evening"
+msgstr "Good evening"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good morning"
+msgstr "Good morning"
+
+#: src/components/CalendarConnection.tsx
+msgid "Google Calendar"
+msgstr "Google Calendar"
 
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -2347,13 +2529,13 @@ msgstr "Hear a sample"
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "Hi, this is how I'll sound when I read replies out loud."
 
-#: src/pages/Shell.tsx
-msgid "Hide bots"
-msgstr "Hide bots"
-
 #: src/pages/Auth.tsx
 msgid "Hide password"
 msgstr "Hide password"
+
+#: src/pages/Shell.tsx
+msgid "Hide sidebar"
+msgstr "Hide sidebar"
 
 #: src/components/call/VoiceChatCard.tsx
 msgid "Hide transcript"
@@ -2405,6 +2587,11 @@ msgstr "Image upload area"
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "Import OpenAPI JSON"
+
+#: src/pages/ActivityList.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "In progress"
+msgstr "In progress"
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Inactive"
@@ -2489,6 +2676,14 @@ msgstr "Keep memories"
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "key"
+
+#: src/pages/Shell.tsx
+msgid "Kith"
+msgstr "Kith"
+
+#: src/pages/Shell.tsx
+msgid "Kith is working"
+msgstr "Kith is working"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -2726,6 +2921,8 @@ msgstr "Members (pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})"
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "Memory"
 
@@ -2797,10 +2994,6 @@ msgstr "Minimal"
 msgid "Minimize"
 msgstr "Minimize"
 
-#: src/pages/Shell.tsx
-msgid "Minimize bots"
-msgstr "Minimize bots"
-
 #: src/pages/RoutineSchedule.tsx
 msgid "minute"
 msgstr "minute"
@@ -2828,6 +3021,10 @@ msgstr "Model id"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Model options"
 msgstr "Model options"
+
+#: src/pages/Onboarding.tsx
+msgid "Model settings"
+msgstr "Model settings"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Model spend uses your provider keys."
@@ -2872,6 +3069,10 @@ msgstr "More"
 msgid "More computer actions"
 msgstr "More computer actions"
 
+#: src/pages/Shell.tsx
+msgid "More connections"
+msgstr "More connections"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
 msgstr "Move {full} down"
@@ -2915,12 +3116,8 @@ msgid "Name this routine"
 msgstr "Name this routine"
 
 #: src/pages/ActivityList.tsx
-msgid "Needs input"
-msgstr "Needs input"
-
-#: src/pages/ActivityList.tsx
-msgid "Needs takeover"
-msgstr "Needs takeover"
+msgid "Needs attention"
+msgstr "Needs attention"
 
 #: src/pages/Shell.tsx
 msgid "Needs you"
@@ -2929,6 +3126,11 @@ msgstr "Needs you"
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "New bot"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "New conversation"
+msgstr "New conversation"
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -2980,10 +3182,6 @@ msgstr "No authentication"
 msgid "No bot activity yet."
 msgstr "No bot activity yet."
 
-#: src/pages/shell/command-palette.tsx
-msgid "No bots"
-msgstr "No bots"
-
 #: src/pages/shell/bot-picker.tsx
 msgid "No bots match"
 msgstr "No bots match"
@@ -2991,6 +3189,10 @@ msgstr "No bots match"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No chat apps linked yet."
 msgstr "No chat apps linked yet."
+
+#: src/pages/shell/command-palette.tsx
+msgid "No conversations"
+msgstr "No conversations"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
@@ -3011,6 +3213,10 @@ msgstr "No managed app catalog is configured on this deployment."
 #: src/pages/Artifacts.tsx
 msgid "No matching artifacts on this page."
 msgstr "No matching artifacts on this page."
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "No matching memories"
+msgstr "No matching memories"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "No matching models"
@@ -3061,6 +3267,10 @@ msgstr "No runs yet"
 msgid "No skills yet"
 msgstr "No skills yet"
 
+#: src/pages/ActivityList.tsx
+msgid "No tasks yet. Ask Kith to get something done."
+msgstr "No tasks yet. Ask Kith to get something done."
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No team conversations yet."
 msgstr "No team conversations yet."
@@ -3097,6 +3307,10 @@ msgstr "Nothing is still running"
 msgid "Nothing remembered yet"
 msgstr "Nothing remembered yet"
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Nothing remembered yet. Tell Kith what you’d like it to remember."
+msgstr "Nothing remembered yet. Tell Kith what you’d like it to remember."
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Notifications"
 msgstr "Notifications"
@@ -3113,6 +3327,14 @@ msgstr "Now using {0}."
 #: src/pages/McpOAuthCallback.tsx
 msgid "OAuth authorization was cancelled."
 msgstr "OAuth authorization was cancelled."
+
+#: src/components/CalendarConnection.tsx
+msgid "OAuth Client ID"
+msgstr "OAuth Client ID"
+
+#: src/components/CalendarConnection.tsx
+msgid "OAuth Client secret"
+msgstr "OAuth Client secret"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "OAuth connected"
@@ -3180,6 +3402,10 @@ msgid "Open in full window"
 msgstr "Open in full window"
 
 #: src/pages/Shell.tsx
+msgid "Open Kith"
+msgstr "Open Kith"
+
+#: src/pages/Shell.tsx
 msgid "Open navigation"
 msgstr "Open navigation"
 
@@ -3209,8 +3435,12 @@ msgid "Opening chat…"
 msgstr "Opening chat…"
 
 #: src/App.tsx
-msgid "Opening your Space…"
-msgstr "Opening your Space…"
+msgid "Opening Kith…"
+msgstr "Opening Kith…"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Opening…"
+msgstr "Opening…"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3225,10 +3455,6 @@ msgstr "Optional header value"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Or connect an API key"
 msgstr "Or connect an API key"
-
-#: src/pages/Onboarding.tsx
-msgid "Or paste an API key"
-msgstr "Or paste an API key"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Organic"
@@ -3286,8 +3512,8 @@ msgid "Paste a replacement key"
 msgstr "Paste a replacement key"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
+msgid "Paste the OpenAI-compatible address from your server. Kith adds /v1 if needed."
+msgstr "Paste the OpenAI-compatible address from your server. Kith adds /v1 if needed."
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Paste your API key"
@@ -3300,6 +3526,14 @@ msgstr "Paste your API key, then test again."
 #: src/pages/RoutineEditor.tsx
 msgid "Paused"
 msgstr "Paused"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "People"
+msgstr "People"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Personal assistant details"
+msgstr "Personal assistant details"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
@@ -3318,6 +3552,10 @@ msgstr "Pick a model from the list or enter a model id served by this endpoint."
 msgid "Pin"
 msgstr "Pin"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Plan tomorrow"
+msgstr "Plan tomorrow"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "Playing…"
@@ -3329,6 +3567,22 @@ msgstr "Plugin"
 #: src/pages/RoutineEditor.tsx
 msgid "POST to"
 msgstr "POST to"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preference sources"
+msgstr "Preference sources"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Preferences"
+msgstr "Preferences"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Prepare for a meeting"
+msgstr "Prepare for a meeting"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Prepare me for my next meeting."
+msgstr "Prepare me for my next meeting."
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3351,6 +3605,10 @@ msgstr "Private workspace with its own bots and groups."
 msgid "Project ID"
 msgstr "Project ID"
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Projects"
+msgstr "Projects"
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Protected input"
 msgstr "Protected input"
@@ -3369,10 +3627,6 @@ msgstr "Providers"
 msgid "Pull request"
 msgstr "Pull request"
 
-#: src/pages/ActivityList.tsx
-msgid "Queued"
-msgstr "Queued"
-
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr "Quote"
@@ -3388,6 +3642,10 @@ msgstr "Reactions"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Read replies aloud"
+
+#: src/components/CalendarConnection.tsx
+msgid "Read-only access. Your briefing starts when you connect."
+msgstr "Read-only access. Your briefing starts when you connect."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3405,6 +3663,10 @@ msgstr "Recall only"
 #: src/pages/ActivityList.tsx
 msgid "Recent"
 msgstr "Recent"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Recent conversations"
+msgstr "Recent conversations"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
@@ -3471,6 +3733,10 @@ msgstr "Recreate a computer that is not working."
 msgid "Recreating the computer"
 msgstr "Recreating the computer"
 
+#: src/components/CalendarConnection.tsx
+msgid "Redirect URI"
+msgstr "Redirect URI"
+
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -3500,6 +3766,14 @@ msgstr "Release computer"
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Release interrupted computer?"
 msgstr "Release interrupted computer?"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Remember something"
+msgstr "Remember something"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Remember that I prefer "
+msgstr "Remember that I prefer "
 
 #: src/components/ApprovalRulesSettings.tsx
 #: src/pages/ModelBackupsSettings.tsx
@@ -3664,8 +3938,13 @@ msgstr "Restoring your workspace"
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
 #: src/pages/ModelBackupsSettings.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 msgid "Retry"
 msgstr "Retry"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Retry briefing"
+msgstr "Retry briefing"
 
 #: src/App.tsx
 #: src/pages/PeerMessagesOverlay.tsx
@@ -3677,8 +3956,8 @@ msgid "Retry screen"
 msgstr "Retry screen"
 
 #: src/pages/McpOAuthCallback.tsx
-msgid "Return to Rakazo"
-msgstr "Return to Rakazo"
+msgid "Return to Kith"
+msgstr "Return to Kith"
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx
@@ -3688,6 +3967,11 @@ msgstr "rev {0}"
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
 msgstr "Review provider settings and test again."
+
+#. placeholder {0}: doc.revision
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Revision {0}"
+msgstr "Revision {0}"
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Revoke"
@@ -3711,6 +3995,7 @@ msgid "Routine"
 msgstr "Routine"
 
 #: src/pages/RoutineEditor.tsx
+#: src/pages/Shell.tsx
 msgid "Routines"
 msgstr "Routines"
 
@@ -3734,10 +4019,6 @@ msgstr "Run time must be in the future."
 msgid "running"
 msgstr "running"
 
-#: src/pages/ActivityList.tsx
-msgid "Running"
-msgstr "Running"
-
 #: src/pages/RoutineEditor.tsx
 msgid "Running · Stop"
 msgstr "Running · Stop"
@@ -3756,6 +4037,7 @@ msgstr "Runs when this bot receives a verified message from this provider."
 #: src/pages/GroupPanel.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
@@ -3765,6 +4047,10 @@ msgstr "Save"
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Save backups"
 msgstr "Save backups"
+
+#: src/components/CalendarConnection.tsx
+msgid "Save connection settings"
+msgstr "Save connection settings"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
@@ -3778,6 +4064,10 @@ msgstr "Save limits"
 msgid "Save new value"
 msgstr "Save new value"
 
+#: src/components/CalendarConnection.tsx
+msgid "Save preferences"
+msgstr "Save preferences"
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
 msgstr "Save the workspace and install current software."
@@ -3787,6 +4077,10 @@ msgstr "Save the workspace and install current software."
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Saved"
 msgstr "Saved"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Saved outcome"
+msgstr "Saved outcome"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Saved, but list refresh failed"
@@ -3828,6 +4122,7 @@ msgstr "Say yes or no, or answer in a sentence."
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-picker.tsx
 #: src/pages/shell/command-palette.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Search"
 msgstr "Search"
 
@@ -3844,17 +4139,21 @@ msgstr "Search apps"
 msgid "Search artifacts…"
 msgstr "Search artifacts…"
 
-#: src/pages/shell/command-palette.tsx
-msgid "Search bots and switch conversations"
-msgstr "Search bots and switch conversations"
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Search by domain"
 msgstr "Search by domain"
 
+#: src/pages/shell/command-palette.tsx
+msgid "Search conversations"
+msgstr "Search conversations"
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr "Search integrations.sh"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Search memory"
+msgstr "Search memory"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Search models"
@@ -3877,10 +4176,6 @@ msgstr "Search: {0}"
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "Searching…"
-
-#: src/pages/Shell.tsx
-msgid "Select a bot"
-msgstr "Select a bot"
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Select a connected model"
@@ -3939,10 +4234,15 @@ msgstr "Server name"
 msgid "Server URL"
 msgstr "Server URL"
 
+#: src/pages/Shell.tsx
+msgid "Set up Kith"
+msgstr "Set up Kith"
+
 #: src/components/call/CallCard.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "Settings"
 
@@ -3985,10 +4285,6 @@ msgid "Shell"
 msgstr "Shell"
 
 #: src/pages/Shell.tsx
-msgid "Show bots"
-msgstr "Show bots"
-
-#: src/pages/Shell.tsx
 msgid "Show computer"
 msgstr "Show computer"
 
@@ -4007,6 +4303,10 @@ msgstr "Show password"
 #: src/pages/Shell.tsx
 msgid "Show settings"
 msgstr "Show settings"
+
+#: src/pages/Shell.tsx
+msgid "Show sidebar"
+msgstr "Show sidebar"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Show tool activity"
@@ -4031,8 +4331,8 @@ msgid "Sign in again"
 msgstr "Sign in again"
 
 #: src/pages/Auth.tsx
-msgid "Sign in to Rakazo"
-msgstr "Sign in to Rakazo"
+msgid "Sign in to Kith"
+msgstr "Sign in to Kith"
 
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
@@ -4087,6 +4387,10 @@ msgstr "Software update"
 msgid "Something went wrong. Try again."
 msgstr "Something went wrong. Try again."
 
+#: src/components/CalendarReceipt.tsx
+msgid "Source records"
+msgstr "Source records"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Space changed. Reopen Models to load its backup list."
 msgstr "Space changed. Reopen Models to load its backup list."
@@ -4135,9 +4439,13 @@ msgstr "Start {trialDays}-day free trial"
 msgid "Start recording"
 msgstr "Start recording"
 
-#: src/pages/ActivityList.tsx
-msgid "Starting"
-msgstr "Starting"
+#: src/pages/Shell.tsx
+msgid "Start with what you’d like to do."
+msgstr "Start with what you’d like to do."
+
+#: src/components/CalendarReceipt.tsx
+msgid "Started"
+msgstr "Started"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/lib/roster-status.ts
@@ -4146,6 +4454,7 @@ msgstr "Starting"
 msgid "Starting…"
 msgstr "Starting…"
 
+#: src/components/CalendarReceipt.tsx
 #: src/pages/ActivityList.tsx
 msgid "Status"
 msgstr "Status"
@@ -4211,8 +4520,8 @@ msgid "Supports thinking"
 msgstr "Supports thinking"
 
 #: src/pages/shell/command-palette.tsx
-msgid "Switch bot"
-msgstr "Switch bot"
+msgid "Switch conversation"
+msgstr "Switch conversation"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Switching…"
@@ -4221,6 +4530,11 @@ msgstr "Switching…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "System"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Tasks"
+msgstr "Tasks"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
@@ -4379,16 +4693,25 @@ msgid "This server is already connected. Disconnect it first to authorize again.
 msgstr "This server is already connected. Disconnect it first to authorize again."
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
-msgstr "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
+msgid "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider."
+msgstr "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider."
 
 #: src/pages/Artifacts.tsx
 msgid "This week"
 msgstr "This week"
 
+#: src/pages/Shell.tsx
+msgid "Thread"
+msgstr "Thread"
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "Time of day"
+
+#: src/components/CalendarConnection.tsx
+#: src/components/CalendarReceipt.tsx
+msgid "Timezone"
+msgstr "Timezone"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Title"
@@ -4489,6 +4812,10 @@ msgstr "Unmute"
 msgid "Unpin"
 msgstr "Unpin"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Unread"
+msgstr "Unread"
+
 #. placeholder {0}: pending.file.name
 #: src/pages/Shell.tsx
 msgid "Unsupported file type: {0}"
@@ -4570,6 +4897,10 @@ msgstr "Use {hostLabel}"
 msgid "Use a found model"
 msgstr "Use a found model"
 
+#: src/pages/Onboarding.tsx
+msgid "Use an API key"
+msgstr "Use an API key"
+
 #: src/lib/model-connection-preflight.ts
 msgid "Use Connect to verify the key."
 msgstr "Use Connect to verify the key."
@@ -4606,6 +4937,10 @@ msgstr "Value"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Values are encrypted and never shown again."
 msgstr "Values are encrypted and never shown again."
+
+#: src/components/CalendarReceipt.tsx
+msgid "Verified calendar data"
+msgstr "Verified calendar data"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
@@ -4687,6 +5022,10 @@ msgstr "What result will you demonstrate?"
 msgid "What should this routine do each time it runs?"
 msgstr "What should this routine do each time it runs?"
 
+#: src/components/CalendarConnection.tsx
+msgid "What should your assistant keep in mind?"
+msgstr "What should your assistant keep in mind?"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "What this bot is for"
 msgstr "What this bot is for"
@@ -4694,6 +5033,14 @@ msgstr "What this bot is for"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"
 msgstr "What to return"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "What's on my schedule tomorrow?"
+msgstr "What's on my schedule tomorrow?"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "What’s on your mind?"
+msgstr "What’s on your mind?"
 
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
@@ -4711,6 +5058,7 @@ msgstr "When to use"
 msgid "Where should bots run?"
 msgstr "Where should bots run?"
 
+#: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -4745,6 +5093,10 @@ msgstr "You can close this window."
 msgid "You have control"
 msgstr "You have control"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Your assistant"
+msgstr "Your assistant"
+
 #: src/pages/Auth.tsx
 msgid "Your email address"
 msgstr "Your email address"
@@ -4752,7 +5104,3 @@ msgstr "Your email address"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Your name"
-
-#: src/pages/Welcome.tsx
-msgid "Your team of always-on agents<0/>that you can give real work to."
-msgstr "Your team of always-on agents<0/>that you can give real work to."

@@ -299,6 +299,9 @@ export const BOT_DESCRIPTION_MAX_LENGTH = 4000;
 export const BOT_INSTRUCTIONS_MAX_LENGTH = 20000;
 
 export const CreateBotInput = z.object({
+  /** Conversational surfaces open empty; advanced role-based setup may request an introduction. */
+  startEmpty: z.boolean().optional(),
+  parentBotId: Id.nullable().optional(),
   name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
   title: z.string().max(BOT_TITLE_MAX_LENGTH).default(""),
   description: z.string().max(BOT_DESCRIPTION_MAX_LENGTH).default(""),
@@ -922,6 +925,7 @@ export const RunSchema = z.object({
     "messaging",
     "cloud_agent",
     "created",
+    "calendar",
   ]),
   routineId: Id.nullable(),
   modelProvider: z.string().nullable(),
@@ -1398,6 +1402,7 @@ export const BillingStatusSchema = z.object({
 export type BillingStatus = z.infer<typeof BillingStatusSchema>;
 
 export const AppBootstrapSchema = z.object({
+  personalAssistantBotId: Id.nullable().optional(),
   me: MeSchema,
   bots: z.array(BotSchema),
   groups: z.array(GroupSchema),

@@ -20,6 +20,7 @@ import type {
 } from "@rakazo/adapters";
 import {
   applyMessagingOutboundStatus,
+  CalendarService,
   ChatSdkMessagingSurface,
   CodexCatalogCache,
   ComposioConnector,
@@ -39,6 +40,7 @@ import {
   EmailEmulator,
   ExpoPushProvider,
   endSessionPushToken,
+  GoogleCalendarProvider,
   GraphileJobPublisher,
   InMemoryJobQueue,
   InMemoryRealtimeFanout,
@@ -73,7 +75,7 @@ import {
 import { createAuth, isBlockedAuthPath, loopbackTwinOrigins } from "@rakazo/auth";
 import type { Actor, AuthCapabilities } from "@rakazo/contracts";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
-import type { Pool, PrismaClient } from "@rakazo/db";
+import type { PrismaClient } from "@rakazo/db";
 import {
   createDb,
   createPool,
@@ -193,12 +195,23 @@ export async function createApp(
         applicationName: "rakazo-api",
       });
   let { prisma } = created;
+  // Reuse one pool on direct-only deployments. Transaction-pooled deployments
+  // need a separate direct pool for Graphile setup and realtime publication.
+  const ownedJobPool =
+    (created.pool && env.directDatabaseUrl !== env.databaseUrl) ||
+    (!created.pool && env.wakeupDriver !== "memory")
+      ? createPool(env.directDatabaseUrl, {
+          poolMax: parsePositiveInteger(process.env.DB_POOL_MAX, 4),
+          applicationName: "rakazo-api-jobs",
+        })
+      : undefined;
+  const jobPool = ownedJobPool ?? created.pool;
   const realtime =
     realtimeOverride ??
     (created.pool
       ? new PostgresRealtimeFanout({
           connectionString: env.realtimeDatabaseUrl,
-          publisher: created.pool,
+          publisher: jobPool ?? created.pool,
         })
       : new InMemoryRealtimeFanout());
   const secrets = createSecretStore(env.encryptionKey, process.env, realtime);
@@ -250,17 +263,6 @@ export async function createApp(
 
   const jobKind = env.wakeupDriver;
   const inMemoryJobs = jobKind === "memory" ? new InMemoryJobQueue() : undefined;
-  // prismaOverride skips createDb, so there is no shared pool. The previous
-  // GraphileJobPublisher(databaseUrl) path opened its own connections; keep a
-  // bounded pool for that override path instead of passing undefined.
-  let ownedJobPool: Pool | undefined;
-  if (!inMemoryJobs && !created.pool) {
-    ownedJobPool = createPool(env.databaseUrl, {
-      poolMax: parsePositiveInteger(process.env.DB_POOL_MAX, 4),
-      applicationName: "rakazo-api-jobs",
-    });
-  }
-  const jobPool = created.pool ?? ownedJobPool;
   const jobs = inMemoryJobs
     ? inMemoryJobs
     : new GraphileJobPublisher(
@@ -486,7 +488,17 @@ export async function createApp(
     shutdownSignal: shutdown.signal,
   });
 
+  const calendar = new CalendarService({
+    prisma,
+    secrets,
+    provider: new GoogleCalendarProvider(),
+    jobs,
+    events,
+    memory,
+    redirectUri: new URL("/api/calendar/oauth/callback", env.apiUrl).href,
+  });
   const jobHandlers = createBackgroundJobHandlers({
+    calendar,
     executor,
     prisma,
     sandbox,
@@ -518,6 +530,7 @@ export async function createApp(
   reconciler?.start();
 
   const router = createRouter({
+    calendar,
     cloudAgent,
     codexCatalog,
     prisma,
@@ -578,6 +591,23 @@ export async function createApp(
       credentials: true,
     }),
   );
+  app.get("/api/calendar/oauth/callback", async (c) => {
+    c.header("cache-control", "no-store");
+    c.header("referrer-policy", "no-referrer");
+    c.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    const state = c.req.query("state");
+    const code = c.req.query("code");
+    if (!state || state.length > 200 || (code?.length ?? 0) > 8192)
+      return c.text("Calendar authorization expired. Connect again in the app.", 400);
+    try {
+      await calendar.callback({ state, code, denied: Boolean(c.req.query("error")) });
+      return c.text(
+        "Google Calendar connected. Your briefing is being prepared. You can return to the app.",
+      );
+    } catch {
+      return c.text("Could not connect Google Calendar. Return to the app to try again.", 400);
+    }
+  });
   app.get("/api/auth/capabilities", (c) => {
     c.header("cache-control", "no-store");
     return c.json({

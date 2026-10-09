@@ -153,6 +153,7 @@ function performanceEnvironment(databaseUrl: string): NodeJS.ProcessEnv {
     ...process.env,
     NODE_ENV: "production",
     DATABASE_URL: databaseUrl,
+    DATABASE_DIRECT_URL: databaseUrl,
     REALTIME_DATABASE_URL: databaseUrl,
     VERIFY_DATABASE: "1",
     WAKEUP_DRIVER: "memory",

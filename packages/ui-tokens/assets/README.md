@@ -1,25 +1,15 @@
-# App icon source
+# Kith artwork
 
-`Rakazo.icon` is the shared editable source for macOS and iOS. Open it in Apple's
-Icon Composer with Xcode 26 or newer. The orange foreground keeps its original
-lighting, sits 90 points below center, and uses the system dark background.
+`kith-companion.webp` is the original, transparent sage companion used by the shared web UI. `kith-app-icon.png` is the unmasked native icon master. Exact generation prompts are retained alongside both sources and embedded in shipping PNG exports; WebP provenance uses its JSON sidecar.
 
-macOS packaging compiles the source into a Tahoe asset catalog and generates the
-legacy ICNS fallback. Expo copies the same source into the iOS project.
+`Rakazo.icon` retains its compatibility filename and is the shared editable source for macOS and iOS. It uses the Kith foreground on the shared light background token. Open it in Apple Icon Composer with Xcode 26 or newer. Its `orange-bot.png` layer filename is also retained for compatibility; the artwork is Kith.
 
-The platform exports are:
+Platform exports:
 
-- `apps/desktop/assets/icon-macos.png`: Icon Composer's default appearance,
-  1024-pixel macOS pre-Tahoe export, including Dock margins for development launches.
-- `apps/mobile/assets/icon.png`: opaque 1024-pixel square for the generic/legacy icon,
-  with no rounded mask or Dock margins.
-- `apps/mobile/assets/adaptive-icon.png`: transparent 1024-pixel Android foreground;
-  the bot is 820 pixels wide, centered horizontally and offset 179 pixels from the top.
-  Its face stays inside the launcher's safe area and the body extends below the mask.
-- `apps/mobile/assets/icon-background.png`: opaque Android background using the
-  shared dark background token.
-- `apps/mobile/assets/monochrome-icon.png`: matching Android alpha silhouette with
-  transparent eyes for themed launchers.
+- Desktop `icon.png` and `icon.ico`: Linux and Windows exports of the native master.
+- Desktop `icon-macos.png`: development Dock export with transparent outer margins. Packaged macOS builds compile the shared Icon Composer source and generate a legacy ICNS fallback.
+- Mobile `icon.png`: unmasked 1024px native master. Android supplies its own mask.
+- Mobile `adaptive-icon.png`: centered transparent character foreground, with the semantic background exported separately. Notification and themed icons use its alpha silhouette.
+- Web favicons, install icons, and touch icon: resized native master exports.
 
-Refresh platform exports after changing the source. Android supplies its own mask;
-never bake Mac corners, a rim, or an outer shadow into adaptive layers.
+Keep the character's face, silhouette, and lighting consistent. Refresh these exports together when the source changes. Icon conversion requires ImageMagick; it is a design maintenance step, not a runtime dependency.

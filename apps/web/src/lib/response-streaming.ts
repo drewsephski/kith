@@ -36,7 +36,7 @@ function notify() {
   for (const listener of listeners) listener();
 }
 
-/** Saved choice wins. Nothing saved leaves streaming off. */
+/** Saved choice wins. New users see responses as they arrive. */
 export function resolveResponseStreamingPreference(
   options: ResolveResponseStreamingOptions = {},
 ): ResponseStreamingPreference {
@@ -44,7 +44,7 @@ export function resolveResponseStreamingPreference(
     options.stored !== undefined
       ? options.stored
       : readStored(options.storage ?? getLocalStorage());
-  return normalizeResponseStreamingPreference(stored);
+  return stored == null ? "on" : normalizeResponseStreamingPreference(stored);
 }
 
 export function persistResponseStreamingPreference(

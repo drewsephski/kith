@@ -87,6 +87,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppConnectCard } from "../components/AppConnectCard";
 import { AskActions } from "../components/AskActions";
 import { BotAvatar } from "../components/bot-avatar";
+import { CalendarReceipt } from "../components/CalendarReceipt";
 import { ChoiceCard } from "../components/ChoiceCard";
 import { ComputerCard } from "../components/ComputerCard";
 import { ComposerReplyPreview } from "../components/composer-reply-preview";
@@ -3899,6 +3900,11 @@ const MessageBubble = memo(function MessageBubble({
           actionProps={actionProps}
         />
       ))}
+      {message.blocks.map((block) =>
+        block.kind === "calendar_receipt" ? (
+          <CalendarReceipt key={block.receiptId} receiptId={block.receiptId} />
+        ) : null,
+      )}
       {choiceBlocks.map((block, index) => (
         <ChoiceCard
           key={`choice-${index}`}

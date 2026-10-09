@@ -72,15 +72,12 @@ test("memory and skills are readable and editable in the app", async ({ page }, 
   const exported = await readFile((await download.path())!, "utf8");
   expect(exported).toContain(latestMarker);
   expect(exported).not.toContain(marker);
-  expect(exported).not.toContain("# Chief");
+  expect(exported).not.toContain("# Kith");
   await page.getByLabel("Close memory settings").click();
   await expect(page.getByLabel("Close memory settings")).toHaveCount(0);
 
   // The bot's Knowledge section lives under Advanced in its settings panel.
-  await page
-    .locator("main")
-    .getByRole("button", { name: /^Chief/ })
-    .click();
+  await page.locator("main").getByRole("button", { name: /^Kith/ }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   await settings.getByText("Advanced", { exact: true }).click();
@@ -88,15 +85,15 @@ test("memory and skills are readable and editable in the app", async ({ page }, 
   await expect(knowledge).toBeVisible();
   await expect(knowledge.getByRole("tablist", { name: "Knowledge" })).toBeVisible();
 
-  // Bot creation seeds MEMORY.md (`# Chief`); edit it and assert the revision bumps.
+  // Bot creation seeds MEMORY.md (`# Kith`); edit it and assert the revision bumps.
   const botMemory = knowledge.getByTestId("bot-knowledge-memory");
   const botMemoryRow = botMemory.getByRole("button", { name: /MEMORY\.md/ });
   await expect(botMemoryRow).toBeVisible();
   await botMemoryRow.click();
   const botDocEditor = botMemory.locator("textarea");
-  await expect(botDocEditor).toHaveValue(/# Chief/);
+  await expect(botDocEditor).toHaveValue(/# Kith/);
   const botMarker = `Bot memory e2e ${stamp}`;
-  await botDocEditor.fill(`# Chief\n\n${botMarker}\n`);
+  await botDocEditor.fill(`# Kith\n\n${botMarker}\n`);
   await botMemory.getByRole("button", { name: "Save", exact: true }).scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "80-knowledge-bot-memory");
   await botMemory.getByRole("button", { name: "Save", exact: true }).click();
@@ -106,7 +103,7 @@ test("memory and skills are readable and editable in the app", async ({ page }, 
       botId: activeBotId(page),
       scope: "bot",
     }),
-  ).toContainEqual(expect.objectContaining({ content: `# Chief\n\n${botMarker}\n`, revision: 2 }));
+  ).toContainEqual(expect.objectContaining({ content: `# Kith\n\n${botMarker}\n`, revision: 2 }));
   await botMemoryRow.click();
   await expect(botDocEditor).toHaveValue(new RegExp(botMarker));
   await botMemory.getByRole("button", { name: "Cancel", exact: true }).click();

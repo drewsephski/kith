@@ -18,15 +18,17 @@
   const checkButton = document.getElementById("check");
   const continueButton = document.getElementById("continue");
   const quitButton = document.getElementById("quit");
+  const changeModeButton = document.getElementById("change-mode");
+  const setupDescription = document.getElementById("setup-description");
 
   const STACK_POLL_MS = 1000;
   const PHASE_LABELS = {
     "checking-docker": "Getting ready…",
     preparing: "Getting ready…",
-    pulling: "Downloading Rakazo…",
-    starting: "Starting Rakazo…",
+    pulling: "Downloading Kith…",
+    starting: "Starting Kith…",
     "waiting-healthy": "Almost ready…",
-    ready: "Rakazo is ready.",
+    ready: "Kith is ready.",
   };
   const TERMINAL_PHASES = new Set([
     "idle",
@@ -75,6 +77,7 @@
 
   /** A save in flight cannot be cancelled, so the choice it commits must not change under it. */
   function lockMode(locked) {
+    changeModeButton.disabled = locked;
     for (const input of form.querySelectorAll('input[name="mode"]')) input.disabled = locked;
   }
 
@@ -83,7 +86,10 @@
     panelNew.hidden = mode !== "new";
     panelExisting.hidden = mode === "new";
     checkButton.hidden = mode === "new";
-    if (mode !== "new") continueButton.textContent = "Continue";
+    changeModeButton.textContent = mode === "new" ? "Connect to a server" : "Use this computer";
+    setupDescription.textContent =
+      mode === "new" ? "Your personal assistant, right here." : "Connect to your Kith server.";
+    continueButton.textContent = mode === "new" ? "Get started" : "Continue";
     setStatus("");
   }
 
@@ -155,7 +161,7 @@
     const { phase } = stack;
     stackSection.hidden = phase === "idle";
     if (phase === "idle") {
-      continueButton.textContent = "Continue";
+      continueButton.textContent = "Get started";
       return;
     }
     const failed = isDockerPhase(phase) || phase === "failed";
@@ -170,7 +176,7 @@
 
     if (isDockerPhase(phase)) continueButton.textContent = "Check again";
     else if (phase === "failed") continueButton.textContent = "Retry";
-    else continueButton.textContent = "Continue";
+    else continueButton.textContent = phase === "ready" ? "Open Kith" : "Setting up…";
     setBusy(!TERMINAL_PHASES.has(phase));
   }
 
@@ -244,6 +250,7 @@
     try {
       // A queued start still reads `idle`; leave the panel as it is and let the follow render it.
       const started = await bridge.stack.start();
+      if (selectedMode() !== "new") return;
       if (started !== null && started.phase !== "idle") renderStack(started);
     } catch {
       setStatus("Could not start the local stack. Try again.", "error");
@@ -266,7 +273,7 @@
       const result = await bridge.test(value);
       if (result.ok) {
         serverUrl.value = result.url;
-        setStatus(`Rakazo answered at ${result.url}.`, "ok");
+        setStatus(`Kith answered at ${result.url}.`, "ok");
       } else {
         setStatus(result.error ?? "Could not reach that address.", "error");
       }
@@ -284,6 +291,18 @@
       syncPanels();
       // Unlock Continue/Check immediately; followStack exits on its next poll.
       if (selectedMode() !== "new") setBusy(false);
+    }
+  });
+
+  changeModeButton.addEventListener("click", () => {
+    const nextMode = selectedMode() === "new" ? "existing" : "new";
+    document.getElementById(`mode-${nextMode}`).checked = true;
+    syncPanels();
+    setBusy(false);
+    if (nextMode === "existing") serverUrl.focus();
+    else if (lastStack !== null) {
+      renderStack(lastStack);
+      if (!TERMINAL_PHASES.has(lastStack.phase)) void followStack();
     }
   });
 
@@ -362,7 +381,7 @@
         continueButton.focus();
       }
     } catch {
-      setStatus("Setup could not start. Quit Rakazo and try again.", "error");
+      setStatus("Setup could not start. Quit Kith and try again.", "error");
       setBusy(true);
     }
   }

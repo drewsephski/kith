@@ -87,8 +87,8 @@ export function CommandPalette({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={t`Switch bot`}
-      description={t`Search bots and switch conversations`}
+      title={t`Switch conversation`}
+      description={t`Search conversations`}
       className="sm:max-w-xl"
     >
       <Command
@@ -104,7 +104,7 @@ export function CommandPalette({
         />
         <CommandList className="max-h-80" data-testid="command-palette-list">
           <CommandEmpty>
-            <Trans>No bots</Trans>
+            <Trans>No conversations</Trans>
           </CommandEmpty>
           <CommandGroup>
             {filteredBots.map((bot, index) => {

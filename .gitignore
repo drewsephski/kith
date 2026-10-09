@@ -46,3 +46,6 @@ apps/web/src/locales/**/*.mjs
 apps/web/src/locales/**/*.js
 apps/web/scripts/msgids.json
 playwright-report-www
+
+# Local design captures can contain private conversation content.
+apps/web/.impeccable/review/

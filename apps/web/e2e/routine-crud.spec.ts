@@ -351,7 +351,7 @@ test("switching bots while a routine save is pending does not reopen stale state
   );
 
   const botList = page.locator("aside").first();
-  await botList.getByRole("button", { name: /^Chief/ }).click();
+  await botList.getByRole("button", { name: /^Kith/ }).click();
   await staleListIntercepted;
   await botList.getByRole("button", { name: /^Second/ }).click();
   await page.waitForURL(new RegExp(`/app/${secondBot.id}$`));

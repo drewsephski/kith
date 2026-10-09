@@ -295,6 +295,7 @@ async function main() {
     const databaseUrl = postgres.getConnectionUri();
     Object.assign(process.env, {
       DATABASE_URL: databaseUrl,
+      DATABASE_DIRECT_URL: databaseUrl,
       REALTIME_DATABASE_URL: databaseUrl,
       WAKEUP_DRIVER: "memory",
       BETTER_AUTH_SECRET: "synthetic-eval-auth-secret-at-least-32-characters",

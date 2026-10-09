@@ -8,10 +8,12 @@ import {
   app,
   BrowserWindow,
   dialog,
+  globalShortcut,
   ipcMain,
   Menu,
   net,
   type Session,
+  screen,
   session,
   shell,
 } from "electron";
@@ -35,6 +37,7 @@ import {
   stackResourceDir,
 } from "./local-stack.js";
 import { oauthCallbackFrom } from "./oauth-callback.js";
+import { QuickAskController } from "./quick-ask.js";
 import {
   bundledRendererCandidates,
   contentType,
@@ -115,6 +118,19 @@ const desktopUpdater = new DesktopUpdateController(
 let launchUpdateCheckScheduled = false;
 let localStack: LocalStackController;
 
+const quickAsk = new QuickAskController();
+// Preserve existing installed sessions and local setup through the display-name rebrand.
+const preservedUserData = app.isPackaged
+  ? path.join(app.getPath("appData"), "Rakazo")
+  : app.getPath("userData");
+app.setName("Kith");
+if (!PERFORMANCE_USER_DATA) app.setPath("userData", preservedUserData);
+function toggleQuickAsk() {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  if (quickAsk.active()) quickAsk.leave(win, true);
+  else quickAsk.enter(win, screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea);
+}
 markOnce("rk:main:module-evaluated");
 if (PERFORMANCE_USER_DATA) {
   app.setPath("userData", PERFORMANCE_USER_DATA);
@@ -263,6 +279,7 @@ function createWindow(url: string, partition: string | null) {
       ...(partition === null ? {} : { partition }),
     },
   });
+  quickAsk.reset();
   mainWindow = win;
   appWindowTargets.set(win, url);
   const targetOrigin = safeOrigin(url);
@@ -318,7 +335,8 @@ function createWindow(url: string, partition: string | null) {
       process.env.RAKAZO_DISABLE_WARM_WINDOW !== "1"
     ) {
       event.preventDefault();
-      win.hide();
+      if (quickAsk.active()) quickAsk.leave(win, true);
+      else win.hide();
       clearTimeout(warmWindowTimer);
       warmWindowTimer = setTimeout(() => {
         if (mainWindow === win && !win.isDestroyed() && !win.isVisible()) win.destroy();
@@ -665,6 +683,11 @@ async function showLocalSettings() {
 }
 
 function installApplicationMenu() {
+  const ask: Electron.MenuItemConstructorOptions = {
+    label: "Quick Ask",
+    accelerator: "CmdOrCtrl+Shift+Space",
+    click: toggleQuickAsk,
+  };
   const localSettings: Electron.MenuItemConstructorOptions = {
     id: "local-server-settings",
     label: "Local Server Settings…",
@@ -675,7 +698,7 @@ function installApplicationMenu() {
   };
   const changeServer: Electron.MenuItemConstructorOptions = {
     id: "change-rakazo-server",
-    label: "Change Rakazo Server…",
+    label: "Change Kith Server…",
     accelerator: "CmdOrCtrl+Shift+K",
     click: () => showSetupWindow(),
   };
@@ -695,6 +718,7 @@ function installApplicationMenu() {
             submenu: [
               { role: "about" },
               { type: "separator" },
+              ask,
               localSettings,
               changeServer,
               stopStack,
@@ -713,6 +737,7 @@ function installApplicationMenu() {
           {
             label: "File",
             submenu: [
+              ask,
               localSettings,
               changeServer,
               stopStack,
@@ -726,7 +751,7 @@ function installApplicationMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-/** Setup IPC must only answer the setup window, never a connected Rakazo server. */
+/** Setup IPC must only answer the setup window, never a connected Kith server. */
 function fromSetupWindow(event: Electron.IpcMainInvokeEvent) {
   return (
     setupWindow !== null && !setupWindow.isDestroyed() && event.sender === setupWindow.webContents
@@ -753,7 +778,7 @@ async function probeServer(rawUrl: string, signal?: AbortSignal): Promise<Deskto
         ok: false,
         status: response.status,
         url,
-        error: "That address redirects elsewhere. Enter the final Rakazo server address.",
+        error: "That address redirects elsewhere. Enter the final Kith server address.",
       };
     }
     if (!response.ok) {
@@ -770,7 +795,7 @@ async function probeServer(rawUrl: string, signal?: AbortSignal): Promise<Deskto
         ok: false,
         status: response.status,
         url,
-        error: "That address did not respond like a Rakazo server.",
+        error: "That address did not respond like a Kith server.",
       };
     }
     return {
@@ -1016,6 +1041,14 @@ app.whenReady().then(async () => {
   const icon = developmentIcon();
   if (process.platform === "darwin" && icon) app.dock?.setIcon(icon);
   installApplicationMenu();
+  globalShortcut.register("CommandOrControl+Shift+Space", toggleQuickAsk);
+  ipcMain.handle("desktop.quickAsk.state", (event) => fromMainWindow(event) && quickAsk.active());
+  ipcMain.handle("desktop.quickAsk.expand", (event) => {
+    if (fromMainWindow(event) && mainWindow) quickAsk.leave(mainWindow);
+  });
+  ipcMain.handle("desktop.quickAsk.dismiss", (event) => {
+    if (fromMainWindow(event) && mainWindow) quickAsk.leave(mainWindow, true);
+  });
   const browserAuthAttempts = new Map<string, AbortController>();
   const cancelBrowserAuth = () => {
     for (const attempt of browserAuthAttempts.values()) attempt.abort();
@@ -1178,7 +1211,7 @@ app.whenReady().then(async () => {
         if (managedUrl === null || !(await localStack.matchesDesiredStack())) {
           return {
             ok: false,
-            error: "The app-managed Rakazo services are not ready. Retry setup.",
+            error: "The app-managed Kith services are not ready. Retry setup.",
           };
         }
         openSetup = { mode: "new", serverUrl: managedUrl };
@@ -1323,6 +1356,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   quitting = true;
+  globalShortcut.unregisterAll();
   clearTimeout(warmWindowTimer);
   // Containers keep running; only an in-flight pull/up is cut short.
   localStack?.abort();

@@ -3,7 +3,16 @@ import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RunActivityRow, RunStatus } from "@rakazo/contracts";
 import { isAgedStuckWork } from "@rakazo/core";
-import { Button, Input, Label, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
+import {
+  Button,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@rakazo/ui-web";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ActivityListFilters } from "../lib/activity-list-filters";
 import {
@@ -25,9 +34,10 @@ export function statusTone(status: RunActivityRow["status"], updatedAt?: string)
 
 type ActivityListProps = {
   onOpenRun: (run: RunActivityRow) => void;
+  showEmpty?: boolean;
 };
 
-export function ActivityList({ onOpenRun }: ActivityListProps) {
+export function ActivityList({ onOpenRun, showEmpty = false }: ActivityListProps) {
   const { t } = useLingui();
   const [activeRuns, setActiveRuns] = useState<RunActivityRow[]>([]);
   const [recentRuns, setRecentRuns] = useState<RunActivityRow[]>([]);
@@ -98,14 +108,19 @@ export function ActivityList({ onOpenRun }: ActivityListProps) {
 
   if (loading && !hasAnyRuns && !filtersOn) {
     return (
-      <div className="px-2.5 py-2 text-[13px] text-muted-foreground/80" role="status">
+      <div className="px-2.5 py-2 text-[13px] text-muted-foreground" role="status">
         <Trans>Loading activity…</Trans>
       </div>
     );
   }
 
   if (!hasAnyRuns && !filtersOn) {
-    if (!error) return null;
+    if (!error)
+      return showEmpty ? (
+        <p className="px-2.5 py-8 text-sm leading-relaxed text-muted-foreground">
+          <Trans>No tasks yet. Ask Kith to get something done.</Trans>
+        </p>
+      ) : null;
     return (
       <div className="px-2.5 py-2" role="alert">
         <ActivityError error={error} onRetry={() => reloadRef.current?.()} />
@@ -124,12 +139,12 @@ export function ActivityList({ onOpenRun }: ActivityListProps) {
       ) : null}
 
       {loading && !hasAnyRuns ? (
-        <p className="px-2.5 py-2 text-[13px] text-muted-foreground/80" role="status">
+        <p className="px-2.5 py-2 text-[13px] text-muted-foreground" role="status">
           <Trans>Loading activity…</Trans>
         </p>
       ) : !error && filtersOn && hasAnyRuns && !hasVisibleRuns ? (
-        <p className="px-2.5 py-2 text-[13px] text-muted-foreground/80" role="status">
-          <Trans>No runs match these filters.</Trans>
+        <p className="px-2.5 py-2 text-[13px] text-muted-foreground" role="status">
+          <Trans>No tasks match these filters.</Trans>
         </p>
       ) : null}
 
@@ -137,7 +152,7 @@ export function ActivityList({ onOpenRun }: ActivityListProps) {
         <section aria-labelledby="activity-now-heading">
           <div
             id="activity-now-heading"
-            className="px-2.5 pb-1 pt-1 text-[12.5px] font-medium text-muted-foreground/80"
+            className="px-2.5 pb-1 pt-1 text-[12.5px] font-medium text-muted-foreground"
           >
             <Trans>Now</Trans>
           </div>
@@ -153,7 +168,7 @@ export function ActivityList({ onOpenRun }: ActivityListProps) {
         >
           <div
             id="activity-recent-heading"
-            className="px-2.5 pb-1 pt-1 text-[12.5px] font-medium text-muted-foreground/80"
+            className="px-2.5 pb-1 pt-1 text-[12.5px] font-medium text-muted-foreground"
           >
             <Trans>Recent</Trans>
           </div>
@@ -215,7 +230,21 @@ function ActivityFilters({
   const fromId = useId();
   const toId = useId();
   const filtersOn = activityFiltersActive(filters);
-  const statusLabelText = filters.status === "all" ? null : statusLabel(filters.status);
+  const filterStatusLabel = (status: RunStatus) =>
+    status === "queued"
+      ? t`Queued`
+      : status === "leased"
+        ? t`Starting`
+        : status === "waiting_input"
+          ? t`Awaiting reply`
+          : status === "waiting_takeover"
+            ? t`Needs assistance`
+            : statusLabel(status);
+  const statusLabelText = filters.status === "all" ? null : filterStatusLabel(filters.status);
+  const statusItems = [
+    { value: "all" as const, label: t`All statuses` },
+    ...STATUS_FILTERS.map((status) => ({ value: status, label: filterStatusLabel(status) })),
+  ];
 
   return (
     <div className="mb-2 flex flex-col gap-2 px-2.5 pt-1">
@@ -231,71 +260,79 @@ function ActivityFilters({
           onKeyDown={(event) => {
             if (event.key === "Escape") onChange(clearActivityFilterField(filters, "query"));
           }}
-          placeholder={t`Search runs`}
+          placeholder={t`Search tasks`}
           autoComplete="off"
           className="rounded-xl bg-card text-[13px] dark:bg-input"
         />
       </div>
-      <div>
-        <Label htmlFor={statusId} className="text-[12.5px] text-muted-foreground/80">
-          <Trans>Status</Trans>
-        </Label>
-        <NativeSelect
-          id={statusId}
-          data-testid="activity-status-filter"
-          value={filters.status}
-          onChange={(event) =>
-            onChange({
-              ...filters,
-              status: event.target.value as ActivityListFilters["status"],
-            })
-          }
-          className="mt-1 w-full"
-        >
-          <NativeSelectOption value="all">{t`All statuses`}</NativeSelectOption>
-          {STATUS_FILTERS.map((status) => (
-            <NativeSelectOption key={status} value={status}>
-              {statusLabel(status)}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </div>
-      <div>
-        <Label htmlFor={fromId} className="text-[12.5px] text-muted-foreground/80">
-          <Trans>From</Trans>
-        </Label>
-        <Input
-          id={fromId}
-          data-testid="activity-date-from"
-          type="date"
-          value={filters.dateRange.from}
-          onChange={(event) =>
-            onChange({
-              ...filters,
-              dateRange: { ...filters.dateRange, from: event.target.value },
-            })
-          }
-          className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
-        />
-      </div>
-      <div>
-        <Label htmlFor={toId} className="text-[12.5px] text-muted-foreground/80">
-          <Trans>To</Trans>
-        </Label>
-        <Input
-          id={toId}
-          data-testid="activity-date-to"
-          type="date"
-          value={filters.dateRange.to}
-          onChange={(event) =>
-            onChange({
-              ...filters,
-              dateRange: { ...filters.dateRange, to: event.target.value },
-            })
-          }
-          className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
-        />
-      </div>
+      <details className="group rounded-lg">
+        <summary className="w-fit cursor-pointer rounded-md py-1 text-xs font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+          <Trans>Filters</Trans>
+        </summary>
+        <div className="space-y-3 pb-3 pt-2">
+          <div>
+            <Label htmlFor={statusId} className="text-[12.5px] text-muted-foreground">
+              <Trans>Status</Trans>
+            </Label>
+            <Select
+              value={filters.status}
+              items={statusItems}
+              onValueChange={(status) => onChange({ ...filters, status: status ?? "all" })}
+            >
+              <SelectTrigger
+                id={statusId}
+                data-testid="activity-status-filter"
+                className="mt-1 w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statusItems.map(({ value, label }) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor={fromId} className="text-[12.5px] text-muted-foreground">
+              <Trans>From</Trans>
+            </Label>
+            <Input
+              id={fromId}
+              data-testid="activity-date-from"
+              type="date"
+              value={filters.dateRange.from}
+              onChange={(event) =>
+                onChange({
+                  ...filters,
+                  dateRange: { ...filters.dateRange, from: event.target.value },
+                })
+              }
+              className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
+            />
+          </div>
+          <div>
+            <Label htmlFor={toId} className="text-[12.5px] text-muted-foreground">
+              <Trans>To</Trans>
+            </Label>
+            <Input
+              id={toId}
+              data-testid="activity-date-to"
+              type="date"
+              value={filters.dateRange.to}
+              onChange={(event) =>
+                onChange({
+                  ...filters,
+                  dateRange: { ...filters.dateRange, to: event.target.value },
+                })
+              }
+              className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
+            />
+          </div>
+        </div>
+      </details>
       {filtersOn ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {filters.query.trim() ? (
@@ -373,7 +410,7 @@ function ActivityRow({ run, onOpen }: { run: RunActivityRow; onOpen: () => void 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-sm font-medium text-foreground">{title}</span>
-          <span className="shrink-0 text-xs text-muted-foreground/80">
+          <span className="shrink-0 text-xs text-muted-foreground">
             {formatRelativeTime(run.updatedAt)}
           </span>
         </div>
@@ -407,17 +444,17 @@ function formatRelativeTime(iso: string, now = new Date()): string {
 export function statusLabel(status: RunActivityRow["status"]): string {
   switch (status) {
     case "queued":
-      return t`Queued`;
+      return t`In progress`;
     case "leased":
-      return t`Starting`;
+      return t`In progress`;
     case "running":
-      return t`Running`;
+      return t`In progress`;
     case "waiting_input":
-      return t`Needs input`;
+      return t`Needs attention`;
     case "waiting_takeover":
-      return t`Needs takeover`;
+      return t`Needs attention`;
     case "completed":
-      return t`Done`;
+      return t`Completed`;
     case "failed":
       return t`Failed`;
     case "cancelled":

@@ -21,6 +21,7 @@ describeFast("pnpm test emulator pin", () => {
     "does not connect to an inherited database without an explicit integration flag",
     () => {
       expect(process.env.DATABASE_URL).toBeUndefined();
+      expect(process.env.DATABASE_DIRECT_URL).toBeUndefined();
       expect(process.env.REALTIME_DATABASE_URL).toBeUndefined();
     },
   );

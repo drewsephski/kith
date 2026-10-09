@@ -847,6 +847,11 @@ rather not grant the capability.
 
 ## Other deployment layouts
 
+For a managed PostgreSQL database (including Neon) and native Node processes, follow the
+[Docker-free host deployment guide](./host-deployment.md). `pnpm dev:host` and `pnpm start:host`
+run the web app, API, and worker without the Docker supervisor. `DATABASE_DIRECT_URL` routes
+migrations and session-dependent work around transaction pooling.
+
 API and worker need always-on processes; serverless request handlers are not sufficient. Use a
 Node.js version supported by the root `package.json`, Postgres 16 and a persistent `DATA_DIR` volume shared by API and worker, with encrypted off-host
 backups. The current home store uses a local filesystem, so deployments on separate hosts need a

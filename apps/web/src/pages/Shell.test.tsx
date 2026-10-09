@@ -80,7 +80,9 @@ function renderComposer(
 
 function rerenderComposer(overrides: Partial<ComponentProps<typeof Composer>>) {
   composerProps = { ...composerProps, ...overrides };
-  act(() => root?.render(<Composer {...composerProps} />));
+  act(() =>
+    root?.render(<Composer key={composerProps.draftKey ?? "default"} {...composerProps} />),
+  );
 }
 
 function pickAttachment() {
@@ -108,6 +110,68 @@ function pressEnter(textarea: HTMLTextAreaElement) {
 }
 
 describe("Composer", () => {
+  it("keeps separate drafts when conversations switch", () => {
+    const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
+    const textarea = renderComposer(vi.fn(), { draftKey: "main", drafts });
+    type(textarea, "Plan tomorrow");
+    rerenderComposer({ draftKey: "task" });
+    const task = container?.querySelector("textarea");
+    if (!task) throw new Error("missing task composer");
+    expect(task.value).toBe("");
+    type(task, "Review the outline");
+    rerenderComposer({ draftKey: "main" });
+    expect(container?.querySelector("textarea")?.value).toBe("Plan tomorrow");
+    rerenderComposer({ draftKey: "task" });
+    expect(container?.querySelector("textarea")?.value).toBe("Review the outline");
+  });
+
+  it("restores a rejected send after leaving its conversation and retains the retry nonce", async () => {
+    const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
+    let finish = (_accepted: boolean) => {};
+    const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const textarea = renderComposer(send, { draftKey: "main", drafts });
+    type(textarea, "Prepare the outline");
+    pressEnter(textarea);
+    const nonce = send.mock.calls[0]?.[2];
+    rerenderComposer({ draftKey: "task" });
+    await act(async () => finish(false));
+    expect(container?.querySelector("textarea")?.value).toBe("");
+    rerenderComposer({ draftKey: "main" });
+    const restored = container?.querySelector("textarea");
+    if (!restored) throw new Error("missing restored composer");
+    expect(restored.value).toBe("Prepare the outline");
+    pressEnter(restored);
+    expect(send.mock.calls[1]?.[2]).toBe(nonce);
+    await act(async () => finish(true));
+  });
+
+  it("does not overwrite a newer draft if a previous send fails after switching back", async () => {
+    const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
+    let finish = (_accepted: boolean) => {};
+    const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const textarea = renderComposer(send, { draftKey: "main", drafts });
+    type(textarea, "Old draft");
+    pressEnter(textarea);
+    rerenderComposer({ draftKey: "task" });
+    rerenderComposer({ draftKey: "main" });
+    const current = container?.querySelector("textarea");
+    if (!current) throw new Error("missing current composer");
+    type(current, "New draft");
+    await act(async () => finish(false));
+    expect(current.value).toBe("New draft");
+    expect(drafts.get("main")?.text).toBe("New draft");
+  });
+
   it("clears the draft once the message is sent", async () => {
     const onSend = vi.fn().mockResolvedValue(true);
     const textarea = renderComposer(onSend);

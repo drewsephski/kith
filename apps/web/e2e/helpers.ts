@@ -26,24 +26,8 @@ export async function rpc<T>(page: Page, procedure: string, body: unknown): Prom
 
 export async function completeOnboarding(page: Page, testInfo?: TestInfo) {
   await page.waitForURL(/\/(onboarding|app)/, { timeout: 20_000 });
-  // Optional Server integrations step (needsSetup). Skip when shown, then the
-  // first bot is created automatically — land in Chief's chat with no form.
-  const integrations = page.getByRole("heading", { name: "Server integrations", exact: true });
-  const chief = page.getByText("Chief").first();
-  await integrations.or(chief).or(page.getByText("Opening chat…")).waitFor({ timeout: 20_000 });
-  if ((await chief.isVisible().catch(() => false)) && page.url().includes("/app")) {
-    if (testInfo) {
-      await captureScreenshot(page, testInfo, "03-create-first-bot");
-      await captureScreenshot(page, testInfo, "06-onboarding-complete");
-    }
-    return;
-  }
-  if (await integrations.isVisible().catch(() => false)) {
-    if (testInfo) await captureScreenshot(page, testInfo, "02-connect-apps");
-    await page.getByRole("button", { name: "Skip", exact: true }).click();
-  }
   await page.waitForURL(/\/app\//, { timeout: 20_000 });
-  await expect(page.getByText("Chief").first()).toBeVisible();
+  await expect(page.getByText("Kith", { exact: true }).first()).toBeVisible();
   if (testInfo) {
     await captureScreenshot(page, testInfo, "03-create-first-bot");
     await captureScreenshot(page, testInfo, "06-onboarding-complete");
@@ -58,7 +42,7 @@ export async function signup(
   testInfo?: TestInfo,
 ) {
   await page.goto("/sign-up");
-  await expect(page.getByRole("heading", { name: "Create your Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your Kith" })).toBeVisible();
   if (testInfo) await captureScreenshot(page, testInfo, "01-sign-up");
   await page.getByPlaceholder("Your name").fill(name);
   await page.getByPlaceholder("Your email address").fill(email);
@@ -77,7 +61,17 @@ export async function captureScreenshot(page: Page, testInfo: TestInfo, name: st
   await testInfo.attach(name, { contentType: "image/png", path: screenshotPath });
 }
 
+/** Advanced roster workflows are intentionally disclosed separately from the main assistant. */
+export async function openAdvancedNavigation(page: Page) {
+  const trigger = page.getByRole("button", { name: "Advanced navigation", exact: true });
+  await expect(page.getByTestId("bots-sidebar")).toBeVisible();
+  if (await trigger.isVisible()) await trigger.click();
+  await expect(page.getByTestId("create-menu-trigger")).toBeVisible();
+}
+
 export async function openNewBot(page: Page) {
+  const advanced = page.getByRole("button", { name: "Advanced navigation", exact: true });
+  if (await advanced.isVisible()) await advanced.click();
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-bot").click();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
@@ -85,6 +79,8 @@ export async function openNewBot(page: Page) {
 }
 
 export async function openNewGroup(page: Page) {
+  const advanced = page.getByRole("button", { name: "Advanced navigation", exact: true });
+  if (await advanced.isVisible()) await advanced.click();
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-group").click();
 }
@@ -137,8 +133,14 @@ export async function openUserSettings(
     | "billing"
     | "updates",
 ) {
-  await page.getByTestId("user-menu-trigger").click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const directSettings = page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "Settings", exact: true });
+  if (await directSettings.isVisible()) await directSettings.click();
+  else {
+    await page.getByTestId("user-menu-trigger").click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+  }
   const settings = page.getByTestId("user-settings");
   await expect(settings).toBeVisible();
   if (section && section !== "general") {

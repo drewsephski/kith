@@ -1,24 +1,26 @@
 {
-  "fill": "system-dark",
+  "fill": {
+    "solid": "srgb:0.98431,0.98039,0.96863,1.00000"
+  },
   "groups": [
     {
       "layers": [
         {
           "glass": false,
           "image-name": "orange-bot.png",
-          "name": "orange-bot"
+          "name": "kith-companion"
         }
       ],
       "position": {
         "scale": 1,
-        "translation-in-points": [0, 90]
+        "translation-in-points": [0, 0]
       },
       "shadow": {
         "kind": "neutral",
         "opacity": 0.5
       },
       "translucency": {
-        "enabled": true,
+        "enabled": false,
         "value": 0.5
       }
     }

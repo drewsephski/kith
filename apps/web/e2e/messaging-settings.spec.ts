@@ -29,7 +29,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
               provider: "sendblue",
               address: "+15551230001",
               botId: "bot-1",
-              botName: "Chief",
+              botName: "Kith",
             },
           ],
         },
@@ -95,7 +95,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   await expect(page.getByTestId("messaging-settings")).toBeVisible();
   await expect(page.getByText("iMessage · Slack · WhatsApp · Telegram · Feishu")).toBeVisible();
   await expect(page.getByText("iMessage · +15551230001")).toBeVisible();
-  await expect(page.getByText("→ Chief")).toBeVisible();
+  await expect(page.getByText("→ Kith")).toBeVisible();
   await expect(page.getByRole("button", { name: "연결 해제" })).toBeVisible();
   await expect(page.getByText("Family")).toBeVisible();
   await expect(page.getByText("Dana's Assistant")).toBeVisible();

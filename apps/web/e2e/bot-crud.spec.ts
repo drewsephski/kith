@@ -15,7 +15,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await page.waitForURL(/\/app\/[^/]+$/);
 
   const botList = page.locator("aside").first();
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
 
   let createFailed = false;
   let resolveCreateAborted!: () => void;
@@ -33,7 +33,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await createAborted;
   // Failed create keeps the form open on the current bot chat.
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
   await expect(page.getByTestId("create-bot-error")).toBeVisible();
   expect(createFailed).toBe(true);
@@ -178,13 +178,13 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
 
   await expect(botList.getByText(longUnbrokenName, { exact: true })).toHaveCount(0);
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
   await page.waitForURL((url) => url.pathname !== deletedBotPath);
 
   await page.goto(deletedBotPath);
   await page.waitForURL((url) => url.pathname !== deletedBotPath);
   await expect(botList.getByText(longUnbrokenName, { exact: true })).toHaveCount(0);
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await captureScreenshot(page, testInfo, "31-deleted-bot-fallback");
 });

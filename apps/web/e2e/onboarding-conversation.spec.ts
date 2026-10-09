@@ -1,5 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openUserSettings, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openUserSettings,
+  rpc,
+  signup,
+} from "./helpers";
 
 function slackCard(page: Page) {
   return page.getByRole("group", { name: "Slack connection" });
@@ -11,6 +18,8 @@ test("focus choice suggests apps and preserves a completed connection", async ({
   const stamp = Date.now();
   await signup(page, `onboarding-${stamp}@rakazo.test`, "password12", "Robin");
   await completeOnboarding(page);
+  // Legacy focus cards remain available when explicitly requested.
+  await rpc(page, "onboarding/promptFocus", { botId: activeBotId(page) });
 
   await expect(
     page.getByText("Hey Robin. Fresh start on my side, so I’ll keep this short."),
@@ -25,9 +34,9 @@ test("focus choice suggests apps and preserves a completed connection", async ({
 
   await page.getByRole("button", { name: /Day-to-day work/ }).click();
   // The focus step suggests apps but must not rename the bot: the name the
-  // user chose during creation ("Chief") is preserved.
-  await expect(page.locator("main").getByText("Chief", { exact: true })).toBeVisible();
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  // user chose during creation ("Kith") is preserved.
+  await expect(page.locator("main").getByText("Kith", { exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await expect(page.getByText("Slack", { exact: true })).toBeVisible();
   await expect(page.getByText("Gmail", { exact: true })).toBeVisible();
   const connectionCards = page.getByRole("group", { name: / connection$/ });
@@ -93,6 +102,8 @@ test("focus choice follows Simplified Chinese UI locale", async ({ page }, testI
   const stamp = Date.now();
   await signup(page, `onboarding-zh-cn-${stamp}@rakazo.test`, "password12", "Robin");
   await completeOnboarding(page);
+  // Legacy focus cards remain available when explicitly requested.
+  await rpc(page, "onboarding/promptFocus", { botId: activeBotId(page) });
 
   await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible();
 
@@ -117,6 +128,8 @@ test("focus choice follows Simplified Chinese UI locale", async ({ page }, testI
 test("choice refresh failures leave options available for retry", async ({ page }) => {
   await signup(page, `choice-refresh-${Date.now()}@rakazo.test`, "password12", "Choice Retry");
   await completeOnboarding(page);
+  // Legacy focus cards remain available when explicitly requested.
+  await rpc(page, "onboarding/promptFocus", { botId: activeBotId(page) });
   const choice = page.getByRole("button", { name: /Day-to-day work/ });
   await expect(choice).toBeEnabled();
   // Keep the existing choice rendered while its save succeeds and navigation refresh fails.

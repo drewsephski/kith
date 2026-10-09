@@ -12,7 +12,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    "Segoe UI", -apple-system, BlinkMacSystemFont, Inter, Roboto, Helvetica, Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   display: flex;
@@ -71,7 +71,7 @@ html[data-platform="darwin"] .titlebar {
 .shell {
   flex: 1;
   width: 100%;
-  max-width: 620px;
+  max-width: 460px;
   margin: 0 auto;
   padding: 24px 28px 32px;
   display: flex;
@@ -81,7 +81,7 @@ html[data-platform="darwin"] .titlebar {
 
 .heading {
   margin: 0 0 8px;
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -91,47 +91,10 @@ html[data-platform="darwin"] .titlebar {
   color: var(--muted-foreground);
 }
 
-.choices {
-  border: 0;
-  margin: 0 0 18px;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.choice {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-  background: var(--card);
-  cursor: pointer;
-}
-
-.choice:hover {
-  border-color: var(--input);
-}
-
-.choice:has(input:checked) {
-  border-color: var(--primary);
-  background: var(--accent);
-}
-
-.choice:has(input:focus-visible) {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-.choice input {
-  margin: 0;
-  accent-color: var(--primary);
-  flex: none;
-}
-
-.choice-title {
-  font-weight: 600;
+.companion {
+  display: block;
+  margin: 0 0 20px -8px;
+  object-fit: contain;
 }
 
 .panel {
@@ -307,9 +270,12 @@ html[data-platform="darwin"] .titlebar {
 
 .status {
   margin: 14px 0 0;
-  min-height: 20px;
   font-size: 13px;
   color: var(--muted-foreground);
+}
+
+.status:empty {
+  display: none;
 }
 
 .status[data-tone="ok"] {
@@ -322,15 +288,15 @@ html[data-platform="darwin"] .titlebar {
 
 .actions {
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 24px;
 }
 
 .button {
   font: inherit;
   font-weight: 600;
-  padding: 9px 18px;
+  min-height: 44px;
+  padding: 10px 18px;
   border-radius: calc(var(--radius) - 3px);
   cursor: pointer;
   border: 1px solid transparent;
@@ -368,4 +334,47 @@ html[data-platform="darwin"] .titlebar {
 /* Last so it wins over the flex layouts above at equal specificity. */
 [hidden] {
   display: none;
+}
+
+#continue {
+  flex: 1;
+}
+
+.mode-link {
+  display: block;
+  margin: 18px auto 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: calc(var(--radius) - 3px);
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mode-link:hover:not(:disabled) {
+  color: var(--foreground);
+}
+
+.mode-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.mode-link:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 400px) {
+  .shell {
+    padding-inline: 20px;
+  }
+  .heading {
+    font-size: 28px;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
 }

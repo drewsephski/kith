@@ -17,9 +17,9 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     notifyOnFinish: true,
   });
   await page.reload();
-  await expect(page.getByRole("combobox", { name: "Message Chief" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Message Kith" })).toBeVisible();
 
-  const composer = page.getByRole("combobox", { name: "Message Chief" });
+  const composer = page.getByRole("combobox", { name: "Message Kith" });
   await composer.fill("message the bot named Researcher saying peer-exchange-alpha");
   await composer.press("Enter");
   await expect(page.getByText("messaging that bot now.").first()).toBeVisible({
@@ -87,7 +87,7 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
   await chip.press("Enter");
   const view = page.getByTestId("peer-conversation-view");
   await expect(view).toBeVisible();
-  await expect(view.getByRole("heading", { name: /Chief · Researcher/ })).toBeVisible();
+  await expect(view.getByRole("heading", { name: /Kith · Researcher/ })).toBeVisible();
   await expect(view.getByText("This chat is view-only")).toBeVisible();
   await expect(view.getByRole("button", { name: "Close" })).toHaveCount(1);
   await expect(view.getByText("peer-exchange-alpha").first()).toBeVisible({

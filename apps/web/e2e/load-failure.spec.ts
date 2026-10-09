@@ -8,7 +8,7 @@ test("a failed overlay chunk keeps the shell and the draft, and Refresh loads it
   await signup(page, `overlay-load-${stamp}@rakazo.test`, "password12", "Overlay Load");
   await completeOnboarding(page);
 
-  const composer = page.getByRole("combobox", { name: "Message Chief" });
+  const composer = page.getByRole("combobox", { name: "Message Kith" });
   await composer.fill("Keep this draft");
 
   const pluginsChunk = /\/pages\/PluginsOverlay\.tsx/;
@@ -57,16 +57,13 @@ for (const [failing, intact] of [
     await signup(page, `section-load-${stamp}@rakazo.test`, "password12", "Section Load");
     await completeOnboarding(page);
 
-    const composer = page.getByRole("combobox", { name: "Message Chief" });
+    const composer = page.getByRole("combobox", { name: "Message Kith" });
     await composer.fill("Keep this draft");
 
     await page.route(new RegExp(`/pages/${failing}\\.tsx`), (route) =>
       route.fulfill({ status: 404 }),
     );
-    await page
-      .locator("main")
-      .getByRole("button", { name: /^Chief/ })
-      .click();
+    await page.locator("main").getByRole("button", { name: /^Kith/ }).click();
 
     const settings = page.getByTestId("bot-settings");
     await settings.getByText("Advanced", { exact: true }).click();

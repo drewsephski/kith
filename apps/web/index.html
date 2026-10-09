@@ -3,14 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Your team of always-on agents." />
+    <meta name="description" content="Your personal assistant. Remember your life, get work done, and see what happened." />
     <meta name="theme-color" content="#0b0c0e" />
-    <meta name="apple-mobile-web-app-title" content="Rakazo" />
+    <meta name="apple-mobile-web-app-title" content="Kith" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <title>Rakazo</title>
+    <title>Kith</title>
     <script>
       (() => {
         const key = "rakazo.uiAppearance";
@@ -25,11 +25,17 @@
         document.documentElement.dataset.theme = theme;
         document.documentElement.style.colorScheme = theme;
         const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute("content", theme === "light" ? "#fafaf8" : "#0b0c0e");
+        if (meta) meta.setAttribute("content", theme === "light" ? "#fbfaf7" : "#0b0c0e");
       })();
     </script>
   </head>
   <body>
+    <!-- THESIS: A personal conversation coordinates daily life and inspectable work.
+    OWN-WORLD: Warm paper, ink, system typography, sage companion, soft 12px controls.
+    STORY: Open Kith, ask naturally, inspect tasks and approvals when needed.
+    FIRST VIEWPORT: 260px quiet sidebar, spacious 760px conversation, persistent composer.
+    FORM: User-pinned conversation-first desktop, seed 96a77739. Signature: contextual panels preserve the conversation and its draft.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

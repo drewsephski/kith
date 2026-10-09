@@ -1,4 +1,8 @@
 export type Panel =
+  | "connections"
+  | "memory"
+  | "activity"
+  | "routines"
   | "computer"
   | "settings"
   | "routine"

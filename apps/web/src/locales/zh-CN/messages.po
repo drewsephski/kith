@@ -170,11 +170,7 @@ msgid "{size} B"
 msgstr "{size} B"
 
 #: src/components/ToolActivityDisclosure.tsx
-msgid "{stepCount, plural, one {Done · # tool} other {Done · # tools}}"
-msgstr ""
-
-#: src/components/ToolActivityDisclosure.tsx
-msgid "{stepCount, plural, one {Working… · # tool} other {Working… · # tools}}"
+msgid "{stepCount, plural, one {Activity · # step} other {Activity · # steps}}"
 msgstr ""
 
 #: src/pages/ActivityList.tsx
@@ -197,6 +193,10 @@ msgstr "@{0}"
 #: src/pages/shell/message-cards.tsx
 msgid "A bit of everything"
 msgstr "什么都做一点"
+
+#: src/pages/Welcome.tsx
+msgid "A little help with life."
+msgstr ""
 
 #. placeholder {0}: oauth.verificationUri.replace(/^https:\/\//, "")
 #: src/pages/ModelSettingsOverlay.tsx
@@ -270,6 +270,10 @@ msgstr "启用"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Active model"
 msgstr "当前模型"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Active threads"
+msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
 #: src/pages/Shell.tsx
@@ -395,6 +399,10 @@ msgstr "正在添加…"
 msgid "Advanced"
 msgstr "高级"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Advanced navigation"
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr "高级..."
@@ -411,8 +419,12 @@ msgstr "Agent 连接"
 msgid "Agents:"
 msgstr "Agent："
 
+#: src/components/CalendarReceipt.tsx
+msgid "AI suggestions"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
-msgid "All bots"
+msgid "All conversations"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -557,7 +569,6 @@ msgstr "已归档。对话、记忆和文件保留。"
 msgid "Arguments"
 msgstr "参数"
 
-#: src/pages/Artifacts.tsx
 #: src/pages/Shell.tsx
 msgid "Artifacts"
 msgstr ""
@@ -597,6 +608,18 @@ msgstr "发送外部邮件前询问"
 msgid "Ask the server owner to configure this provider."
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Ask the server owner to set up Google Calendar."
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Assistant"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Assistant settings"
+msgstr ""
+
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
 msgid "at {0}"
@@ -618,6 +641,10 @@ msgstr ""
 #: src/pages/shell/chat-context.tsx
 msgid "Attachment"
 msgstr "附件"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Attempts"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Authentication failed."
@@ -669,6 +696,10 @@ msgstr "头像"
 #: src/pages/RoutineEditor.tsx
 msgid "Back"
 msgstr "返回"
+
+#: src/pages/Shell.tsx
+msgid "Back to Kith"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Back to sign in"
@@ -748,20 +779,20 @@ msgstr "要关联的 Bot"
 msgid "Bot's model"
 msgstr "Bot 的模型"
 
-#: src/pages/Artifacts.tsx
-msgid "Bots"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Bots are working"
-msgstr "Bot 正在工作"
-
 #: src/pages/Paywall.tsx
 msgid "Bots with their own computer and browser"
 msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Brain label"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+msgid "Briefing preferences"
+msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Briefing receipt"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
@@ -776,6 +807,14 @@ msgstr ""
 msgid "Built-in"
 msgstr "内置"
 
+#: src/components/CalendarConnection.tsx
+msgid "Calendar"
+msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Calendar briefing · View receipt"
+msgstr ""
+
 #: src/App.tsx
 msgid "Can't reach the server."
 msgstr "无法连接服务器。"
@@ -789,6 +828,7 @@ msgstr "无法连接服务器。"
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
@@ -914,8 +954,8 @@ msgid "Choose file"
 msgstr "选择文件"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "Choose which connected model Rakazo uses."
-msgstr "选择 Rakazo 使用的已连接模型。"
+msgid "Choose which connected model Kith uses."
+msgstr "选择 Kith 使用的已连接模型。"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Clear"
@@ -947,6 +987,8 @@ msgstr ""
 msgid "Client secret"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+#: src/components/CalendarReceipt.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -1030,6 +1072,11 @@ msgstr "代码"
 msgid "Collapse {0}"
 msgstr "折叠 {0}"
 
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Collapse sidebar"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color"
 msgstr "颜色"
@@ -1054,6 +1101,10 @@ msgstr "命令变量"
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "完成"
+
+#: src/pages/ActivityList.tsx
+msgid "Completed"
+msgstr ""
 
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -1138,6 +1189,10 @@ msgstr "连接 API 密钥"
 msgid "Connect Executor"
 msgstr "连接 Executor"
 
+#: src/components/CalendarConnection.tsx
+msgid "Connect Google Calendar"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Connect MCP server “{name}”"
 msgstr "连接 MCP 服务器“{name}”"
@@ -1183,14 +1238,23 @@ msgstr "已连接并使用 {0}。"
 msgid "Connected. Its tools are available from your next message."
 msgstr "已连接，下一条消息起即可使用其工具。"
 
+#: src/components/CalendarConnection.tsx
+msgid "Connecting Calendar…"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
+#: src/pages/Onboarding.tsx
 #: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
+
+#: src/pages/Onboarding.tsx
+msgid "Connection details"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Connection test failed."
@@ -1200,6 +1264,15 @@ msgstr "连接测试失败。"
 #: src/pages/PluginsOverlay.tsx
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "与 {0} 的连接仍在等待。可以关闭此窗口稍后再看。"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Connections"
+msgstr ""
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Context"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -1223,6 +1296,18 @@ msgstr "通过 {0} 继续"
 #: src/pages/Auth.tsx
 msgid "Continue with email"
 msgstr "使用邮箱继续"
+
+#: src/pages/Artifacts.tsx
+msgid "Conversation"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Conversation details"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Conversations"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/ModelSettingsOverlay.tsx
@@ -1335,10 +1420,6 @@ msgstr "无法创建分组"
 msgid "Could not create space"
 msgstr "无法创建工作区"
 
-#: src/pages/Onboarding.tsx
-msgid "Could not create your bot"
-msgstr "无法创建你的 Bot"
-
 #: src/pages/shell/dialogs.tsx
 msgid "Could not delete bot"
 msgstr "无法删除 Bot"
@@ -1350,6 +1431,10 @@ msgstr "无法删除群组"
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not delete MCP server"
 msgstr "无法删除 MCP 服务器"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not delete memory"
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx
 msgid "Could not delete routine"
@@ -1404,6 +1489,10 @@ msgstr "无法下载 {name}。请重试。"
 msgid "Could not download file"
 msgstr ""
 
+#: src/pages/KnowledgeSection.tsx
+msgid "Could not forget"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not install connector"
 msgstr "无法安装连接器"
@@ -1441,6 +1530,10 @@ msgstr ""
 msgid "Could not load bots. Reload to try again."
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Could not load Calendar connection"
+msgstr ""
+
 #: src/components/computer/TerminalApp.tsx
 msgid "Could not load commands"
 msgstr ""
@@ -1458,13 +1551,33 @@ msgstr "无法加载集成"
 msgid "Could not load MCP servers"
 msgstr "无法加载 MCP 服务器"
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not load memory"
+msgstr ""
+
+#: src/pages/Onboarding.tsx
+msgid "Could not load model providers"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not load model settings"
 msgstr "无法加载模型设置"
 
+#: src/components/CalendarConnection.tsx
+msgid "Could not load preferences"
+msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Could not load receipt"
+msgstr ""
+
 #: src/pages/RoutineRunHistory.tsx
 msgid "Could not load run history"
 msgstr "无法加载运行历史记录"
+
+#: src/pages/Onboarding.tsx
+msgid "Could not load setup"
+msgstr ""
 
 #: src/lib/account-security.ts
 #: src/pages/Auth.tsx
@@ -1494,6 +1607,10 @@ msgstr "无法加载更新状态"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Could not load voice settings"
 msgstr "无法加载语音设置"
+
+#: src/pages/Shell.tsx
+msgid "Could not open a conversation"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/Paywall.tsx
@@ -1567,6 +1684,10 @@ msgstr "无法渲染图表"
 msgid "Could not reset password"
 msgstr "无法重置密码"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Could not retry. Check your Calendar connection."
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not revoke connection"
 msgstr "无法撤销连接"
@@ -1592,6 +1713,10 @@ msgstr "无法保存备用模型。"
 #: src/pages/GroupPanel.tsx
 msgid "Could not save group"
 msgstr "无法保存群组"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Could not save memory"
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Could not save model"
@@ -1649,6 +1774,10 @@ msgstr "无法开始 OAuth"
 msgid "Could not start teaching"
 msgstr ""
 
+#: src/pages/Onboarding.tsx
+msgid "Could not start your assistant"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Could not submit this answer"
 msgstr "无法提交此回答"
@@ -1664,6 +1793,10 @@ msgstr "无法更新"
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not update agent access"
 msgstr "无法更新 Agent 权限"
+
+#: src/components/CalendarConnection.tsx
+msgid "Could not update Calendar. Try again."
+msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Could not update computer"
@@ -1716,7 +1849,6 @@ msgstr "创建账户"
 msgid "Create group"
 msgstr "创建群组"
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-picker.tsx
 msgid "Create new Bot"
 msgstr "新建 Bot"
@@ -1739,10 +1871,11 @@ msgid "Create space"
 msgstr "创建工作区"
 
 #: src/pages/Auth.tsx
-msgid "Create your Rakazo"
-msgstr "创建你的 Rakazo"
+msgid "Create your Kith"
+msgstr "创建你的 Kith"
 
 #: src/components/AskCard.tsx
+#: src/components/CalendarReceipt.tsx
 msgid "Created"
 msgstr "已创建"
 
@@ -1843,6 +1976,7 @@ msgstr "默认范围"
 #: src/pages/BotContextMenu.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
@@ -1858,6 +1992,7 @@ msgstr ""
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.name
 #: src/pages/Artifacts.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/Shell.tsx
 msgid "Delete {0}"
 msgstr "删除 {0}"
@@ -1882,6 +2017,10 @@ msgstr "同时删除记忆"
 
 #: src/pages/Shell.tsx
 msgid "Delete space"
+msgstr ""
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Delete this memory?"
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -1945,6 +2084,10 @@ msgstr "断开"
 msgid "Disconnect {disconnectName}?"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Disconnect Calendar"
+msgstr ""
+
 #. placeholder {0}: selected.providerName ?? selected.provider
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Disconnected {0}."
@@ -1990,7 +2133,6 @@ msgstr "Docker 限制对你电脑的访问，以提高安全性。使用{hostLab
 msgid "Don’t have an account?"
 msgstr "还没有账户？"
 
-#: src/pages/ActivityList.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "完成"
@@ -2038,6 +2180,11 @@ msgstr "复制"
 #: src/pages/shell/bot-panel.tsx
 msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
 msgstr "例如 Hivenet Agent、Presales、工时表机器人"
+
+#. placeholder {0}: memoryTitle(doc.path)
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Edit {0}"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Edit first"
@@ -2097,6 +2244,10 @@ msgstr "请输入 1 到 1000 之间的整数作为图像限制。"
 #: src/lib/model-connection-preflight.ts
 msgid "Enter an API key before testing."
 msgstr "测试前请输入 API 密钥。"
+
+#: src/components/CalendarReceipt.tsx
+msgid "events retrieved"
+msgstr ""
 
 #: src/pages/ExternalConversationSettings.tsx
 #: src/pages/RoutineSchedule.tsx
@@ -2198,6 +2349,8 @@ msgid "File is too large to upload."
 msgstr ""
 
 #: src/components/computer/ComputerWorkspace.tsx
+#: src/pages/Artifacts.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Files"
 msgstr ""
 
@@ -2233,6 +2386,10 @@ msgstr "请完成订阅登录，然后重新测试。"
 msgid "finished"
 msgstr "已完成"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Finished"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Finished."
@@ -2245,6 +2402,11 @@ msgstr "正在完成 MCP 连接…"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Flag unexpected actions"
 msgstr "标记异常操作"
+
+#: src/components/CalendarConnection.tsx
+#: src/pages/KnowledgeSection.tsx
+msgid "Forget"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Forgot password?"
@@ -2291,6 +2453,26 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr "Git 事件"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Goals"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good afternoon"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good evening"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Good morning"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+msgid "Google Calendar"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -2347,13 +2529,13 @@ msgstr "试听"
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "你好，这是我朗读回复时的声音。"
 
-#: src/pages/Shell.tsx
-msgid "Hide bots"
-msgstr ""
-
 #: src/pages/Auth.tsx
 msgid "Hide password"
 msgstr "隐藏密码"
+
+#: src/pages/Shell.tsx
+msgid "Hide sidebar"
+msgstr ""
 
 #: src/components/call/VoiceChatCard.tsx
 msgid "Hide transcript"
@@ -2405,6 +2587,11 @@ msgstr "图片上传区域"
 #: src/pages/PluginsOverlay.tsx
 msgid "Import OpenAPI JSON"
 msgstr "导入 OpenAPI JSON"
+
+#: src/pages/ActivityList.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "In progress"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Inactive"
@@ -2489,6 +2676,14 @@ msgstr "保留记忆"
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "密钥"
+
+#: src/pages/Shell.tsx
+msgid "Kith"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Kith is working"
+msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -2726,6 +2921,8 @@ msgstr "成员（选择 {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX} 个）"
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "记忆"
 
@@ -2797,10 +2994,6 @@ msgstr ""
 msgid "Minimize"
 msgstr "最小化"
 
-#: src/pages/Shell.tsx
-msgid "Minimize bots"
-msgstr ""
-
 #: src/pages/RoutineSchedule.tsx
 msgid "minute"
 msgstr "分钟"
@@ -2828,6 +3021,10 @@ msgstr "模型 ID"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Model options"
 msgstr "模型选项"
+
+#: src/pages/Onboarding.tsx
+msgid "Model settings"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Model spend uses your provider keys."
@@ -2870,6 +3067,10 @@ msgstr ""
 
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "More connections"
 msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
@@ -2915,12 +3116,8 @@ msgid "Name this routine"
 msgstr "给这个例行任务命名"
 
 #: src/pages/ActivityList.tsx
-msgid "Needs input"
-msgstr "需要输入"
-
-#: src/pages/ActivityList.tsx
-msgid "Needs takeover"
-msgstr "需要接管"
+msgid "Needs attention"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Needs you"
@@ -2929,6 +3126,11 @@ msgstr ""
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
 msgstr "新建 Bot"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "New conversation"
+msgstr ""
 
 #: src/pages/GroupPanel.tsx
 msgid "New group"
@@ -2980,10 +3182,6 @@ msgstr "无认证"
 msgid "No bot activity yet."
 msgstr "还没有机器人活动。"
 
-#: src/pages/shell/command-palette.tsx
-msgid "No bots"
-msgstr ""
-
 #: src/pages/shell/bot-picker.tsx
 msgid "No bots match"
 msgstr ""
@@ -2991,6 +3189,10 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No chat apps linked yet."
 msgstr "还没有关联聊天应用。"
+
+#: src/pages/shell/command-palette.tsx
+msgid "No conversations"
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
@@ -3010,6 +3212,10 @@ msgstr "此部署未配置托管应用目录。"
 
 #: src/pages/Artifacts.tsx
 msgid "No matching artifacts on this page."
+msgstr ""
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "No matching memories"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -3061,6 +3267,10 @@ msgstr "还没有运行记录"
 msgid "No skills yet"
 msgstr "暂无技能"
 
+#: src/pages/ActivityList.tsx
+msgid "No tasks yet. Ask Kith to get something done."
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No team conversations yet."
 msgstr ""
@@ -3097,6 +3307,10 @@ msgstr "没有仍在运行的任务"
 msgid "Nothing remembered yet"
 msgstr "暂无记忆"
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Nothing remembered yet. Tell Kith what you’d like it to remember."
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Notifications"
 msgstr "通知"
@@ -3113,6 +3327,14 @@ msgstr "正在使用 {0}。"
 #: src/pages/McpOAuthCallback.tsx
 msgid "OAuth authorization was cancelled."
 msgstr "OAuth 授权已取消。"
+
+#: src/components/CalendarConnection.tsx
+msgid "OAuth Client ID"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+msgid "OAuth Client secret"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "OAuth connected"
@@ -3180,6 +3402,10 @@ msgid "Open in full window"
 msgstr "在完整窗口中打开"
 
 #: src/pages/Shell.tsx
+msgid "Open Kith"
+msgstr ""
+
+#: src/pages/Shell.tsx
 msgid "Open navigation"
 msgstr "打开导航"
 
@@ -3209,8 +3435,12 @@ msgid "Opening chat…"
 msgstr "正在打开聊天…"
 
 #: src/App.tsx
-msgid "Opening your Space…"
-msgstr "正在打开工作区…"
+msgid "Opening Kith…"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Opening…"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3225,10 +3455,6 @@ msgstr "可选请求头值"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Or connect an API key"
 msgstr "或连接 API 密钥"
-
-#: src/pages/Onboarding.tsx
-msgid "Or paste an API key"
-msgstr "或粘贴 API 密钥"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Organic"
@@ -3286,8 +3512,8 @@ msgid "Paste a replacement key"
 msgstr "粘贴替换密钥"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed."
-msgstr "粘贴服务器的 OpenAI 兼容地址。需要时 Rakazo 会补上 /v1。"
+msgid "Paste the OpenAI-compatible address from your server. Kith adds /v1 if needed."
+msgstr "粘贴服务器的 OpenAI 兼容地址。需要时 Kith 会补上 /v1。"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Paste your API key"
@@ -3300,6 +3526,14 @@ msgstr "请粘贴你的 API 密钥，然后重新测试。"
 #: src/pages/RoutineEditor.tsx
 msgid "Paused"
 msgstr "已暂停"
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "People"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Personal assistant details"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/chat-context.tsx
@@ -3318,6 +3552,10 @@ msgstr "请从列表中选择模型，或输入此端点提供的模型 ID。"
 msgid "Pin"
 msgstr "置顶"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Plan tomorrow"
+msgstr ""
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "播放中…"
@@ -3329,6 +3567,22 @@ msgstr "插件"
 #: src/pages/RoutineEditor.tsx
 msgid "POST to"
 msgstr "POST 到"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preference sources"
+msgstr ""
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Preferences"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Prepare for a meeting"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Prepare me for my next meeting."
+msgstr ""
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3351,6 +3605,10 @@ msgstr ""
 msgid "Project ID"
 msgstr ""
 
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Projects"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "Protected input"
 msgstr ""
@@ -3369,10 +3627,6 @@ msgstr "提供方"
 msgid "Pull request"
 msgstr "拉取请求"
 
-#: src/pages/ActivityList.tsx
-msgid "Queued"
-msgstr "排队中"
-
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr ""
@@ -3388,6 +3642,10 @@ msgstr "表情回应"
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "朗读回复"
+
+#: src/components/CalendarConnection.tsx
+msgid "Read-only access. Your briefing starts when you connect."
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3405,6 +3663,10 @@ msgstr ""
 #: src/pages/ActivityList.tsx
 msgid "Recent"
 msgstr "最近"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Recent conversations"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
@@ -3471,6 +3733,10 @@ msgstr "重建无法正常工作的电脑。"
 msgid "Recreating the computer"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Redirect URI"
+msgstr ""
+
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -3499,6 +3765,14 @@ msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Release interrupted computer?"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Remember something"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Remember that I prefer "
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
@@ -3664,8 +3938,13 @@ msgstr ""
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
 #: src/pages/ModelBackupsSettings.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 msgid "Retry"
 msgstr "重试"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Retry briefing"
+msgstr ""
 
 #: src/App.tsx
 #: src/pages/PeerMessagesOverlay.tsx
@@ -3677,8 +3956,8 @@ msgid "Retry screen"
 msgstr ""
 
 #: src/pages/McpOAuthCallback.tsx
-msgid "Return to Rakazo"
-msgstr "返回 Rakazo"
+msgid "Return to Kith"
+msgstr "返回 Kith"
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx
@@ -3688,6 +3967,11 @@ msgstr "版本 {0}"
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
 msgstr "请检查提供方设置并重新测试。"
+
+#. placeholder {0}: doc.revision
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Revision {0}"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Revoke"
@@ -3711,6 +3995,7 @@ msgid "Routine"
 msgstr "例行任务"
 
 #: src/pages/RoutineEditor.tsx
+#: src/pages/Shell.tsx
 msgid "Routines"
 msgstr "例行任务"
 
@@ -3734,10 +4019,6 @@ msgstr "运行时间必须是将来的时间。"
 msgid "running"
 msgstr "运行中"
 
-#: src/pages/ActivityList.tsx
-msgid "Running"
-msgstr "运行中"
-
 #: src/pages/RoutineEditor.tsx
 msgid "Running · Stop"
 msgstr "运行中 · 停止"
@@ -3756,6 +4037,7 @@ msgstr ""
 #: src/pages/GroupPanel.tsx
 #: src/pages/KnowledgeSection.tsx
 #: src/pages/ModelSettingsOverlay.tsx
+#: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
@@ -3765,6 +4047,10 @@ msgstr "保存"
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Save backups"
 msgstr "保存备用模型"
+
+#: src/components/CalendarConnection.tsx
+msgid "Save connection settings"
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Save credential"
@@ -3778,6 +4064,10 @@ msgstr ""
 msgid "Save new value"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Save preferences"
+msgstr ""
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
 msgstr "保存工作区并安装最新软件。"
@@ -3787,6 +4077,10 @@ msgstr "保存工作区并安装最新软件。"
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Saved"
 msgstr "已保存"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Saved outcome"
+msgstr ""
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Saved, but list refresh failed"
@@ -3828,6 +4122,7 @@ msgstr "回答是或否，或一句话说明。"
 #: src/pages/Shell.tsx
 #: src/pages/shell/bot-picker.tsx
 #: src/pages/shell/command-palette.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Search"
 msgstr "搜索"
 
@@ -3844,16 +4139,20 @@ msgstr "搜索应用"
 msgid "Search artifacts…"
 msgstr ""
 
-#: src/pages/shell/command-palette.tsx
-msgid "Search bots and switch conversations"
-msgstr ""
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Search by domain"
 msgstr ""
 
+#: src/pages/shell/command-palette.tsx
+msgid "Search conversations"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
+msgstr ""
+
+#: src/pages/PersonalMemoryPanel.tsx
+msgid "Search memory"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -3877,10 +4176,6 @@ msgstr ""
 #: src/pages/SpaceSearch.tsx
 msgid "Searching…"
 msgstr "正在搜索…"
-
-#: src/pages/Shell.tsx
-msgid "Select a bot"
-msgstr "选择 Bot"
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Select a connected model"
@@ -3939,10 +4234,15 @@ msgstr "服务器名称"
 msgid "Server URL"
 msgstr "服务器 URL"
 
+#: src/pages/Shell.tsx
+msgid "Set up Kith"
+msgstr ""
+
 #: src/components/call/CallCard.tsx
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "设置"
 
@@ -3985,10 +4285,6 @@ msgid "Shell"
 msgstr "Shell"
 
 #: src/pages/Shell.tsx
-msgid "Show bots"
-msgstr ""
-
-#: src/pages/Shell.tsx
 msgid "Show computer"
 msgstr ""
 
@@ -4007,6 +4303,10 @@ msgstr "显示密码"
 #: src/pages/Shell.tsx
 msgid "Show settings"
 msgstr "显示设置"
+
+#: src/pages/Shell.tsx
+msgid "Show sidebar"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Show tool activity"
@@ -4031,8 +4331,8 @@ msgid "Sign in again"
 msgstr ""
 
 #: src/pages/Auth.tsx
-msgid "Sign in to Rakazo"
-msgstr "登录 Rakazo"
+msgid "Sign in to Kith"
+msgstr "登录 Kith"
 
 #: src/lib/user-error.ts
 msgid "Sign in to your existing account to link SSO"
@@ -4087,6 +4387,10 @@ msgstr "软件更新"
 msgid "Something went wrong. Try again."
 msgstr "出了点问题。请重试。"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Source records"
+msgstr ""
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Space changed. Reopen Models to load its backup list."
 msgstr "空间已更改。重新打开“模型”以加载备用列表。"
@@ -4135,9 +4439,13 @@ msgstr ""
 msgid "Start recording"
 msgstr "开始录制"
 
-#: src/pages/ActivityList.tsx
-msgid "Starting"
-msgstr "正在开始"
+#: src/pages/Shell.tsx
+msgid "Start with what you’d like to do."
+msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Started"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/lib/roster-status.ts
@@ -4146,6 +4454,7 @@ msgstr "正在开始"
 msgid "Starting…"
 msgstr "正在开始…"
 
+#: src/components/CalendarReceipt.tsx
 #: src/pages/ActivityList.tsx
 msgid "Status"
 msgstr ""
@@ -4211,7 +4520,7 @@ msgid "Supports thinking"
 msgstr "支持思考"
 
 #: src/pages/shell/command-palette.tsx
-msgid "Switch bot"
+msgid "Switch conversation"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -4221,6 +4530,11 @@ msgstr "正在切换…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "系统"
+
+#: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Tasks"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
@@ -4379,16 +4693,25 @@ msgid "This server is already connected. Disconnect it first to authorize again.
 msgstr "此服务器已连接。请先断开再重新授权。"
 
 #: src/pages/ModelSettingsOverlay.tsx
-msgid "This subscription sign-in is not available in Rakazo yet. Use a deployment credential or choose another provider."
-msgstr "此订阅登录在 Rakazo 中尚不可用。请使用部署凭据或选择其他提供方。"
+msgid "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider."
+msgstr "此订阅登录在 Kith 中尚不可用。请使用部署凭据或选择其他提供方。"
 
 #: src/pages/Artifacts.tsx
 msgid "This week"
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Thread"
+msgstr ""
+
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"
 msgstr "时间"
+
+#: src/components/CalendarConnection.tsx
+#: src/components/CalendarReceipt.tsx
+msgid "Timezone"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Title"
@@ -4489,6 +4812,10 @@ msgstr "取消静音"
 msgid "Unpin"
 msgstr "取消置顶"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Unread"
+msgstr ""
+
 #. placeholder {0}: pending.file.name
 #: src/pages/Shell.tsx
 msgid "Unsupported file type: {0}"
@@ -4570,6 +4897,10 @@ msgstr "使用 {hostLabel}"
 msgid "Use a found model"
 msgstr "使用找到的模型"
 
+#: src/pages/Onboarding.tsx
+msgid "Use an API key"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Use Connect to verify the key."
 msgstr "请使用“连接”验证密钥。"
@@ -4606,6 +4937,10 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "Values are encrypted and never shown again."
 msgstr "值会加密保存，之后不再显示。"
+
+#: src/components/CalendarReceipt.tsx
+msgid "Verified calendar data"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
@@ -4687,6 +5022,10 @@ msgstr "你要示范什么结果？"
 msgid "What should this routine do each time it runs?"
 msgstr "每次运行时，这个例行任务应做什么？"
 
+#: src/components/CalendarConnection.tsx
+msgid "What should your assistant keep in mind?"
+msgstr ""
+
 #: src/pages/shell/bot-panel.tsx
 msgid "What this bot is for"
 msgstr "这个 Bot 是做什么的"
@@ -4694,6 +5033,14 @@ msgstr "这个 Bot 是做什么的"
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"
 msgstr "返回什么"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "What's on my schedule tomorrow?"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "What’s on your mind?"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
@@ -4711,6 +5058,7 @@ msgstr "何时使用"
 msgid "Where should bots run?"
 msgstr "Bot 应在哪里运行？"
 
+#: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
 msgid "Working…"
@@ -4745,6 +5093,10 @@ msgstr "可以关闭此窗口。"
 msgid "You have control"
 msgstr "你已接管"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Your assistant"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Your email address"
 msgstr "你的邮箱"
@@ -4752,7 +5104,3 @@ msgstr "你的邮箱"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "你的名字"
-
-#: src/pages/Welcome.tsx
-msgid "Your team of always-on agents<0/>that you can give real work to."
-msgstr "你的一支随时在线的 Agent 团队<0/>可以交给它们真正的工作。"

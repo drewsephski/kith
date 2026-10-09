@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Rakazo",
+    "name": "Kith",
     "slug": "rakazo",
     "owner": "inbox-zero",
     "scheme": "rakazo",
@@ -23,14 +23,14 @@
         "expo-audio",
         {
           "enableBackgroundPlayback": false,
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "microphonePermission": "Kith uses the microphone for voice calls with your assistant."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "speechRecognitionPermission": "Rakazo turns your speech into messages during voice calls.",
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "speechRecognitionPermission": "Kith turns your speech into messages during voice calls.",
+          "microphonePermission": "Kith uses the microphone for voice calls with your assistant."
         }
       ],
       "expo-localization",
@@ -46,9 +46,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Rakazo uses your photo library so you can attach images to a bot message.",
-          "cameraPermission": "Rakazo uses the camera so you can attach photos to a bot message.",
-          "microphonePermission": "Rakazo uses the microphone for voice calls with your bots."
+          "photosPermission": "Kith uses your photo library so you can attach images to a bot message.",
+          "cameraPermission": "Kith uses the camera so you can attach photos to a bot message.",
+          "microphonePermission": "Kith uses the microphone for voice calls with your assistant."
         }
       ],
       "expo-sharing",
@@ -64,9 +64,9 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "Rakazo uses the camera so you can attach photos to a bot message.",
-        "NSPhotoLibraryUsageDescription": "Rakazo uses your photo library so you can attach images to a bot message.",
-        "NSLocalNetworkUsageDescription": "Rakazo connects to a self-hosted Rakazo server on your local network.",
+        "NSCameraUsageDescription": "Kith uses the camera so you can attach photos to a bot message.",
+        "NSPhotoLibraryUsageDescription": "Kith uses your photo library so you can attach images to a bot message.",
+        "NSLocalNetworkUsageDescription": "Kith connects to a self-hosted Kith server on your local network.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }

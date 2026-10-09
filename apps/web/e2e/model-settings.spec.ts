@@ -78,7 +78,8 @@ test("custom connections persist reasoning support and bot thinking", async ({
     clearedCredentials.find((entry) => entry.modelId === "arbitrary-model")?.maxImagesPerPrompt,
   ).toBeUndefined();
   await page.getByRole("button", { name: "Close model settings" }).click();
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await page.getByRole("button", { name: "Conversation details" }).click();
+  await page.getByRole("menuitem", { name: "Assistant settings" }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
   const advanced = settings.getByTestId("bot-settings-advanced");
@@ -104,7 +105,8 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await settings.getByRole("button", { name: "Save", exact: true }).click();
   await saved;
   await page.reload();
-  await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
+  await page.getByRole("button", { name: "Conversation details" }).click();
+  await page.getByRole("menuitem", { name: "Assistant settings" }).click();
   await expect(settings).toBeVisible();
   await advanced.evaluate((element) => {
     (element as HTMLDetailsElement).open = true;
@@ -502,7 +504,7 @@ test("a key connected in another space can replace server credentials for the sa
   const useModel = page.getByRole("button", { name: "Use this model", exact: true });
   await expect(useModel).toBeVisible();
   const personalBillingNote = page.getByText(
-    "Uses your Amazon Bedrock API key. Rakazo does not pay for model usage.",
+    "Uses your Amazon Bedrock API key. Kith does not pay for model usage.",
   );
   await expect(personalBillingNote).toBeHidden();
   await captureScreenshot(page, testInfo, "model-settings-server-credentials-connected-key");

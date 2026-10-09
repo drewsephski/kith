@@ -2,6 +2,16 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("rakazoDesktop", {
   platform: process.platform,
+  quickAsk: {
+    state: () => ipcRenderer.invoke("desktop.quickAsk.state"),
+    expand: () => ipcRenderer.invoke("desktop.quickAsk.expand"),
+    dismiss: () => ipcRenderer.invoke("desktop.quickAsk.dismiss"),
+    onChange: (listener) => {
+      const handler = (_event, active) => listener(active === true);
+      ipcRenderer.on("desktop.quickAsk.changed", handler);
+      return () => ipcRenderer.off("desktop.quickAsk.changed", handler);
+    },
+  },
   localSettings: {
     request: (pathname, body) =>
       ipcRenderer.invoke("desktop.localSettings.request", pathname, body),

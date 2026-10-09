@@ -20,30 +20,30 @@ test("spawned bots nest under their parent and collapse", async ({ page }, testI
   const scout = rosterRow(page, /Scout/);
   await expect(scout).toBeVisible({ timeout: 30_000 });
   await expect(scout).toHaveAttribute("data-roster-depth", "1");
-  await expect(rosterRow(page, /^Chief/)).toHaveAttribute("data-roster-depth", "0");
+  await expect(rosterRow(page, /^Kith/)).toHaveAttribute("data-roster-depth", "0");
 
   const sidebar = page.locator("aside").first();
-  const toggle = sidebar.getByRole("button", { name: "Collapse Chief" });
+  const toggle = sidebar.getByRole("button", { name: "Collapse Kith" });
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await sidebar.getByPlaceholder("Search").hover();
   await captureScreenshot(page, testInfo, "sidebar-reporting-tree-expanded");
 
   await toggle.click();
   await expect(scout).toHaveCount(0);
-  const expand = sidebar.getByRole("button", { name: "Expand Chief" });
+  const expand = sidebar.getByRole("button", { name: "Expand Kith" });
   await expect(expand).toHaveAttribute("aria-expanded", "false");
   await sidebar.getByPlaceholder("Search").hover();
   await captureScreenshot(page, testInfo, "sidebar-reporting-tree-collapsed");
 
   await page.reload();
-  await expect(sidebar.getByRole("button", { name: "Expand Chief" })).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "Expand Kith" })).toBeVisible();
   await expect(scout).toHaveCount(0);
 
-  await sidebar.getByRole("button", { name: "Expand Chief" }).click();
+  await sidebar.getByRole("button", { name: "Expand Kith" }).click();
   await expect(scout).toBeVisible();
 
   // Alt+Arrow reorders among visible siblings, so the move shows in the tree.
-  await rosterRow(page, /^Chief/).click();
+  await rosterRow(page, /^Kith/).click();
   await composer.fill("spawn a bot named Ranger to scout venues");
   await page.keyboard.press("Enter");
   const ranger = rosterRow(page, /Ranger/);

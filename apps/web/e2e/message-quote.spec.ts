@@ -268,7 +268,7 @@ test("selecting text inside a table cell quotes the rendered cell", async ({ pag
     .first();
   await expect(replyRow).toBeVisible({ timeout: 20_000 });
   const parentPreview = replyRow.getByTestId("reply-parent-preview");
-  await expect(parentPreview).toHaveText(`↩ Chief: ${cellText}`);
+  await expect(parentPreview).toHaveText(`↩ Kith: ${cellText}`);
 });
 
 test("an armed reply survives the parent paging out of the transcript", async ({ page }) => {

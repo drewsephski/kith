@@ -43,6 +43,7 @@ export const RunActivityRowSchema = z.object({
     "messaging",
     "cloud_agent",
     "created",
+    "calendar",
   ]),
   notificationsEnabled: z.boolean(),
   promptSnippet: z.string(),

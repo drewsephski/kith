@@ -25,6 +25,8 @@ test("setup exposes all integration choices and saves only the selected provider
     return route.fulfill({ json: { json: { ok: true } } });
   });
   await signup(page, `integration-setup-${Date.now()}@rakazo.test`, "password12", "Setup Test");
+  await completeOnboarding(page);
+  await page.goto("/integrations/setup");
   await expect(page.getByRole("heading", { name: "Server integrations" })).toBeVisible();
   for (const name of ["Direct MCP", "Composio", "Pipedream", "Executor"]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
@@ -44,7 +46,7 @@ test("setup exposes all integration choices and saves only the selected provider
     .poll(() => saved)
     .toEqual([{ json: { provider: "composio", apiKey: "fake-composio-key" } }]);
   await expect(page.getByRole("heading", { name: "Create your first bot" })).toHaveCount(0);
-  await expect(page.getByRole("combobox", { name: "Message Chief" })).toBeVisible({
+  await expect(page.getByRole("combobox", { name: "Message Kith" })).toBeVisible({
     timeout: 20_000,
   });
 });
@@ -95,35 +97,24 @@ test("direct MCP connects a catalog result without asking for a URL and assigns 
     return route.fulfill({ json: { json: { status: "already_connected" } } });
   });
   await signup(page, `direct-mcp-setup-${Date.now()}@rakazo.test`, "password12", "Direct MCP");
+  await completeOnboarding(page);
+  const botId = new URL(page.url()).pathname.split("/").at(-1);
+  await page.goto("/integrations/setup");
   await page.getByRole("textbox", { name: "Search apps", exact: true }).fill("Notion");
   await page.getByRole("button", { name: "Search integrations.sh", exact: true }).click();
   await expect(page.getByText("Notion", { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Server URL" })).toBeHidden();
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Connected", exact: true })).toBeVisible();
-  await captureScreenshot(page, testInfo, "integration-setup-direct-connected");
-  let createCalls = 0;
-  let releaseCreate!: () => void;
-  const createGate = new Promise<void>((resolve) => {
-    releaseCreate = resolve;
-  });
-  await page.route("**/rpc/bots/create", async (route) => {
-    createCalls += 1;
-    await createGate;
-    await route.continue();
-  });
-
   const assigned = page.waitForResponse(
     (response) => response.url().includes("/rpc/mcp/assignments/approve") && response.ok(),
   );
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByText("Opening chat…")).toBeVisible();
-  await expect.poll(() => createCalls).toBe(1);
-  releaseCreate();
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
   const response = await assigned;
-  expect(response.request().postDataJSON().json.serverId).toBe(serverId);
+  expect(response.request().postDataJSON().json).toEqual({ botId, serverId });
+  await expect(page.getByRole("button", { name: "Connected", exact: true })).toBeVisible();
+  await captureScreenshot(page, testInfo, "integration-setup-direct-connected");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.waitForURL(/\/app\//);
-  await expect(page.getByRole("combobox", { name: "Message Chief" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Message Kith" })).toBeVisible();
 });
 
 test("Executor reconnect saves a replacement token before authorization", async ({ page }) => {
@@ -140,6 +131,8 @@ test("Executor reconnect saves a replacement token before authorization", async 
     }),
   );
   await signup(page, `executor-reconnect-${Date.now()}@rakazo.test`, "password12", "Executor Test");
+  await completeOnboarding(page);
+  await page.goto("/integrations/setup");
   await expect(page.getByRole("heading", { name: "Server integrations" })).toBeVisible();
   const server = await page.evaluate(async () => {
     const response = await fetch("/rpc/mcp/servers/create", {

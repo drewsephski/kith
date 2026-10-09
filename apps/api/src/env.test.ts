@@ -7,6 +7,15 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("routes persistent database sessions through the shared direct endpoint", () => {
+    const direct = "postgres://example:fake@direct.example.test/rakazo";
+    expect(loadEnv({ ...base, DATABASE_DIRECT_URL: direct })).toMatchObject({
+      databaseUrl: base.DATABASE_URL,
+      directDatabaseUrl: direct,
+      realtimeDatabaseUrl: direct,
+    });
+  });
+
   it("defaults the product path to Pi, Docker, and Graphile Worker", () => {
     const env = loadEnv(base);
     expect(env.agentRuntime).toBe("pi");

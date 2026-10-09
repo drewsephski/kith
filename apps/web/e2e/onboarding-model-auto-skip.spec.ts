@@ -17,8 +17,8 @@ test("onboarding skips model connect when a default model is already available",
     route.fulfill({
       json: {
         json: {
-          canConfigure: false,
-          needsSetup: false,
+          canConfigure: true,
+          needsSetup: true,
           webUrl: "https://example.test/integrations/setup",
           providers: [],
         },
@@ -48,14 +48,14 @@ test("onboarding skips model connect when a default model is already available",
 
   expect((await createRequest).postDataJSON()).toMatchObject({
     json: {
-      name: "Chief",
+      name: "Kith",
       title: "",
       description: "",
-      instructions: "",
+      startEmpty: true,
       spawnKey: "onboarding:first",
     },
   });
-  await expect(page.getByRole("combobox", { name: "Message Chief" })).toBeVisible({
+  await expect(page.getByRole("combobox", { name: "Message Kith" })).toBeVisible({
     timeout: 20_000,
   });
   await captureScreenshot(page, testInfo, "onboarding-model-auto-skip");

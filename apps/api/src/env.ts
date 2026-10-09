@@ -11,6 +11,7 @@ import {
   resolveScreenProxySecret,
   resolveSupervisorToken,
 } from "@rakazo/core";
+import { resolveDatabaseUrls } from "@rakazo/db";
 
 export { resolveCloudAgentProvider, resolveSandboxProvider } from "@rakazo/adapters";
 
@@ -20,6 +21,7 @@ export interface AppEnv {
   nodeEnv: string;
   desktopStackToken?: string;
   databaseUrl: string;
+  directDatabaseUrl: string;
   realtimeDatabaseUrl: string;
   authSecret: string;
   authUrl: string;
@@ -158,8 +160,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     passwordAuth,
     oidc,
     nodeEnv: source.NODE_ENV ?? "",
-    databaseUrl: required(source, "DATABASE_URL"),
-    realtimeDatabaseUrl: source.REALTIME_DATABASE_URL ?? required(source, "DATABASE_URL"),
+    ...resolveDatabaseUrls(source),
     desktopStackToken: optional(source.RAKAZO_DESKTOP_STACK_TOKEN),
     authSecret,
     authUrl: source.BETTER_AUTH_URL ?? source.WEB_ORIGIN ?? "http://127.0.0.1:5173",
@@ -240,12 +241,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     updaterToken,
     imageTag: optional(source.RAKAZO_IMAGE_TAG),
   };
-}
-
-function required(source: NodeJS.ProcessEnv, key: string): string {
-  const value = source[key];
-  if (!value) throw new Error(`Missing ${key}`);
-  return value;
 }
 
 function optional(value: string | undefined): string | undefined {

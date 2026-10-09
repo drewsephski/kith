@@ -1,27 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; form-action 'none'; base-uri 'none'"
     />
-    <title>Set up Rakazo</title>
+    <title>Set up Kith</title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="setup.css" />
   </head>
   <body>
     <header class="titlebar">
-      <span class="titlebar-name">Rakazo</span>
-      <button id="quit" class="titlebar-quit" type="button" title="Quit Rakazo">Quit</button>
+      <span class="titlebar-name">Kith</span>
+      <button id="quit" class="titlebar-quit" type="button" title="Quit Kith">Quit</button>
     </header>
 
     <main class="shell">
-      <h1 class="heading">Welcome to Rakazo</h1>
-      <p class="subheading">Choose which server this app should use.</p>
+      <img class="companion" src="kith-companion.webp" width="84" height="84" alt="" />
+      <h1 class="heading">Welcome to Kith</h1>
+      <p id="setup-description" class="subheading">Your personal assistant, right here.</p>
 
       <form id="setup" novalidate>
-        <fieldset class="choices">
+        <fieldset hidden>
           <legend class="sr-only">Instance</legend>
 
           <label class="choice" for="mode-new">
@@ -83,7 +85,7 @@
             type="text"
             spellcheck="false"
             autocomplete="off"
-            placeholder="https://rakazo.example.com"
+            placeholder="https://kith.example.com"
           />
         </section>
 
@@ -91,8 +93,9 @@
 
         <div class="actions">
           <button id="check" class="button button-secondary" type="button">Check connection</button>
-          <button id="continue" class="button button-primary" type="submit">Continue</button>
+          <button id="continue" class="button button-primary" type="submit">Get started</button>
         </div>
+        <button id="change-mode" class="mode-link" type="button">Connect to a server</button>
       </form>
     </main>
 

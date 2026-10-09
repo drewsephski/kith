@@ -1,4 +1,4 @@
-import { BotAvatar, GroupAvatar, type GroupAvatarMember } from "@rakazo/ui-web";
+import { BotAvatar, type GroupAvatarMember, KithAvatar } from "@rakazo/ui-web";
 import { LoadingState } from "./primitives";
 
 /** Lightweight peer event shown without exposing the exchanged message body. */
@@ -33,10 +33,18 @@ export function CollaborationMarker({
   );
 }
 
-export function ActiveBotGlyph({ bots, label }: { bots: GroupAvatarMember[]; label: string }) {
+export function ActiveBotGlyph({ label }: { bots: GroupAvatarMember[]; label: string }) {
   return (
     <div className="flex min-h-10 items-center px-1">
-      <LoadingState indicator={<GroupAvatar members={bots} size={28} />} label={label} />
+      <LoadingState
+        indicator={
+          <>
+            <KithAvatar size={28} />
+            <span className="text-sm text-muted-foreground">{label}</span>
+          </>
+        }
+        label={label}
+      />
     </div>
   );
 }
