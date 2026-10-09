@@ -221,6 +221,7 @@ msgstr ""
 msgid "Access token"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Access token (optional)"
 msgstr "액세스 토큰(선택 사항)"
@@ -338,6 +339,10 @@ msgstr "연결된 모델 추가"
 msgid "Add connected models to use them as backups."
 msgstr "백업으로 사용할 연결된 모델을 추가하세요."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Add connection"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Add credential"
 msgstr ""
@@ -374,10 +379,6 @@ msgstr "원격 MCP 서버 추가"
 #: src/pages/McpServersOverlay.tsx
 msgid "Add server"
 msgstr "서버 추가"
-
-#: src/components/integrations/IntegrationSetup.tsx
-msgid "Add server URL"
-msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
@@ -474,10 +475,6 @@ msgstr "확인 없이 이메일 동작 허용"
 msgid "Allow once"
 msgstr "한 번 허용"
 
-#: src/components/task-starters/TaskStarterSetup.tsx
-msgid "Allow pop-ups to connect this account."
-msgstr ""
-
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Allow purchase actions without asking"
 msgstr "확인 없이 결제 동작 허용"
@@ -570,8 +567,13 @@ msgid "Approve this server to let your agent use its tools."
 msgstr "이 서버를 승인하면 Bot이 제공되는 도구를 사용할 수 있습니다."
 
 #: src/pages/BotContextMenu.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Archive"
 msgstr "보관"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Archive {name}"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "archived"
@@ -626,6 +628,11 @@ msgstr "외부 이메일을 보내기 전에 확인"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Ask the server owner to enable app connections."
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
@@ -847,8 +854,20 @@ msgstr "기본 제공"
 msgid "Calendar"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Calendar account"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Calendar briefing"
+msgstr ""
+
 #: src/components/CalendarReceipt.tsx
 msgid "Calendar briefing · View receipt"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+msgid "Calendar is unavailable. Try again."
 msgstr ""
 
 #: src/App.tsx
@@ -858,6 +877,7 @@ msgstr "서버에 연결할 수 없습니다."
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -932,6 +952,11 @@ msgstr "채팅 설정"
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Check connection"
 msgstr ""
 
 #: src/components/SoftwareUpdateSection.tsx
@@ -1102,6 +1127,10 @@ msgstr "패널 닫기"
 msgid "Close preview"
 msgstr "미리보기 닫기"
 
+#: src/pages/IntegrationCallback.tsx
+msgid "Close tab"
+msgstr "탭 닫기"
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Close user settings"
 msgstr "계정 설정 닫기"
@@ -1194,10 +1223,6 @@ msgstr ""
 msgid "Computers are off. Set SANDBOX_PROVIDER=docker with SANDBOX_SUPERVISOR_TOKEN, or set SANDBOX_PROVIDER to e2b, daytona, or box with its API key. Recreate the stack after changing .env."
 msgstr "컴퓨터가 꺼져 있습니다. SANDBOX_PROVIDER=docker와 SANDBOX_SUPERVISOR_TOKEN을 설정하거나, SANDBOX_PROVIDER를 e2b, daytona, box 중 하나로 두고 해당 API 키를 넣으세요. .env 변경 후 스택을 다시 만드세요."
 
-#: src/pages/PluginsOverlay.tsx
-msgid "Configure a plugin catalog on the server to connect apps."
-msgstr ""
-
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Configure integrations"
 msgstr ""
@@ -1227,12 +1252,15 @@ msgstr "이 브라우저 세션에서 URL에 연결할 수 있는지 확인한 �
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
+#: src/pages/PluginsOverlay.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "연결"
 
 #. placeholder {0}: appNames[app]
+#. placeholder {0}: item.name
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "Connect {0}"
 msgstr ""
 
@@ -1263,6 +1291,10 @@ msgstr "MCP 서버 ‘{name}’ 연결"
 #: src/pages/McpServersOverlay.tsx
 msgid "Connect OAuth"
 msgstr "OAuth 연결"
+
+#: src/pages/PluginsOverlay.tsx
+msgid "Connect services"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect this provider to use it as your personal model."
@@ -1297,6 +1329,10 @@ msgstr "{0}에 연결했습니다."
 msgid "Connected and using {0}."
 msgstr "{0}에 연결하고 기본 모델로 설정했습니다."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Connected services"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Connected. Its tools are available from your next message."
 msgstr "연결되었습니다. 다음 메시지부터 이 도구를 사용할 수 있습니다."
@@ -1310,6 +1346,7 @@ msgstr ""
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connecting…"
@@ -1317,6 +1354,14 @@ msgstr "연결 중…"
 
 #: src/pages/Onboarding.tsx
 msgid "Connection details"
+msgstr ""
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Connection is unfinished. Try again when you are ready."
+msgstr ""
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Connection settings"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -1349,6 +1394,15 @@ msgstr "계속"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Continue in Background"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+#: src/components/integrations/IntegrationSetup.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/McpServersOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "Continue in browser"
 msgstr ""
 
 #. placeholder {0}: reset.sso.name
@@ -1400,6 +1454,10 @@ msgstr "MCP 서버를 추가하지 못했습니다."
 msgid "Could not approve this server"
 msgstr "서버를 승인하지 못했습니다."
 
+#: src/pages/Shell.tsx
+msgid "Could not archive conversation"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Could not authorize this app"
 msgstr "앱 인증을 완료하지 못했습니다."
@@ -1450,6 +1508,11 @@ msgstr "연결하지 못했습니다."
 msgid "Could not connect {0}"
 msgstr "{0}에 연결하지 못했습니다."
 
+#. placeholder {0}: item.name
+#: src/pages/PluginsOverlay.tsx
+msgid "Could not connect {0}. Try again."
+msgstr ""
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Could not connect account"
 msgstr ""
@@ -1464,6 +1527,10 @@ msgstr "음성 서비스에 연결하지 못했습니다."
 
 #: src/pages/Shell.tsx
 msgid "Could not connect to the computer screen"
+msgstr ""
+
+#: src/pages/PluginsOverlay.tsx
+msgid "Could not connect. Try again."
 msgstr ""
 
 #: src/components/AccountAccess.tsx
@@ -1579,6 +1646,10 @@ msgstr "불러올 수 없음"
 
 #: src/pages/ActivityList.tsx
 msgid "Could not load activity"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Could not load all connections."
 msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
@@ -1735,6 +1806,10 @@ msgstr "서버에 연결할 수 없습니다"
 msgid "Could not remove"
 msgstr "삭제하지 못했습니다."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Could not remove connection. Try again."
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not remove connector"
 msgstr "도구 연결을 삭제하지 못했습니다."
@@ -1753,6 +1828,10 @@ msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not rename connection"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Could not rename conversation"
 msgstr ""
 
 #: src/pages/shell/dialogs.tsx
@@ -2192,6 +2271,10 @@ msgid "Disconnect {disconnectName}?"
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
+msgid "Disconnect briefing"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
 msgid "Disconnect Calendar"
 msgstr ""
 
@@ -2500,6 +2583,10 @@ msgstr "모델 찾기"
 msgid "Finding…"
 msgstr "찾는 중…"
 
+#: src/components/CalendarConnection.tsx
+msgid "Finish connecting Calendar in the browser, then try again."
+msgstr ""
+
 #. placeholder {0}: new URL(oauth.verificationUri).hostname
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2603,6 +2690,7 @@ msgid "Good morning"
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 msgid "Google Calendar"
 msgstr ""
 
@@ -2910,6 +2998,10 @@ msgstr "웹 이미지 자동으로 불러오기"
 msgid "Loading activity…"
 msgstr "활동을 불러오는 중…"
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Loading connections…"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading integrations…"
 msgstr "연동 목록을 불러오는 중…"
@@ -2995,6 +3087,7 @@ msgid "Make sure nothing is still running on this computer."
 msgstr "이 컴퓨터에서 실행 중인 작업이 없는지 확인하세요."
 
 #: src/pages/BillingSettingsPanel.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "Manage"
 msgstr ""
 
@@ -3063,6 +3156,7 @@ msgid "MCP endpoint"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "MCP servers"
 msgstr "MCP 서버"
 
@@ -3247,9 +3341,9 @@ msgstr ""
 msgid "More computer actions"
 msgstr "컴퓨터 작업 더보기"
 
-#: src/pages/Shell.tsx
-msgid "More connections"
-msgstr ""
+#: src/pages/shell/bot-panel.tsx
+msgid "More options"
+msgstr "추가 옵션"
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
@@ -3376,6 +3470,10 @@ msgstr ""
 msgid "No chat apps linked yet."
 msgstr "아직 연결된 채팅 앱이 없습니다."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "No connections yet"
+msgstr ""
+
 #: src/pages/shell/command-palette.tsx
 msgid "No conversations"
 msgstr ""
@@ -3391,10 +3489,6 @@ msgstr "아직 그룹 채팅이 없습니다."
 #: src/components/AskCard.tsx
 msgid "No longer active"
 msgstr "이미 종료된 요청입니다"
-
-#: src/pages/PluginsOverlay.tsx
-msgid "No managed app catalog is configured on this deployment."
-msgstr "이 서버에는 관리형 앱 목록이 설정되지 않았습니다."
 
 #: src/pages/Artifacts.tsx
 msgid "No matching artifacts on this page."
@@ -4010,6 +4104,7 @@ msgid "Remember that I prefer "
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -4018,9 +4113,16 @@ msgid "Remove"
 msgstr "삭제"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: service.name
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/Shell.tsx
 msgid "Remove {0}"
 msgstr "{0} 삭제"
+
+#. placeholder {0}: removing?.name
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Remove {0}?"
+msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Remove {full}"
@@ -4036,6 +4138,10 @@ msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Remove Google Calendar"
 msgstr ""
 
 #. placeholder {0}: mention.name
@@ -4072,9 +4178,18 @@ msgstr "대화, 컴퓨터, 기억과 함께 삭제되었습니다."
 msgid "Removed, but list refresh failed"
 msgstr "삭제했지만 목록을 새로고침하지 못했습니다."
 
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Removing…"
 msgstr "삭제 중…"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Rename conversation"
+msgstr ""
 
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
@@ -4224,6 +4339,10 @@ msgstr ""
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Kith"
 msgstr "Rakazo로 돌아가기"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Return to the app to finish connecting."
+msgstr "연결을 마치려면 앱으로 돌아가세요."
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx
@@ -4526,9 +4645,14 @@ msgstr ""
 msgid "Server integrations"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Server name"
 msgstr "서버 이름"
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Server name (optional)"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -4539,6 +4663,11 @@ msgstr "서버 URL"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Sessions"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Set up app connections"
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4798,6 +4927,13 @@ msgstr "읽기 중지"
 msgid "Stop teaching"
 msgstr "가르치기 종료"
 
+#: src/components/CalendarConnection.tsx
+#: src/components/integrations/IntegrationSetup.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Stop waiting"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -4852,6 +4988,14 @@ msgstr "사고 모드 지원"
 
 #: src/pages/shell/command-palette.tsx
 msgid "Switch conversation"
+msgstr ""
+
+#: src/components/ThemeToggle.tsx
+msgid "Switch to dark mode"
+msgstr ""
+
+#: src/components/ThemeToggle.tsx
+msgid "Switch to light mode"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5039,10 +5183,6 @@ msgstr "연결할 Bot이 없어 이 서버를 배정할 수 없습니다."
 msgid "This server did not request browser authorization."
 msgstr "이 서버는 브라우저 인증을 요청하지 않았습니다."
 
-#: src/pages/McpServersOverlay.tsx
-msgid "This server is already connected. Disconnect it first to authorize again."
-msgstr "이 서버는 이미 연결되어 있습니다. 다시 인증하려면 먼저 연결을 해제하세요."
-
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider."
 msgstr "이 구독 로그인 방식은 아직 Rakazo에서 지원되지 않습니다. 서버에 설정된 인증 정보를 사용하거나 다른 서비스를 선택하세요."
@@ -5126,6 +5266,7 @@ msgstr ""
 msgid "Trial ends {day}"
 msgstr ""
 
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
 msgid "Try again"
@@ -5295,6 +5436,10 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Use this model"
 msgstr "이 모델 사용"
+
+#: src/components/CalendarConnection.tsx
+msgid "Use your own Google OAuth app"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Use your own key"
@@ -5486,6 +5631,10 @@ msgstr "직접 조작 중"
 msgid "Your assistant"
 msgstr ""
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Your assistant will lose access to this connection."
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Your email address"
 msgstr "이메일 주소"
@@ -5493,35 +5642,3 @@ msgstr "이메일 주소"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "이름"
-
-#: src/pages/IntegrationCallback.tsx
-msgid "Return to the app to finish connecting."
-msgstr "연결을 마치려면 앱으로 돌아가세요."
-
-#: src/pages/IntegrationCallback.tsx
-msgid "Close tab"
-msgstr "탭 닫기"
-
-#: src/pages/BotContextMenu.tsx
-msgid "Rename"
-msgstr ""
-
-#: src/pages/shell/dialogs.tsx
-msgid "Rename conversation"
-msgstr ""
-
-#: src/pages/shell/dialogs.tsx
-msgid "Could not rename conversation"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Could not archive conversation"
-msgstr ""
-
-#: src/pages/shell/kith-sidebar.tsx
-msgid "Archive {name}"
-msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "More options"
-msgstr "추가 옵션"

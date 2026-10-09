@@ -74,6 +74,30 @@ describeWithDatabase("Composio catalog reconciliation", () => {
     vi.restoreAllMocks();
   });
 
+  it("removes a catalog-only connection without touching another user's account", async () => {
+    const ownerCookie = await signup(app, `catalog-remove-owner-${stamp}@rakazo.test`, "Owner");
+    const otherCookie = await signup(app, `catalog-remove-other-${stamp}@rakazo.test`, "Other");
+    const owner = await rpc<Actor>(app, ownerCookie, "me");
+    const other = await rpc<Actor>(app, otherCookie, "me");
+    await connectRemote(composio, owner, "GMAIL");
+    await connectRemote(composio, other, "GMAIL");
+    await expect(rpc(app, ownerCookie, "connections/list")).resolves.toEqual([]);
+    await rpc(app, ownerCookie, "connections/revokeService", {
+      connectorId: "composio",
+      provider: "gmail",
+    });
+    const catalog = (cookie: string) =>
+      rpc<Array<{ slug: string; connected: boolean }>>(app, cookie, "connections/catalog", {
+        connectorId: "composio",
+      });
+    await expect(catalog(ownerCookie)).resolves.toContainEqual(
+      expect.objectContaining({ slug: "GMAIL", connected: false }),
+    );
+    await expect(catalog(otherCookie)).resolves.toContainEqual(
+      expect.objectContaining({ slug: "GMAIL", connected: true }),
+    );
+  });
+
   it("serializes overlapping backup replacements without mixing users or orders", async () => {
     const ownerCookie = await signup(app, `backup-owner-${stamp}@rakazo.test`, "Owner");
     const otherCookie = await signup(app, `backup-other-${stamp}@rakazo.test`, "Other");

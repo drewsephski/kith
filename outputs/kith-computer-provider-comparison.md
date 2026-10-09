@@ -46,7 +46,17 @@ The hosted web app returned a real model response (`CHAT_OK`). Its agent then wr
 
 A Daytona probe also provisioned, prepared the desktop and retained files after stop/start, but its external HTTPS command failed with curl exit 35. That result is consistent with a networking limitation but does not independently establish the account tier or prove its cause. The probe sandbox was destroyed. The initial provider decision follows the documented network-tier requirements plus E2B's successful live browsing check.
 
-The first real screen connection exposed a transient provider-side WebSocket 502. The gateway now retries the handshake at most three times, rechecks current authorization before each retry, and stops retrying after any established stream or forwarded handshake. Client frames are never replayed. Offline browser tests cover startup recovery, exhausted retry budget, authorization revocation, response isolation and both gateway modes.
+The real noVNC viewer exposed a socket-routing bug that direct WebSocket probes missed: stock noVNC resolves a path relative to its capability page when no host is configured. The previous URL duplicated the capability directory and omitted the nested provider socket token, causing upstream 502 responses. Issued URLs now explicitly configure the gateway host, port and encryption so stock noVNC uses the correct public socket path. A regression reproduces both its host and relative URL behavior with HTTP and HTTPS gateway origins. The original fake-client probes prepended a slash and therefore did not cover this vendor-client behavior.
+
+The complete stock noVNC desktop, including Chrome and human control, was then visually verified using a newly issued production URL without modifying its parameters. The temporary human control lease was released after verification.
+
+The gateway also retries transient handshake failures at most three times, rechecks current authorization before each retry, and stops retrying after any established stream or forwarded handshake. Client frames are never replayed. Offline browser tests cover recovery, exhausted retry budget, authorization revocation, response isolation and both gateway modes.
+
+## Final validation boundary
+
+The initial complete workspace type check passed. After the final routing change, focused core and worker type checks and formatting for all changed implementation files passed. The relevant offline suites and fourteen proxy browser tests passed, and the isolated production image built successfully. Concurrent API and localization edits outside this deployment snapshot later introduced full-workspace type/format failures; they were preserved rather than deployed with this fix.
+
+An additional type-check attempt on the production machine exceeded its runtime resource budget and degraded health checks. It was stopped and the service restarted. Final health checks passed, and the authenticated hosted thread returned HTTP 200 with both verification replies, no active test run, and the E2B computer still available. Further full compile/test work belongs in an isolated build environment, not the serving machine.
 
 ## Primary sources
 

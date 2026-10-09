@@ -407,7 +407,7 @@ async function lockProviderConnectionScope(
   provider: string,
 ): Promise<void> {
   // Avoid NUL separators in the lock key; text params may truncate at a zero byte and break begin.
-  const scope = `space:${owner.spaceId}|user:${owner.userId}|connector:${connectorId}|provider:${provider}`;
+  const scope = `space:${owner.spaceId}|user:${owner.userId}|connector:${connectorId}|provider:${provider.toLowerCase()}`;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('connection-provider'), hashtext(${scope}))`;
 }
 
@@ -5072,6 +5072,51 @@ export function createRouter(deps: RouterDeps) {
           capabilities: [],
           createdAt: row.createdAt.toISOString(),
         };
+      }),
+      revokeService: authed.connections.revokeService.handler(async ({ context, input }) => {
+        const configured = deps.connectors.managed(input.connectorId);
+        if (!configured) throw new ORPCError("BAD_REQUEST");
+        const prepared = await prepareManagedConnectorForTransaction(configured);
+        const provider = prepared.provider;
+        if (!provider) throw new ORPCError("BAD_REQUEST");
+        await deps.prisma.$transaction(
+          async (tx) => {
+            await lockProviderConnectionScope(tx, context.actor, input.connectorId, input.provider);
+            if (prepared.recheck && !(await prepared.recheck(tx))) {
+              throw new ORPCError("CONFLICT", {
+                message: "Integration credentials changed; retry.",
+              });
+            }
+            // Catalog-only services have no local account id. Never use a slug-wide
+            // revoke when a tracked account exists; those must be removed by id.
+            const accounts = await tx.connection.count({
+              where: {
+                spaceId: context.actor.spaceId,
+                userId: context.actor.userId,
+                connectorId: input.connectorId,
+                provider: { equals: input.provider, mode: "insensitive" },
+                status: { in: ["connected", "pending", "error"] },
+              },
+            });
+            if (accounts)
+              throw new ORPCError("CONFLICT", { message: "Refresh connections and retry." });
+            const signals = [AbortSignal.timeout(45_000)];
+            if (context.signal) signals.unshift(context.signal);
+            const adapterContext = connectionContext(
+              context.actor,
+              "connections.revokeService",
+              AbortSignal.any(signals),
+            );
+            const catalog = await provider.catalog(adapterContext, input.provider);
+            const service = catalog.find(
+              (item) => item.slug.toLowerCase() === input.provider.toLowerCase() && !item.noAuth,
+            );
+            if (!service) throw new ORPCError("NOT_FOUND");
+            if (service.connected) await provider.revoke(service.slug, adapterContext);
+          },
+          { timeout: 60_000 },
+        );
+        return { ok: true as const };
       }),
       revoke: authed.connections.revoke.handler(async ({ context, input }) => {
         type RemoteRevoke = {

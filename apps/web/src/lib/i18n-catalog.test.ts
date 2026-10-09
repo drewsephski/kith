@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { i18n } from "@lingui/core";
+import { createCompiledCatalog, getCatalogs } from "@lingui/cli/api";
+import { getConfig } from "@lingui/conf";
+import { i18n, setupI18n } from "@lingui/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import de from "../../scripts/translations-de.json";
 import es from "../../scripts/translations-es.json";
@@ -11,6 +13,47 @@ import tr from "../../scripts/translations-tr.json";
 import zhCN from "../../scripts/translations-zh-CN.json";
 
 describe("lingui catalogs", () => {
+  it("resolves connection labels from production catalogs without source-message fallbacks", async () => {
+    const config = getConfig({ cwd: fileURLToPath(new URL("../../", import.meta.url)) });
+    const [catalog] = await getCatalogs(config);
+    if (!catalog) throw new Error("Web translation catalog is missing");
+    const source = await catalog.read("en");
+    const labels = [
+      "Connections",
+      "Add connection",
+      "Calendar briefing",
+      "Connected services",
+      "Loading connections…",
+      "Could not load all connections.",
+      "No connections yet",
+      "Connect services",
+      "Remove {0}?",
+      "Your assistant will lose access to this connection.",
+      "Could not remove connection. Try again.",
+      "Removing…",
+    ];
+    for (const locale of config.locales) {
+      const { messages } = await catalog.getTranslations(locale, {
+        sourceLocale: config.sourceLocale,
+        fallbackLocales: config.fallbackLocales,
+      });
+      const compiled = createCompiledCatalog(locale, messages, { namespace: "json" });
+      expect(compiled.errors).toEqual([]);
+      const runtime = setupI18n({
+        locale,
+        messages: { [locale]: JSON.parse(compiled.source).messages },
+      });
+      for (const label of labels) {
+        const id = Object.entries(source ?? {}).find(([, entry]) => entry.message === label)?.[0];
+        expect(id, `${locale}: ${label}`).toBeDefined();
+        if (!id) continue;
+        const text = runtime._({ id, values: { 0: "Gmail" } });
+        expect(text, `${locale}: ${label}`).not.toBe(id);
+        if (locale === "en") expect(text).toBe(label.replace("{0}", "Gmail"));
+      }
+    }
+  });
+
   beforeEach(() => {
     i18n.load("en", {});
     i18n.activate("en");
@@ -272,9 +315,6 @@ describe("lingui catalogs", () => {
       'msgid "{0} runs · {1} tokens"\nmsgstr "{0} exécutions · {1} jetons"',
     );
     expect(catalog).toContain('msgstr "{0, plural, one {# modèle} other {# modèles}}"');
-    expect(catalog).toContain(
-      'msgid "Configure a plugin catalog on the server to connect apps."\nmsgstr "Configurez un catalogue de plugins sur le serveur pour connecter des applications."',
-    );
   });
 
   it("translates command credential controls in every locale", () => {

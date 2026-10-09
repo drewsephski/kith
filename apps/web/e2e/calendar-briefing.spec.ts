@@ -26,7 +26,7 @@ test("Calendar onboarding is visible in the assistant conversation", async ({ pa
     "Calendar Test",
   );
   await completeOnboarding(page);
-  await page.getByRole("button", { name: "Services", exact: true }).click();
+  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
   await page.getByRole("button", { name: "Calendar briefing", exact: true }).click();
   await page
     .getByTestId("side-panel")
@@ -209,7 +209,7 @@ test("Calendar reuses a managed account without OAuth client setup or a second s
   );
   await completeOnboarding(page);
   const botId = activeBotId(page);
-  await page.getByRole("button", { name: "Services", exact: true }).click();
+  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
   await page.getByRole("button", { name: "Calendar briefing", exact: true }).click();
   await page.getByRole("button", { name: "Connect Google Calendar", exact: true }).click();
   await expect(page.getByRole("button", { name: "Calendar", exact: true })).toBeVisible();

@@ -16,6 +16,7 @@ export function connectedAppServices(
       represented.add(serviceKey);
       return {
         key: row.id,
+        connectionId: row.id as string | null,
         connectorId: row.connectorId,
         slug: row.provider,
         name: row.displayName,
@@ -28,6 +29,7 @@ export function connectedAppServices(
     represented.add(serviceKey);
     services.push({
       key: `catalog:${serviceKey}`,
+      connectionId: null,
       connectorId: item.connectorId,
       slug: item.slug,
       name: item.name,

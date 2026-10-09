@@ -842,6 +842,14 @@ export const appContract = {
       .input(z.object({ connectionId: Id, displayName: z.string().trim().min(1).max(80) }))
       .output(ConnectionSchema),
     revoke: oc.input(z.object({ connectionId: Id })).output(z.object({ ok: z.literal(true) })),
+    revokeService: oc
+      .input(
+        z.object({
+          connectorId: z.string().trim().min(1).max(100),
+          provider: z.string().trim().min(1).max(200),
+        }),
+      )
+      .output(z.object({ ok: z.literal(true) })),
     /** Tools the connected provider exposes. Read-only; no per-tool allowlist yet. */
     tools: oc.input(z.object({ connectorId: z.string(), provider: z.string() })).output(
       z.array(

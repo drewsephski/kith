@@ -43,6 +43,10 @@ it("preserves every connected account, merges catalog metadata, and adds provide
   expect(
     services.filter((service) => service.slug === "GMAIL").map((service) => service.logo),
   ).toEqual(["https://example.test/gmail.svg", "https://example.test/gmail.svg"]);
+  expect(services.find((service) => service.name === "Work Gmail")?.connectionId).toBe(
+    "Work Gmail",
+  );
+  expect(services.find((service) => service.name === "Slack")?.connectionId).toBeNull();
 });
 
 it("omits inactive accounts, disconnected services, and tools that need no account", () => {

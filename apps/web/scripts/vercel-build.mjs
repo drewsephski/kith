@@ -116,7 +116,7 @@ export async function buildVercelWeb(env = process.env) {
   // required by, or written to, the public frontend build.
   const buildEnv = { ...staticEnv, NODE_ENV: "production", RAKAZO_ALLOW_DEV_SECRETS: "1" };
   run("pnpm", ["--filter", "@rakazo/db", "generate"], path.resolve(webRoot, "../.."), buildEnv);
-  run("pnpm", ["exec", "vite", "build"], webRoot, buildEnv);
+  run("pnpm", ["build"], webRoot, buildEnv);
   await writeVercelOutput({
     target,
     authProxySecret,

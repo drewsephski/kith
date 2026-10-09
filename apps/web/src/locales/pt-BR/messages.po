@@ -221,6 +221,7 @@ msgstr ""
 msgid "Access token"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Access token (optional)"
 msgstr "Token de acesso (opcional)"
@@ -338,6 +339,10 @@ msgstr "Adicionar modelo conectado"
 msgid "Add connected models to use them as backups."
 msgstr "Adicione modelos conectados para usá-los como backups."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Add connection"
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "Add credential"
 msgstr ""
@@ -374,10 +379,6 @@ msgstr "Adicionar servidor MCP remoto"
 #: src/pages/McpServersOverlay.tsx
 msgid "Add server"
 msgstr "Adicionar servidor"
-
-#: src/components/integrations/IntegrationSetup.tsx
-msgid "Add server URL"
-msgstr ""
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Add to routine"
@@ -474,10 +475,6 @@ msgstr "Permitir ações de e-mail sem perguntar"
 msgid "Allow once"
 msgstr "Permitir uma vez"
 
-#: src/components/task-starters/TaskStarterSetup.tsx
-msgid "Allow pop-ups to connect this account."
-msgstr ""
-
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Allow purchase actions without asking"
 msgstr "Permitir ações de compra sem perguntar"
@@ -570,8 +567,13 @@ msgid "Approve this server to let your agent use its tools."
 msgstr "Aprove este servidor para permitir que seu agente use suas ferramentas."
 
 #: src/pages/BotContextMenu.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Archive"
 msgstr "Arquivar"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Archive {name}"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "archived"
@@ -626,6 +628,11 @@ msgstr "Perguntar antes de enviar e-mail externo"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Ask the server owner to configure this provider."
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Ask the server owner to enable app connections."
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
@@ -847,8 +854,20 @@ msgstr "Integrado"
 msgid "Calendar"
 msgstr ""
 
+#: src/components/CalendarConnection.tsx
+msgid "Calendar account"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Calendar briefing"
+msgstr ""
+
 #: src/components/CalendarReceipt.tsx
 msgid "Calendar briefing · View receipt"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+msgid "Calendar is unavailable. Try again."
 msgstr ""
 
 #: src/App.tsx
@@ -858,6 +877,7 @@ msgstr "Não é possível acessar o servidor."
 #: src/components/AskCard.tsx
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/components/markdown-link-prompt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -932,6 +952,11 @@ msgstr "Configurações do chat"
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Check connection"
 msgstr ""
 
 #: src/components/SoftwareUpdateSection.tsx
@@ -1102,6 +1127,10 @@ msgstr "Fechar painel"
 msgid "Close preview"
 msgstr "Fechar pré-visualização"
 
+#: src/pages/IntegrationCallback.tsx
+msgid "Close tab"
+msgstr "Fechar aba"
+
 #: src/pages/SettingsOverlay.tsx
 msgid "Close user settings"
 msgstr "Fechar configurações do usuário"
@@ -1194,10 +1223,6 @@ msgstr ""
 msgid "Computers are off. Set SANDBOX_PROVIDER=docker with SANDBOX_SUPERVISOR_TOKEN, or set SANDBOX_PROVIDER to e2b, daytona, or box with its API key. Recreate the stack after changing .env."
 msgstr "Computadores estão desligados. Defina SANDBOX_PROVIDER=docker com SANDBOX_SUPERVISOR_TOKEN, ou SANDBOX_PROVIDER como e2b, daytona ou box com a chave de API. Recrie o stack após alterar o .env."
 
-#: src/pages/PluginsOverlay.tsx
-msgid "Configure a plugin catalog on the server to connect apps."
-msgstr ""
-
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Configure integrations"
 msgstr ""
@@ -1227,12 +1252,15 @@ msgstr "Confirme que a URL está acessível nesta sessão do navegador e teste n
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
+#: src/pages/PluginsOverlay.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "Conectar"
 
 #. placeholder {0}: appNames[app]
+#. placeholder {0}: item.name
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "Connect {0}"
 msgstr ""
 
@@ -1263,6 +1291,10 @@ msgstr "Conecte o servidor MCP “{name}”"
 #: src/pages/McpServersOverlay.tsx
 msgid "Connect OAuth"
 msgstr "Conectar OAuth"
+
+#: src/pages/PluginsOverlay.tsx
+msgid "Connect services"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect this provider to use it as your personal model."
@@ -1297,6 +1329,10 @@ msgstr "Conectado {0}."
 msgid "Connected and using {0}."
 msgstr "Conectado e usando {0}."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Connected services"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Connected. Its tools are available from your next message."
 msgstr "Conectado. Suas ferramentas estão disponíveis na sua próxima mensagem."
@@ -1310,6 +1346,7 @@ msgstr ""
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connecting…"
@@ -1317,6 +1354,14 @@ msgstr "Conectando…"
 
 #: src/pages/Onboarding.tsx
 msgid "Connection details"
+msgstr ""
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Connection is unfinished. Try again when you are ready."
+msgstr ""
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Connection settings"
 msgstr ""
 
 #: src/lib/model-connection-preflight.ts
@@ -1349,6 +1394,15 @@ msgstr "Continuar"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Continue in Background"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+#: src/components/integrations/IntegrationSetup.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/McpServersOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "Continue in browser"
 msgstr ""
 
 #. placeholder {0}: reset.sso.name
@@ -1400,6 +1454,10 @@ msgstr "Não foi possível adicionar o servidor MCP"
 msgid "Could not approve this server"
 msgstr "Não foi possível aprovar este servidor"
 
+#: src/pages/Shell.tsx
+msgid "Could not archive conversation"
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Could not authorize this app"
 msgstr "Não foi possível autorizar este aplicativo"
@@ -1450,6 +1508,11 @@ msgstr "Não foi possível conectar"
 msgid "Could not connect {0}"
 msgstr "Não foi possível conectar o {0}"
 
+#. placeholder {0}: item.name
+#: src/pages/PluginsOverlay.tsx
+msgid "Could not connect {0}. Try again."
+msgstr ""
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Could not connect account"
 msgstr ""
@@ -1464,6 +1527,10 @@ msgstr "Não foi possível conectar este provedor de voz"
 
 #: src/pages/Shell.tsx
 msgid "Could not connect to the computer screen"
+msgstr ""
+
+#: src/pages/PluginsOverlay.tsx
+msgid "Could not connect. Try again."
 msgstr ""
 
 #: src/components/AccountAccess.tsx
@@ -1579,6 +1646,10 @@ msgstr "Não foi possível carregar"
 
 #: src/pages/ActivityList.tsx
 msgid "Could not load activity"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Could not load all connections."
 msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
@@ -1735,6 +1806,10 @@ msgstr "Não foi possível acessar o servidor"
 msgid "Could not remove"
 msgstr "Não foi possível remover."
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Could not remove connection. Try again."
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not remove connector"
 msgstr "Não foi possível remover o conector"
@@ -1753,6 +1828,10 @@ msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not rename connection"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Could not rename conversation"
 msgstr ""
 
 #: src/pages/shell/dialogs.tsx
@@ -2192,6 +2271,10 @@ msgid "Disconnect {disconnectName}?"
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
+msgid "Disconnect briefing"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
 msgid "Disconnect Calendar"
 msgstr ""
 
@@ -2500,6 +2583,10 @@ msgstr "Encontrar modelos"
 msgid "Finding…"
 msgstr "Localizando…"
 
+#: src/components/CalendarConnection.tsx
+msgid "Finish connecting Calendar in the browser, then try again."
+msgstr ""
+
 #. placeholder {0}: new URL(oauth.verificationUri).hostname
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2603,6 +2690,7 @@ msgid "Good morning"
 msgstr ""
 
 #: src/components/CalendarConnection.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 msgid "Google Calendar"
 msgstr ""
 
@@ -2910,6 +2998,10 @@ msgstr "Carregar imagens da web automaticamente"
 msgid "Loading activity…"
 msgstr "Carregando minha atividade"
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Loading connections…"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading integrations…"
 msgstr "Carregando integrações…"
@@ -2995,6 +3087,7 @@ msgid "Make sure nothing is still running on this computer."
 msgstr "Confirme que nada ainda está em execução neste computador."
 
 #: src/pages/BillingSettingsPanel.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "Manage"
 msgstr ""
 
@@ -3063,6 +3156,7 @@ msgid "MCP endpoint"
 msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
+#: src/pages/PluginsOverlay.tsx
 msgid "MCP servers"
 msgstr "Servidores MCP"
 
@@ -3247,9 +3341,9 @@ msgstr ""
 msgid "More computer actions"
 msgstr ""
 
-#: src/pages/Shell.tsx
-msgid "More connections"
-msgstr ""
+#: src/pages/shell/bot-panel.tsx
+msgid "More options"
+msgstr "Mais opções"
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
@@ -3376,6 +3470,10 @@ msgstr ""
 msgid "No chat apps linked yet."
 msgstr ""
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "No connections yet"
+msgstr ""
+
 #: src/pages/shell/command-palette.tsx
 msgid "No conversations"
 msgstr ""
@@ -3391,10 +3489,6 @@ msgstr ""
 #: src/components/AskCard.tsx
 msgid "No longer active"
 msgstr "Não está mais ativo"
-
-#: src/pages/PluginsOverlay.tsx
-msgid "No managed app catalog is configured on this deployment."
-msgstr "Nenhum catálogo de aplicativos gerenciados está configurado nesta implantação."
 
 #: src/pages/Artifacts.tsx
 msgid "No matching artifacts on this page."
@@ -4010,6 +4104,7 @@ msgid "Remember that I prefer "
 msgstr ""
 
 #: src/components/ApprovalRulesSettings.tsx
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ModelBackupsSettings.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/ScratchpadSection.tsx
@@ -4018,9 +4113,16 @@ msgid "Remove"
 msgstr "Remover"
 
 #. placeholder {0}: attachment.file.name
+#. placeholder {0}: service.name
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/Shell.tsx
 msgid "Remove {0}"
 msgstr "Remover {0}"
+
+#. placeholder {0}: removing?.name
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Remove {0}?"
+msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Remove {full}"
@@ -4036,6 +4138,10 @@ msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
+msgstr ""
+
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Remove Google Calendar"
 msgstr ""
 
 #. placeholder {0}: mention.name
@@ -4072,9 +4178,18 @@ msgstr "Removido com chat, computador e memória."
 msgid "Removed, but list refresh failed"
 msgstr "Removido, mas a atualização da lista falhou"
 
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Removing…"
 msgstr "Removendo…"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Rename conversation"
+msgstr ""
 
 #: src/pages/BotContextMenu.tsx
 #: src/pages/Shell.tsx
@@ -4224,6 +4339,10 @@ msgstr ""
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Kith"
 msgstr "Retorno a Kith"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Return to the app to finish connecting."
+msgstr "Volte ao app para concluir a conexão."
 
 #. placeholder {0}: doc.revision
 #: src/pages/KnowledgeSection.tsx
@@ -4526,9 +4645,14 @@ msgstr ""
 msgid "Server integrations"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
 msgid "Server name"
 msgstr "Nome do servidor"
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Server name (optional)"
+msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/McpServersOverlay.tsx
@@ -4539,6 +4663,11 @@ msgstr "URL do servidor"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Sessions"
+msgstr ""
+
+#: src/components/CalendarConnection.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Set up app connections"
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4798,6 +4927,13 @@ msgstr "Pare de Falar"
 msgid "Stop teaching"
 msgstr "Parar de ensinar"
 
+#: src/components/CalendarConnection.tsx
+#: src/components/integrations/IntegrationSetup.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
+#: src/pages/PluginsOverlay.tsx
+msgid "Stop waiting"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
@@ -4852,6 +4988,14 @@ msgstr "Suporta raciocínio"
 
 #: src/pages/shell/command-palette.tsx
 msgid "Switch conversation"
+msgstr ""
+
+#: src/components/ThemeToggle.tsx
+msgid "Switch to dark mode"
+msgstr ""
+
+#: src/components/ThemeToggle.tsx
+msgid "Switch to light mode"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5039,10 +5183,6 @@ msgstr "Este servidor não pode ser atribuído sem um bot."
 msgid "This server did not request browser authorization."
 msgstr "Este servidor não solicitou autorização do navegador."
 
-#: src/pages/McpServersOverlay.tsx
-msgid "This server is already connected. Disconnect it first to authorize again."
-msgstr "Este servidor já está conectado. Desconecte-o primeiro para autorizar novamente."
-
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider."
 msgstr "Este login de assinatura ainda não está disponível no Kith. Use uma credencial de implantação ou escolha outro provedor."
@@ -5126,6 +5266,7 @@ msgstr ""
 msgid "Trial ends {day}"
 msgstr ""
 
+#: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
 msgid "Try again"
@@ -5295,6 +5436,10 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Use this model"
 msgstr "Use este modelo"
+
+#: src/components/CalendarConnection.tsx
+msgid "Use your own Google OAuth app"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Use your own key"
@@ -5486,6 +5631,10 @@ msgstr "Você tem o controle"
 msgid "Your assistant"
 msgstr ""
 
+#: src/components/integrations/ConnectionsPanel.tsx
+msgid "Your assistant will lose access to this connection."
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Your email address"
 msgstr "Seu endereço de e-mail"
@@ -5493,35 +5642,3 @@ msgstr "Seu endereço de e-mail"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "O seu nome"
-
-#: src/pages/IntegrationCallback.tsx
-msgid "Return to the app to finish connecting."
-msgstr "Volte ao app para concluir a conexão."
-
-#: src/pages/IntegrationCallback.tsx
-msgid "Close tab"
-msgstr "Fechar aba"
-
-#: src/pages/BotContextMenu.tsx
-msgid "Rename"
-msgstr ""
-
-#: src/pages/shell/dialogs.tsx
-msgid "Rename conversation"
-msgstr ""
-
-#: src/pages/shell/dialogs.tsx
-msgid "Could not rename conversation"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Could not archive conversation"
-msgstr ""
-
-#: src/pages/shell/kith-sidebar.tsx
-msgid "Archive {name}"
-msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "More options"
-msgstr "Mais opções"

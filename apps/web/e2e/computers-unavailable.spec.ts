@@ -56,7 +56,13 @@ test("unavailable computers explain setup and open computer settings", async ({
   );
   await page.reload();
 
-  await page.getByTitle("Agent computer").click();
+  const computerToggle = page.getByRole("button", { name: "Computer", exact: true });
+  await expect(computerToggle).toBeVisible();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("create-menu-trigger")).toHaveCount(0);
+  await computerToggle.click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "computer");
   const preview = page.getByTestId("computer-preview");
   const hint = preview.getByTestId("computers-unavailable-hint");
   await expect(hint).toBeVisible();
@@ -66,6 +72,19 @@ test("unavailable computers explain setup and open computer settings", async ({
   await expect(hint.getByRole("button", { name: "Copy .env example" })).toBeVisible();
   await expect(preview.getByTestId("computer-preview-open")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "computers-unavailable-preview");
+
+  await computerToggle.click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(computerToggle).toBeVisible();
+  await computerToggle.click();
+  await expect(hint).toBeVisible();
+  await captureScreenshot(page, testInfo, "computers-unavailable-mobile");
+  await page.getByRole("button", { name: "Close panel", exact: true }).click();
+  await expect(computerToggle).toHaveAttribute("aria-pressed", "false");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await computerToggle.click();
 
   await hint.getByRole("button", { name: "Check again" }).click();
   await expect(hint.getByText(/Computers are off/)).toBeVisible();

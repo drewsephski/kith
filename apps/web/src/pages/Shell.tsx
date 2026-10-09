@@ -3833,6 +3833,27 @@ export function ShellPage() {
           </div>
           <div className="app-no-drag flex min-w-0 items-center gap-1">
             <ThemeToggle />
+            {!inGroup && active ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                title={t`Agent computer`}
+                aria-label={t`Computer`}
+                aria-pressed={panel === "computer"}
+                onClick={() => {
+                  const next = panel === "computer" ? null : "computer";
+                  setPanel(next);
+                  if (next === "computer") {
+                    // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
+                    void refreshThread(active.id).catch(() => undefined);
+                  }
+                }}
+                data-active={panel === "computer" ? "" : undefined}
+                className="app-no-drag data-active:bg-accent"
+              >
+                <Monitor size={18} strokeWidth={1.6} aria-hidden="true" />
+              </Button>
+            ) : null}
             {isMainConversation && assistantId && !quickAskMode ? (
               <Button
                 variant="ghost"
@@ -3841,7 +3862,7 @@ export function ShellPage() {
                 aria-pressed={panel === "connections"}
               >
                 <Puzzle size={16} />
-                <Trans>Services</Trans>
+                <Trans>Connections</Trans>
               </Button>
             ) : null}
             {quickAskMode ? (
@@ -3884,24 +3905,6 @@ export function ShellPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {advancedNavigation && !inGroup && active ? (
-              <button
-                type="button"
-                title={t`Agent computer`}
-                onClick={() => {
-                  const next = panel === "computer" ? null : "computer";
-                  setPanel(next);
-                  if (next === "computer" && active) {
-                    // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
-                    void refreshThread(active.id).catch(() => undefined);
-                  }
-                }}
-                data-active={panel === "computer" ? "" : undefined}
-                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent data-active:bg-accent"
-              >
-                <Monitor size={18} strokeWidth={1.6} className="text-foreground/75" />
-              </button>
-            ) : null}
           </div>
         </div>
         {!active && !activeGroup && initialBotsLoaded ? (

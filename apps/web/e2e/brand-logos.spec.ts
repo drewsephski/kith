@@ -32,7 +32,7 @@ test("connections use offline SVGL artwork in both themes and at narrow widths",
   );
   await signup(page, `brand-logos-${Date.now()}@rakazo.test`, "password12", "Logo Test");
   await completeOnboarding(page);
-  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "Connections", exact: true }).first().click();
   await page.getByRole("button", { name: "More connections", exact: true }).click();
   const featured = page.getByTestId("featured-connectors");
   await expect(featured).toBeVisible();

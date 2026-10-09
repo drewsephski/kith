@@ -320,14 +320,12 @@ export function PluginsOverlay({
 
   async function uninstall(item: ConnectionCatalogItem) {
     const matches = activeAccounts(connections, item);
-    if (matches.length === 0) {
-      setItemConnected(item, false);
-      closeDetail();
-      return;
-    }
     setCatalogError(null);
     setPending(`uninstall:${itemKey(item)}`);
     try {
+      if (matches.length === 0) {
+        await rpc.connections.revokeService({ connectorId: item.connectorId, provider: item.slug });
+      }
       for (const row of matches) {
         await rpc.connections.revoke({ connectionId: row.id });
       }

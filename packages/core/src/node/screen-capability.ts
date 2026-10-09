@@ -74,6 +74,12 @@ export function sealScreenCapability(
   result.search = new URLSearchParams({
     autoconnect: "true",
     resize: "scale",
+    // Stock noVNC resolves path relative to the capability page when host is
+    // absent. Explicit gateway settings keep its socket on the same origin and
+    // prevent a duplicated capability prefix or persisted provider host settings.
+    host: result.hostname,
+    port: result.port,
+    encrypt: result.protocol === "https:" ? "true" : "false",
     view_only: policy === "control" ? "false" : "true",
     // Our embed resolves the socket relative to its own capability directory;
     // stock noVNC resolves it from the origin root.

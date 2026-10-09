@@ -532,13 +532,16 @@ export default function Integrations() {
     if (!isCurrent()) return;
     const matches = accountsFor(item);
     const key = itemKey(item);
-    if (matches.length === 0) {
-      closeDetail();
-      return;
-    }
     setPending(`uninstall:${key}`);
     setCatalogError(null);
     try {
+      if (matches.length === 0) {
+        await rpc("connections/revokeService", {
+          connectorId: item.connectorId,
+          provider: item.slug,
+        });
+        if (!isCurrent()) return;
+      }
       for (const row of matches) {
         await rpc("connections/revoke", { connectionId: row.id });
         if (!isCurrent()) return;

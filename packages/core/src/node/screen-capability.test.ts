@@ -108,6 +108,33 @@ describe("sealed screen capabilities", () => {
     );
   });
 
+  it.each(["http://127.0.0.1:5173", "https://app.example"])(
+    "connects stock noVNC using its host-or-relative URL behavior on %s",
+    (origin) => {
+      const provider = new URL("https://screen.example/vnc.html");
+      provider.searchParams.set("path", "websockify?token=fake-socket-token");
+      const page = new URL(
+        sealScreenCapability(provider.toString(), "fake-secret", origin, scope, 100),
+      );
+      // noVNC's app/ui.js uses an explicit host when configured, otherwise resolves
+      // the path relative to the current page (not relative to the origin).
+      const host = page.searchParams.get("host");
+      const port = page.searchParams.get("port");
+      const path = page.searchParams.get("path")!;
+      const socket = host ? new URL(`https://${host}`) : new URL(path, page);
+      if (host) {
+        socket.protocol = page.searchParams.get("encrypt") === "true" ? "wss:" : "ws:";
+        if (port) socket.port = port;
+        socket.pathname = `/${path}`;
+      } else socket.protocol = page.protocol === "https:" ? "wss:" : "ws:";
+      expect(socket.host).toBe(page.host);
+      expect(socket.pathname).toBe(page.pathname.replace("/vnc.html", "/websockify"));
+      expect(openScreenCapability(socket.pathname, "fake-secret", 101)?.target.path).toBe(
+        "/websockify?token=fake-socket-token",
+      );
+    },
+  );
+
   it("randomizes issuance even at the same timestamp", () => {
     expect(path("http://127.0.0.1:49152/embed.html")).not.toBe(
       path("http://127.0.0.1:49152/embed.html"),

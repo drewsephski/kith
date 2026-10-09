@@ -86,7 +86,7 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     });
   });
 
-  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "Connections", exact: true }).first().click();
   await page.getByRole("button", { name: "More connections", exact: true }).click();
   await page
     .getByTestId("integrations-advanced")
