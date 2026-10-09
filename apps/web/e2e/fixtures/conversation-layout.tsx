@@ -25,6 +25,7 @@ window.fetch = async (input, init) => {
 const params = new URLSearchParams(location.search);
 const running = params.get("working") !== "off";
 const streaming = params.get("streaming") === "on";
+const response = params.get("response");
 const assistantId = "layout-assistant";
 const artifactTarget = { botId: assistantId };
 const noop = () => undefined;
@@ -64,6 +65,7 @@ const sampleMessages = [
 function Conversation() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [runId, setRunId] = useState("layout-run");
   const [messages, setMessages] = useState(() =>
     params.has("long")
       ? [
@@ -71,17 +73,26 @@ function Conversation() {
           message("long-user", "user", `A very long reference: ${"reference".repeat(70)}`, 6),
           message("long-reply", "bot", `A long reply: ${"detail".repeat(140)}`, 7),
         ]
-      : streaming
+      : response === "final"
         ? [
             ...sampleMessages,
             {
-              ...message("progress:layout", "bot", "", 6),
-              blocks: [
-                { kind: "progress" as const, text: "Checking your inbox…", streaming: true },
-              ],
+              ...message("final-reply", "bot", "I’ll remember that you prefer Next.js.", 6),
+              runId: "layout-run",
             },
           ]
-        : sampleMessages,
+        : streaming
+          ? [
+              ...sampleMessages,
+              {
+                ...message("progress:layout", "bot", "", 6),
+                runId: "layout-run",
+                blocks: [
+                  { kind: "progress" as const, text: "Checking your inbox…", streaming: true },
+                ],
+              },
+            ]
+          : sampleMessages,
   );
   return (
     <div className="flex h-dvh min-w-0 bg-background text-foreground">
@@ -92,6 +103,39 @@ function Conversation() {
         <header className="flex shrink-0 items-center gap-3 px-5 py-4 md:px-10">
           <KithAvatar size={32} />
           <span className="font-medium">Kith</span>
+          {response === "lifecycle" ? (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  setMessages([
+                    ...sampleMessages,
+                    {
+                      ...message("progress:layout-run", "bot", "", 6),
+                      runId,
+                      blocks: [{ kind: "progress", text: "I" }],
+                    },
+                  ])
+                }
+              >
+                Start response
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setMessages([
+                    ...sampleMessages,
+                    {
+                      ...message("final-reply", "bot", "I’ll remember that you prefer Next.js.", 6),
+                      runId,
+                    },
+                  ])
+                }
+              >
+                Save response
+              </button>
+            </>
+          ) : null}
         </header>
         <Transcript
           conversationKey="layout"
@@ -107,7 +151,22 @@ function Conversation() {
           answerableAskMessageId={null}
           running={running}
           workingBots={
-            running ? [{ botId: assistantId, name: "Kith", color: "ink", status: "running" }] : []
+            running
+              ? [
+                  { botId: assistantId, runId, name: "Kith", color: "ink", status: "running" },
+                  ...(params.has("group")
+                    ? [
+                        {
+                          botId: "research-bot",
+                          runId: "research-run",
+                          name: "Research",
+                          color: "ink",
+                          status: "running",
+                        },
+                      ]
+                    : []),
+                ]
+              : []
           }
           assistantId={assistantId}
           onLoadOlder={noop}
@@ -148,6 +207,7 @@ function Conversation() {
               ...current,
               message(`sent-${current.length}`, "user", text, current.length + 1),
             ]);
+            setRunId("next-run");
             return true;
           }}
           onStop={resolve}

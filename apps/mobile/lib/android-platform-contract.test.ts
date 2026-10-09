@@ -235,7 +235,8 @@ describe("Android mobile platform contract", () => {
     expect(thread).toContain("footerGroupBots.map");
     expect(thread).toContain("inGroup && footerGroupBots.length > 0 ?");
     expect(thread).toContain("footerGroupBots.length - index");
-    expect(thread).toContain("bot.botId !== assistantId || !hasAssistantProgress");
+    expect(thread).toContain("!hasRunResponseText(visibleMessages, run.id)");
+    expect(thread).toContain("hasRunResponseText(visibleMessages, snap?.run?.id)");
     expect(thread).toContain("agents working");
     // Visible chrome is avatar-only; copy stays on accessibilityLabel.
     expect(thread).toMatch(

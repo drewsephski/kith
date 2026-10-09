@@ -304,14 +304,10 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
 
   await page.getByRole("button", { name: "Close integrations" }).click();
 
-  await page.getByText("Kith").first().click();
-  const gear = page.getByRole("button", { name: "Show settings" });
-  if (!(await gear.isVisible().catch(() => false))) {
-    await page.getByTitle("Agent computer").click();
-  }
-  await gear.click();
+  await page.getByTestId("bot-settings-trigger").click();
+  await page.getByRole("button", { name: "Conversation actions" }).click();
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("menuitem", { name: "Export", exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/chief-export\.json/i);
   const settings = page.getByTestId("bot-settings");

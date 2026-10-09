@@ -422,7 +422,7 @@ msgstr "고급..."
 
 #: src/pages/Shell.tsx
 msgid "Agent computer"
-msgstr "Agent 컴퓨터"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Agent connections"
@@ -641,10 +641,6 @@ msgstr ""
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Assistant settings"
 msgstr ""
 
 #. placeholder {0}: preset.time
@@ -1380,6 +1376,7 @@ msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "{0} 연결이 아직 진행 중입니다. 이 창을 닫고 나중에 다시 확인할 수 있습니다."
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr ""
@@ -1424,7 +1421,11 @@ msgstr "이메일로 계속하기"
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel.tsx
+msgid "Conversation actions"
+msgstr ""
+
+#: src/pages/shell/conversation-menu.tsx
 msgid "Conversation details"
 msgstr ""
 
@@ -1631,6 +1632,10 @@ msgstr "{name}을 다운로드하지 못했습니다. 다시 시도해 주세요
 
 #: src/components/computer/FilesApp.tsx
 msgid "Could not download file"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Could not export"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -2377,10 +2382,6 @@ msgstr ""
 msgid "Duplicate"
 msgstr "복제"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
-msgstr "예: Hivenet Agent, Presales, 근무표 봇"
-
 #. placeholder {0}: memoryTitle(doc.path)
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Edit {0}"
@@ -2666,10 +2667,6 @@ msgstr "일반"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "이 봇이 끝나거나 입력이 필요할 때 알림 받기"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3192,6 +3189,7 @@ msgstr "참여 Bot ({GROUP_MEMBER_MIN}~{GROUP_MEMBER_MAX}개 선택)"
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "기억"
@@ -4397,6 +4395,7 @@ msgstr "자동 실행"
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 msgid "Routines"
 msgstr "자동 실행"
 
@@ -4519,6 +4518,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
 msgstr "저장 중…"
@@ -4690,6 +4690,7 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "설정"
@@ -5031,6 +5032,7 @@ msgid "Task starter"
 msgstr ""
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr ""
@@ -5593,6 +5595,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
 msgstr "웹훅이 실행될 때"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When tasks finish or need input"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "When to run"

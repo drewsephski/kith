@@ -26,6 +26,11 @@ vi.mock("@rakazo/chat-ui/web", () => ({
 vi.mock("@rakazo/ui-web", () => {
   const Container = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
   return {
+    Dialog: Container,
+    DialogContent: Container,
+    DialogTitle: Container,
+    Input: (props: ComponentProps<"input">) => <input {...props} />,
+    SelectField: () => <div />,
     AlertDialog: Container,
     AlertDialogAction: Container,
     AlertDialogCancel: Container,
@@ -89,7 +94,7 @@ async function renderArtifacts() {
   };
 }
 
-it("opens the Artifacts screen and lists what listSpace returns", async () => {
+it("opens the Files dialog with search visible and lists what listSpace returns", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   api.listSpace.mockResolvedValue({
     items: [artifact("Q3 Content Calendar", "artifact-1")],
@@ -99,7 +104,8 @@ it("opens the Artifacts screen and lists what listSpace returns", async () => {
   try {
     expect(page.container.textContent).toContain("Files");
     expect(page.container.textContent).toContain("Q3 Content Calendar");
-    expect(page.container.querySelector("a[href='/app']")?.textContent).toContain("Conversation");
+    expect(page.container.querySelector("input[type='search']")).not.toBeNull();
+    expect(page.container.querySelector("a[href='/app']")).toBeNull();
     expect(page.container.querySelector("[data-testid='app-rail']")).toBeNull();
   } finally {
     await page.cleanup();
@@ -118,9 +124,7 @@ it("keeps loading later pages when search hides the current snapshot", async () 
   const page = await renderArtifacts();
   try {
     expect(page.container.textContent).toContain("Alpha notes");
-    const filters = [...page.container.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Filters"),
-    );
+    const filters = page.container.querySelector<HTMLButtonElement>("button[aria-label='Filters']");
     expect(filters).toBeTruthy();
     await act(async () => {
       filters?.click();
@@ -159,9 +163,7 @@ it("still offers Load more when filters match nothing on the loaded page", async
   });
   const page = await renderArtifacts();
   try {
-    const filters = [...page.container.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Filters"),
-    );
+    const filters = page.container.querySelector<HTMLButtonElement>("button[aria-label='Filters']");
     await act(async () => {
       filters?.click();
     });

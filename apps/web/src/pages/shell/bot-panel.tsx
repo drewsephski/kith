@@ -27,13 +27,18 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   Input,
   SelectField,
   Switch,
   Textarea,
   Toggle,
 } from "@rakazo/ui-web";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, Download, MoreHorizontal, Trash2, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
 import { botProfilePatch } from "../../lib/bot-profile-patch";
@@ -520,7 +525,7 @@ export function BotSettings({
           }}
         />
       </div>
-      <label htmlFor={`${ids}-name`} className="mt-4 block text-[13.5px] text-muted-foreground/80">
+      <label htmlFor={`${ids}-name`} className="mt-4 block text-sm font-medium text-foreground">
         <Trans>Name</Trans>
         <Input
           id={`${ids}-name`}
@@ -528,22 +533,13 @@ export function BotSettings({
           maxLength={BOT_NAME_MAX_LENGTH}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => void enqueueSave()}
-          className="mt-1.5"
+          className="mt-2 h-10"
         />
       </label>
-      <label htmlFor={`${ids}-title`} className={fieldLabelClass}>
-        <Trans>Title</Trans>
-        <Input
-          id={`${ids}-title`}
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => void enqueueSave()}
-          placeholder={t`e.g. Hivenet Agent, Presales, Timesheets bot`}
-          className="mt-1.5"
-        />
-      </label>
-      <label htmlFor={`${ids}-description`} className={fieldLabelClass}>
+      <label
+        htmlFor={`${ids}-description`}
+        className="mt-5 block text-sm font-medium text-foreground"
+      >
         <Trans>Description</Trans>
         <Textarea
           id={`${ids}-description`}
@@ -552,7 +548,7 @@ export function BotSettings({
           onChange={(e) => setDescription(e.target.value)}
           onBlur={() => void enqueueSave()}
           rows={3}
-          className="mt-1.5"
+          className="mt-2 min-h-24 resize-y font-normal leading-relaxed"
         />
       </label>
       <div className="mt-6 flex items-center justify-between pt-4 border-t border-border/20">
@@ -563,8 +559,8 @@ export function BotSettings({
           >
             <Trans>Notifications</Trans>
           </div>
-          <div id={`${ids}-notify-finish-desc`} className="text-[12px] text-muted-foreground/70">
-            <Trans>Get notified when this Bot finishes or needs input</Trans>
+          <div id={`${ids}-notify-finish-desc`} className="text-xs text-muted-foreground">
+            <Trans>When tasks finish or need input</Trans>
           </div>
         </div>
         <Switch
@@ -585,12 +581,25 @@ export function BotSettings({
           if (open) setAdvancedOpened(true);
         }}
       >
-        <CollapsibleTrigger className="flex cursor-pointer list-none items-center justify-between gap-3 text-[14px] text-muted-foreground">
+        <CollapsibleTrigger className="min-h-10 text-sm text-muted-foreground">
           <span className="text-muted-foreground">
             <Trans>Advanced</Trans>
           </span>
         </CollapsibleTrigger>
         <CollapsibleContent>
+          <label htmlFor={`${ids}-title`} className={fieldLabelClass}>
+            <Trans>Title</Trans>
+            <Input
+              id={`${ids}-title`}
+              value={title}
+              maxLength={BOT_TITLE_MAX_LENGTH}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => void enqueueSave()}
+              placeholder={t`Describe what this bot does`}
+              className="mt-2 h-10"
+            />
+          </label>
+
           <ComputerModePicker value={computerMode} onChange={setComputerMode} />
           <ErrorBoundary fallback={<SectionLoadFailed />}>
             <Suspense fallback={null}>
@@ -766,33 +775,47 @@ export function BotSettings({
           {advancedOpened ? <BotCredentialsSection botId={bot.id} /> : null}
         </CollapsibleContent>
       </Collapsible>
-      {error ? <p className="mt-2 text-[13px] text-destructive">{error}</p> : null}
-      <div className="mt-5 flex flex-col items-start gap-3">
+      {error ? (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
         <Button
           disabled={saving}
           onClick={() => {
-            void enqueueSave({
-              name,
-              title,
-              description,
-              color,
-              notifyOnFinish,
-            });
+            void enqueueSave({ name, title, description, color, notifyOnFinish });
           }}
         >
-          <Trans>Save</Trans>
+          {saving ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
         </Button>
-        <Button variant="ghost" size="sm" className="-ms-2.5" onClick={() => void onExport()}>
-          <Trans>Export</Trans>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ms-2.5 text-destructive hover:text-destructive"
-          onClick={onClear}
-        >
-          <Trans>Clear conversation</Trans>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" aria-label={t`Conversation actions`} />}
+          >
+            <MoreHorizontal size={18} aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-52">
+            <DropdownMenuItem
+              className="min-h-10 gap-3 px-3"
+              onClick={() => {
+                void onExport().catch((err) => setError(errorText(err, t`Could not export`)));
+              }}
+            >
+              <Download aria-hidden="true" />
+              <Trans>Export</Trans>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              className="min-h-10 gap-3 px-3"
+              onClick={onClear}
+            >
+              <Trash2 aria-hidden="true" />
+              <Trans>Clear conversation</Trans>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

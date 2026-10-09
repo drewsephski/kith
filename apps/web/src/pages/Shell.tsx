@@ -42,6 +42,7 @@ import {
   cronFromPreset,
   formatMessageTime,
   groupVoiceChats,
+  hasRunResponseText,
   inferAttachmentMimeType,
   isActive,
   isAssistantResponding,
@@ -144,7 +145,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import {
@@ -282,6 +283,7 @@ import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
+import { ConversationMenu } from "./shell/conversation-menu";
 import {
   ClearConversationDialog,
   DeleteBotDialog,
@@ -413,9 +415,12 @@ function readCollapsedRosterParents(userId: string | null | undefined): Set<stri
   return readCollapsedIdSet(collapsedRosterParentsStorageKey(userId));
 }
 
-export function ShellPage() {
+export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
+  const filesOpenRef = useRef(filesOpen);
+  filesOpenRef.current = filesOpen;
   const { t } = useLingui();
   const { botId, groupId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // Mirrors searchParams for effects that only need to read it once on run,
@@ -1084,6 +1089,7 @@ export function ShellPage() {
           return;
         }
         const currentBotId = routeBotId.current;
+        if (!currentBotId && filesOpenRef.current) return;
         if (!currentBotId || !list.some((bot) => bot.id === currentBotId)) {
           navigate(
             assistant.botId ? `/app/${assistant.botId}` : firstThreadRoute(list, groupList),
@@ -1316,6 +1322,7 @@ export function ShellPage() {
           return;
         }
         const selectedBotId = bootstrap.thread?.botId ?? bootstrap.bots[0]?.id;
+        if (!botId && filesOpenRef.current) return;
         if (selectedBotId && selectedBotId !== botId) {
           navigate(`/app/${selectedBotId}`, { replace: true });
         }
@@ -1923,10 +1930,11 @@ export function ShellPage() {
     },
     [bots, transcriptMembers],
   );
-  const workingBots: GroupAvatarMember[] = workingRuns.map((run) => {
+  const workingBots = workingRuns.map((run) => {
     const bot = resolveTranscriptBot(run.botId);
     return {
       botId: run.botId,
+      runId: run.id,
       color: bot?.color ?? FALLBACK_BOT_COLOR,
       name: bot?.name,
       status: run.status,
@@ -3063,7 +3071,11 @@ export function ShellPage() {
             }}
             onArtifacts={() => {
               setMobileSidebarOpen(false);
-              navigate("/app/artifacts");
+              navigate("/app/artifacts", {
+                state: {
+                  filesBackground: `${location.pathname}${location.search}${location.hash}`,
+                },
+              });
             }}
             onIntegrations={() => {
               setMobileSidebarOpen(false);
@@ -3674,7 +3686,11 @@ export function ShellPage() {
                   onClick={() => {
                     setMenuOpen(false);
                     setMobileSidebarOpen(false);
-                    navigate("/app/artifacts");
+                    navigate("/app/artifacts", {
+                      state: {
+                        filesBackground: `${location.pathname}${location.search}${location.hash}`,
+                      },
+                    });
                   }}
                 >
                   <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
@@ -3865,6 +3881,7 @@ export function ShellPage() {
               <Button
                 variant="ghost"
                 size="sm"
+                className="hidden sm:inline-flex"
                 onClick={() => setPanel(panel === "connections" ? null : "connections")}
                 aria-pressed={panel === "connections"}
               >
@@ -3884,34 +3901,17 @@ export function ShellPage() {
             <Button
               variant="ghost"
               size="sm"
+              className="hidden sm:inline-flex"
               onClick={() => setPanel(panel === "activity" ? null : "activity")}
               aria-pressed={panel === "activity"}
             >
               <Trans>Tasks</Trans>
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button variant="ghost" size="icon-sm" aria-label={t`Conversation details`} />
-                }
-              >
-                <MoreHorizontal size={18} />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setPanel("memory")}>
-                  <Trans>Memory</Trans>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPanel("routines")}>
-                  <Trans>Routines</Trans>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPanel(inGroup ? "group-settings" : "settings")}>
-                  <Trans>Assistant settings</Trans>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPanel("computer")}>
-                  <Trans>Computer</Trans>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ConversationMenu
+              inGroup={inGroup}
+              showConnections={Boolean(isMainConversation && assistantId && !quickAskMode)}
+              onSelect={setPanel}
+            />
           </div>
         </div>
         {!active && !activeGroup && initialBotsLoaded ? (
@@ -4085,7 +4085,7 @@ export function ShellPage() {
             panel !== "create-group" &&
             panel !== "group-settings" ? (
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-[13.5px] text-muted-foreground">
+                <h2 className="text-sm font-medium text-foreground">
                   {panel === "settings" ? (
                     <Trans>Settings</Trans>
                   ) : panel === "connections" ? (
@@ -4101,7 +4101,7 @@ export function ShellPage() {
                   ) : (
                     <Trans>Group</Trans>
                   )}
-                </span>
+                </h2>
                 <div className="flex gap-1">
                   {active &&
                   panel === "computer" &&
@@ -4123,7 +4123,11 @@ export function ShellPage() {
                       onClick={() => setPanel(panel === "settings" ? "computer" : "settings")}
                       className={panel === "settings" ? "text-foreground" : "text-muted-foreground"}
                     >
-                      <Settings size={16} strokeWidth={1.7} />
+                      {panel === "settings" ? (
+                        <Monitor size={16} strokeWidth={1.7} aria-hidden="true" />
+                      ) : (
+                        <Settings size={16} strokeWidth={1.7} aria-hidden="true" />
+                      )}
                     </Button>
                   ) : null}
                   <Button
@@ -5245,7 +5249,7 @@ export const Transcript = memo(function Transcript({
   loadingOlder: boolean;
   answerableAskMessageId: string | null;
   running: boolean;
-  workingBots: GroupAvatarMember[];
+  workingBots: (GroupAvatarMember & { runId: string })[];
   assistantId: string | null;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
@@ -5298,7 +5302,8 @@ export const Transcript = memo(function Transcript({
     (item) =>
       item.kind === "voiceChat" || messageHasVisibleBlocks(item.message.blocks, showToolActivity),
   );
-  const workingBotName = workingBots.length === 1 ? workingBots[0]?.name : undefined;
+  const waitingBots = workingBots.filter((bot) => !hasRunResponseText(messages, bot.runId));
+  const workingBotName = waitingBots.length === 1 ? waitingBots[0]?.name : undefined;
   const workingLabel =
     workingBotName != null && workingBotName !== ""
       ? t`${workingBotName} is working`
@@ -5310,13 +5315,6 @@ export const Transcript = memo(function Transcript({
     message.id.startsWith("progress:") &&
     (message.botId ?? ("botId" in artifactTarget ? artifactTarget.botId : undefined)) ===
       assistantId;
-  const hasAssistantProgress = messages.some(
-    (message) =>
-      isLiveAssistantMessage(message) &&
-      message.blocks.some(
-        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-      ),
-  );
   const [quoteDraft, setQuoteDraft] = useState<{
     message: ThreadMessage;
     text: string;
@@ -5733,19 +5731,9 @@ export const Transcript = memo(function Transcript({
             </Fragment>
           );
         })}
-        {running &&
-        (assistantResponding
-          ? !hasAssistantProgress
-          : !messages.some(
-              (message) =>
-                message.id.startsWith("progress:") &&
-                message.blocks.some(
-                  (block) =>
-                    block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-                ),
-            )) ? (
+        {running && waitingBots.length > 0 ? (
           <div className="kith-conversation-item shrink-0">
-            <ActiveBotGlyph bots={workingBots} label={workingLabel} assistantId={assistantId} />
+            <ActiveBotGlyph bots={waitingBots} label={workingLabel} assistantId={assistantId} />
           </div>
         ) : null}
       </div>

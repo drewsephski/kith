@@ -13,58 +13,36 @@ import {
   AlertDialogTitle,
   BotAvatar,
   Button,
-  parseBotAvatar,
-  resolvePersonaColorDef,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Input,
   SelectField,
 } from "@rakazo/ui-web";
 import {
   ChevronLeft,
+  ChevronRight,
   Download,
   Filter,
-  LayoutGrid,
-  List,
+  FolderOpen,
   Lock,
-  Maximize2,
-  Minimize2,
   Search,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { PdfViewer } from "../components/PdfViewer";
 import { SandboxedHtmlViewer } from "../components/SandboxedHtmlViewer";
-import { ThemeToggle } from "../components/ThemeToggle";
 import { decodeArtifactBase64, downloadArtifactBytes } from "../lib/artifact-open";
 import { takeInitialBootstrap } from "../lib/bootstrap";
-import { desktopBridge } from "../lib/desktop";
 import { formatRelativeTime } from "../lib/relative-time";
 import { rpc } from "../lib/rpc";
 import { useObjectUrl } from "../lib/use-object-url";
 import { errorText } from "../lib/user-error";
-import { WindowChrome } from "./WindowChrome";
 
-type ViewMode = "grid" | "list";
 type DateFilter = "all" | "today" | "week" | "month";
-const VIEW_MODE_STORAGE_KEY = "rakazo:artifacts-view-mode";
 const LIST_PAGE_SIZE = 60;
-
 type ArtifactSummary = Artifact & { versionCount: number };
-
-function readViewMode(): ViewMode {
-  try {
-    return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "list" ? "list" : "grid";
-  } catch {
-    return "grid";
-  }
-}
-
-function writeViewMode(mode: ViewMode): void {
-  try {
-    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
-  } catch {
-    // Preference only; ignore storage failures.
-  }
-}
 
 function matchesCalendarDateFilter(iso: string, filter: DateFilter, now: Date): boolean {
   if (filter === "all") return true;
@@ -82,20 +60,20 @@ function matchesCalendarDateFilter(iso: string, filter: DateFilter, now: Date): 
 export function ArtifactsPage() {
   const { artifactId } = useParams<{ artifactId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLingui();
   const [bots, setBots] = useState<Bot[]>([]);
   const [items, setItems] = useState<ArtifactSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
   const listingGenerationRef = useRef(0);
   const [activeBotId, setActiveBotId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>(readViewMode);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [maximized, setMaximized] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ArtifactSummary | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -109,6 +87,7 @@ export function ArtifactsPage() {
     listingGenerationRef.current += 1;
     loadingMoreRef.current = false;
     setLoadingMore(false);
+    setMoreError(null);
     setItems(null);
     setLoadError(null);
     setNextCursor(null);
@@ -135,6 +114,7 @@ export function ArtifactsPage() {
     const listingChanged = () => generation !== listingGenerationRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
+    setMoreError(null);
     try {
       const page = await rpc.artifacts.listSpace({
         botId: activeBotId ?? undefined,
@@ -144,8 +124,8 @@ export function ArtifactsPage() {
       if (listingChanged()) return;
       setItems((current) => (current ?? []).concat(page.items));
       setNextCursor(page.nextCursor);
-    } catch {
-      // Keep the current page so Load more can be retried.
+    } catch (error) {
+      if (!listingChanged()) setMoreError(errorText(error, t`Could not load more files.`));
     } finally {
       if (!listingChanged()) {
         loadingMoreRef.current = false;
@@ -153,10 +133,6 @@ export function ArtifactsPage() {
       }
     }
   }
-
-  useEffect(() => {
-    setMaximized(false);
-  }, [artifactId]);
 
   const botsById = useMemo(() => new Map(bots.map((bot) => [bot.id, bot])), [bots]);
 
@@ -190,11 +166,6 @@ export function ArtifactsPage() {
     void loadMore();
   }, [clientFilterActive, nextCursor, loadingMore, items, filteredItems]);
 
-  function setMode(mode: ViewMode) {
-    setViewMode(mode);
-    writeViewMode(mode);
-  }
-
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleteBusy(true);
@@ -202,7 +173,8 @@ export function ArtifactsPage() {
     try {
       await rpc.artifacts.remove({ artifactId: pendingDelete.id });
       setItems((current) => current?.filter((item) => item.id !== pendingDelete.id) ?? current);
-      if (artifactId === pendingDelete.id) navigate("/app/artifacts");
+      if (artifactId === pendingDelete.id)
+        navigate("/app/artifacts", { replace: true, state: location.state });
       setPendingDelete(null);
     } catch (error) {
       setDeleteError(errorText(error, t`Could not delete this artifact.`));
@@ -211,187 +183,174 @@ export function ArtifactsPage() {
     }
   }
 
+  function close() {
+    if (location.state?.filesBackground) navigate(-1);
+    else navigate("/app", { replace: true });
+  }
+
   return (
-    <div className="flex h-full min-w-0 flex-col bg-background text-foreground/90">
-      <header className="app-drag border-b border-border px-4 py-4 md:px-6">
-        {/* Wraps so window controls and the way back stay on screen with Filters. */}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="flex items-center gap-2">
-            {/* This route is the window's leading edge, so Electron window controls sit in the header. */}
-            {desktopBridge() ? <WindowChrome /> : null}
-            <Link
-              to="/app"
-              className="app-no-drag flex shrink-0 items-center gap-0.5 rounded-lg py-1 pe-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !deleteBusy) close();
+      }}
+    >
+      <DialogContent
+        data-testid="files-dialog"
+        aria-describedby={undefined}
+        className={`flex max-h-[calc(100dvh-2rem)] min-h-0 flex-col gap-0 overflow-hidden p-0 ${artifactId ? "h-[640px] sm:max-w-3xl" : "h-[520px] sm:max-w-xl"}`}
+      >
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-4 pe-12">
+          {artifactId ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t`Back to files`}
+              onClick={() => navigate("/app/artifacts", { replace: true, state: location.state })}
             >
-              <ChevronLeft size={16} strokeWidth={1.9} aria-hidden="true" />
-              <Trans>Conversation</Trans>
-            </Link>
-            <h1 className="text-xl font-semibold">
-              <Trans>Files</Trans>
-            </h1>
-          </div>
-          <div className="app-no-drag flex shrink-0 items-center gap-2">
-            <ThemeToggle />
-            <button
-              type="button"
-              aria-pressed={filtersOpen}
-              onClick={() => setFiltersOpen((open) => !open)}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                filtersOpen
-                  ? "border-transparent bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              }`}
-            >
-              <Filter size={14} strokeWidth={1.9} />
-              <Trans>Filters</Trans>
-            </button>
-            {!artifactId ? (
-              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-                <ViewModeButton
-                  active={viewMode === "grid"}
-                  label={t`Card view`}
-                  onClick={() => setMode("grid")}
-                >
-                  <LayoutGrid size={15} strokeWidth={1.9} />
-                </ViewModeButton>
-                <ViewModeButton
-                  active={viewMode === "list"}
-                  label={t`List view`}
-                  onClick={() => setMode("list")}
-                >
-                  <List size={15} strokeWidth={1.9} />
-                </ViewModeButton>
+              <ChevronLeft />
+            </Button>
+          ) : (
+            <FolderOpen className="size-4 text-muted-foreground" aria-hidden="true" />
+          )}
+          <DialogTitle className="text-sm">
+            <Trans>Files</Trans>
+          </DialogTitle>
+          {artifactId ? (
+            <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          ) : null}
+          {artifactId ? (
+            <span className="min-w-0 truncate text-sm text-muted-foreground">
+              {items?.find((item) => item.id === artifactId)?.name}
+            </span>
+          ) : null}
+        </header>
+        {!artifactId ? (
+          <div className="shrink-0 border-b border-border p-3">
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="search"
+                  aria-label={t`Search files`}
+                  placeholder={t`Search files…`}
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="ps-8"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t`Filters`}
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <Filter
+                  className={
+                    activeBotId || dateFilter !== "all" ? "text-primary" : "text-muted-foreground"
+                  }
+                />
+              </Button>
+            </div>
+            {filtersOpen ? (
+              <div className="mt-2 flex gap-2">
+                <SelectField
+                  aria-label={t`Conversation`}
+                  className="min-w-0 flex-1"
+                  value={activeBotId ?? "all"}
+                  onValueChange={(value) => setActiveBotId(value === "all" ? null : value)}
+                  items={[
+                    { value: "all", label: t`All conversations` },
+                    ...bots.map((bot) => ({ value: bot.id, label: bot.name })),
+                  ]}
+                />
+                <SelectField
+                  aria-label={t`Filter by date`}
+                  className="min-w-0 flex-1"
+                  value={dateFilter}
+                  onValueChange={(value) => setDateFilter(value as DateFilter)}
+                  items={[
+                    { value: "all", label: t`All time` },
+                    { value: "today", label: t`Today` },
+                    { value: "week", label: t`This week` },
+                    { value: "month", label: t`This month` },
+                  ]}
+                />
               </div>
             ) : null}
           </div>
-        </div>
-
-        {filtersOpen ? (
-          <div className="app-no-drag mt-3 flex flex-wrap items-center gap-2">
-            <div className="relative w-full max-w-[260px]">
-              <Search
-                size={14}
-                strokeWidth={1.9}
-                className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder={t`Search artifacts…`}
-                className="w-full rounded-lg border border-border bg-background py-1.5 ps-8 pe-3 text-[13px] outline-none focus:border-ring"
-              />
-            </div>
-            <SelectField
-              aria-label={t`Filter by date`}
-              className="w-auto text-[13px]"
-              value={dateFilter}
-              onValueChange={(selectedValue) => setDateFilter(selectedValue as DateFilter)}
-              items={[
-                { value: String("all"), label: <>{t`All time`}</> },
-                { value: String("today"), label: <>{t`Today`}</> },
-                { value: String("week"), label: <>{t`This week`}</> },
-                { value: String("month"), label: <>{t`This month`}</> },
-              ]}
-            />
-            <FilterChip active={activeBotId === null} onClick={() => setActiveBotId(null)}>
-              <Trans>All conversations</Trans>
-            </FilterChip>
-            {bots.map((bot) => (
-              <BotFilterChip
-                key={bot.id}
-                bot={bot}
-                active={activeBotId === bot.id}
-                onClick={() => setActiveBotId(bot.id)}
-              />
-            ))}
-          </div>
         ) : null}
-      </header>
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {artifactId ? (
-          <>
-            {!maximized ? (
-              <IndexPane
-                items={filteredItems}
-                loadError={loadError}
-                botsById={botsById}
-                selectedId={artifactId}
-                onRequestDelete={setPendingDelete}
-                nextCursor={nextCursor}
-                loadingMore={loadingMore}
-                onLoadMore={() => void loadMore()}
-              />
-            ) : null}
-            <PreviewPane
-              key={artifactId}
-              artifactId={artifactId}
-              maximized={maximized}
-              onToggleMaximize={() => setMaximized((value) => !value)}
+        {moreError ? (
+          <p role="alert" className="px-4 py-2 text-sm text-destructive">
+            {moreError}
+          </p>
+        ) : null}
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {artifactId ? (
+            <PreviewPane key={artifactId} artifactId={artifactId} />
+          ) : (
+            <BrowsingPane
+              items={filteredItems}
+              loadError={loadError}
+              botsById={botsById}
+              onRequestDelete={setPendingDelete}
+              nextCursor={nextCursor}
+              loadingMore={loadingMore}
+              onLoadMore={() => void loadMore()}
             />
-          </>
-        ) : (
-          <BrowsingPane
-            items={filteredItems}
-            loadError={loadError}
-            viewMode={viewMode}
-            botsById={botsById}
-            onRequestDelete={setPendingDelete}
-            nextCursor={nextCursor}
-            loadingMore={loadingMore}
-            onLoadMore={() => void loadMore()}
-          />
-        )}
-      </div>
-
-      {pendingDelete ? (
-        <AlertDialog
-          open
-          onOpenChange={(open) => {
-            if (!open && !deleteBusy) setPendingDelete(null);
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                <Trans>Delete "{pendingDelete.name}"?</Trans>
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {pendingDelete.versionCount > 1 ? (
-                  <Trans>
-                    This deletes all {pendingDelete.versionCount} versions of this artifact. This
-                    can't be undone.
-                  </Trans>
-                ) : (
-                  <Trans>This can't be undone.</Trans>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {deleteError ? <p className="text-[13.5px] text-destructive">{deleteError}</p> : null}
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteBusy}>
-                <Trans>Cancel</Trans>
-              </AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={deleteBusy}
-                onClick={() => void confirmDelete()}
-              >
-                {deleteBusy ? <Trans>Deleting…</Trans> : <Trans>Delete</Trans>}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      ) : null}
-    </div>
+          )}
+        </div>
+        {pendingDelete ? (
+          <AlertDialog
+            open
+            onOpenChange={(open) => {
+              if (!open && !deleteBusy) setPendingDelete(null);
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  <Trans>Delete "{pendingDelete.name}"?</Trans>
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {pendingDelete.versionCount > 1 ? (
+                    <Trans>
+                      This deletes all {pendingDelete.versionCount} versions of this artifact. This
+                      can't be undone.
+                    </Trans>
+                  ) : (
+                    <Trans>This can't be undone.</Trans>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {deleteError ? <p className="text-[13.5px] text-destructive">{deleteError}</p> : null}
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteBusy}>
+                  <Trans>Cancel</Trans>
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={deleteBusy}
+                  onClick={() => void confirmDelete()}
+                >
+                  {deleteBusy ? <Trans>Deleting…</Trans> : <Trans>Delete</Trans>}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function BrowsingPane({
   items,
   loadError,
-  viewMode,
   botsById,
   onRequestDelete,
   nextCursor,
@@ -400,7 +359,6 @@ function BrowsingPane({
 }: {
   items: ArtifactSummary[] | null;
   loadError: string | null;
-  viewMode: ViewMode;
   botsById: Map<string, Bot>;
   onRequestDelete: (artifact: ArtifactSummary) => void;
   nextCursor: string | null;
@@ -425,30 +383,17 @@ function BrowsingPane({
     );
   }
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-      {viewMode === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
-          {items.map((item) => (
-            <ArtifactCard
-              key={item.id}
-              artifact={item}
-              bot={item.botId ? botsById.get(item.botId) : undefined}
-              onRequestDelete={onRequestDelete}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {items.map((item) => (
-            <ArtifactRow
-              key={item.id}
-              artifact={item}
-              bot={item.botId ? botsById.get(item.botId) : undefined}
-              onRequestDelete={onRequestDelete}
-            />
-          ))}
-        </div>
-      )}
+    <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="flex flex-col">
+        {items.map((item) => (
+          <ArtifactRow
+            key={item.id}
+            artifact={item}
+            bot={item.botId ? botsById.get(item.botId) : undefined}
+            onRequestDelete={onRequestDelete}
+          />
+        ))}
+      </div>
       {nextCursor ? <LoadMoreButton loading={loadingMore} onClick={onLoadMore} /> : null}
     </div>
   );
@@ -498,229 +443,25 @@ function EmptyArtifacts({
   );
 }
 
-function IndexPane({
-  items,
-  loadError,
-  botsById,
-  selectedId,
-  onRequestDelete,
-  nextCursor,
-  loadingMore,
-  onLoadMore,
-}: {
-  items: ArtifactSummary[] | null;
-  loadError: string | null;
-  botsById: Map<string, Bot>;
-  selectedId: string;
-  onRequestDelete: (artifact: ArtifactSummary) => void;
-  nextCursor: string | null;
-  loadingMore: boolean;
-  onLoadMore: () => void;
-}) {
-  return (
-    <aside className="flex w-[320px] shrink-0 flex-col overflow-y-auto border-e border-border">
-      {items === null ? (
-        <div className="grid flex-1 place-items-center p-6 text-center text-sm text-muted-foreground/80">
-          {loadError ?? <Trans>Loading…</Trans>}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyArtifacts
-          className="grid flex-1 place-items-center p-6 text-center text-sm text-muted-foreground/80"
-          nextCursor={nextCursor}
-          loadingMore={loadingMore}
-          onLoadMore={onLoadMore}
-        />
-      ) : (
-        <div className="flex flex-col divide-y divide-border">
-          {items.map((item) => (
-            <ArtifactRow
-              key={item.id}
-              artifact={item}
-              bot={item.botId ? botsById.get(item.botId) : undefined}
-              active={item.id === selectedId}
-              onRequestDelete={onRequestDelete}
-            />
-          ))}
-          {nextCursor ? (
-            <div className="p-3">
-              <LoadMoreButton loading={loadingMore} onClick={onLoadMore} />
-            </div>
-          ) : null}
-        </div>
-      )}
-    </aside>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : "border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function useBotColorHex(bot: Bot): string {
-  return useMemo(() => {
-    const parsed = parseBotAvatar(bot.color, bot.id);
-    const effectiveId = bot.id || parsed.color || "agent";
-    return resolvePersonaColorDef(effectiveId, parsed.color).hex;
-  }, [bot.color, bot.id]);
-}
-
-function BotFilterChip({
-  bot,
-  active,
-  onClick,
-}: {
-  bot: Bot;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const hex = useBotColorHex(bot);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ backgroundColor: active ? `${hex}26` : undefined, borderColor: `${hex}66` }}
-      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-medium transition-colors ${
-        active
-          ? "text-foreground"
-          : "text-muted-foreground hover:bg-accent/40 hover:text-accent-foreground"
-      }`}
-    >
-      <BotAvatar color={bot.color} identity={bot.id} size={16} status={bot.status} />
-      <span className="max-w-[120px] truncate">{bot.name}</span>
-    </button>
-  );
-}
-
-function ViewModeButton({
-  active,
-  label,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      title={label}
-      onClick={onClick}
-      className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-        active ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ArtifactCard({
-  artifact,
-  bot,
-  onRequestDelete,
-}: {
-  artifact: ArtifactSummary;
-  bot: Bot | undefined;
-  onRequestDelete: (artifact: ArtifactSummary) => void;
-}) {
-  const { t } = useLingui();
-  return (
-    <div className="group relative">
-      <Link
-        to={`/app/artifacts/${artifact.id}`}
-        className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 text-foreground hover:bg-accent/40"
-      >
-        <div className="flex items-start justify-between">
-          <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-accent text-accent-foreground">
-            <ArtifactMimeIcon mimeType={artifact.mimeType} />
-          </span>
-          <div className="flex items-center gap-1.5">
-            {artifact.versionCount > 1 ? (
-              <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                {`v${artifact.version}`}
-              </span>
-            ) : null}
-            <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-              {mimeLabel(artifact.mimeType)}
-            </span>
-          </div>
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-[15px] font-semibold">{artifact.name}</div>
-          {artifact.description ? (
-            <div className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
-              {artifact.description}
-            </div>
-          ) : null}
-        </div>
-        <div className="mt-auto flex items-center gap-2 text-[12px] text-muted-foreground">
-          {bot ? (
-            <>
-              <BotAvatar color={bot.color} identity={bot.id} size={20} status={bot.status} />
-              <span className="min-w-0 flex-1 truncate">{bot.name}</span>
-            </>
-          ) : (
-            <span className="flex-1" />
-          )}
-          <span className="shrink-0">{formatRelativeTime(artifact.createdAt)}</span>
-        </div>
-      </Link>
-      <button
-        type="button"
-        aria-label={t`Delete ${artifact.name}`}
-        title={t`Delete ${artifact.name}`}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onRequestDelete(artifact);
-        }}
-        className="absolute bottom-3 end-3 grid h-7 w-7 place-items-center rounded-lg bg-card text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <Trash2 size={14} strokeWidth={1.9} />
-      </button>
-    </div>
-  );
-}
-
 function ArtifactRow({
   artifact,
   bot,
-  active,
   onRequestDelete,
 }: {
   artifact: ArtifactSummary;
   bot: Bot | undefined;
-  active?: boolean;
   onRequestDelete: (artifact: ArtifactSummary) => void;
 }) {
   const { t } = useLingui();
+  const location = useLocation();
   return (
-    <div className={`group relative ${active ? "bg-accent/60" : "hover:bg-accent/40"}`}>
-      <Link to={`/app/artifacts/${artifact.id}`} className="flex flex-col gap-1 px-4 py-3 pe-10">
+    <div className="group relative rounded-lg hover:bg-accent/60">
+      <Link
+        to={`/app/artifacts/${artifact.id}`}
+        replace
+        state={location.state}
+        className="flex flex-col gap-1 rounded-lg px-3 py-2.5 pe-12 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <div className="flex items-center gap-2">
           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] bg-accent text-accent-foreground">
             <ArtifactMimeIcon mimeType={artifact.mimeType} small />
@@ -732,11 +473,6 @@ function ArtifactRow({
             </span>
           ) : null}
         </div>
-        {artifact.description ? (
-          <div className="ps-8 text-[12.5px] leading-snug text-muted-foreground">
-            {artifact.description}
-          </div>
-        ) : null}
         <div className="flex items-center gap-1.5 ps-8 text-[11.5px] text-muted-foreground">
           {bot ? (
             <>
@@ -745,6 +481,8 @@ function ArtifactRow({
               <span aria-hidden="true">·</span>
             </>
           ) : null}
+          <span>{mimeLabel(artifact.mimeType)}</span>
+          <span aria-hidden="true">·</span>
           <span>{formatRelativeTime(artifact.createdAt)}</span>
         </div>
       </Link>
@@ -757,7 +495,7 @@ function ArtifactRow({
           event.stopPropagation();
           onRequestDelete(artifact);
         }}
-        className="absolute end-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100 group-focus-within:opacity-100"
+        className="absolute end-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Trash2 size={14} strokeWidth={1.9} />
       </button>
@@ -801,15 +539,7 @@ function mimeLabel(mimeType: string): string {
   return (slash === -1 ? mimeType : mimeType.slice(slash + 1)).toUpperCase().slice(0, 6);
 }
 
-function PreviewPane({
-  artifactId,
-  maximized,
-  onToggleMaximize,
-}: {
-  artifactId: string;
-  maximized: boolean;
-  onToggleMaximize: () => void;
-}) {
+function PreviewPane({ artifactId }: { artifactId: string }) {
   const { t } = useLingui();
   const [versions, setVersions] = useState<ArtifactVersion[] | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
@@ -868,9 +598,9 @@ function PreviewPane({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <header className="flex items-center gap-3 border-b border-border px-6 py-3">
+      <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[16px] font-semibold">
+          <h2 className="truncate text-sm font-medium">
             {state.status === "ready" ? state.artifact.name : t`Loading…`}
           </h2>
           {state.status === "ready" && state.artifact.description ? (
@@ -894,35 +624,20 @@ function PreviewPane({
           />
         ) : null}
         {state.status === "ready" ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                downloadArtifactBytes(state.artifact.name, state.artifact.mimeType, state.bytes)
-              }
-            >
-              <Download className="me-1.5" size={15} strokeWidth={1.9} />
-              <Trans>Download</Trans>
-            </Button>
-            <button
-              type="button"
-              aria-label={maximized ? t`Show list` : t`Maximize`}
-              title={maximized ? t`Show list` : t`Maximize`}
-              onClick={onToggleMaximize}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-accent"
-            >
-              {maximized ? (
-                <Minimize2 size={15} strokeWidth={1.9} />
-              ) : (
-                <Maximize2 size={15} strokeWidth={1.9} />
-              )}
-            </button>
-          </>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadArtifactBytes(state.artifact.name, state.artifact.mimeType, state.bytes)
+            }
+          >
+            <Download className="me-1.5" size={15} strokeWidth={1.9} />
+            <Trans>Download</Trans>
+          </Button>
         ) : null}
       </header>
 
-      <div className="min-h-0 flex-1 p-5">
+      <div className="min-h-0 flex-1 p-3">
         {state.status === "loading" ? (
           <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
             <Trans>Loading…</Trans>
@@ -932,7 +647,7 @@ function PreviewPane({
             {state.message}
           </div>
         ) : (
-          <div className="relative h-full overflow-hidden rounded-2xl border border-border">
+          <div className="relative h-full overflow-hidden rounded-lg border border-border">
             <ArtifactPreview artifact={state.artifact} bytes={state.bytes} />
             {state.artifact.mimeType === "text/html" ? (
               <div className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1.5 text-[11px] text-white">
@@ -958,7 +673,7 @@ function ArtifactPreview({ artifact, bytes }: { artifact: Artifact; bytes: Uint8
     const text = new TextDecoder("utf-8").decode(bytes);
     return (
       <div className="h-full overflow-y-auto bg-background">
-        <article className="mx-auto w-full max-w-[760px] px-8 py-10 text-[16px] leading-7 text-foreground">
+        <article className="mx-auto w-full max-w-[760px] px-5 py-6 text-sm leading-6 text-foreground">
           <ChatMarkdown>{text}</ChatMarkdown>
         </article>
       </div>

@@ -12,7 +12,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Navigate, Outlet, Route, Routes, useSearchParams } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useLocation, useSearchParams } from "react-router-dom";
 import { LoadingState } from "./components/ai/primitives";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { SubscriptionGate } from "./components/SubscriptionGate";
@@ -88,6 +88,10 @@ export function App() {
 
 function SessionApp() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const filesOpen = /^\/app\/artifacts(?:\/[^/]+)?$/.test(location.pathname);
+  const filesBackground =
+    typeof location.state?.filesBackground === "string" ? location.state.filesBackground : "/app";
   const signInDestination =
     searchParams.get("next") === "/integrations/setup" ? "/integrations/setup" : "/app";
   const session = authClient.useSession();
@@ -122,7 +126,7 @@ function SessionApp() {
   return (
     <div className="h-full" data-rakazo-app-state="ready">
       <Suspense fallback={<div className="h-full bg-background" />}>
-        <Routes>
+        <Routes location={filesOpen ? filesBackground : location}>
           <Route path="/" element={user ? <Navigate to="/app" replace /> : <WelcomePage />} />
           <Route
             path="/sign-in"
@@ -160,6 +164,14 @@ function SessionApp() {
               user ? (
                 <SubscriptionGate fallback={<GateFallback />}>
                   <Outlet />
+                  {filesOpen ? (
+                    <Suspense fallback={null}>
+                      <Routes>
+                        <Route path="/app/artifacts" element={<ArtifactsPage />} />
+                        <Route path="/app/artifacts/:artifactId" element={<ArtifactsPage />} />
+                      </Routes>
+                    </Suspense>
+                  ) : null}
                 </SubscriptionGate>
               ) : (
                 <Navigate to="/sign-in" replace />
@@ -167,11 +179,9 @@ function SessionApp() {
             }
           >
             <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/app" element={<ShellPage />} />
-            <Route path="/app/g/:groupId" element={<ShellPage />} />
-            <Route path="/app/artifacts" element={<ArtifactsPage />} />
-            <Route path="/app/artifacts/:artifactId" element={<ArtifactsPage />} />
-            <Route path="/app/:botId" element={<ShellPage />} />
+            <Route path="/app" element={<ShellPage filesOpen={filesOpen} />} />
+            <Route path="/app/g/:groupId" element={<ShellPage filesOpen={filesOpen} />} />
+            <Route path="/app/:botId" element={<ShellPage filesOpen={filesOpen} />} />
           </Route>
         </Routes>
       </Suspense>

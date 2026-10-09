@@ -22,12 +22,12 @@ import {
   formatMessageTime,
   forwardProbeAfterPage,
   groupVoiceChats,
+  hasRunResponseText,
   isApprovalAskBlock,
   isAssistantResponding,
   isPeerReceiptBlocks,
   isRunTerminalEvent,
   isSecretAskBlock,
-  isToolActivityBlock,
   latestAnswerableAskMessageId,
   leaveThreadWindow,
   mentionChipKey,
@@ -648,16 +648,8 @@ function Thread() {
   const assistantResponding = isAssistantResponding(assistantId, [
     { botId, status: currentBotStatus ?? undefined },
   ]);
-  const hasAssistantProgress = visibleMessages.some(
-    (message) =>
-      message.role === "bot" &&
-      message.id.startsWith("progress:") &&
-      (message.botId ?? (!inGroup ? botId : undefined)) === assistantId &&
-      message.blocks.some(
-        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-      ),
-  );
-  const hasLiveProgress = visibleMessages.some((message) => message.id.startsWith("progress:"));
+  const hasResponseText = hasRunResponseText(visibleMessages, snap?.run?.id);
+  const currentRuns = snap?.activeRuns ?? (snap?.run ? [snap.run] : []);
   const workingGroupBots = useMemo(() => {
     if (!inGroup) return [];
     const seen = new Set<string>();
@@ -671,8 +663,13 @@ function Thread() {
     });
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
   const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
-  const footerGroupBots = workingGroupBots.filter(
-    (bot) => bot.botId !== assistantId || !hasAssistantProgress,
+  const footerGroupBots = workingGroupBots.filter((bot) =>
+    currentRuns.some(
+      (run) =>
+        run.botId === bot.botId &&
+        isWorkingStatus(run.status) &&
+        !hasRunResponseText(visibleMessages, run.id),
+    ),
   );
 
   const speakFinishedReply = useCallback(() => {
@@ -2278,10 +2275,7 @@ function Thread() {
   }
 
   const workingFooter =
-    !inGroup &&
-    currentBot &&
-    isWorkingStatus(currentBotStatus) &&
-    (assistantResponding ? !hasAssistantProgress : !hasLiveProgress) ? (
+    !inGroup && currentBot && isWorkingStatus(currentBotStatus) && !hasResponseText ? (
       <View
         accessibilityLabel={t("{name} is working", { name: currentBot.name })}
         accessibilityRole="text"

@@ -422,7 +422,7 @@ msgstr "高级..."
 
 #: src/pages/Shell.tsx
 msgid "Agent computer"
-msgstr "Agent 电脑"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Agent connections"
@@ -641,10 +641,6 @@ msgstr ""
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Assistant settings"
 msgstr ""
 
 #. placeholder {0}: preset.time
@@ -1380,6 +1376,7 @@ msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "与 {0} 的连接仍在等待。可以关闭此窗口稍后再看。"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr ""
@@ -1424,7 +1421,11 @@ msgstr "使用邮箱继续"
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel.tsx
+msgid "Conversation actions"
+msgstr ""
+
+#: src/pages/shell/conversation-menu.tsx
 msgid "Conversation details"
 msgstr ""
 
@@ -1631,6 +1632,10 @@ msgstr "无法下载 {name}。请重试。"
 
 #: src/components/computer/FilesApp.tsx
 msgid "Could not download file"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Could not export"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -2377,10 +2382,6 @@ msgstr ""
 msgid "Duplicate"
 msgstr "复制"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
-msgstr "例如 Hivenet Agent、Presales、工时表机器人"
-
 #. placeholder {0}: memoryTitle(doc.path)
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Edit {0}"
@@ -2666,10 +2667,6 @@ msgstr "通用"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "在此机器人完成或需要输入时收到通知"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3192,6 +3189,7 @@ msgstr "成员（选择 {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX} 个）"
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "记忆"
@@ -4397,6 +4395,7 @@ msgstr "例行任务"
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 msgid "Routines"
 msgstr "例行任务"
 
@@ -4519,6 +4518,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
 msgstr "正在保存…"
@@ -4690,6 +4690,7 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "设置"
@@ -5031,6 +5032,7 @@ msgid "Task starter"
 msgstr ""
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr ""
@@ -5593,6 +5595,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
 msgstr "当 Webhook 触发时"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When tasks finish or need input"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "When to run"

@@ -90,7 +90,7 @@ test("custom connections persist reasoning support and bot thinking", async ({
   ).toBeUndefined();
   await page.getByRole("button", { name: "Close model settings" }).click();
   await page.getByRole("button", { name: "Conversation details" }).click();
-  await page.getByRole("menuitem", { name: "Assistant settings" }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
   const advanced = settings.getByTestId("bot-settings-advanced");
@@ -112,7 +112,7 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await saved;
   await page.reload();
   await page.getByRole("button", { name: "Conversation details" }).click();
-  await page.getByRole("menuitem", { name: "Assistant settings" }).click();
+  await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(settings).toBeVisible();
   await advanced.locator('[data-slot="collapsible-trigger"]').click();
   await expect(thinking).toHaveAttribute("data-value", "low");

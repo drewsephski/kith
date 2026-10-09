@@ -422,7 +422,7 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Agent computer"
-msgstr "Agent-Computer"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Agent connections"
@@ -641,10 +641,6 @@ msgstr ""
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Assistant settings"
 msgstr ""
 
 #. placeholder {0}: preset.time
@@ -1380,6 +1376,7 @@ msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "Die Verbindung zu {0} steht noch aus. Du kannst dieses Fenster schließen und später erneut nachsehen."
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr ""
@@ -1424,7 +1421,11 @@ msgstr "Mit E-Mail fortfahren"
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel.tsx
+msgid "Conversation actions"
+msgstr ""
+
+#: src/pages/shell/conversation-menu.tsx
 msgid "Conversation details"
 msgstr ""
 
@@ -1632,6 +1633,10 @@ msgstr "{name} konnte nicht heruntergeladen werden. Versuche es erneut."
 #: src/components/computer/FilesApp.tsx
 msgid "Could not download file"
 msgstr "Datei konnte nicht heruntergeladen werden"
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Could not export"
+msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Could not forget"
@@ -2377,10 +2382,6 @@ msgstr ""
 msgid "Duplicate"
 msgstr "Duplizieren"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
-msgstr "z. B. Hivenet Agent, Presales, Zeiterfassungs-Bot"
-
 #. placeholder {0}: memoryTitle(doc.path)
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Edit {0}"
@@ -2666,10 +2667,6 @@ msgstr "Allgemein"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "Benachrichtigung, wenn dieser Bot fertig ist oder Eingabe braucht"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3192,6 +3189,7 @@ msgstr "Mitglieder ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX} auswählen)"
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "Erinnerungen"
@@ -4397,6 +4395,7 @@ msgstr "Routine"
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 msgid "Routines"
 msgstr "Routinen"
 
@@ -4519,6 +4518,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
 msgstr "Wird gespeichert…"
@@ -4690,6 +4690,7 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "Einstellungen"
@@ -5031,6 +5032,7 @@ msgid "Task starter"
 msgstr ""
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr ""
@@ -5592,6 +5594,10 @@ msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When tasks finish or need input"
 msgstr ""
 
 #: src/pages/RoutineEditor.tsx

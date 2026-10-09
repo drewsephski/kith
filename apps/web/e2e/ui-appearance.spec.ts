@@ -25,9 +25,10 @@ test("header appearance toggle persists across app routes and works with collaps
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/artifacts$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("dialog", { name: "Files", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   await toggle.click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("link", { name: "Conversation", exact: true }).click();
   await expect(toggle).toHaveAccessibleName("Switch to light mode");
   await page.setViewportSize({ width: 375, height: 812 });
   await toggle.click();

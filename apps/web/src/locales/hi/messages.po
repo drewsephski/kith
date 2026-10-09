@@ -422,7 +422,7 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Agent computer"
-msgstr "एजेंट कंप्यूटर"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Agent connections"
@@ -641,10 +641,6 @@ msgstr ""
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Assistant settings"
 msgstr ""
 
 #. placeholder {0}: preset.time
@@ -1380,6 +1376,7 @@ msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "{0} से कनेक्शन अभी लंबित है। आप इसे बंद करके बाद में जांच सकते हैं।"
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr ""
@@ -1424,7 +1421,11 @@ msgstr "ईमेल से जारी रखें"
 msgid "Conversation"
 msgstr ""
 
-#: src/pages/Shell.tsx
+#: src/pages/shell/bot-panel.tsx
+msgid "Conversation actions"
+msgstr ""
+
+#: src/pages/shell/conversation-menu.tsx
 msgid "Conversation details"
 msgstr ""
 
@@ -1631,6 +1632,10 @@ msgstr "{name} डाउनलोड नहीं हो सका। पुन�
 
 #: src/components/computer/FilesApp.tsx
 msgid "Could not download file"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "Could not export"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -2377,10 +2382,6 @@ msgstr ""
 msgid "Duplicate"
 msgstr "डुप्लिकेट"
 
-#: src/pages/shell/bot-panel.tsx
-msgid "e.g. Hivenet Agent, Presales, Timesheets bot"
-msgstr "उदा. Hivenet Agent, Presales, टाइमशीट बॉट"
-
 #. placeholder {0}: memoryTitle(doc.path)
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Edit {0}"
@@ -2666,10 +2667,6 @@ msgstr "सामान्य"
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Get notified when this Bot finishes or needs input"
-msgstr "जब यह बॉट समाप्त हो या इनपुट चाहिए तो सूचित हों"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3192,6 +3189,7 @@ msgstr "सदस्य ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX} चुनें
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Memory"
 msgstr "मेमोरी"
@@ -4397,6 +4395,7 @@ msgstr "रूटीन"
 
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 msgid "Routines"
 msgstr "रूटीन्स"
 
@@ -4519,6 +4518,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
 msgstr "सहेजा जा रहा है…"
@@ -4690,6 +4690,7 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 #: src/pages/SettingsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Settings"
 msgstr "सेटिंग्स"
@@ -5031,6 +5032,7 @@ msgid "Task starter"
 msgstr ""
 
 #: src/pages/Shell.tsx
+#: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr ""
@@ -5592,6 +5594,10 @@ msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "When a webhook fires"
+msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "When tasks finish or need input"
 msgstr ""
 
 #: src/pages/RoutineEditor.tsx
