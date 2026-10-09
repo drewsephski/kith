@@ -37,7 +37,7 @@ const availableLanguages = LOCALES.map((supportedLocale) =>
 const homeHref = localeHomePath(locale);
 const stars = await fetchGithubStars();
 const starsLabel = stars === null ? copy.starFallback : formatStarCount(stars);
-const setupAgentPrompt = `Set up Rakazo for me. Follow the setup prompt at ${SETUP_PROMPT_URL}`;
+const setupAgentPrompt = `Set up Kith for me. Follow the setup prompt at ${SETUP_PROMPT_URL}`;
 const pageUrl = `${SITE_URL}${homeHref === "/" ? "/" : homeHref}`;
 
 const structuredData = homeStructuredData({

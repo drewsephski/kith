@@ -28,7 +28,7 @@ export function homeStructuredData(input: HomeStructuredDataInput) {
         name: SITE_NAME,
         legalName: LEGAL_NAME,
         url: `${SITE_URL}/`,
-        logo: `${SITE_URL}/brand/rakazo-mark.svg`,
+        logo: `${SITE_URL}/icon-512.png`,
         email: "hello@rakazo.com",
         contactPoint: {
           "@type": "ContactPoint",

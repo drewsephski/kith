@@ -36,7 +36,7 @@ const {
   skipLabel = "Skip to content",
   homeAlternates = false,
   localeAlternates = true,
-  ogImageAlt = "Rakazo. AI teammates you actually own. Your keys, your model, your machine.",
+  ogImageAlt = "Kith. AI teammates you actually own. Your keys, your model, your machine.",
   ogImage = "/og-image.png",
   ogType = "website",
   index = true,
@@ -61,7 +61,7 @@ const homeUrls = Object.fromEntries(
 ---
 
 <!doctype html>
-<html lang={htmlLang}>
+<html lang={htmlLang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -104,10 +104,10 @@ const homeUrls = Object.fromEntries(
     {markdownAlternate && (
       <link rel="alternate" type="text/markdown" href={markdownAlternate} />
     )}
-    <link rel="alternate" type="application/rss+xml" title="Rakazo blog" href="/blog/rss.xml" />
+    <link rel="alternate" type="application/rss+xml" title="Kith blog" href="/blog/rss.xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

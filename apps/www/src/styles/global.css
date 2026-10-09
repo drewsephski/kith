@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../../../../packages/ui-tokens/src/tokens.css";
 
 @source "../../../../packages/ui-web/src/button.tsx";
 
@@ -11,21 +12,21 @@
 }
 
 :root {
-  --page: #fdfdfd;
-  --surface: #ffffff;
-  --surface-soft: #f7f7f7;
-  --ink: #242424;
-  --body: #3d3d3d;
-  --muted: #848484;
-  --muted-2: #6d6e70;
-  --line: #efefef;
-  --line-2: #e6e6e6;
-  --blue: #2563eb;
-  --blue-top: #2965ec;
-  --blue-bottom: #5c89f8;
-  --blue-soft: #eff6ff;
-  --blue-soft-2: #d8e9ff;
-  --blue-line: #d6e8fc;
+  --page: var(--background);
+  --surface: var(--card);
+  --surface-soft: var(--secondary);
+  --ink: var(--foreground);
+  --body: var(--foreground);
+  --site-muted: var(--muted-foreground);
+  --muted-2: var(--muted-foreground);
+  --line: var(--border);
+  --line-2: var(--border);
+  --blue: var(--primary);
+  --blue-top: var(--primary);
+  --blue-bottom: var(--primary);
+  --blue-soft: var(--secondary);
+  --blue-soft-2: var(--accent);
+  --blue-line: var(--border);
   --panel: #0b0b0c;
   --panel-2: #0f0f10;
   --panel-line: #1b1b1d;
@@ -35,7 +36,6 @@
   --panel-muted-2: #6c6c70;
   --panel-cream: #f1f1ef;
   --panel-cream-ink: #1a1a1a;
-  --success: #30a24b;
   --shadow-soft: 0 2px 16px rgba(0, 0, 0, 0.03);
   --shadow-demo: 0 30px 80px -30px rgba(0, 0, 0, 0.35);
   --radius-card: 20px;
@@ -383,7 +383,7 @@ button.button--secondary:focus-visible {
 .lead {
   max-width: 640px;
   margin: 22px auto 0;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 19px;
   line-height: 1.55;
   text-wrap: pretty;
@@ -417,7 +417,7 @@ button.button--secondary:focus-visible {
   border: 0;
   border-radius: 12px;
   background: transparent;
-  color: var(--muted);
+  color: var(--site-muted);
   font: 500 14px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: -0.02em;
   cursor: pointer;
@@ -476,7 +476,7 @@ button.button--secondary:focus-visible {
 
 .section-copy {
   margin-top: 16px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 18px;
   line-height: 1.55;
   text-wrap: pretty;
@@ -606,7 +606,7 @@ button.button--secondary:focus-visible {
 
 .comparison-meta {
   margin-top: 6px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14.5px;
 }
 
@@ -653,7 +653,7 @@ button.button--secondary:focus-visible {
 }
 
 .waitlist-form > input::placeholder {
-  color: var(--muted);
+  color: var(--site-muted);
 }
 
 .waitlist-form > input:focus {
@@ -679,7 +679,7 @@ button.button--secondary:focus-visible {
   grid-column: 1 / -1;
   min-height: 18px;
   margin: 0;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 13px;
 }
 
@@ -808,7 +808,7 @@ button.button--secondary:focus-visible {
   margin: 0 0 16px;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--site-muted);
   font: inherit;
   font-size: 14px;
   cursor: pointer;
@@ -894,7 +894,7 @@ button.button--secondary:focus-visible {
 
 .stats-band p {
   margin: 14px 0 0;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 17px;
   line-height: 1.55;
 }
@@ -913,7 +913,7 @@ button.button--secondary:focus-visible {
 
 .stat-label {
   margin-top: 6px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 13.5px;
 }
 
@@ -963,7 +963,7 @@ button.button--secondary:focus-visible {
 
 .site-footer__languages,
 .site-footer__links {
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14px;
 }
 
@@ -974,7 +974,7 @@ button.button--secondary:focus-visible {
 .site-footer__languages a + a::before {
   content: "·";
   margin: 0 10px;
-  color: var(--muted);
+  color: var(--site-muted);
   pointer-events: none;
 }
 
@@ -2136,7 +2136,7 @@ button.button--secondary:focus-visible {
 .product-demo__caption {
   margin: 16px 0 0;
   text-align: center;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 13.5px;
 }
 
@@ -2248,12 +2248,12 @@ button.button--secondary:focus-visible {
 
 .alt-page .alt-crumb {
   margin: 0 0 14px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14px;
 }
 
 .alt-page .alt-note {
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14.5px;
 }
 
@@ -2264,7 +2264,7 @@ button.button--secondary:focus-visible {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -2278,7 +2278,7 @@ button.button--secondary:focus-visible {
 
 .alt-page ul.source-list li:not(:last-child)::after {
   content: ",\00a0";
-  color: var(--muted);
+  color: var(--site-muted);
 }
 
 .alt-page ul.source-list a {
@@ -2410,7 +2410,7 @@ button.button--secondary:focus-visible {
 }
 
 .guide .alt-note {
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14.5px;
 }
 
@@ -2439,7 +2439,7 @@ button.button--secondary:focus-visible {
   margin: 0 0 8px;
   padding: 0;
   list-style: none;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -2453,7 +2453,7 @@ button.button--secondary:focus-visible {
 
 .guide ul.source-list li:not(:last-child)::after {
   content: ",\00a0";
-  color: var(--muted);
+  color: var(--site-muted);
 }
 
 .guide ul.source-list a {
@@ -2517,7 +2517,7 @@ button.button--secondary:focus-visible {
 .guide caption {
   caption-side: bottom;
   padding: 12px 14px 14px;
-  color: var(--muted);
+  color: var(--site-muted);
   text-align: left;
 }
 
@@ -2861,7 +2861,7 @@ button.button--secondary:focus-visible {
 
 .page-updated {
   margin: 0 0 18px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14.5px;
 }
 
@@ -2895,7 +2895,7 @@ button.button--secondary:focus-visible {
 .vs-card__vs {
   align-self: center;
   margin: 0;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 13px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2916,7 +2916,7 @@ button.button--secondary:focus-visible {
 
 .post-figure figcaption {
   margin-top: 8px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -2952,7 +2952,7 @@ button.button--secondary:focus-visible {
   flex-wrap: wrap;
   gap: 8px 18px;
   margin: 0 0 22px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 14.5px;
 }
 
@@ -2973,7 +2973,7 @@ button.button--secondary:focus-visible {
 
 .blog-kicker {
   margin: 0 0 6px;
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 13px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3006,7 +3006,7 @@ button.button--secondary:focus-visible {
 }
 
 .blog-related a span:last-child {
-  color: var(--muted);
+  color: var(--site-muted);
   font-size: 15px;
 }
 
