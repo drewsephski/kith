@@ -468,7 +468,7 @@ function ArtifactRow({
           </span>
           <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{artifact.name}</span>
           {artifact.versionCount > 1 ? (
-            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10.5px] font-semibold text-muted-foreground">
+            <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
               {`v${artifact.version}`}
             </span>
           ) : null}
@@ -599,7 +599,7 @@ function PreviewPane({ artifactId }: { artifactId: string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <div className="min-w-0 flex-1">
+        <div className="w-full min-w-0 sm:w-auto sm:flex-1">
           <h2 className="truncate text-sm font-medium">
             {state.status === "ready" ? state.artifact.name : t`Loading…`}
           </h2>
@@ -612,7 +612,7 @@ function PreviewPane({ artifactId }: { artifactId: string }) {
         {versions && versions.length > 1 && selectedVersionId ? (
           <SelectField
             aria-label={t`Version`}
-            className="w-auto shrink-0 text-[13px]"
+            className="w-auto shrink-0 text-sm"
             value={selectedVersionId}
             onValueChange={(selectedValue) => setSelectedVersionId(selectedValue)}
             items={[
@@ -650,7 +650,7 @@ function PreviewPane({ artifactId }: { artifactId: string }) {
           <div className="relative h-full overflow-hidden rounded-lg border border-border">
             <ArtifactPreview artifact={state.artifact} bytes={state.bytes} />
             {state.artifact.mimeType === "text/html" ? (
-              <div className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1.5 text-[11px] text-white">
+              <div className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1.5 text-xs text-white">
                 <Lock size={12} strokeWidth={2} />
                 <span>
                   <Trans>Isolated preview — no access to your account</Trans>

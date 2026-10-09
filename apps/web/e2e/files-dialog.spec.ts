@@ -37,7 +37,15 @@ test("Files stays compact and returns to the conversation on desktop and mobile"
     await expect(dialog.getByRole("link")).toHaveCount(1);
     await dialog.getByRole("link", { name: /Weekly plan/ }).click();
     await expect(dialog.getByRole("heading", { name: "This week", exact: true })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Download", exact: true })).toBeVisible();
+    const download = dialog.getByRole("button", { name: "Download", exact: true });
+    await expect(download).toBeVisible();
+    if (width === 375) {
+      const title = dialog.getByRole("heading", { name: "Weekly plan.md", exact: true });
+      const titleBox = await title.boundingBox();
+      const downloadBox = await download.boundingBox();
+      expect(titleBox?.width).toBeGreaterThan(300);
+      expect(downloadBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
+    }
     await captureScreenshot(page, testInfo, `files-preview-${width}`);
     await dialog.getByRole("button", { name: "Back to files" }).click();
     await expect(dialog.getByRole("searchbox", { name: "Search files" })).toHaveValue("Weekly");
