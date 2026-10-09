@@ -8,11 +8,15 @@ const boxSandbox = process.env.SANDBOX_PROVIDER === "box";
 const reporters = [
   ...(process.env.CI ? ([["github"]] as const) : []),
   ["list"] as const,
-  ["html", { open: "never", outputFolder: "../../playwright-report" }] as const,
+  [
+    "html",
+    { open: "never", outputFolder: process.env.PLAYWRIGHT_REPORT_DIR ?? "../../playwright-report" },
+  ] as const,
 ];
 
 export default defineConfig({
   testDir: "./e2e",
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? "test-results",
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,
   workers: realSandbox ? 1 : undefined,
@@ -27,7 +31,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm dev",
+    command: process.env.PLAYWRIGHT_WEB_COMMAND ?? "pnpm dev",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

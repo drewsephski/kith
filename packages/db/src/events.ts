@@ -120,9 +120,11 @@ interface FinalizeRunBase {
   leaseOwner: string;
   leaseFence: number;
   calendarConnection?: { id: string; generation: string };
+  taskConnections?: { id: string; providerRef: string; connectorId: string }[];
 }
 
 export class CalendarConnectionChangedError extends Error {}
+export class TaskConnectionChangedError extends Error {}
 
 export type FinalizeRunInput = FinalizeRunBase &
   (
@@ -1140,6 +1142,26 @@ async function finalizeRunOnce(
           },
         });
         if (!source) throw new CalendarConnectionChangedError();
+      }
+    }
+    if (input.outcome === "completed" && input.taskConnections) {
+      const run = await tx.run.findUnique({ where: { id: input.runId }, select: { userId: true } });
+      if (!run) throw new TaskConnectionChangedError();
+      for (const expected of [...input.taskConnections].sort((left, right) =>
+        left.id.localeCompare(right.id),
+      )) {
+        await tx.$queryRaw`SELECT id FROM connections WHERE id = ${expected.id} FOR UPDATE`;
+        const connection = await tx.connection.findFirst({
+          where: {
+            id: expected.id,
+            spaceId: input.spaceId,
+            userId: run.userId,
+            status: "connected",
+            providerRef: expected.providerRef,
+            connectorId: expected.connectorId,
+          },
+        });
+        if (!connection) throw new TaskConnectionChangedError();
       }
     }
     let writableRun: { startedAt: Date | null } | undefined;

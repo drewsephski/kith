@@ -641,6 +641,7 @@ model Run {
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   calendarBriefing     CalendarBriefing?
+  taskStarterExecution TaskStarterExecution?
   attempts             Attempt[]
   effects              ExternalEffect[]
   usageRecords         UsageRecord[]
@@ -778,6 +779,7 @@ model Routine {
   modelProvider  String?
   modelId        String?
   thinkingLevel  String?
+  taskStarterSpec Json?
   lastRunAt      DateTime?
   nextRunAt      DateTime?
   createdAt      DateTime  @default(now())
@@ -799,6 +801,7 @@ model ScratchpadItem {
   title     String
   status    String   @default("open")
   notes     String   @default("")
+  sourceActionKey String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1452,4 +1455,22 @@ model PersonalAssistant {
   @@id([spaceId, userId])
   @@index([botId])
   @@map("personal_assistants")
+}
+
+model TaskStarterExecution {
+  id String @id @default(cuid())
+  runId String @unique
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+  starter String
+  action String @default("read")
+  input Json
+  connections Json
+  result Json?
+  reconciliationRequired Boolean @default(false)
+  sourceExecutionId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceExecutionId, action])
+  @@map("task_starter_executions")
 }

@@ -14,6 +14,8 @@ Platform exports:
 - Mobile `adaptive-icon.png`: centered transparent character foreground, with the semantic background exported separately. Notification and themed icons use its alpha silhouette.
 - Web favicons, install icons, and touch icon: resized native master exports.
 
-Keep the character's face, silhouette, and lighting consistent. Run `pnpm generate:brand` after replacing the source to refresh all platform exports, the marketing logo, social image, and README artwork together. The generator uses the shared light background token. It requires ImageMagick; this is a design maintenance step, not a runtime dependency.
+Keep the character's face, silhouette, and lighting consistent. Run `pnpm generate:brand` after replacing the source to refresh all platform exports, the marketing logo, and social image together. The generator uses the shared light background token. It requires ImageMagick; this is a design maintenance step, not a runtime dependency.
+
+`docs/readme-hero.png` is independently maintained editorial artwork showing the companion alongside conversation, memory, and recurring work. The brand generator preserves it.
 
 Refresh the editorial social cards with `pnpm exec tsx apps/www/scripts/render-og.mjs`. Set `CHROME_PATH` to a headless-capable Chromium executable when it is not installed at the script's default location. These cards embed the shared avatar and use the same semantic palette.

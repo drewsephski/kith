@@ -1,4 +1,5 @@
 import type { CalendarReader } from "./calendar.js";
+import type { TaskPlatform } from "./task-starters.js";
 import type {
   AdapterContext,
   AdapterDescriptor,
@@ -208,6 +209,7 @@ export interface ManagedConnectorProvider
   listConnectedExternalIds(context: AdapterContext): Promise<string[]>;
   connectionReady(context: AdapterContext, externalId: string): Promise<boolean>;
   warmDirectory?(): Promise<void>;
+  taskPlatform?(): TaskPlatform;
 }
 
 export interface MemoryStore {

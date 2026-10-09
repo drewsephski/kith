@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { IntegrationCatalogResult, IntegrationSetupState } from "@rakazo/contracts";
+import { ComposioAuthConfigsSchema } from "@rakazo/contracts";
 import {
   Button,
   Collapsible,
@@ -7,6 +8,7 @@ import {
   CollapsibleTrigger,
   ConnectorIcon,
   Input,
+  Textarea,
 } from "@rakazo/ui-web";
 import { Check } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -40,6 +42,7 @@ export function IntegrationSetup({
   const [selectedChoice, setChoice] = useState<Choice>("composio");
   const choice = serverSetup ? selectedChoice : "direct";
   const [apiKey, setApiKey] = useState("");
+  const [authConfigs, setAuthConfigs] = useState("");
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [serverName, setServerName] = useState("");
@@ -100,7 +103,13 @@ export function IntegrationSetup({
     await run(async () => {
       await rpc.integrationSetup.save(
         choice === "composio"
-          ? { provider: "composio", apiKey }
+          ? {
+              provider: "composio",
+              apiKey,
+              ...(authConfigs.trim()
+                ? { authConfigs: ComposioAuthConfigsSchema.parse(JSON.parse(authConfigs)) }
+                : {}),
+            }
           : {
               provider: "pipedream",
               clientId,
@@ -221,6 +230,33 @@ export function IntegrationSetup({
                   autoComplete="new-password"
                 />
               </label>
+              {choice === "composio" ? (
+                <Collapsible>
+                  <CollapsibleTrigger className="text-sm text-muted-foreground">
+                    <Trans>Custom OAuth apps</Trans>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3 space-y-2">
+                    <label htmlFor={`${fieldId}-oauth`} className="block text-sm">
+                      <Trans>Toolkit to auth-config IDs (JSON)</Trans>
+                    </label>
+                    <Textarea
+                      id={`${fieldId}-oauth`}
+                      value={authConfigs}
+                      onChange={(event) => setAuthConfigs(event.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <a
+                      className="text-sm text-muted-foreground underline"
+                      href="https://docs.composio.dev/docs/white-labeling-authentication"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Trans>OAuth app settings</Trans>
+                    </a>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
               <a
                 className="text-sm text-muted-foreground underline"
                 href={

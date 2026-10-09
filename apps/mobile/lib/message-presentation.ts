@@ -22,6 +22,7 @@ export type MessagePresentationSegment = {
 function isCardBlock(block: MessageBlock): boolean {
   return (
     block.kind === "calendar_receipt" ||
+    block.kind === "task_starter_receipt" ||
     block.kind === "app_connect" ||
     block.kind === "choice" ||
     block.kind === "computer"

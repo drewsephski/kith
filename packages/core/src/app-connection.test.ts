@@ -1,5 +1,5 @@
 import type { Connection } from "@rakazo/contracts";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { waitForAppConnection } from "./app-connection.js";
 
 const row = (status: Connection["status"]): Connection => ({
@@ -49,4 +49,44 @@ it("aborting during a pending wait prevents another completion request", async (
   controller.abort();
   await rejected;
   expect(complete).toHaveBeenCalledTimes(1);
+});
+
+const connection = (status: Connection["status"]) => ({ status }) as Connection;
+
+describe("authorization completion polling", () => {
+  it("polls only completion until the existing connection is active", async () => {
+    const complete = vi
+      .fn()
+      .mockResolvedValueOnce(connection("pending"))
+      .mockResolvedValue(connection("connected"));
+    await expect(
+      waitForAppConnection(complete, { attempts: 3, pollIntervalMs: 0 }),
+    ).resolves.toEqual(connection("connected"));
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns pending when the bounded authorization window expires", async () => {
+    const complete = vi.fn(async () => connection("pending"));
+    await expect(
+      waitForAppConnection(complete, { attempts: 2, pollIntervalMs: 0 }),
+    ).resolves.toEqual(connection("pending"));
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  it("never polls after scope cancellation or repeats a failed completion", async () => {
+    const controller = new AbortController();
+    const complete = vi.fn(async () => {
+      controller.abort();
+      return connection("pending");
+    });
+    await expect(
+      waitForAppConnection(complete, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(complete).toHaveBeenCalledOnce();
+    const failure = vi.fn(async () => {
+      throw new Error("Connection check failed");
+    });
+    await expect(waitForAppConnection(failure)).rejects.toThrow("Connection check failed");
+    expect(failure).toHaveBeenCalledOnce();
+  });
 });

@@ -4,6 +4,8 @@ import type {
   ManagedCalendarProvider,
   ManagedConnectorProvider,
   SecretStore,
+  TaskConnection,
+  TaskPlatform,
 } from "@rakazo/adapter-kit";
 import { CalendarAccessError } from "@rakazo/adapter-kit";
 import {
@@ -43,8 +45,18 @@ export class IntegrationProviderSettings {
   private create(config: IntegrationProviderConfig): ManagedConnectorProvider {
     if (this.factory) return this.factory(config);
     return config.provider === "composio"
-      ? new ComposioConnector(config.apiKey)
+      ? new ComposioConnector(config.apiKey, { authConfigs: config.authConfigs })
       : new PipedreamConnector({ ...config, identitySecret: this.identitySecret });
+  }
+
+  async taskPlatform(connection: TaskConnection, context: AdapterContext): Promise<TaskPlatform> {
+    context.signal.throwIfAborted();
+    const id = IntegrationProviderIdSchema.parse(connection.connectorId);
+    const provider = await this.resolve(id);
+    if (!provider) throw new Error("Set up an integration provider in Integrations first");
+    const platform = provider.taskPlatform?.();
+    if (!platform) throw new Error("This integration provider does not support task starters");
+    return platform;
   }
 
   async configured(id: IntegrationProviderId): Promise<boolean> {

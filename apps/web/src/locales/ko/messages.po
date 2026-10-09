@@ -250,6 +250,14 @@ msgstr ""
 msgid "Action confirmations"
 msgstr "작업 실행 전 확인"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Action notes"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Action title"
+msgstr ""
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: sectionMenu.section.name
@@ -273,6 +281,10 @@ msgstr "현재 모델"
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Active threads"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Active users"
 msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
@@ -462,6 +474,10 @@ msgstr "확인 없이 이메일 동작 허용"
 msgid "Allow once"
 msgstr "한 번 허용"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Allow pop-ups to connect this account."
+msgstr ""
+
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Allow purchase actions without asking"
 msgstr "확인 없이 결제 동작 허용"
@@ -493,6 +509,10 @@ msgstr "항상 허용됨"
 #: src/lib/model-connection-preflight.ts
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "이 서비스에는 구독 로그인이 아니라 API 키가 저장되어 있습니다."
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Analytics property"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Answer"
@@ -655,6 +675,10 @@ msgstr "인증에 실패했습니다."
 msgid "Authorization code or callback URL"
 msgstr "인증 코드 또는 돌아온 페이지 주소"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Authorization is still pending. Check the connection and try again."
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Authorization timed out. Please try again."
 msgstr "인증 시간이 만료되었습니다. 다시 시도해 주세요."
@@ -684,12 +708,20 @@ msgid "Available to this bot's shell commands as {commandVariable}"
 msgstr "이 봇의 셸 명령에서 {commandVariable}(으)로 사용 가능"
 
 #: src/pages/shell/avatar-studio-popover.tsx
+msgid "Avatar"
+msgstr ""
+
+#: src/pages/shell/avatar-studio-popover.tsx
 msgid "Avatar Studio"
 msgstr "아바타 스튜디오"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Avatars"
 msgstr "아바타"
+
+#: src/pages/ActivityList.tsx
+msgid "Awaiting reply"
+msgstr ""
 
 #: src/components/computer/FilesApp.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -803,6 +835,10 @@ msgstr ""
 msgid "Browser"
 msgstr ""
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Build a brief for my next meeting"
+msgstr ""
+
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
 msgstr "기본 제공"
@@ -823,6 +859,7 @@ msgstr "서버에 연결할 수 없습니다."
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/markdown-link-prompt.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -910,6 +947,10 @@ msgstr "업데이트 확인"
 msgid "Check in."
 msgstr "확인해 주세요."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Check outcome"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Check the API key or sign-in, then test again."
 msgstr "API 키 또는 로그인을 확인한 뒤 다시 테스트하세요."
@@ -921,6 +962,10 @@ msgstr "서버 URL과 네트워크를 확인한 뒤 다시 테스트하세요."
 #: src/pages/Auth.tsx
 msgid "Check your email"
 msgstr "이메일을 확인하세요"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Check your selections."
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Checking computer setup…"
@@ -949,9 +994,17 @@ msgstr "Bot 선택…"
 msgid "Choose a new password"
 msgstr "새 비밀번호 선택"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Choose a property"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
 msgstr "파일 선택"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Choose task sources"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Choose which connected model Kith uses."
@@ -1098,6 +1151,7 @@ msgstr "실행 명령"
 msgid "Command variable"
 msgstr "명령 변수"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "완료"
@@ -1144,6 +1198,10 @@ msgstr "컴퓨터가 꺼져 있습니다. SANDBOX_PROVIDER=docker와 SANDBOX_SUP
 msgid "Configure a plugin catalog on the server to connect apps."
 msgstr ""
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Configure integrations"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Configured by deployment"
 msgstr "서버에서 설정됨"
@@ -1172,6 +1230,11 @@ msgstr "이 브라우저 세션에서 URL에 연결할 수 있는지 확인한 �
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "연결"
+
+#. placeholder {0}: appNames[app]
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Connect {0}"
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Connect a model"
@@ -1373,6 +1436,10 @@ msgstr "OAuth 인증을 완료하지 못했습니다."
 msgid "Could not complete the update. Try again."
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not complete this action"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not connect"
@@ -1382,6 +1449,10 @@ msgstr "연결하지 못했습니다."
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not connect {0}"
 msgstr "{0}에 연결하지 못했습니다."
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not connect account"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not connect this provider"
@@ -1510,6 +1581,10 @@ msgstr "불러올 수 없음"
 msgid "Could not load activity"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not load analytics properties"
+msgstr ""
+
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Could not load approval rules"
 msgstr "확인 규칙을 불러오지 못했습니다."
@@ -1536,6 +1611,10 @@ msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
 msgid "Could not load commands"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not load connections"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -1588,6 +1667,10 @@ msgstr "로그인 옵션을 불러올 수 없습니다"
 msgid "Could not load skill"
 msgstr "스킬을 불러오지 못했습니다"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not load task"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "Could not load this artifact."
 msgstr ""
@@ -1632,6 +1715,10 @@ msgstr "터미널을 열 수 없습니다"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Could not play a test clip"
 msgstr "샘플 음성을 재생하지 못했습니다."
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not prepare this meeting"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Could not reach the model server."
@@ -1754,6 +1841,10 @@ msgstr ""
 msgid "Could not save this choice"
 msgstr "선택 내용을 저장하지 못했습니다."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not schedule report"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
 msgstr ""
@@ -1769,6 +1860,10 @@ msgstr "메시지를 보내지 못했습니다."
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
 msgstr "OAuth 인증을 시작하지 못했습니다."
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not start task"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Could not start teaching"
@@ -1919,6 +2014,10 @@ msgstr "현재 비밀번호"
 msgid "Custom header"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Custom OAuth apps"
+msgstr ""
+
 #: src/pages/shell/dialogs.tsx
 msgid "Customer support"
 msgstr "고객 지원"
@@ -1926,6 +2025,10 @@ msgstr "고객 지원"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Customize bot avatar"
 msgstr "봇 아바타 맞춤설정"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Daily"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Dark"
@@ -1935,6 +2038,10 @@ msgstr "다크"
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
 msgstr "일"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Day of week"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Day-to-day work"
@@ -2173,6 +2280,10 @@ msgstr "작업 기술 초안"
 msgid "Drag, drop, or paste an image"
 msgstr "이미지를 끌어다 놓거나 붙여넣으세요"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Due date"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "복제"
@@ -2186,6 +2297,10 @@ msgstr "예: Hivenet Agent, Presales, 근무표 봇"
 msgid "Edit {0}"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Edit action"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Edit first"
 msgstr "수정 후 보내기"
@@ -2197,6 +2312,10 @@ msgstr "Bot 정보 수정"
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "이메일"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Email and CRM context (optional)"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
@@ -2217,6 +2336,10 @@ msgstr ""
 #: src/lib/user-error.ts
 msgid "Enter a password"
 msgstr "비밀번호를 입력하세요"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Enter a spreadsheet ID."
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Enter a username and password"
@@ -2285,6 +2408,10 @@ msgstr "매주"
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Executor 토큰"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Existing spreadsheet"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Expand"
@@ -2358,6 +2485,7 @@ msgstr ""
 msgid "Filter by date"
 msgstr ""
 
+#: src/pages/ActivityList.tsx
 #: src/pages/Artifacts.tsx
 msgid "Filters"
 msgstr ""
@@ -2415,6 +2543,10 @@ msgstr "비밀번호를 잊으셨나요?"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr "무료"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Friday"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "From"
@@ -2541,6 +2673,7 @@ msgstr ""
 msgid "Hide transcript"
 msgstr "대화 기록 숨기기"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "High"
@@ -2549,6 +2682,10 @@ msgstr "높음"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "High priority"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
@@ -2677,6 +2814,10 @@ msgstr "기억은 유지"
 msgid "key"
 msgstr "key"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Key events"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
@@ -2693,6 +2834,10 @@ msgstr "지식"
 msgid "Language"
 msgstr "언어"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Last week"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr ""
@@ -2708,6 +2853,10 @@ msgstr "나가기"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "라이트"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Limited results"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -2733,6 +2882,10 @@ msgstr ""
 msgid "Listening"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Load connections"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Load earlier messages"
 msgstr "이전 메시지 불러오기"
@@ -2744,6 +2897,10 @@ msgstr ""
 #: src/pages/RoutineRunHistory.tsx
 msgid "Load older runs"
 msgstr "이전 실행 불러오기"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Load task"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
@@ -2810,6 +2967,11 @@ msgstr ""
 msgid "Log out"
 msgstr "로그아웃"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Look back in days"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Low"
@@ -2818,6 +2980,10 @@ msgstr "낮음"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Low"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Low priority"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -2910,6 +3076,10 @@ msgstr "보통"
 msgid "Medium"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting selected"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Members ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})"
 msgstr "참여 Bot ({GROUP_MEMBER_MIN}~{GROUP_MEMBER_MAX}개)"
@@ -2975,6 +3145,10 @@ msgstr "{peer}에게 메시지 보냄"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Messaging"
 msgstr "메시징"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Metrics"
+msgstr ""
 
 #: src/lib/call-session.ts
 msgid "Microphone failed"
@@ -3053,6 +3227,10 @@ msgstr "서버에서 찾은 모델"
 msgid "Models list OK. {modelCount, plural, one {# model} other {# models}} available. Chat was not tested."
 msgstr "모델 목록이 정상입니다. {modelCount, plural, one {모델 #개} other {모델 #개}}를 사용할 수 있습니다. 채팅은 테스트하지 않았습니다."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Monday"
+msgstr ""
+
 #: src/lib/billing.ts
 msgid "month"
 msgstr ""
@@ -3116,6 +3294,10 @@ msgid "Name this routine"
 msgstr "이 루틴의 이름을 정하세요"
 
 #: src/pages/ActivityList.tsx
+msgid "Needs assistance"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr ""
 
@@ -3157,6 +3339,10 @@ msgstr "새 스킬"
 #: src/pages/shell/dialogs.tsx
 msgid "New space"
 msgstr "새 스페이스"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "New spreadsheet"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
@@ -3255,10 +3441,6 @@ msgstr ""
 msgid "No results"
 msgstr "검색 결과가 없습니다"
 
-#: src/pages/ActivityList.tsx
-msgid "No runs match these filters."
-msgstr ""
-
 #: src/pages/RoutineRunHistory.tsx
 msgid "No runs yet"
 msgstr "아직 실행 기록이 없습니다"
@@ -3266,6 +3448,10 @@ msgstr "아직 실행 기록이 없습니다"
 #: src/pages/KnowledgeSection.tsx
 msgid "No skills yet"
 msgstr "아직 스킬이 없습니다"
+
+#: src/pages/ActivityList.tsx
+msgid "No tasks match these filters."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "No tasks yet. Ask Kith to get something done."
@@ -3286,6 +3472,14 @@ msgstr "트리거 없음"
 #: src/pages/ScratchpadSection.tsx
 msgid "None yet"
 msgstr "아직 없음"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Normal"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Normal priority"
+msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Not connected"
@@ -3323,6 +3517,10 @@ msgstr "지금"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Now using {0}."
 msgstr "이제 {0} 모델을 사용합니다."
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "OAuth app settings"
+msgstr ""
 
 #: src/pages/McpOAuthCallback.tsx
 msgid "OAuth authorization was cancelled."
@@ -3413,6 +3611,10 @@ msgstr "메뉴 열기"
 msgid "Open shell"
 msgstr "셸 열기"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Open spreadsheet"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
 msgstr "진행 중인 작업"
@@ -3472,6 +3674,10 @@ msgstr "원본 메시지를 사용할 수 없습니다"
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
 msgstr "다른 모델 직접 입력…"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Page views"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
@@ -3577,11 +3783,7 @@ msgid "Preferences"
 msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Prepare for a meeting"
-msgstr ""
-
-#: src/pages/shell/assistant-welcome.tsx
-msgid "Prepare me for my next meeting."
+msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
 
 #. placeholder {0}: props.name
@@ -3591,6 +3793,14 @@ msgstr "{0} 미리보기"
 
 #: src/pages/Artifacts.tsx
 msgid "Preview isn't available for this file type — download it to view it."
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Preview report"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Priority"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
@@ -3623,9 +3833,33 @@ msgstr "서비스"
 msgid "Providers"
 msgstr "서비스"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Provisional data"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Publish to Sheet"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Publishing replaces this report’s range in the selected spreadsheet."
+msgstr ""
+
 #: src/components/CloudAgentCard.tsx
 msgid "Pull request"
 msgstr "풀 리퀘스트"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Pull this week’s GA4 numbers into a Google Sheet."
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Pull this week’s numbers into a Sheet"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
+msgid "Queued"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Quote"
@@ -3796,6 +4030,10 @@ msgstr "{full} 삭제"
 msgid "Remove {secretName}? This bot will no longer be able to use it."
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Remove attachments and mentions before starting this task."
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
 msgstr ""
@@ -3817,6 +4055,10 @@ msgstr "일정 제거"
 #: src/pages/Shell.tsx
 msgid "Remove skill {0}"
 msgstr "작업 기술 {0} 삭제"
+
+#: src/pages/Shell.tsx
+msgid "Remove task starter"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -3853,6 +4095,10 @@ msgstr ""
 msgid "Reopen"
 msgstr "다시 열기"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Repeat this report"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "API 키 교체"
@@ -3876,6 +4122,22 @@ msgstr ""
 #. placeholder {0}: replyNameRef.current
 #: src/pages/Shell.tsx
 msgid "Replying to {0}"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Report destination"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Report frequency"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Report period"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Report time"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -3955,6 +4217,10 @@ msgstr "지금 다시 시도"
 msgid "Retry screen"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Retry task"
+msgstr ""
+
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Kith"
 msgstr "Rakazo로 돌아가기"
@@ -3963,6 +4229,10 @@ msgstr "Rakazo로 돌아가기"
 #: src/pages/KnowledgeSection.tsx
 msgid "rev {0}"
 msgstr "리비전 {0}"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Revenue"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
@@ -4031,6 +4301,10 @@ msgstr "실행 중…"
 msgid "Runs when this bot receives a verified message from this provider."
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Saturday"
+msgstr ""
+
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
@@ -4068,11 +4342,16 @@ msgstr ""
 msgid "Save preferences"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Save selected to-dos"
+msgstr ""
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
 msgstr "작업 공간을 저장하고 최신 소프트웨어를 설치합니다."
 
 #: src/components/AskCard.tsx
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Saved"
@@ -4117,6 +4396,14 @@ msgstr "저장 중…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "예 또는 아니요로 답하거나 문장으로 답해 주세요."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Schedule report"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Scheduled. Manage it in Routines."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -4128,6 +4415,14 @@ msgstr "검색"
 
 #: src/pages/ActivityList.tsx
 msgid "Search activity"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Search all my connected Gmail accounts for…"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Search all my Gmail accounts"
 msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
@@ -4147,6 +4442,10 @@ msgstr ""
 msgid "Search conversations"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Search failed"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr ""
@@ -4164,7 +4463,11 @@ msgid "Search providers"
 msgstr "AI 서비스 검색"
 
 #: src/pages/ActivityList.tsx
-msgid "Search runs"
+msgid "Search tasks"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Search topic"
 msgstr ""
 
 #. placeholder {0}: filters.query.trim()
@@ -4233,6 +4536,10 @@ msgstr "서버 이름"
 #: src/pages/Onboarding.tsx
 msgid "Server URL"
 msgstr "서버 URL"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Sessions"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Set up Kith"
@@ -4391,6 +4698,10 @@ msgstr "문제가 발생했습니다. 다시 시도하세요."
 msgid "Source records"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Sources"
+msgstr ""
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Space changed. Reopen Models to load its backup list."
 msgstr "공간이 변경되었습니다. 백업 목록을 불러오려면 모델 설정을 다시 여세요."
@@ -4427,6 +4738,10 @@ msgstr "이 답변 읽기"
 msgid "Speech model"
 msgstr "음성 모델"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Spreadsheet ID"
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO를 일시적으로 사용할 수 없습니다. 다시 시도하세요."
@@ -4439,12 +4754,20 @@ msgstr ""
 msgid "Start recording"
 msgstr "작업 녹화 시작"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Start task"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Start with what you’d like to do."
 msgstr ""
 
 #: src/components/CalendarReceipt.tsx
 msgid "Started"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
+msgid "Starting"
 msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -4509,6 +4832,14 @@ msgstr ""
 msgid "Subscription required"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Suggested talking points"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Sunday"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Supports images"
@@ -4530,6 +4861,18 @@ msgstr "전환 중…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "시스템"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Task cancelled"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Task result"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Task starter"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4604,6 +4947,10 @@ msgstr "서비스가 요청 속도를 제한하고 있습니다."
 msgid "The selected memory provider is not available in this build."
 msgstr "선택한 기억 서비스는 현재 빌드에서 사용할 수 없습니다."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr ""
@@ -4617,6 +4964,10 @@ msgstr "생각 깊이"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Thinking: {activeThinkingLabel}"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "This app is unavailable from the configured integration provider."
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4700,8 +5051,16 @@ msgstr "이 구독 로그인 방식은 아직 Rakazo에서 지원되지 않습�
 msgid "This week"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "This week to date"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Thread"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Thursday"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
@@ -4739,6 +5098,10 @@ msgstr "오늘"
 msgid "Tool sources"
 msgstr "도구 소스"
 
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Toolkit to auth-config IDs (JSON)"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Tools"
 msgstr ""
@@ -4771,6 +5134,18 @@ msgstr "다시 시도"
 #: src/lib/model-connection-preflight.ts
 msgid "Try the test again."
 msgstr "테스트를 다시 시도하세요."
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Tuesday"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Turn emails from the past seven days into a prioritized to-do list, with links to each source."
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Turn my inbox into a to-do list"
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
@@ -4820,6 +5195,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Unsupported file type: {0}"
 msgstr "지원하지 않는 파일 형식: {0}"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Untitled email"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -4997,6 +5376,10 @@ msgstr "웹훅"
 msgid "Website login"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Wednesday"
+msgstr ""
+
 #: src/lib/billing.ts
 msgid "week"
 msgstr ""
@@ -5005,6 +5388,10 @@ msgstr ""
 #: src/pages/RoutineSchedule.tsx
 msgid "Weekdays"
 msgstr "주중"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Weekly"
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx
 msgid "What about its memories?"
@@ -5058,6 +5445,8 @@ msgstr "언제 사용할지"
 msgid "Where should bots run?"
 msgstr "Bot을 어디에서 실행할까요?"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

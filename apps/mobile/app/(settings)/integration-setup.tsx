@@ -1,4 +1,5 @@
 import type { IntegrationSetupState } from "@rakazo/contracts";
+import { ComposioAuthConfigsSchema } from "@rakazo/contracts";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput } from "react-native";
@@ -20,6 +21,8 @@ export default function IntegrationSetup() {
   const [choice, setChoice] = useState("composio");
   const [serverUrl, setServerUrl] = useState(endpoint ?? "");
   const [key, setKey] = useState("");
+  const [authConfigs, setAuthConfigs] = useState("");
+  const [customOAuth, setCustomOAuth] = useState(false);
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -60,7 +63,13 @@ export default function IntegrationSetup() {
       await rpc(
         "integrationSetup/save",
         choice === "composio"
-          ? { provider: "composio", apiKey: key }
+          ? {
+              provider: "composio",
+              apiKey: key,
+              ...(authConfigs.trim()
+                ? { authConfigs: ComposioAuthConfigsSchema.parse(JSON.parse(authConfigs)) }
+                : {}),
+            }
           : {
               provider: "pipedream",
               clientId,
@@ -167,6 +176,30 @@ export default function IntegrationSetup() {
                     : "https://pipedream.com/docs/connect/mcp/developers",
                 );
               })}
+              {choice === "composio" ? (
+                <>
+                  {button(t("Custom OAuth apps"), () => setCustomOAuth((value) => !value))}
+                  {customOAuth ? (
+                    <>
+                      <Text style={styles.text}>{t("Toolkit to auth-config IDs (JSON)")}</Text>
+                      <TextInput
+                        accessibilityLabel={t("Toolkit to auth-config IDs (JSON)")}
+                        value={authConfigs}
+                        onChangeText={setAuthConfigs}
+                        multiline
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        style={styles.input}
+                      />
+                      {button(t("OAuth app settings"), () => {
+                        void Linking.openURL(
+                          "https://docs.composio.dev/docs/white-labeling-authentication",
+                        );
+                      })}
+                    </>
+                  ) : null}
+                </>
+              ) : null}
             </>
           ) : state && !configured ? (
             <Text style={styles.text}>{t("Ask the server owner to configure this provider.")}</Text>

@@ -42,4 +42,6 @@ export { GroupAvatar, type GroupAvatarMember, type GroupAvatarProps } from "./gr
 export { KithAvatar } from "./kith-avatar.js";
 export { cn } from "./lib/utils.js";
 export { ModelThinkingOptions } from "./model-thinking-options.js";
+export { NavigationButton } from "./navigation-button.js";
 export { SelectField } from "./select-field.js";
+export { SelectionGroup, SelectionIndicator } from "./selection-indicator.js";

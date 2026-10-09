@@ -6,6 +6,7 @@ import type {
   ConnectorEvent,
   ConnectorTool,
   ManagedConnectorProvider,
+  TaskPlatform,
 } from "@rakazo/adapter-kit";
 import { getLogger } from "@rakazo/logging";
 import { catalogToolPrefix } from "./approval-effect.js";
@@ -29,6 +30,11 @@ import {
   listRemoteMcpTools,
   type RemoteTransportDependencies,
 } from "./remote-mcp.js";
+import {
+  RestTaskPlatform,
+  TaskPlatformRejectedError,
+  validateTaskProxyRequest,
+} from "./task-platform.js";
 import { isVitestRuntime } from "./test-runtime.js";
 import { readBodyCapped, withAbort } from "./web-ssrf.js";
 
@@ -124,6 +130,57 @@ export class PipedreamConnector implements ManagedConnectorProvider {
       adapterVersion: "0.1.0",
       capabilities: { discover: true, oauth: true, secretsBrokered: true },
     };
+  }
+
+  taskPlatform(): TaskPlatform {
+    const verified = new Set<string>();
+    return new RestTaskPlatform(async (request, context) => {
+      validateTaskProxyRequest(request);
+      if (request.connection.connectorId !== "pipedream")
+        throw new TaskPlatformRejectedError("Integration provider does not match this account");
+      const key = `${context.spaceId}:${context.userId}:${request.connection.provider}:${request.connection.providerRef}`;
+      if (!verified.has(key)) {
+        const accounts = await this.accounts(context, request.connection.provider);
+        if (
+          !accounts.some(
+            (account) =>
+              account.id === request.connection.providerRef &&
+              account.healthy !== false &&
+              !account.dead,
+          )
+        )
+          throw new TaskPlatformRejectedError("Reconnect this account before starting the task");
+        verified.add(key);
+      }
+      const query = new URLSearchParams({
+        external_user_id: this.externalUserId(context),
+        account_id: request.connection.providerRef,
+      });
+      const endpoint = Buffer.from(request.url).toString("base64url");
+      const token = await this.token();
+      const signal = combineSignals(context.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS));
+      const response = await (this.dependencies.fetch ?? globalThis.fetch)(
+        `${API_BASE}/v1/connect/${encodeURIComponent(this.config.projectId)}/proxy/${endpoint}?${query}`,
+        {
+          method: request.method,
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            "x-pd-environment": this.config.environment,
+            "x-pd-proxy-content-type": "application/json",
+          },
+          ...(request.body ? { body: JSON.stringify(request.body) } : {}),
+          signal,
+        },
+      );
+      if (response.status === 401) this.accessToken = undefined;
+      const body = await readPipedreamBody(response, signal);
+      return {
+        status: response.status,
+        data: response.ok ? (body ? JSON.parse(body) : {}) : {},
+        headers: { "retry-after": response.headers.get("retry-after") ?? "" },
+      };
+    });
   }
 
   async catalog(context: AdapterContext, query?: string): Promise<ConnectorCatalogItem[]> {

@@ -18,6 +18,7 @@ import type {
   SearchHit,
   Space,
   SpaceMemoryConfig,
+  TaskStarterId,
   TaughtSkill,
   ThinkingLevel,
   ThreadMessage,
@@ -89,6 +90,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   resolvePersonaColorDef,
+  SelectionIndicator,
 } from "@rakazo/ui-web";
 import {
   ArrowDown,
@@ -171,6 +173,9 @@ import {
   ToolOnlyNarration,
   ToolSteps,
 } from "../components/ToolActivityDisclosure";
+import { TaskStarterReceipt } from "../components/task-starters/TaskStarterReceipt";
+import type { TaskStarterDraft } from "../components/task-starters/TaskStarterSetup";
+import { TaskStarterSetup } from "../components/task-starters/TaskStarterSetup";
 import { SkillDraftCard } from "../components/teach/SkillDraftCard";
 import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../components/teach/TeachComputerOverlay";
@@ -463,8 +468,9 @@ export function ShellPage() {
   const [creatingThread, setCreatingThread] = useState(false);
   const creatingThreadRef = useRef(false);
   const [suggestedDraft, setSuggestedDraft] = useState<
-    { text: string; nonce: number; target: string } | undefined
+    { text: string; nonce: number; target: string; starter?: TaskStarterId } | undefined
   >();
+  const [taskStarterDraft, setTaskStarterDraft] = useState<TaskStarterDraft | null>(null);
   const conversationDrafts = useRef(new Map<string, ConversationDraft>());
   const conversationScroll = useRef(new Map<string, { top: number; following: boolean }>());
   const conversationSnapshots = useRef(new Map<string, ThreadSnapshot>());
@@ -638,6 +644,10 @@ export function ShellPage() {
     useState<ReadonlySet<string>>(readSeenRunErrorIds);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const sidebarSelectionId = useId();
+  const [desktopViewport, setDesktopViewport] = useState(
+    () => window.matchMedia("(min-width: 768px)").matches,
+  );
   const mobileSidebarSwipeRef = useRef<{ startX: number; startY: number } | null>(null);
   const [draggedBotId, setDraggedBotId] = useState<string | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -654,6 +664,7 @@ export function ShellPage() {
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 768px)");
     function closeMobileSidebar() {
+      setDesktopViewport(desktop.matches);
       if (desktop.matches) setMobileSidebarOpen(false);
     }
     closeMobileSidebar();
@@ -2168,10 +2179,31 @@ export function ShellPage() {
     setPendingAttachments((current) => current.filter((item) => item.id !== attachment.id));
   }, []);
   const sendMessage = useCallback(
-    async (text: string, mentions: ComposerMention[], clientNonce: string) => {
+    async (
+      text: string,
+      mentions: ComposerMention[],
+      clientNonce: string,
+      starter?: TaskStarterId,
+      draftTarget?: string,
+    ) => {
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
       if ((!initialBotTarget && !initialGroupTarget) || sending) return false;
+      if (starter && initialBotTarget && !initialGroupTarget) {
+        if (mentions.length || attachmentsForThread(pendingAttachments, initialBotTarget).length) {
+          setSendError(t`Remove attachments and mentions before starting this task.`);
+          return false;
+        }
+        setSendError(null);
+        setTaskStarterDraft({
+          starter,
+          prompt: text,
+          clientNonce,
+          botId: initialBotTarget,
+          target: draftTarget ?? initialBotTarget,
+        });
+        return false;
+      }
       const originThreadKey = initialGroupTarget ?? initialBotTarget;
       const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
       const plan = resolveComposerSendPlan({
@@ -2941,7 +2973,7 @@ export function ShellPage() {
       <aside
         data-testid="bots-sidebar"
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
-        inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
+        inert={desktopViewport ? botsSidebarCollapsed : !mobileSidebarOpen}
         className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[260px] shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
         } ${
@@ -2960,6 +2992,13 @@ export function ShellPage() {
             groups={groups}
             activeId={active?.id}
             activeGroupId={groupId}
+            activeDetail={
+              settingsOpen
+                ? "settings"
+                : panel === "activity" || panel === "memory" || panel === "connections"
+                  ? panel
+                  : null
+            }
             onOpenBot={(id) => {
               setMobileSidebarOpen(false);
               navigate(`/app/${id}`);
@@ -2973,7 +3012,10 @@ export function ShellPage() {
               setCommandPaletteOpen(true);
             }}
             onCollapse={() => setBotsSidebarCollapsedPref(true)}
-            onNewThread={() => void newConversation()}
+            onNewThread={() => {
+              setMobileSidebarOpen(false);
+              void newConversation();
+            }}
             creating={creatingThread}
             onMemory={() => {
               setMobileSidebarOpen(false);
@@ -2983,12 +3025,18 @@ export function ShellPage() {
               setMobileSidebarOpen(false);
               setPanel(panel === "activity" ? null : "activity");
             }}
-            onArtifacts={() => navigate("/app/artifacts")}
+            onArtifacts={() => {
+              setMobileSidebarOpen(false);
+              navigate("/app/artifacts");
+            }}
             onIntegrations={() => {
               setMobileSidebarOpen(false);
               setPanel("connections");
             }}
-            onSettings={() => openSettings("general")}
+            onSettings={() => {
+              setMobileSidebarOpen(false);
+              openSettings("general");
+            }}
             onAdvanced={() => setAdvancedNavigation(true)}
           />
         ) : (
@@ -3302,6 +3350,7 @@ export function ShellPage() {
                                 <button
                                   type="button"
                                   draggable={item.kind === "bot"}
+                                  aria-current={selected ? "page" : undefined}
                                   data-roster-bot-id={
                                     item.kind === "bot" ? item.chat.id : undefined
                                   }
@@ -3373,12 +3422,12 @@ export function ShellPage() {
                                       position: { x: event.clientX, y: event.clientY },
                                     });
                                   }}
-                                  className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-[10px] text-start ${
+                                  className={`relative isolate flex w-full items-center gap-3 rounded-xl px-2.5 py-[10px] text-start ${
                                     item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
                                   } ${
                                     selected
-                                      ? "bg-sidebar-accent"
-                                      : "group-hover/row:bg-sidebar-accent"
+                                      ? "text-sidebar-accent-foreground"
+                                      : "group-hover/row:bg-accent"
                                   }`}
                                   style={
                                     treeActive
@@ -3386,6 +3435,12 @@ export function ShellPage() {
                                       : undefined
                                   }
                                 >
+                                  {selected ? (
+                                    <SelectionIndicator
+                                      layoutId={sidebarSelectionId}
+                                      className="bg-sidebar-accent"
+                                    />
+                                  ) : null}
                                   {item.kind === "bot" ? (
                                     <BotAvatar
                                       color={item.chat.color}
@@ -3411,7 +3466,7 @@ export function ShellPage() {
                                           data-roster-bot-name={
                                             item.kind === "bot" ? "" : undefined
                                           }
-                                          className={`min-w-0 truncate text-[14px] text-foreground ${
+                                          className={`min-w-0 truncate text-[14px] ${selected ? "text-sidebar-accent-foreground" : "text-foreground"} ${
                                             item.chat.unread ? "font-semibold" : "font-medium"
                                           }`}
                                         >
@@ -3424,13 +3479,13 @@ export function ShellPage() {
                                         ) : null}
                                       </div>
                                       <div className="flex shrink-0 items-center gap-1.5">
-                                        <span className="text-[11.5px] text-muted-foreground/60 tabular-nums">
+                                        <span className="text-[11.5px] text-muted-foreground tabular-nums">
                                           {formatRosterTime(item.chat.updatedAt)}
                                         </span>
                                         {item.chat.unread ? (
                                           <span
                                             aria-hidden="true"
-                                            className="inline-block h-2 w-2 rounded-full bg-foreground"
+                                            className="inline-block h-2 w-2 rounded-full bg-primary"
                                           />
                                         ) : null}
                                       </div>
@@ -3447,7 +3502,7 @@ export function ShellPage() {
                                       className={`mt-1 line-clamp-2 text-[12.5px] break-words whitespace-normal ${
                                         workStatusLabel || item.chat.unread
                                           ? "font-medium text-foreground/75"
-                                          : "text-muted-foreground/60"
+                                          : "text-muted-foreground"
                                       }`}
                                     >
                                       {rosterLine}
@@ -3698,6 +3753,7 @@ export function ShellPage() {
             {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
             <button
               type="button"
+              data-testid="mobile-navigation-trigger"
               aria-label={t`Open navigation`}
               onClick={() => setMobileSidebarOpen(true)}
               className="app-no-drag grid h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:hidden"
@@ -3827,8 +3883,13 @@ export function ShellPage() {
                 isMainConversation ? (
                   <AssistantWelcome
                     name={session.data?.user.name}
-                    onSuggest={(text) =>
-                      setSuggestedDraft({ text, nonce: Date.now(), target: conversationKey })
+                    onSuggest={(text, starter) =>
+                      setSuggestedDraft({
+                        text,
+                        starter,
+                        nonce: Date.now(),
+                        target: conversationKey,
+                      })
                     }
                   />
                 ) : (
@@ -3882,6 +3943,17 @@ export function ShellPage() {
             onOpenComputer={onOpenComputer}
           />
         )}
+        {taskStarterDraft ? (
+          <TaskStarterSetup
+            draft={taskStarterDraft}
+            onClose={() => setTaskStarterDraft(null)}
+            onStarted={() => {
+              setSuggestedDraft({ text: "", nonce: Date.now(), target: taskStarterDraft.target });
+              setTaskStarterDraft(null);
+              void refreshActiveThread();
+            }}
+          />
+        ) : null}
         {recordingSkill ? (
           <div className="px-6 pb-2 text-center text-[13px] text-destructive">
             <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
@@ -5690,6 +5762,7 @@ const QuoteSelectionButton = memo(function QuoteSelectionButton({
 });
 
 type ConversationDraft = {
+  starter?: TaskStarterId;
   text: string;
   skill: AgentSkillCatalogEntry | null;
   mentions: ComposerMention[];
@@ -5731,7 +5804,7 @@ export const Composer = memo(function Composer({
 }: {
   draftKey?: string;
   drafts?: Map<string, ConversationDraft>;
-  suggestedDraft?: { text: string; nonce: number };
+  suggestedDraft?: { text: string; nonce: number; starter?: TaskStarterId };
   activeName?: string;
   running: boolean;
   disabled?: boolean;
@@ -5746,7 +5819,13 @@ export const Composer = memo(function Composer({
   fileInputRef: RefObject<HTMLInputElement | null>;
   onAttachmentPick: (files: FileList | null) => boolean;
   onRemoveAttachment: (attachment: PendingAttachment) => void;
-  onSend: (text: string, mentions: ComposerMention[], clientNonce: string) => Promise<boolean>;
+  onSend: (
+    text: string,
+    mentions: ComposerMention[],
+    clientNonce: string,
+    starter?: TaskStarterId,
+    draftTarget?: string,
+  ) => Promise<boolean>;
   onStop: () => Promise<void>;
   onVoice?: () => void;
   artifactTarget: ArtifactTarget;
@@ -5762,6 +5841,7 @@ export const Composer = memo(function Composer({
   const { t } = useLingui();
   const initialDraft = useRef(draftKey ? drafts?.get(draftKey) : undefined);
   const [draft, setDraft] = useState(initialDraft.current?.text ?? "");
+  const [starter, setStarter] = useState<TaskStarterId | undefined>(initialDraft.current?.starter);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionHighlightIndex, setMentionHighlightIndex] = useState(0);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
@@ -5777,6 +5857,7 @@ export const Composer = memo(function Composer({
   useLayoutEffect(() => {
     if (!draftKey || !drafts) return;
     drafts.set(draftKey, {
+      starter,
       text: draft,
       skill: selectedSkill,
       mentions: selectedMentions,
@@ -5784,7 +5865,7 @@ export const Composer = memo(function Composer({
       revision: editRevision.current,
       pendingNonce: pendingSendNonce.current,
     });
-  }, [draft, draftKey, drafts, selectedSkill, selectedMentions]);
+  }, [draft, draftKey, drafts, selectedSkill, selectedMentions, starter]);
   useEffect(() => {
     const restore = (event: Event) => {
       if (!(event instanceof CustomEvent) || event.detail !== draftKey || !draftKey) return;
@@ -5794,6 +5875,7 @@ export const Composer = memo(function Composer({
       retryNonce.current = saved.nonce;
       pendingSendNonce.current = saved.pendingNonce ?? null;
       setDraft(saved.text);
+      setStarter(saved.starter);
       setSelectedSkill(saved.skill);
       setSelectedMentions(saved.mentions);
     };
@@ -5814,6 +5896,7 @@ export const Composer = memo(function Composer({
   useEffect(() => {
     if (!suggestedDraft) return;
     setDraft(suggestedDraft.text);
+    setStarter(suggestedDraft.starter);
     editRevision.current += 1;
     retryNonce.current = null;
     textareaRef.current?.focus();
@@ -6067,7 +6150,10 @@ export const Composer = memo(function Composer({
     const mentions = selectedMentions;
     setSelectedMentions([]);
     try {
-      if ((await onSend(text, mentions, clientNonce)) !== false) {
+      const accepted = starter
+        ? await onSend(text, mentions, clientNonce, starter, draftKey)
+        : await onSend(text, mentions, clientNonce);
+      if (accepted !== false) {
         const cached = draftKey ? drafts?.get(draftKey) : undefined;
         if (cached?.pendingNonce === clientNonce) cached.pendingNonce = null;
         if (pendingSendNonce.current === clientNonce) pendingSendNonce.current = null;
@@ -6087,6 +6173,7 @@ export const Composer = memo(function Composer({
     pendingSendNonce.current = null;
     if (draftKey && drafts) {
       drafts.set(draftKey, {
+        starter,
         text: draft,
         skill: selectedSkill,
         mentions,
@@ -6442,7 +6529,7 @@ export const Composer = memo(function Composer({
         ref={composerBarRef}
         data-testid="composer-bar"
         data-expanded={expanded}
-        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-2xl border border-border bg-card pe-2.5 ps-3 transition-colors focus-within:border-ring ${
+        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] content-end items-center rounded-2xl border border-border bg-card pe-2.5 ps-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/15 ${
           expanded ? "gap-x-2 gap-y-2 pb-[9px] pt-3" : "gap-x-3.5 py-[9px]"
         }`}
       >
@@ -6473,6 +6560,22 @@ export const Composer = memo(function Composer({
             expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
           }`}
         >
+          {starter ? (
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[13px] text-foreground">
+              <Trans>Task starter</Trans>
+              <button
+                type="button"
+                aria-label={t`Remove task starter`}
+                onClick={() => {
+                  markEdited();
+                  setStarter(undefined);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ) : null}
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
@@ -6587,7 +6690,7 @@ export const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="rk-scroll max-h-25 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[15.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="rk-scroll max-h-25 min-h-[24px] min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[15.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
           />
         </div>
         <div
@@ -7175,6 +7278,8 @@ const MessageView = memo(function MessageView({
             </div>
           );
         }
+        if (block.kind === "task_starter_receipt")
+          return <TaskStarterReceipt key={i} receiptId={block.receiptId} onUpdated={onRefresh} />;
         if (block.kind === "calendar_receipt")
           return <CalendarReceipt key={i} receiptId={block.receiptId} />;
         if (block.kind === "progress") {
