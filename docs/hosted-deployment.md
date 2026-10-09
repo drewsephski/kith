@@ -57,8 +57,14 @@ Import the file without putting secret values in command arguments, then deploy:
 
 ```bash
 fly secrets import --app "$KITH_BACKEND_APP" < .env.hosted
-fly deploy --app "$KITH_BACKEND_APP" --config infra/fly/fly.toml --ha=false --remote-only
+fly deploy . --app "$KITH_BACKEND_APP" --config ./infra/fly/fly.toml \
+  --dockerfile ./infra/fly/Dockerfile --ignorefile ./.dockerignore --ha=false --remote-only
 ```
+
+The positional `.` keeps the entire monorepo as the build context. The Dockerfile and ignore
+file are passed explicitly relative to that context; do not add a `[build].dockerfile` path
+to the nested Fly configuration, because flyctl resolves that setting from the configuration
+directory.
 
 The image installs frozen dependencies, generates Prisma, and builds the gateway. Its static
 build uses development-secret defaults only inside the build command; production services

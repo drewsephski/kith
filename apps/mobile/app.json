@@ -1,8 +1,7 @@
 {
   "expo": {
     "name": "Kith",
-    "slug": "rakazo",
-    "owner": "inbox-zero",
+    "slug": "kith",
     "scheme": "rakazo",
     "version": "1.0.5",
     "orientation": "default",
@@ -56,7 +55,7 @@
       "./plugins/with-scene-lifecycle"
     ],
     "ios": {
-      "bundleIdentifier": "com.rakazo.app",
+      "bundleIdentifier": "com.kith.agent",
       "buildNumber": "1",
       "supportsTablet": false,
       "icon": "../../packages/ui-tokens/assets/Rakazo.icon",
@@ -73,7 +72,7 @@
       }
     },
     "android": {
-      "package": "com.rakazo.app",
+      "package": "com.kith.agent",
       "versionCode": 10,
       "softwareKeyboardLayoutMode": "resize",
       "icon": "./assets/icon.png",
@@ -90,14 +89,14 @@
       "router": {},
       "supportsRTL": true,
       "eas": {
-        "projectId": "07f7eb04-45e3-47fe-9374-99a2f991131e"
+        "projectId": "6ff9f6e7-5bc5-4ea1-994a-871987040e62"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/07f7eb04-45e3-47fe-9374-99a2f991131e"
+      "url": "https://u.expo.dev/6ff9f6e7-5bc5-4ea1-994a-871987040e62"
     }
   }
 }

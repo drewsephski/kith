@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,6 +13,56 @@ const requiredSecrets = [
   "ENCRYPTION_KEY",
   "SCREEN_PROXY_SECRET",
 ];
+
+test("excludes root and nested private configuration from the remote build context", async () => {
+  const ignoreFile = await readFile(new URL("../../.dockerignore", import.meta.url), "utf8");
+  const patterns = ignoreFile
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  const excluded = new Set(patterns);
+  // These explicit rules protect both root-local deployment files and nested
+  // app configuration. Keep this policy check offline; Docker COPY/export
+  // acceptance separately verifies Docker's matching semantics.
+  for (const pattern of [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    ".tmp",
+    "**/.tmp",
+    ".claude",
+    "**/.claude",
+    "**/.impeccable/review",
+    ".vercel",
+    "**/.vercel",
+    ".agents",
+    ".codex",
+    "outputs",
+    "test-report",
+    "verify-report",
+  ]) {
+    assert.ok(excluded.has(pattern), `Remote builds must exclude ${pattern}`);
+  }
+  assert.deepEqual(
+    patterns.filter((pattern) => pattern.startsWith("!")),
+    [],
+    "Negated rules must not restore private files to the remote build context",
+  );
+});
+
+test("uses explicit monorepo deployment paths without a config-relative Dockerfile override", async () => {
+  const config = await readFile(new URL("./fly.toml", import.meta.url), "utf8");
+  const docs = await readFile(new URL("../../docs/hosted-deployment.md", import.meta.url), "utf8");
+  assert.doesNotMatch(config, /^\s*\[build\]\s*$/m);
+  assert.match(docs, /fly deploy \. --app "\$KITH_BACKEND_APP" --config \.\/infra\/fly\/fly\.toml/);
+  assert.match(docs, /--dockerfile \.\/infra\/fly\/Dockerfile --ignorefile \.\/\.dockerignore/);
+  await Promise.all([
+    access(new URL("./Dockerfile", import.meta.url)),
+    access(new URL("../../.dockerignore", import.meta.url)),
+    access(new URL("../../pnpm-lock.yaml", import.meta.url)),
+  ]);
+});
 
 async function fixture(runTest) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "kith-host-start-"));

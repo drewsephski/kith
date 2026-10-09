@@ -1,4 +1,4 @@
-appId: com.rakazo.app
+appId: com.kith.agent
 name: Search
 ---
 - runFlow:

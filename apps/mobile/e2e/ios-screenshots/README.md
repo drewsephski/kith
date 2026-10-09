@@ -6,7 +6,8 @@ One command signs into disposable fixture accounts, runs the Maestro flows in
 `catalog.json`, and writes PNGs plus a static `index.html` gallery. Add a screen
 by dropping a flow under `flows/` and appending one entry to `catalog.json`.
 
-The app under test must already be installed on the simulator in `SIM_UDID`.
+The Kith app (`com.kith.agent`) must already be installed on the simulator in `SIM_UDID`.
+The flows retain the `rakazo` URL scheme configured in `apps/mobile/app.json`.
 This command does not create or boot a simulator. Point the app at a running
 API (`RAKAZO_API_URL`) and Metro bundler before you start. `DATABASE_URL` must
 be that API's database so the fixture can insert thread messages.

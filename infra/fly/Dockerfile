@@ -9,7 +9,13 @@ COPY --chmod=755 . .
 RUN pnpm install --frozen-lockfile \
     && pnpm --filter @rakazo/db generate \
     && RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build \
-    && install -d -m 750 -o node -g node /data /app/apps/web/node_modules/.vite-temp
+    && install -d -m 750 -o node -g node \
+      /data \
+      /app/.turbo \
+      /app/apps/api/.turbo \
+      /app/apps/worker/.turbo \
+      /app/apps/web/.turbo \
+      /app/apps/web/node_modules/.vite-temp
 
 ENV NODE_ENV=production \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
@@ -22,4 +28,4 @@ ENV NODE_ENV=production \
     WEB_PORT=5173
 EXPOSE 5173
 # Root is used only to repair the mounted disk's ownership before dropping privileges.
-ENTRYPOINT ["/usr/bin/tini", "--", "/app/infra/fly/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "--", "/app/infra/fly/entrypoint.sh"]

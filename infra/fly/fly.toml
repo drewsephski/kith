@@ -1,11 +1,10 @@
 # Supply the globally unique Kith app name with `fly deploy --app ...`.
-# Run from the repository root so the monorepo is the Docker build context.
+# Run from the repository root with the explicit context and Dockerfile paths in
+# docs/hosted-deployment.md. A [build].dockerfile setting is resolved relative to
+# this config directory by flyctl and must not override that monorepo command.
 primary_region = "ord"
 kill_signal = "SIGTERM"
 kill_timeout = "60s"
-
-[build]
-  dockerfile = "infra/fly/Dockerfile"
 
 [deploy]
   strategy = "rolling"

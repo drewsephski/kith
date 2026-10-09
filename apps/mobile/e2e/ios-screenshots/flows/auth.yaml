@@ -1,4 +1,4 @@
-appId: com.rakazo.app
+appId: com.kith.agent
 name: Auth
 ---
 - runFlow: ../subflows/launch-app.yaml

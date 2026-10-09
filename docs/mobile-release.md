@@ -12,8 +12,9 @@ your own branded build, use your own Expo and store accounts.
 
 1. Link `apps/mobile` to an Expo project owned by your account.
 2. Choose unique iOS and Android application identifiers.
-3. Configure `EXPO_PUBLIC_API_URL` in the EAS build environment. Production
-   builds require a valid HTTPS URL.
+3. Configure `RAKAZO_SERVICE_URL` in the EAS build environment. Production
+   builds require a public HTTPS origin without credentials, a path, or query
+   parameters. `EXPO_PUBLIC_API_URL` remains supported for existing build environments.
 4. Keep store application IDs, team IDs, signing credentials, API keys, and
    review-account credentials out of Git.
 5. Before a native iOS or Android build, run
@@ -26,7 +27,7 @@ From `apps/mobile`:
 
 ```sh
 eas project:init
-eas env:create --environment production --name EXPO_PUBLIC_API_URL --value https://app.example.com --visibility plaintext
+eas env:create --environment production --name RAKAZO_SERVICE_URL --value https://app.example.com --visibility plaintext
 eas build --platform ios --profile production
 eas submit --platform ios --profile production --latest
 ```

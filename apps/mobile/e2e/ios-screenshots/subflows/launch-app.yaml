@@ -1,4 +1,4 @@
-appId: com.rakazo.app
+appId: com.kith.agent
 ---
 # Restart without clearing app data, so a dev client's bundler URL stays put.
 - launchApp:
