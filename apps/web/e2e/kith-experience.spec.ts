@@ -12,6 +12,15 @@ test("Kith preserves its main conversation, drafts, and inspectable personal mem
   const composer = page.locator('textarea[name="chat-message"]');
   await expect(page.getByTestId("assistant-welcome")).toBeVisible();
   await expect(composer).toHaveAttribute("placeholder", "Message Kith");
+  const mainAvatar = page.getByTestId("main-conversation").locator("img");
+  await expect(mainAvatar).toBeVisible();
+  await expect
+    .poll(() => mainAvatar.evaluate((image) => image.complete && image.naturalWidth > 0))
+    .toBe(true);
+  await expect(page.getByTestId("assistant-welcome").locator("img")).toHaveAttribute(
+    "src",
+    (await mainAvatar.getAttribute("src"))!,
+  );
   await captureScreenshot(page, testInfo, "kith-desktop");
 
   await page.getByRole("button", { name: "Plan tomorrow", exact: true }).click();

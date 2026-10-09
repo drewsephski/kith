@@ -56,7 +56,8 @@ function mountCard() {
         </ToolActivityDisclosure>,
       ),
     );
-  const expanded = () => container.querySelector("button[aria-expanded]")?.getAttribute("aria-expanded") === "true";
+  const expanded = () =>
+    container.querySelector("button[aria-expanded]")?.getAttribute("aria-expanded") === "true";
   const summary = () => container.querySelector<HTMLButtonElement>("button[aria-expanded]");
   return { render, expanded, summary, unmount: () => root.unmount() };
 }

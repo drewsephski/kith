@@ -22,7 +22,8 @@ vi.mock("@lingui/react/macro", () => {
     parts.reduce((text, part, index) => `${text}${index > 0 ? values[index - 1] : ""}${part}`, "");
   return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
 });
-vi.mock("@rakazo/ui-web", () => ({
+vi.mock("@rakazo/ui-web", async () => ({
+  ...(await vi.importActual<Record<string, unknown>>("@rakazo/ui-web")),
   Button: ({
     variant: _variant,
     size: _size,
@@ -30,8 +31,22 @@ vi.mock("@rakazo/ui-web", () => ({
   }: ComponentProps<"button"> & { variant?: string; size?: string }) => <button {...props} />,
   Input: (props: ComponentProps<"input">) => <input {...props} />,
   Textarea: (props: ComponentProps<"textarea">) => <textarea {...props} />,
-  NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
-  NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
+  SelectField: ({
+    items,
+    onValueChange,
+    ...props
+  }: ComponentProps<"select"> & {
+    items: Array<{ value: string; label: ReactNode; disabled?: boolean }>;
+    onValueChange: (value: string) => void;
+  }) => (
+    <select {...props} onChange={(event) => onValueChange(event.target.value)}>
+      {items.map((item) => (
+        <option key={item.value} value={item.value} disabled={item.disabled}>
+          {item.label}
+        </option>
+      ))}
+    </select>
+  ),
   Switch: ({
     checked,
     onCheckedChange,

@@ -1,6 +1,6 @@
 import { cn } from "./lib/utils.js";
 
-/** Kith's original companion. Decorative; its adjacent name supplies semantics. */
+/** Kith's companion. Decorative; its adjacent name supplies semantics. */
 export function KithAvatar({ size = 40, className }: { size?: number; className?: string }) {
   return (
     <img

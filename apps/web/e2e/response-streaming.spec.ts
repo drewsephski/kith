@@ -65,7 +65,10 @@ test("settings overlay keeps Stream replies inside Advanced", async ({ page }, t
   const settings = page.getByTestId("user-settings");
   await expect(settings.getByRole("heading", { name: "Replies", exact: true })).toHaveCount(0);
   await expect(settings.getByTestId("response-streaming-toggle")).toBeHidden();
-  await settings.getByTestId("advanced-settings").locator("summary").click();
+  await settings
+    .getByTestId("advanced-settings")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const streamReplies = settings.getByTestId("response-streaming-toggle");
   await expect(streamReplies).toBeVisible();
   await expect(streamReplies).not.toBeChecked();
@@ -75,7 +78,10 @@ test("settings overlay keeps Stream replies inside Advanced", async ({ page }, t
 
   await openFixture(page, { view: "settings", stream: "on" });
   const settingsOn = page.getByTestId("user-settings");
-  await settingsOn.getByTestId("advanced-settings").locator("summary").click();
+  await settingsOn
+    .getByTestId("advanced-settings")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const onToggle = settingsOn.getByTestId("response-streaming-toggle");
   await expect(onToggle).toBeVisible();
   await expect(onToggle).toBeChecked();

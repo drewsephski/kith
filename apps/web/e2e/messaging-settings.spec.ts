@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
+import {
+  captureScreenshot,
+  chooseSelectOption,
+  completeOnboarding,
+  openAdvancedNavigation,
+  signup,
+} from "./helpers";
 
 test.afterEach(async ({ page }) => {
   // Polling can leave a route.fetch response in use when the assertions finish.
@@ -89,7 +95,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   await page.getByRole("button", { name: "Settings" }).click();
   const settings = page.getByTestId("user-settings");
   await settings.getByTestId("ui-locale-select").click();
-  await settings.getByRole("option", { name: "한국어", exact: true }).click();
+  await page.getByRole("option", { name: "한국어", exact: true }).click();
   await expect(settings.getByRole("heading", { name: "메시징", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "메시징 설정 관리" }).click();
 
@@ -103,7 +109,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   await expect(page.getByRole("button", { name: "승인" })).toHaveCount(2);
 
   // Linking flow: pick a bot, request a code, read it back.
-  await page.getByLabel("연결할 Bot").selectOption({ index: 1 });
+  await chooseSelectOption(page, page.getByLabel("연결할 Bot"), { index: 1 });
   await page.getByRole("button", { name: "채팅 앱 연결" }).click();
   await expect(page.getByTestId("messaging-link-code")).toContainText(
     "채팅 앱에서 연결할 회선으로 ABCD-2345를 보내세요.",

@@ -1,7 +1,14 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openUserSettings, rpc, signup } from "./helpers";
+import {
+  captureScreenshot,
+  chooseSelectOption,
+  completeOnboarding,
+  openUserSettings,
+  rpc,
+  signup,
+} from "./helpers";
 
 const LOCAL_MODEL_ID = "rakazo-e2e-local";
 const LOCAL_MODEL_REPLY = "OpenAI-compatible endpoint verified end to end.";
@@ -22,7 +29,11 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await expect(page.getByRole("checkbox", { name: "Supports images" })).toBeHidden();
   await page.getByText("Advanced", { exact: true }).click();
   await page.getByRole("checkbox", { name: "Supports thinking" }).check();
-  await page.getByRole("combobox", { name: "Reasoning effort", exact: true }).selectOption("low");
+  await chooseSelectOption(
+    page,
+    page.getByRole("combobox", { name: "Reasoning effort", exact: true }),
+    "low",
+  );
   await page.getByLabel("Maximum output tokens").fill("8192");
   await page.getByLabel("Context limit").fill("65536");
   await page.getByRole("checkbox", { name: "Supports images" }).check();
@@ -59,9 +70,9 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await openUserSettings(page, "models");
   await page.getByText("Advanced", { exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "Supports thinking" })).toBeChecked();
-  await expect(page.getByRole("combobox", { name: "Reasoning effort", exact: true })).toHaveValue(
-    "low",
-  );
+  await expect(
+    page.getByRole("combobox", { name: "Reasoning effort", exact: true }),
+  ).toHaveAttribute("data-value", "low");
   await expect(page.getByLabel("Maximum output tokens")).toHaveValue("8192");
   await expect(page.getByLabel("Context limit")).toHaveValue("65536");
   await expect(page.getByRole("checkbox", { name: "Supports images" })).toBeChecked();
@@ -83,20 +94,15 @@ test("custom connections persist reasoning support and bot thinking", async ({
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
   const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
-  // NativeSelect sits inside a wrapping <label>, so label text includes option
-  // copy and getByLabel(..., { exact: true }) misses the control. Use the
-  // combobox accessible name, matching other model E2E tests.
+  await advanced.locator('[data-slot="collapsible-trigger"]').click();
   const model = settings.getByRole("combobox", { name: "Model", exact: true });
   await expect(model).toBeVisible();
   await expect(model).toContainText("arbitrary-model");
   // Value key — not a /arbitrary-model/ label match, which also hits "Space default (arbitrary-model)".
-  await model.selectOption("openai-compatible::arbitrary-model");
+  await chooseSelectOption(page, model, "openai-compatible::arbitrary-model");
   const thinking = settings.getByRole("combobox", { name: "Thinking", exact: true });
   await expect(thinking).toBeVisible();
-  await thinking.selectOption("low");
+  await chooseSelectOption(page, thinking, "low");
   await thinking.scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "openai-compatible-thinking");
   const saved = page.waitForResponse(
@@ -108,10 +114,8 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await page.getByRole("button", { name: "Conversation details" }).click();
   await page.getByRole("menuitem", { name: "Assistant settings" }).click();
   await expect(settings).toBeVisible();
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
-  await expect(thinking).toHaveValue("low");
+  await advanced.locator('[data-slot="collapsible-trigger"]').click();
+  await expect(thinking).toHaveAttribute("data-value", "low");
 });
 
 test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page }, testInfo) => {
@@ -194,11 +198,11 @@ test("connects, lists, and uses an OpenAI-compatible endpoint", async ({ page },
     await expect(page.getByLabel("Model id")).toHaveValue("manual-model-not-listed");
     await page.getByRole("button", { name: "Use a found model" }).click();
     const discoveredModels = page.getByRole("combobox", { name: "Models from server" });
-    await expect(discoveredModels).toHaveValue(LOCAL_MODEL_ID);
-    await discoveredModels.selectOption("");
+    await expect(discoveredModels).toHaveAttribute("data-value", LOCAL_MODEL_ID);
+    await chooseSelectOption(page, discoveredModels, "");
     await expect(page.getByLabel("Model id")).toBeVisible();
     await page.getByRole("button", { name: "Find models" }).click();
-    await expect(discoveredModels).toHaveValue(LOCAL_MODEL_ID);
+    await expect(discoveredModels).toHaveAttribute("data-value", LOCAL_MODEL_ID);
     await expect(page.getByText("Found 1 model.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
     await captureScreenshot(page, testInfo, "openai-compatible-model-discovery");
@@ -549,8 +553,8 @@ test("catalog models keep a space default thinking level per saved model", async
 
   const thinking = page.getByRole("combobox", { name: "Thinking", exact: true });
   await expect(thinking).toBeVisible();
-  await expect(thinking).toHaveValue("");
-  await thinking.selectOption("high");
+  await expect(thinking).toHaveAttribute("data-value", "");
+  await chooseSelectOption(page, thinking, "high");
   await captureScreenshot(page, testInfo, "catalog-model-thinking");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText(/Now using/)).toBeVisible();
@@ -569,13 +573,19 @@ test("catalog models keep a space default thinking level per saved model", async
   await openUserSettings(page, "models");
   await providerSearch.fill("anthropic");
   await page.getByRole("button", { name: /^Anthropic / }).click();
-  await expect(page.getByRole("combobox", { name: "Thinking", exact: true })).toHaveValue("high");
+  await expect(page.getByRole("combobox", { name: "Thinking", exact: true })).toHaveAttribute(
+    "data-value",
+    "high",
+  );
 
   // The stored level is bound to the saved model: staging another model resets the
   // staged level, and saving the new model clears the old level instead of leaking it.
   await page.getByRole("combobox", { name: "Model", exact: true }).click();
   await page.getByRole("option", { name: "Claude Opus 4.8", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Thinking", exact: true })).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Thinking", exact: true })).toHaveAttribute(
+    "data-value",
+    "",
+  );
   await page.getByRole("button", { name: "Use this model", exact: true }).click();
   await expect(page.getByText(/Now using/)).toBeVisible();
   const updated = await rpc<Array<{ provider: string; thinkingLevel?: string | null }>>(
@@ -624,9 +634,9 @@ test("saves and reloads an ordered backup model list for connected models", asyn
   const picker = panel.getByRole("combobox", { name: "Add connected model" });
   const firstValue = JSON.stringify([targets[0]!.provider, targets[0]!.id]);
   const secondValue = JSON.stringify([targets[1]!.provider, targets[1]!.id]);
-  await picker.selectOption(firstValue);
+  await chooseSelectOption(page, picker, firstValue);
   await panel.getByRole("button", { name: "Add", exact: true }).click();
-  await picker.selectOption(secondValue);
+  await chooseSelectOption(page, picker, secondValue);
   await panel.getByRole("button", { name: "Add", exact: true }).click();
 
   const firstLabel = `${targets[0]!.providerName ?? targets[0]!.provider} · ${targets[0]!.label}`;

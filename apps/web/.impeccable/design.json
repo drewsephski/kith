@@ -996,7 +996,7 @@
   ],
   "narrative": {
     "northStar": "Warm paper, ink, quiet companion",
-    "overview": "Warm paper, ink, and a quiet companion give Kith a friendly, low-chrome setting. Neutral controls, open space, readable conversation, and a small original sage character carry the identity. The character is an asset, not a new control color.\n\nThe shared web UI also runs inside Electron. Density stays compact in navigation and contextual lists while the conversation has room to breathe. Details appear in contextual panels; the persistent composer and conversation remain the visual anchor. Native setup shares the semantic palette but keeps its own window controls and form geometry.",
+    "overview": "Warm paper, ink, and a quiet companion give Kith a friendly, low-chrome setting. Neutral controls, open space, readable conversation, and the supplied blue bot character carry the identity. The character is an asset, not a new control color.\n\nThe shared web UI also runs inside Electron. Density stays compact in navigation and contextual lists while the conversation has room to breathe. Details appear in contextual panels; the persistent composer and conversation remain the visual anchor. Native setup shares the semantic palette but keeps its own window controls and form geometry.",
     "keyCharacteristics": [
       "Warm neutral surfaces with ink actions.",
       "Compact controls around a spacious conversation.",
@@ -1029,7 +1029,7 @@
       "Do use the original companion asset with empty alternative text when adjacent text names the assistant."
     ],
     "donts": [
-      "Don't recolor ordinary controls with the companion's sage identity.",
+      "Don't recolor ordinary controls with the companion's blue identity.",
       "Don't turn secondary details into permanent explanatory chrome.",
       "Don't replace semantic colors with fixed light-theme or dark-theme colors.",
       "Don't reproduce proprietary reference artwork or branding.",

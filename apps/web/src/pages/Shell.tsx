@@ -71,6 +71,8 @@ import {
   AvatarStyleProvider,
   BotAvatar,
   Button,
+  Collapsible,
+  CollapsibleContent,
   cn,
   DropdownMenu,
   DropdownMenuContent,
@@ -3035,47 +3037,44 @@ export function ShellPage() {
                   >
                     +
                   </PopoverTrigger>
-                  {/* Unmount with the state change so the panel it opens never coexists with the menu. */}
-                  {createMenuOpen ? (
-                    <PopoverContent
-                      align="end"
-                      className="app-no-drag w-auto gap-0 overflow-hidden p-0 data-closed:animate-none"
-                    >
-                      <BotCreatePicker
-                        bots={bots}
-                        onCreateBot={() => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          setPanel("create");
-                        }}
-                        onOpenBot={(id) => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          navigate(`/app/${id}`);
-                        }}
-                        onCreateGroup={() => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          setPanel("create-group");
-                        }}
-                        onCreateSpace={() => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          setNewSpaceOpen(true);
-                        }}
-                        onShowGroupInfo={() => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          setPickerInfoTopic("group");
-                        }}
-                        onShowSpaceInfo={() => {
-                          setCreateMenuOpen(false);
-                          setMobileSidebarOpen(false);
-                          setPickerInfoTopic("space");
-                        }}
-                      />
-                    </PopoverContent>
-                  ) : null}
+                  <PopoverContent
+                    align="end"
+                    className="app-no-drag w-auto gap-0 overflow-hidden p-0"
+                  >
+                    <BotCreatePicker
+                      bots={bots}
+                      onCreateBot={() => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        setPanel("create");
+                      }}
+                      onOpenBot={(id) => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        navigate(`/app/${id}`);
+                      }}
+                      onCreateGroup={() => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        setPanel("create-group");
+                      }}
+                      onCreateSpace={() => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        setNewSpaceOpen(true);
+                      }}
+                      onShowGroupInfo={() => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        setPickerInfoTopic("group");
+                      }}
+                      onShowSpaceInfo={() => {
+                        setCreateMenuOpen(false);
+                        setMobileSidebarOpen(false);
+                        setPickerInfoTopic("space");
+                      }}
+                    />
+                  </PopoverContent>
                 </Popover>
               </div>
             </div>
@@ -3132,7 +3131,7 @@ export function ShellPage() {
                       );
                     const hasSpaceActions = group.canRenameSpace || group.canDeleteSpace;
                     return (
-                      <div key={group.key} data-sidebar-group={group.key}>
+                      <Collapsible key={group.key} data-sidebar-group={group.key} open={!collapsed}>
                         {group.title || hasSpaceActions ? (
                           <div
                             className={
@@ -3186,6 +3185,9 @@ export function ShellPage() {
                                       : undefined
                                 }
                                 aria-expanded={group.emptySpaceId ? undefined : !collapsed}
+                                aria-controls={
+                                  group.emptySpaceId ? undefined : `sidebar-section-${group.key}`
+                                }
                                 aria-label={
                                   group.emptySpaceId
                                     ? t`Open ${group.title}`
@@ -3206,8 +3208,8 @@ export function ShellPage() {
                                     strokeWidth={1.8}
                                     className={
                                       collapsed
-                                        ? "-rotate-90 transition-transform"
-                                        : "transition-transform"
+                                        ? "-rotate-90 transition-transform duration-200 motion-reduce:transition-none"
+                                        : "transition-transform duration-200 motion-reduce:transition-none"
                                     }
                                     aria-hidden="true"
                                   />
@@ -3238,8 +3240,8 @@ export function ShellPage() {
                             ) : null}
                           </div>
                         ) : null}
-                        {!collapsed &&
-                          nestedRows.map(({ item, depth, hasChildren, parentId }) => {
+                        <CollapsibleContent keepMounted={false} id={`sidebar-section-${group.key}`}>
+                          {nestedRows.map(({ item, depth, hasChildren, parentId }) => {
                             const parentCollapsed =
                               hasChildren && collapsedRosterParents.has(item.chat.id);
                             const selected =
@@ -3450,16 +3452,18 @@ export function ShellPage() {
                               </div>
                             );
                           })}
-                      </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     );
                   })}
                 </>
               )}
               {archivedBots.length + archivedGroups.length > 0 && !showSpaceSearch ? (
-                <div className="mt-2 border-t border-border pt-2">
+                <Collapsible open={archivedOpen} className="mt-2 border-t border-border pt-2">
                   <button
                     type="button"
                     aria-expanded={archivedOpen}
+                    aria-controls="archived-sidebar-items"
                     onClick={() => setArchivedOpen((open) => !open)}
                     className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[13.5px] text-muted-foreground hover:bg-sidebar-accent"
                   >
@@ -3468,82 +3472,77 @@ export function ShellPage() {
                     </span>
                     <span>{archivedBots.length + archivedGroups.length}</span>
                   </button>
-                  {archivedOpen ? (
-                    <>
-                      {archivedBots.map((bot) => (
-                        <div
-                          key={bot.id}
-                          className="flex items-center gap-2 rounded-lg px-2.5 py-2"
+                  <CollapsibleContent keepMounted={false} id="archived-sidebar-items">
+                    {archivedBots.map((bot) => (
+                      <div key={bot.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2">
+                        <BotAvatar
+                          color={bot.color}
+                          identity={bot.id}
+                          size={28}
+                          status={bot.status}
+                        />
+                        <span
+                          className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
+                          dir="auto"
                         >
-                          <BotAvatar
-                            color={bot.color}
-                            identity={bot.id}
-                            size={28}
-                            status={bot.status}
-                          />
-                          <span
-                            className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
-                            dir="auto"
-                          >
-                            {bot.name}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            onClick={() =>
-                              void rpc.bots.restore({ botId: bot.id }).then(() => refreshBots(true))
-                            }
-                          >
-                            <Trans>Restore</Trans>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="text-destructive hover:text-destructive"
-                            aria-label={t`Delete ${bot.name}`}
-                            onClick={() => setDeleteTarget(bot)}
-                          >
-                            <Trans>Delete</Trans>
-                          </Button>
-                        </div>
-                      ))}
-                      {archivedGroups.map((group) => (
-                        <div
-                          key={group.id}
-                          className="flex items-center gap-2 rounded-lg px-2.5 py-2"
+                          {bot.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() =>
+                            void rpc.bots.restore({ botId: bot.id }).then(() => refreshBots(true))
+                          }
                         >
-                          <GroupAvatar members={group.members} size={28} />
-                          <span
-                            className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
-                            dir="auto"
-                          >
-                            {group.name}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            onClick={() =>
-                              void rpc.groups
-                                .restore({ groupId: group.id })
-                                .then(() => refreshBots(true))
-                            }
-                          >
-                            <Trans>Restore</Trans>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="text-destructive hover:text-destructive"
-                            aria-label={t`Delete ${group.name}`}
-                            onClick={() => setDeleteGroupTarget(group)}
-                          >
-                            <Trans>Delete</Trans>
-                          </Button>
-                        </div>
-                      ))}
-                    </>
-                  ) : null}
-                </div>
+                          <Trans>Restore</Trans>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={t`Delete ${bot.name}`}
+                          onClick={() => setDeleteTarget(bot)}
+                        >
+                          <Trans>Delete</Trans>
+                        </Button>
+                      </div>
+                    ))}
+                    {archivedGroups.map((group) => (
+                      <div
+                        key={group.id}
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-2"
+                      >
+                        <GroupAvatar members={group.members} size={28} />
+                        <span
+                          className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
+                          dir="auto"
+                        >
+                          {group.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() =>
+                            void rpc.groups
+                              .restore({ groupId: group.id })
+                              .then(() => refreshBots(true))
+                          }
+                        >
+                          <Trans>Restore</Trans>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={t`Delete ${group.name}`}
+                          onClick={() => setDeleteGroupTarget(group)}
+                        >
+                          <Trans>Delete</Trans>
+                        </Button>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
               ) : null}
             </div>
             <button
@@ -3568,63 +3567,61 @@ export function ShellPage() {
                 </span>
                 <span className="text-[14.5px] text-foreground/90">{userName}</span>
               </PopoverTrigger>
-              {menuOpen ? (
-                <PopoverContent
-                  side="top"
-                  align="start"
-                  className="w-[calc(316px-1.5rem)] max-w-[calc(100vw-3rem)] gap-0 p-1 data-closed:animate-none"
+              <PopoverContent
+                side="top"
+                align="start"
+                className="w-[calc(316px-1.5rem)] max-w-[calc(100vw-3rem)] gap-0 p-1"
+              >
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start font-normal"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setMobileSidebarOpen(false);
+                    navigate("/app/artifacts");
+                  }}
                 >
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start font-normal"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setMobileSidebarOpen(false);
-                      navigate("/app/artifacts");
-                    }}
-                  >
-                    <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
-                    <Trans>Artifacts</Trans>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start font-normal"
-                    aria-label={t`Settings`}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      openSettings("general");
-                    }}
-                  >
-                    <Settings className="text-muted-foreground" strokeWidth={1.75} />
-                    <Trans>Settings</Trans>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start font-normal"
-                    aria-label={t`Usage`}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      openSettings("usage");
-                    }}
-                  >
-                    <Gauge className="text-muted-foreground" strokeWidth={1.75} />
-                    <Trans>Usage</Trans>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start font-normal"
-                    onClick={() =>
-                      void authClient.signOut().then(() => {
-                        clearSpaceSelection();
-                        navigate("/");
-                      })
-                    }
-                  >
-                    <LogOut className="text-muted-foreground" strokeWidth={1.75} />
-                    <Trans>Log out</Trans>
-                  </Button>
-                </PopoverContent>
-              ) : null}
+                  <FolderOpen className="text-muted-foreground" strokeWidth={1.75} />
+                  <Trans>Artifacts</Trans>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start font-normal"
+                  aria-label={t`Settings`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openSettings("general");
+                  }}
+                >
+                  <Settings className="text-muted-foreground" strokeWidth={1.75} />
+                  <Trans>Settings</Trans>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start font-normal"
+                  aria-label={t`Usage`}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openSettings("usage");
+                  }}
+                >
+                  <Gauge className="text-muted-foreground" strokeWidth={1.75} />
+                  <Trans>Usage</Trans>
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start font-normal"
+                  onClick={() =>
+                    void authClient.signOut().then(() => {
+                      clearSpaceSelection();
+                      navigate("/");
+                    })
+                  }
+                >
+                  <LogOut className="text-muted-foreground" strokeWidth={1.75} />
+                  <Trans>Log out</Trans>
+                </Button>
+              </PopoverContent>
             </Popover>
           </>
         )}

@@ -1,6 +1,13 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, createNamedBot, rpc, signup } from "./helpers";
+import {
+  captureScreenshot,
+  chooseSelectOption,
+  completeOnboarding,
+  createNamedBot,
+  rpc,
+  signup,
+} from "./helpers";
 
 // Fake values only: this spec proves the Credentials UI drives a command variable and never
 // echoes a saved value. The bot's shell is what actually reads the variable; see the unit tests.
@@ -21,9 +28,10 @@ test("command credentials add, replace and remove without leaking values", async
   await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await settings
+    .getByTestId("bot-settings-advanced")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const credentials = settings.getByTestId("bot-credentials");
   await expect(credentials).toBeVisible();
   await expect(credentials.getByTestId("bot-credentials-empty")).toBeVisible();
@@ -32,7 +40,7 @@ test("command credentials add, replace and remove without leaking values", async
   await credentials.getByTestId("credential-add").click();
   const addForm = credentials.getByTestId("credential-add-form");
   await addForm.getByTestId("credential-name").fill(CREDENTIAL_NAME);
-  await addForm.getByTestId("credential-auth-type").selectOption("command");
+  await chooseSelectOption(page, addForm.getByTestId("credential-auth-type"), "command");
   await expect(addForm.getByTestId("credential-origin")).toHaveCount(0);
   await expect(addForm.getByTestId("credential-command-variable")).toContainText(VARIABLE_NAME);
   const valueInput = addForm.getByTestId("credential-value");
@@ -101,13 +109,14 @@ test("command credentials refuse a reserved variable name before saving", async 
   await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await settings
+    .getByTestId("bot-settings-advanced")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const credentials = settings.getByTestId("bot-credentials");
   await credentials.getByTestId("credential-add").click();
   const addForm = credentials.getByTestId("credential-add-form");
-  await addForm.getByTestId("credential-auth-type").selectOption("command");
+  await chooseSelectOption(page, addForm.getByTestId("credential-auth-type"), "command");
   await addForm.getByTestId("credential-value").fill(SENTINEL);
   await addForm.getByTestId("credential-name").fill("ld_preload");
 

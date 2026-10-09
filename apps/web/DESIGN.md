@@ -167,7 +167,7 @@ components:
 
 **Creative North Star: "Warm paper, ink, quiet companion"**
 
-Warm paper, ink, and a quiet companion give Kith a friendly, low-chrome setting. Neutral controls, open space, readable conversation, and a small original sage character carry the identity. The character is an asset, not a new control color.
+Warm paper, ink, and a quiet companion give Kith a friendly, low-chrome setting. Neutral controls, open space, readable conversation, and the supplied blue bot character carry the identity. The character is an asset, not a new control color.
 
 The shared web UI also runs inside Electron. Density stays compact in navigation and contextual lists while the conversation has room to breathe. Details appear in contextual panels; the persistent composer and conversation remain the visual anchor. Native setup shares the semantic palette but keeps its own window controls and form geometry.
 
@@ -206,7 +206,7 @@ A warm neutral light palette pairs with a cool near-black dark palette. Frontmat
 - **Success green:** completed or healthy states.
 - **Warning amber:** input or attention required.
 
-The sage companion is a raster identity asset, not a semantic palette token. Other bots retain the existing shared identity-color array; it is not an action palette.
+The blue companion is a raster identity asset, not a semantic palette token. Other bots retain the existing shared identity-color array; it is not an action palette.
 
 ### Named Rules
 
@@ -304,7 +304,7 @@ Motion communicates interaction and state: panel width uses a 200ms ease-out tra
 
 ### Don't:
 
-- **Don't** recolor ordinary controls with the companion's sage identity.
+- **Don't** recolor ordinary controls with the companion's blue identity.
 - **Don't** turn secondary details into permanent explanatory chrome.
 - **Don't** replace semantic colors with fixed light-theme or dark-theme colors.
 - **Don't** reproduce proprietary reference artwork or branding.

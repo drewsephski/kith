@@ -44,9 +44,11 @@ vi.mock("@lingui/react/macro", () => {
       value === 1 ? one : other,
   };
 });
-vi.mock("@rakazo/ui-web", () => {
+vi.mock("@rakazo/ui-web", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("@rakazo/ui-web");
   const Pass = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
   return {
+    ...actual,
     AlertDialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
       open ? <div>{children}</div> : null,
     AlertDialogAction: ({
@@ -92,8 +94,22 @@ vi.mock("@rakazo/ui-web", () => {
     DialogTitle: Pass,
     Input: (props: ComponentProps<"input">) => <input {...props} />,
     ModelThinkingOptions: () => null,
-    NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
-    NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
+    SelectField: ({
+      items,
+      onValueChange,
+      ...props
+    }: ComponentProps<"select"> & {
+      items: Array<{ value: string; label: ReactNode; disabled?: boolean }>;
+      onValueChange: (value: string) => void;
+    }) => (
+      <select {...props} onChange={(event) => onValueChange(event.target.value)}>
+        {items.map((item) => (
+          <option key={item.value} value={item.value} disabled={item.disabled}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    ),
   };
 });
 

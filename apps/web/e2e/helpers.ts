@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 export function isRealSandboxProvider(provider = process.env.SANDBOX_PROVIDER) {
   return provider === "e2b" || provider === "daytona" || provider === "box";
@@ -166,4 +166,26 @@ export async function createNamedBot(
   await page.goto(`/app/${bot.id}`);
   await expect(page.getByPlaceholder(`Message ${name}`)).toBeVisible();
   return bot.id;
+}
+
+/** Choose a shared Select option, including inherited defaults represented by an empty value. */
+export async function chooseSelectOption(
+  page: Page,
+  trigger: Locator,
+  value: string | { index: number },
+) {
+  await trigger.click();
+  const options = page.locator('[data-slot="select-item"]');
+  if (typeof value === "string") {
+    await options.first().waitFor();
+    const index = await options.evaluateAll(
+      (elements, selectedValue) =>
+        elements.findIndex((element) => element.getAttribute("data-value") === selectedValue),
+      value,
+    );
+    if (index < 0) throw new Error("Select option is unavailable");
+    await options.nth(index).click();
+  } else {
+    await options.nth(value.index).click();
+  }
 }
