@@ -71,6 +71,13 @@ test("signed-out welcome fits a narrow phone and offers sign in", async ({ page 
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { name: "Kith", level: 1 })).toBeVisible();
   await expect(main.getByRole("button", { name: "Sign up", exact: true })).toBeVisible();
+  const signUpSize = await main
+    .getByRole("button", { name: "Sign up", exact: true })
+    .evaluate((element) => getComputedStyle(element).fontSize);
+  await expect(main.getByRole("link", { name: "Sign in", exact: true })).toHaveCSS(
+    "font-size",
+    signUpSize,
+  );
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 320);
   await captureScreenshot(page, testInfo, "logged-out-welcome-phone");
   await main.getByRole("link", { name: "Sign in", exact: true }).click();

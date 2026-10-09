@@ -882,4 +882,5 @@ export const RU_MESSAGES: Record<string, string> = {
     "Завершите подключение в браузере и проверьте снова.",
   "Set up app connections": "Настроить подключения",
   "Stop waiting": "Остановить ожидание",
+  "More options": "Дополнительные параметры",
 };

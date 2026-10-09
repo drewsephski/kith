@@ -29,7 +29,7 @@ Daytona compute rates are equivalent at 2 vCPU / 4 GiB, plus reserved disk billi
 - Operator credentials stay on the API/worker host: sandbox key, OpenRouter key and existing Composio application key.
 - Deployment-wide OpenRouter is a fallback; existing user model connections retain their existing precedence.
 - Computers are provisioned on demand through existing authorized workspace/bot contracts. Team computers intentionally share within their workspace; different workspaces do not share a home or browser profile.
-- Idle timeout remains ten minutes. Set the existing computer cap to four per user and four per space for the initial rollout. These are resource-count limits, not a spending or token-budget guarantee.
+- Idle timeout remains ten minutes. Set the existing provider-neutral computer cap to four per user for the initial rollout. The per-space setting applies only to the Docker supervisor and is not a managed-provider cap. These are resource-count limits, not a spending or token-budget guarantee.
 - Computer screens and terminals use the existing authenticated backend proxy on the persistent host, including its WebSocket path. Provider keys never reach the frontend.
 - Users authorize their own email/calendar and other personal accounts. An operator integration API key does not authorize copying the operator's connected account to every user.
 - No provider: run chat normally and omit computer tools. Do not retry nonexistent computer provisioning before a model call.
@@ -37,6 +37,16 @@ Daytona compute rates are equivalent at 2 vCPU / 4 GiB, plus reserved disk billi
 ## Verification and limits
 
 Offline regressions prove thread snapshots accept the `none` provider, model runs complete without computers, unavailable computer tools are blocked, and the existing computer paths retain their behavior. Production provider activation requires real credentials and real provisioning, desktop, command, browsing and persistence checks. A health endpoint alone is not provider proof. No market-wide uptime or independent reliability ranking is claimed; public vendor testimonials were not used as independent evidence.
+
+## Live verification on the deployment date
+
+The supplied E2B credential successfully provisioned a real Desktop sandbox. The existing adapter prepared the desktop, returned a screenshot, executed a shell command reaching `https://example.com`, and retained a written file after pause/resume with the same provider reference. The standalone probe sandbox was destroyed after verification.
+
+The hosted web app returned a real model response (`CHAT_OK`). Its agent then wrote and read a synthetic workspace file and reached the test site with HTTP 200. The authenticated Fly screen gateway completed a WebSocket upgrade and delivered the VNC protocol greeting. Shared E2B and OpenRouter credentials are stored as backend deployment secrets; application credentials are not added to frontend configuration.
+
+A Daytona probe also provisioned, prepared the desktop and retained files after stop/start, but its external HTTPS command failed with curl exit 35. That result is consistent with a networking limitation but does not independently establish the account tier or prove its cause. The probe sandbox was destroyed. The initial provider decision follows the documented network-tier requirements plus E2B's successful live browsing check.
+
+The first real screen connection exposed a transient provider-side WebSocket 502. The gateway now retries the handshake at most three times, rechecks current authorization before each retry, and stops retrying after any established stream or forwarded handshake. Client frames are never replayed. Offline browser tests cover startup recovery, exhausted retry budget, authorization revocation, response isolation and both gateway modes.
 
 ## Primary sources
 

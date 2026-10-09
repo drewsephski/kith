@@ -5521,3 +5521,7 @@ msgstr ""
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Archive {name}"
 msgstr ""
+
+#: src/pages/shell/bot-panel.tsx
+msgid "More options"
+msgstr "Plus d’options"

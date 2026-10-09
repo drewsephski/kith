@@ -133,17 +133,22 @@ function Conversation() {
           running={running}
           disabled={false}
           pendingAttachments={[]}
+          attachmentNotice={null}
           sendError={null}
           runError={null}
+          runErrorId={null}
+          onRunErrorPresented={noop}
+          onDismissError={noop}
           sending={false}
           fileInputRef={fileInputRef}
-          onAttachmentPick={noop}
+          onAttachmentPick={() => false}
           onRemoveAttachment={noop}
           onSend={async (text) => {
             setMessages((current) => [
               ...current,
               message(`sent-${current.length}`, "user", text, current.length + 1),
             ]);
+            return true;
           }}
           onStop={resolve}
         />

@@ -877,4 +877,5 @@ export const DE_MESSAGES: Record<string, string> = {
     "Schließe die Verbindung im Browser ab und prüfe sie erneut.",
   "Set up app connections": "App-Verbindungen einrichten",
   "Stop waiting": "Warten beenden",
+  "More options": "Weitere Optionen",
 };

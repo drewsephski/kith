@@ -34,6 +34,7 @@ export default function NewBot() {
   const descriptionRef = useRef<TextInput>(null);
 
   function close() {
+    if (submittingRef.current) return;
     if (router.canDismiss()) {
       router.dismiss();
       return;
@@ -78,7 +79,13 @@ export default function NewBot() {
 
   return (
     <>
-      <Stack.Screen options={{ ...cancelHeaderOptions(t("Cancel"), close), title: t("New bot") }} />
+      <Stack.Screen
+        options={{
+          ...cancelHeaderOptions(t("Cancel"), close, pending),
+          title: t("New bot"),
+          gestureEnabled: !pending,
+        }}
+      />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: tokens.background }}

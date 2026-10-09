@@ -90,7 +90,6 @@ PI_DEFAULT_PROVIDER=openrouter
 PI_DEFAULT_MODEL=openai/gpt-6-luna
 SANDBOX_IDLE_MS=600000
 SANDBOX_MAX_COMPUTERS_PER_USER=4
-SANDBOX_MAX_COMPUTERS_PER_SPACE=4
 ```
 
 Import them with the same `fly secrets import` command. Fly secrets override the image's

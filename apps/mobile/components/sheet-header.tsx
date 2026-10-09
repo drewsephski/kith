@@ -55,10 +55,12 @@ function nativeHeaderItems() {
   return iosAtLeast(26);
 }
 
-export function cancelHeaderOptions(label: string, onPress: () => void) {
+export function cancelHeaderOptions(label: string, onPress: () => void, disabled = false) {
   return {
     headerBackVisible: false as const,
-    headerLeft: () => <HeaderTextButton edge="leading" label={label} onPress={onPress} />,
+    headerLeft: () => (
+      <HeaderTextButton disabled={disabled} edge="leading" label={label} onPress={onPress} />
+    ),
     ...(nativeHeaderItems()
       ? {
           unstable_headerLeftItems: () => [
@@ -66,6 +68,7 @@ export function cancelHeaderOptions(label: string, onPress: () => void) {
               type: "button" as const,
               label,
               variant: "plain" as const,
+              disabled,
               onPress,
             },
           ],

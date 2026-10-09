@@ -1,6 +1,69 @@
 import { expect, test } from "@playwright/test";
 import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
 
+test("new conversations offer editable task starters and align navigation with the header", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signup(page, `kith-starters-${Date.now()}@example.test`, "password12", "Alex");
+  await completeOnboarding(page);
+  const primary = activeBotId(page);
+  const navigation = page.getByTestId("kith-navigation");
+  const composer = page.locator('textarea[name="chat-message"]');
+  const welcome = page.getByTestId("assistant-welcome");
+  await expect(welcome).toBeVisible();
+  await navigation.getByRole("button", { name: "New conversation", exact: true }).click();
+  await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
+  const conversation = activeBotId(page);
+  await expect(welcome).toBeVisible();
+  await expect(welcome.getByRole("button")).toHaveCount(6);
+  await expect(composer).toHaveValue("");
+  const sidebarTop = await navigation.evaluate((element) => element.getBoundingClientRect().top);
+  const shellTop = await page
+    .getByTestId("shell-root")
+    .evaluate((element) => element.getBoundingClientRect().top);
+  expect(sidebarTop).toBe(shellTop);
+  const collapse = await navigation.getByRole("button", { name: "Collapse sidebar" }).boundingBox();
+  expect(collapse!.y + collapse!.height / 2 - shellTop).toBe(32);
+  await captureScreenshot(page, testInfo, "kith-new-conversation-desktop");
+
+  await welcome.getByRole("button", { name: "Search all my Gmail accounts", exact: true }).click();
+  await expect(composer).toHaveValue("Search all my connected Gmail accounts for…");
+  await expect(composer).toBeFocused();
+  await expect(page.getByRole("button", { name: "Remove task starter" })).toBeVisible();
+  await composer.press("Enter");
+  const setup = page.getByRole("dialog");
+  await expect(setup.getByRole("heading", { name: "Choose task sources" })).toBeVisible();
+  await setup.getByRole("button", { name: "Cancel", exact: true }).click();
+  await navigation.getByTestId("main-conversation").click();
+  await expect(composer).toHaveValue("");
+  await navigation
+    .getByRole("region", { name: "Recent conversations" })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/app/${conversation}$`));
+  await expect(composer).toHaveValue("Search all my connected Gmail accounts for…");
+  await expect(page.getByRole("button", { name: "Remove task starter" })).toBeVisible();
+  await welcome.getByRole("button", { name: "Plan tomorrow", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove task starter" })).toHaveCount(0);
+  await composer.press("Enter");
+  await expect(welcome).toHaveCount(0);
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole("button", { name: "Open navigation", exact: true }).click();
+  await navigation.getByRole("button", { name: "New conversation", exact: true }).click();
+  await expect(welcome).toBeVisible();
+  await expect(composer).toHaveValue("");
+  await welcome.getByRole("button", { name: "Turn my inbox into a to-do list" }).click();
+  await expect(composer).toHaveValue(
+    "Turn emails from the past seven days into a prioritized to-do list, with links to each source.",
+  );
+  await expect(composer).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await captureScreenshot(page, testInfo, "kith-new-conversation-mobile");
+});
+
 test("Kith preserves its main conversation, drafts, and inspectable personal memory", async ({
   page,
 }, testInfo) => {

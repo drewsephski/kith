@@ -852,4 +852,5 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Finish connecting in the browser, then check again.": "请在浏览器中完成连接后再检查。",
   "Set up app connections": "设置应用连接",
   "Stop waiting": "停止等待",
+  "More options": "更多选项",
 };

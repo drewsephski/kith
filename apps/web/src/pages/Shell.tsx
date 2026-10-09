@@ -5686,7 +5686,7 @@ export const Transcript = memo(function Transcript({
                       // Hover keeps the date in the side margin. Touch leaves that margin for the bubble and drops the revealed time under it.
                       message.role === "user"
                         ? "start-0 max-w-[max(8rem,16%)] text-start"
-                        : "end-0 max-w-[max(8rem,12%)] text-end",
+                        : "end-0 max-w-24 text-end",
                       "[@media(hover:none)]:group-hover/message:static [@media(hover:none)]:group-focus-within/message:static [@media(hover:none)]:group-has-[[aria-expanded=true]]/message:static",
                       "[@media(hover:none)]:group-hover/message:block [@media(hover:none)]:group-focus-within/message:block [@media(hover:none)]:group-has-[[aria-expanded=true]]/message:block",
                       "[@media(hover:none)]:group-hover/message:mt-1 [@media(hover:none)]:group-focus-within/message:mt-1 [@media(hover:none)]:group-has-[[aria-expanded=true]]/message:mt-1",

@@ -3,6 +3,37 @@ import { captureScreenshot } from "./helpers";
 
 const fixture = "/e2e/fixtures/conversation-layout.html";
 
+test("the widened composer still sends and clears its draft", async ({ page }) => {
+  await page.goto(`${fixture}?working=off`);
+  const composer = page.getByRole("combobox", { name: "Message Kith" });
+  await composer.fill("Save time for a walk.");
+  await composer.press("Enter");
+  await expect(page.getByTestId("message-user-bubble").last()).toHaveText("Save time for a walk.");
+  await expect(composer).toHaveValue("");
+});
+
+test.describe("touch conversation", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 375, height: 812 } });
+  test("long assistant prose uses the available width and actions stay reachable", async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`${fixture}?long&working=off`);
+    const reply = page.locator('[data-message-id="long-reply"]');
+    await expect(reply).toBeVisible();
+    const width = await reply.evaluate((row) => ({
+      row: row.getBoundingClientRect().width,
+      bubble:
+        row.querySelector('[data-testid="message-bot-bubble"]')?.getBoundingClientRect().width ?? 0,
+    }));
+    expect(width.bubble).toBeGreaterThan(width.row * 0.95);
+    await expect(reply.getByRole("button", { name: "More", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
+      false,
+    );
+    await captureScreenshot(page, testInfo, "conversation-touch-long");
+  });
+});
+
 test("messages, working state, and composer share a wider responsive frame", async ({
   page,
 }, testInfo) => {
