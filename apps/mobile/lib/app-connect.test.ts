@@ -11,7 +11,7 @@ describe("appConnectPresentation", () => {
     status: "pending" as const,
   };
 
-  it("renders an connect control for pending app_connect blocks", () => {
+  it("renders a connect control for pending app_connect blocks", () => {
     const view = appConnectPresentation(block);
     expect(view.showAuthorize).toBe(true);
     expect(view.actionLabel).toBe("Connect");
