@@ -98,35 +98,54 @@ let sessionInvalidated = false;
 let sessionFallback: string | undefined;
 /** Bumped by every session change, so a late response can tell it no longer owns the session. */
 let sessionGeneration = 0;
+let tokenWrites: Promise<unknown> = Promise.resolve();
+
+function enqueueTokenWrite<T>(task: () => Promise<T>): Promise<T> {
+  const next = tokenWrites.then(task, task);
+  tokenWrites = next.catch(() => undefined);
+  return next;
+}
+
+function persistSessionToken(token: string, generation: number, clearingScope: Promise<void>) {
+  return enqueueTokenWrite(async () => {
+    await SecureStore.setItemAsync(SESSION_KEY, token);
+    await clearingScope;
+    if (generation === sessionGeneration) {
+      sessionInvalidated = false;
+      sessionFallback = undefined;
+    }
+  });
+}
 
 export function currentSessionGeneration() {
   return sessionGeneration;
 }
 
 export async function loadSessionToken() {
+  const generation = sessionGeneration;
   const snapshot = await snapshotSessionToken();
-  return snapshot.ok ? snapshot.value : "";
+  return generation === sessionGeneration && snapshot.ok ? snapshot.value : "";
 }
 
 export async function saveSessionToken(token: string) {
-  sessionGeneration += 1;
-  const clearingScope = invalidateIntegrationsScope();
-  await SecureStore.setItemAsync(SESSION_KEY, token);
-  await clearingScope;
-  sessionInvalidated = false;
-  sessionFallback = undefined;
+  const generation = ++sessionGeneration;
+  await persistSessionToken(token, generation, invalidateIntegrationsScope());
 }
 
 /** Clears the session. Returns false only when SecureStore could neither delete nor overwrite. */
 export async function clearSessionToken(): Promise<boolean> {
   sessionGeneration += 1;
+  sessionInvalidated = true;
+  sessionFallback = undefined;
   const clearingScope = invalidateIntegrationsScope();
-  await stopLiveNotifications(true).catch(() => undefined);
-  const tokenCleared = await clearStoredSessionToken();
-  await clearingScope;
-  // Best-effort: a stuck style must not block sign-out or restore a wiped token.
-  await clearAvatarStyle();
-  return tokenCleared;
+  return enqueueTokenWrite(async () => {
+    await stopLiveNotifications(true).catch(() => undefined);
+    const tokenCleared = await clearStoredSessionToken();
+    await clearingScope;
+    // Best-effort: a stuck style must not block sign-out or restore a wiped token.
+    await clearAvatarStyle();
+    return tokenCleared;
+  });
 }
 
 /** Saves a style response only when it still belongs to the current session. */
@@ -138,18 +157,12 @@ export function saveAvatarStyleIfCurrent(generation: number, style: AvatarStyle)
 async function clearStoredSessionToken(): Promise<boolean> {
   try {
     await SecureStore.deleteItemAsync(SESSION_KEY);
-    sessionInvalidated = false;
-    sessionFallback = undefined;
     return true;
   } catch {
     try {
       await SecureStore.setItemAsync(SESSION_KEY, "");
-      sessionInvalidated = false;
-      sessionFallback = undefined;
       return true;
     } catch {
-      sessionInvalidated = true;
-      sessionFallback = undefined;
       return false;
     }
   }
@@ -157,52 +170,61 @@ async function clearStoredSessionToken(): Promise<boolean> {
 
 /** Restores the current-server session in memory even when persistence is unavailable. */
 export async function restoreSessionToken(token: string) {
-  sessionGeneration += 1;
+  const generation = ++sessionGeneration;
   const clearingScope = invalidateIntegrationsScope();
   if (!token) {
-    await clearingScope;
-    sessionInvalidated = false;
-    sessionFallback = undefined;
+    await enqueueTokenWrite(async () => {
+      await clearingScope;
+      if (generation === sessionGeneration) {
+        sessionInvalidated = false;
+        sessionFallback = undefined;
+      }
+    });
     return;
   }
   try {
-    await saveSessionToken(token);
+    await persistSessionToken(token, generation, clearingScope);
   } catch {
-    sessionInvalidated = false;
-    sessionFallback = token;
+    if (generation === sessionGeneration) {
+      sessionInvalidated = false;
+      sessionFallback = token;
+    }
   }
 }
 
-/**
- * Replaces the session only if nothing changed it since `generation` was read. The check and the
- * write start in the same tick, so a sign-out that begins later clears the replacement too.
- */
+/** Replaces only the current session and reports false if a newer change supersedes the write. */
 export async function replaceSessionTokenIfCurrent(
   generation: number,
   token: string,
 ): Promise<boolean> {
   if (generation !== sessionGeneration) return false;
+  const replacementGeneration = ++sessionGeneration;
   try {
-    await saveSessionToken(token);
+    await persistSessionToken(token, replacementGeneration, invalidateIntegrationsScope());
   } catch (error) {
-    // The server already revoked the stored token; keep the replacement in memory unless
-    // something else changed the session meanwhile, and still report that it was not saved.
-    if (sessionGeneration === generation + 1) {
+    // The server already revoked the stored token; retain the replacement only for its owner.
+    if (replacementGeneration === sessionGeneration) {
       sessionInvalidated = false;
       sessionFallback = token;
     }
     throw error;
   }
-  return true;
+  return replacementGeneration === sessionGeneration;
 }
 
 /** Snapshots the active token without treating an unreadable store as an empty session. */
 export async function snapshotSessionToken(): Promise<{ ok: true; value: string } | { ok: false }> {
-  if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
+  const generation = sessionGeneration;
   if (sessionInvalidated) return { ok: true, value: "" };
+  if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
   try {
-    return { ok: true, value: (await SecureStore.getItemAsync(SESSION_KEY)) ?? "" };
+    const value = (await SecureStore.getItemAsync(SESSION_KEY)) ?? "";
+    if (sessionInvalidated || generation !== sessionGeneration) return { ok: true, value: "" };
+    if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
+    return { ok: true, value };
   } catch {
+    if (sessionInvalidated || generation !== sessionGeneration) return { ok: true, value: "" };
+    if (sessionFallback !== undefined) return { ok: true, value: sessionFallback };
     return { ok: false };
   }
 }

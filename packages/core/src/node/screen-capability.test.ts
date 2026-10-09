@@ -12,6 +12,9 @@ import {
 } from "./screen-capability.js";
 
 const scope: ScreenCapabilityScope = {
+  sessionId: "session",
+  userId: "user",
+  spaceId: "space",
   botId: "bot",
   computerId: "computer",
   botGeneration: 2,
@@ -132,6 +135,23 @@ describe("sealed screen capabilities", () => {
       expect(openScreenCapability(socket.pathname, "fake-secret", 101)?.target.path).toBe(
         "/websockify?token=fake-socket-token",
       );
+    },
+  );
+
+  it.each(["sessionId", "userId", "spaceId"] as const)(
+    "rejects missing or empty sealed %s",
+    (field) => {
+      for (const value of [undefined, ""]) {
+        const legacy = { ...scope, [field]: value } as unknown as ScreenCapabilityScope;
+        const sealed = sealScreenCapability(
+          "https://screen.example/vnc.html",
+          "fake-secret",
+          "https://app.example",
+          legacy,
+          100,
+        );
+        expect(openScreenCapability(new URL(sealed).pathname, "fake-secret", 101)).toBeNull();
+      }
     },
   );
 
@@ -277,6 +297,18 @@ describe("remote screen capability reuse", () => {
     expect(
       issueScreenCapability(upstream, "fake-secret", "https://other.example", scope, now + 1),
     ).not.toBe(first);
+  });
+
+  it.each(["sessionId", "userId", "spaceId"] as const)("partitions remote reuse by %s", (field) => {
+    const first = issued(1_000_000);
+    const changed = { ...scope, [field]: "other" };
+    const second = issued(1_000_001, changed);
+    expect(second).not.toBe(first);
+    expect(issued(1_000_002, changed)).toBe(second);
+    expect(issued(1_000_003)).toBe(first);
+    expect(openScreenCapability(new URL(second).pathname, "fake-secret", 1_000_002)?.scope).toEqual(
+      changed,
+    );
   });
 
   it("keeps minting a fresh capability for loopback screens", () => {

@@ -110,6 +110,22 @@ describe("screen proxy", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(check).toHaveBeenCalledTimes(2);
   });
+  it("closes once when the issuing session or membership is revoked", async () => {
+    vi.useFakeTimers();
+    let authorized = true;
+    const check = vi.fn(async () => authorized);
+    const revoke = vi.fn();
+    watchScreenAuthorization(check, revoke);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(revoke).not.toHaveBeenCalled();
+    authorized = false;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(revoke).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(revoke).toHaveBeenCalledOnce();
+  });
+
   it("closes a stream when authorization fails unexpectedly", async () => {
     vi.useFakeTimers();
     const revoke = vi.fn();

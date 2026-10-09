@@ -5,10 +5,10 @@ import {
   messagingDeliverJob,
 } from "@rakazo/adapter-kit";
 import { createLogger, createTestSink, installLogger, wrapJobPayload } from "@rakazo/logging";
-import type { Runner } from "graphile-worker";
+import type { Runner, WorkerUtils } from "graphile-worker";
 import { makeWorkerUtils } from "graphile-worker";
 import type { Pool } from "pg";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const run = vi.hoisted(() => vi.fn());
 
@@ -105,6 +105,127 @@ describe("GraphileJobPublisher.enqueue", () => {
     await publisher.enqueue(messagingDeliverJob("run-1"));
     const options = addJob.mock.calls[0]?.[2] as { maxAttempts?: number } | undefined;
     expect(options?.maxAttempts).toBeUndefined();
+    await publisher.close();
+  });
+});
+
+describe("GraphileJobPublisher initialization", () => {
+  beforeEach(() => vi.mocked(makeWorkerUtils).mockReset());
+
+  function fixture() {
+    const query = vi.fn(async () => undefined);
+    const utils = {
+      addJob: vi.fn(async () => undefined),
+      release: vi.fn(async () => undefined),
+      withPgClient: vi.fn(async (task: (client: { query: typeof query }) => Promise<void>) =>
+        task({ query }),
+      ),
+    };
+    // Only the publisher's three utility methods are used by this boundary fixture.
+    const workerUtils = utils as unknown as WorkerUtils;
+    return { utils, workerUtils, query, publisher: new GraphileJobPublisher({} as Pool) };
+  }
+
+  it.each(["enqueue", "cancel"])("recovers %s after initialization rejects", async (operation) => {
+    const { publisher, workerUtils } = fixture();
+    const error = new Error("database unavailable");
+    vi.mocked(makeWorkerUtils).mockRejectedValueOnce(error).mockResolvedValueOnce(workerUtils);
+    const act = () =>
+      operation === "enqueue"
+        ? publisher.enqueue(messagingDeliverJob("run-1"))
+        : publisher.cancel("key-1");
+    await expect(act()).rejects.toBe(error);
+    await expect(act()).resolves.toBeUndefined();
+    expect(makeWorkerUtils).toHaveBeenCalledTimes(2);
+    await publisher.close();
+  });
+
+  it.each([false, true])(
+    "shares pending initialization and recovers only after rejection (%s)",
+    async (fails) => {
+      const { publisher, workerUtils, utils, query } = fixture();
+      const barrier = deferred();
+      vi.mocked(makeWorkerUtils)
+        .mockImplementationOnce(async () => {
+          await barrier.promise;
+          return workerUtils;
+        })
+        .mockResolvedValue(workerUtils);
+      const first = publisher.enqueue(messagingDeliverJob("run-1"));
+      const second = publisher.cancel("key-1");
+      const settled = Promise.allSettled([first, second]);
+      expect(makeWorkerUtils).toHaveBeenCalledTimes(1);
+      if (fails) barrier.reject(new Error("offline"));
+      else barrier.resolve();
+      expect((await settled).map((item) => item.status)).toEqual(
+        fails ? ["rejected", "rejected"] : ["fulfilled", "fulfilled"],
+      );
+      await Promise.all([
+        publisher.enqueue(messagingDeliverJob("run-2")),
+        publisher.cancel("key-2"),
+      ]);
+      expect(makeWorkerUtils).toHaveBeenCalledTimes(fails ? 2 : 1);
+      expect(utils.addJob).toHaveBeenCalledTimes(fails ? 1 : 2);
+      expect(query).toHaveBeenCalledWith("select graphile_worker.remove_job($1::text)", ["key-2"]);
+      await publisher.close();
+    },
+  );
+
+  it.each([false, true])("closes pending initialization without reopening (%s)", async (fails) => {
+    const { publisher, workerUtils, utils } = fixture();
+    const barrier = deferred();
+    vi.mocked(makeWorkerUtils).mockImplementationOnce(async () => {
+      await barrier.promise;
+      return workerUtils;
+    });
+    const enqueue = publisher.enqueue(messagingDeliverJob("run-1"));
+    const observed = Promise.allSettled([enqueue]);
+    const closing = publisher.close();
+    let closed = false;
+    const closeObserved = closing.then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    await expect(publisher.enqueue(messagingDeliverJob("run-2"))).rejects.toThrow("closed");
+    await expect(publisher.cancel("key")).rejects.toThrow("closed");
+    if (fails) barrier.reject(new Error("offline"));
+    else barrier.resolve();
+    await observed;
+    await closeObserved;
+    await publisher.close();
+    expect(utils.release).toHaveBeenCalledTimes(fails ? 0 : 1);
+    expect(makeWorkerUtils).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes after historical initialization failure", async () => {
+    const { publisher } = fixture();
+    vi.mocked(makeWorkerUtils).mockRejectedValueOnce(new Error("offline"));
+    await expect(publisher.cancel("key")).rejects.toThrow("offline");
+    await expect(publisher.close()).resolves.toBeUndefined();
+  });
+
+  it("reports release failures", async () => {
+    const { publisher, workerUtils, utils } = fixture();
+    vi.mocked(makeWorkerUtils).mockResolvedValue(workerUtils);
+    await publisher.cancel("key");
+    utils.release.mockRejectedValueOnce(new Error("release failed"));
+    await expect(publisher.close()).rejects.toThrow("release failed");
+    await publisher.close();
+    expect(utils.release).toHaveBeenCalledOnce();
+  });
+
+  it("does not reinitialize or replay a failed job mutation", async () => {
+    const { publisher, workerUtils, utils } = fixture();
+    vi.mocked(makeWorkerUtils).mockResolvedValue(workerUtils);
+    utils.addJob.mockRejectedValueOnce(new Error("ambiguous write"));
+    await expect(publisher.enqueue(messagingDeliverJob("run-1"))).rejects.toThrow(
+      "ambiguous write",
+    );
+    expect(utils.addJob).toHaveBeenCalledOnce();
+    await publisher.enqueue(messagingDeliverJob("run-2"));
+    expect(makeWorkerUtils).toHaveBeenCalledOnce();
+    expect(utils.addJob).toHaveBeenCalledTimes(2);
     await publisher.close();
   });
 });

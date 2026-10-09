@@ -10,6 +10,9 @@ import { createServer, type Plugin, preview, type ViteDevServer } from "vite";
 import { addScreenProxyCapability } from "../../api/src/screen-proxy";
 
 const scope = {
+  sessionId: "session",
+  userId: "user",
+  spaceId: "space",
   botId: "bot",
   computerId: "computer",
   botGeneration: 0,

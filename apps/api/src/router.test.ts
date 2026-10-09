@@ -1401,7 +1401,11 @@ describe("computer screen url", () => {
     controlRunId: null,
   };
 
-  const callScreenUrl = async (connectScreen: () => Promise<unknown>, updateMany = vi.fn()) => {
+  const callScreenUrl = async (
+    connectScreen: () => Promise<unknown>,
+    updateMany = vi.fn(),
+    sessionId: string | null = "session-1",
+  ) => {
     const prisma = {
       bot: {
         findFirst: vi.fn().mockResolvedValue({
@@ -1434,10 +1438,17 @@ describe("computer screen url", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ json: { botId: "bot-1" } }),
       }),
-      { prefix: "/rpc", context: { actor } },
+      { prefix: "/rpc", context: { actor, sessionId: sessionId ?? undefined } },
     );
     return { response, updateMany };
   };
+
+  it("requires an issuing session before connecting a screen", async () => {
+    const connectScreen = vi.fn();
+    const { response } = await callScreenUrl(connectScreen, vi.fn(), null);
+    expect(response.status).toBe(401);
+    expect(connectScreen).not.toHaveBeenCalled();
+  });
 
   it("issues lifecycle-bound capabilities for managed-provider screens too", async () => {
     const { response } = await callScreenUrl(async () => ({
@@ -1449,6 +1460,9 @@ describe("computer screen url", () => {
     expect(url.origin).toBe("http://127.0.0.1:5173");
     expect(openScreenCapability(url.pathname, "fake-test-secret")).toMatchObject({
       scope: {
+        sessionId: "session-1",
+        userId: actor.userId,
+        spaceId: actor.spaceId,
         botId: "bot-1",
         computerId: "computer-1",
         botGeneration: 2,
@@ -1522,7 +1536,7 @@ describe("computer terminal and file transfer", () => {
     controlBotId: "bot-1",
   };
 
-  function setup(computer: Record<string, unknown> = {}) {
+  function setup(computer: Record<string, unknown> = {}, sessionId: string | null = "session-1") {
     const sandbox = {
       connectTerminal: vi.fn().mockResolvedValue({
         url: "https://screen.example/vnc.html?path=websockify%3Ftoken%3Dterminal-1",
@@ -1575,12 +1589,18 @@ describe("computer terminal and file transfer", () => {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ json: { botId: "bot-1", ...json } }),
         }),
-        { prefix: "/rpc", context: { actor } },
+        { prefix: "/rpc", context: { actor, sessionId: sessionId ?? undefined } },
       );
       return { status: response.status, body: await response.json() };
     };
     return { sandbox, prisma, call };
   }
+
+  it("requires an issuing session before connecting a terminal", async () => {
+    const { sandbox, call } = setup(controlled, null);
+    expect((await call("terminalUrl", {})).status).toBe(401);
+    expect(sandbox.connectTerminal).not.toHaveBeenCalled();
+  });
 
   it("opens a terminal only for the user holding this bot's control lease", async () => {
     const released = setup();
@@ -1598,7 +1618,13 @@ describe("computer terminal and file transfer", () => {
     const url = new URL(body.json.url);
     expect(url.origin).toBe("http://127.0.0.1:5173");
     expect(openScreenCapability(url.pathname, "fake-test-secret")).toMatchObject({
-      scope: { botId: "bot-1", controlLeaseId: "lease-1" },
+      scope: {
+        sessionId: "session-1",
+        userId: actor.userId,
+        spaceId: actor.spaceId,
+        botId: "bot-1",
+        controlLeaseId: "lease-1",
+      },
       target: { hostname: "screen.example", interactive: true },
     });
   });

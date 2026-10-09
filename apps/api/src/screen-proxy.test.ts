@@ -9,6 +9,9 @@ import { addScreenProxyCapability, mountScreenTarget } from "./screen-proxy.js";
 
 const secret = "fake-screen-secret";
 const scope = {
+  sessionId: "session",
+  userId: "user",
+  spaceId: "space",
   botId: "bot",
   computerId: "computer",
   botGeneration: 0,
@@ -30,6 +33,8 @@ function fixture(
   };
   const bot = {
     id: "bot",
+    userId: "user",
+    spaceId: "space",
     computerId: "computer",
     archivedAt: null as Date | null,
     screenGeneration: 0,
@@ -40,8 +45,39 @@ function fixture(
       ? bot
       : null,
   );
+  const session = {
+    id: "session",
+    userId: "user",
+    expiresAt: new Date(Date.now() + 60_000),
+    deleted: false,
+  };
+  const membership = { userId: "user", spaceId: "space", deleted: false };
+  const findSession = vi.fn(async ({ where }) =>
+    !session.deleted &&
+    session.id === where.id &&
+    session.userId === where.userId &&
+    session.expiresAt > where.expiresAt.gt
+      ? session
+      : null,
+  );
+  const findMembership = vi.fn(async ({ where }) =>
+    !membership.deleted &&
+    membership.userId === where.userId &&
+    membership.spaceId === where.spaceId
+      ? membership
+      : null,
+  );
   const app = new Hono();
-  mountScreenTarget(app, { bot: { findFirst } } as unknown as PrismaClient, secret);
+  app.onError(() => new Response(null, { status: 500 }));
+  mountScreenTarget(
+    app,
+    {
+      bot: { findFirst },
+      session: { findFirst: findSession },
+      spaceMember: { findFirst: findMembership },
+    } as unknown as PrismaClient,
+    secret,
+  );
   const url = addScreenProxyCapability(upstream, secret, "https://app.example", scope);
   const path = new URL(url).pathname;
   const request = (value = path, credential = secret) =>
@@ -50,7 +86,17 @@ function fixture(
       headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
       body: JSON.stringify({ path: value }),
     });
-  return { bot, computer, findFirst, path, request };
+  return {
+    bot,
+    computer,
+    findFirst,
+    session,
+    membership,
+    findSession,
+    findMembership,
+    path,
+    request,
+  };
 }
 
 describe("screen capability lifecycle authorization", () => {
@@ -60,6 +106,55 @@ describe("screen capability lifecycle authorization", () => {
     expect((await request(path.replace("/embed.html", "/websockify"))).status).toBe(200);
     expect((await request()).headers.get("cache-control")).toBe("no-store");
   });
+  it.each([false, true])(
+    "requires current session, membership, and bot ownership (interactive=%s)",
+    async (interactive) => {
+      for (const change of [
+        "deleted session",
+        "expired session",
+        "wrong session",
+        "wrong user",
+        "removed membership",
+        "wrong member",
+        "wrong space",
+        "wrong owner",
+        "wrong bot space",
+      ]) {
+        const { request, session, membership, bot } = fixture(interactive);
+        expect((await request()).status).toBe(200);
+        if (change === "deleted session") session.deleted = true;
+        if (change === "expired session") session.expiresAt = new Date(0);
+        if (change === "wrong session") session.id = "other";
+        if (change === "wrong user") session.userId = "other";
+        if (change === "removed membership") membership.deleted = true;
+        if (change === "wrong member") membership.userId = "other";
+        if (change === "wrong space") membership.spaceId = "other";
+        if (change === "wrong owner") bot.userId = "other";
+        if (change === "wrong bot space") bot.spaceId = "other";
+        const response = await request();
+        expect(response.status, change).toBe(403);
+        expect(await response.text()).toBe("");
+      }
+    },
+  );
+
+  it.each(["session", "membership", "bot"])(
+    "fails closed on a %s database error",
+    async (boundary) => {
+      const { request, findSession, findMembership, findFirst } = fixture();
+      const query =
+        boundary === "session"
+          ? findSession
+          : boundary === "membership"
+            ? findMembership
+            : findFirst;
+      query.mockRejectedValueOnce(new Error("database unavailable"));
+      const response = await request();
+      expect(response.status).toBe(500);
+      expect(await response.text()).toBe("");
+    },
+  );
+
   it("requires the proxy credential before looking up a capability", async () => {
     const { request, findFirst, path } = fixture();
     expect((await request(path, "wrong")).status).toBe(403);
