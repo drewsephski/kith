@@ -3446,6 +3446,7 @@ const MessageBubble = memo(function MessageBubble({
         />
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
+            threadId={message.threadId}
             key={`${block.provider}-${index}`}
             botId={cardBotId}
             block={block}
@@ -3718,6 +3719,7 @@ const MessageBubble = memo(function MessageBubble({
       <View style={{ gap: 8, width: "100%" }}>
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
+            threadId={message.threadId}
             key={`${block.provider}-${index}`}
             botId={cardBotId}
             block={block}
@@ -3811,6 +3813,7 @@ const MessageBubble = memo(function MessageBubble({
         </View>
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
+            threadId={message.threadId}
             key={`${block.provider}-${index}`}
             botId={cardBotId}
             block={block}
@@ -3977,6 +3980,7 @@ const MessageBubble = memo(function MessageBubble({
         )}
         {appConnectBlocks.map((block, index) => (
           <AppConnectCard
+            threadId={message.threadId}
             key={`${block.provider}-${index}`}
             botId={cardBotId}
             block={block}
@@ -4051,6 +4055,7 @@ const MessageBubble = memo(function MessageBubble({
       ))}
       {appConnectBlocks.map((block, index) => (
         <AppConnectCard
+          threadId={message.threadId}
           key={`${block.provider}-${index}`}
           botId={cardBotId}
           block={block}

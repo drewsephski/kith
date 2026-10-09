@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageBlock } from "@rakazo/contracts";
-import { abortableDelay } from "@rakazo/core";
 import {
   Button,
   ConnectorIcon,
@@ -12,6 +11,8 @@ import {
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BuiCard, SuccessPop } from "../../components/ai/primitives";
+import type { AppAuthorization } from "../../lib/app-connect";
+import { checkAppAccount, connectAppAccount } from "../../lib/app-connect";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { chartViewport } from "../../lib/chart-viewport";
 import { connectMcpOauth } from "../../lib/mcp-connect";
@@ -151,54 +152,63 @@ function OnboardingFocusOptionLabel({
 
 export function AppConnectCard({
   botId,
+  threadId,
   block,
 }: {
   botId: string;
+  threadId?: string;
   block: Extract<MessageBlock, { kind: "app_connect" }>;
 }) {
   const { t } = useLingui();
   const [busy, setBusy] = useState(false);
   const [localStatus, setLocalStatus] = useState<"pending" | "connected">(block.status);
+  const [authorization, setAuthorization] = useState<AppAuthorization | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connectionAttempt = useRef<AbortController | null>(null);
   const status = block.status === "connected" ? "connected" : localStatus;
   useEffect(() => () => connectionAttempt.current?.abort(), []);
 
-  async function authorize() {
+  async function connect() {
+    if (busy || status === "connected") return;
     connectionAttempt.current?.abort();
     const controller = new AbortController();
     connectionAttempt.current = controller;
     setBusy(true);
     setError(null);
     try {
-      const started = await rpc.connections.begin({
-        connectorId: block.connectorId,
+      const row = authorization
+        ? await checkAppAccount(authorization, controller.signal)
+        : await connectAppAccount(
+            {
+              connectorId: block.connectorId ?? "composio",
+              slug: block.provider,
+              name: block.name,
+            },
+            {
+              signal: controller.signal,
+              onAuthorization: (next) => {
+                if (!controller.signal.aborted) setAuthorization(next);
+              },
+            },
+          );
+      controller.signal.throwIfAborted();
+      if (row.status !== "connected") {
+        if (row.status !== "pending") setAuthorization(null);
+        setError(t`Connection is still pending. Finish connecting and check again.`);
+        return;
+      }
+      // Persist before displaying success so a remount keeps the verified state.
+      await rpc.onboarding.appConnected({
+        botId,
+        threadId,
         provider: block.provider,
-        displayName: block.name,
+        connectorId: block.connectorId ?? "composio",
       });
-      if (started.authorizationUrl) {
-        window.open(started.authorizationUrl, "rakazo-app-connect", "popup,width=560,height=720");
-      }
-      for (let i = 0; i < 60; i += 1) {
-        if (controller.signal.aborted) return;
-        const row = await rpc.connections
-          .complete({ connectionId: started.connectionId })
-          .catch(() => undefined);
-        if (row?.status === "connected") {
-          if (controller.signal.aborted) return;
-          setLocalStatus("connected");
-          await rpc.onboarding
-            .appConnected({ botId, provider: block.provider, connectorId: block.connectorId })
-            .catch(() => undefined);
-          return;
-        }
-        await abortableDelay(2_000, controller.signal);
-      }
-      if (!controller.signal.aborted) setError(t`Authorization timed out. Please try again.`);
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setError(errorText(error, t`Could not authorize this app`));
-      }
+      controller.signal.throwIfAborted();
+      setLocalStatus("connected");
+      setAuthorization(null);
+    } catch (cause) {
+      if (!controller.signal.aborted) setError(errorText(cause, t`Could not connect this app`));
     } finally {
       if (connectionAttempt.current === controller) {
         connectionAttempt.current = null;
@@ -210,30 +220,54 @@ export function AppConnectCard({
     <BuiCard
       role="group"
       aria-label={t`${block.name} connection`}
-      className="w-[min(420px,80%)] px-4 py-3.5"
+      data-testid="app-connect-card"
+      className="w-full max-w-[380px] px-4 py-3 shadow-none"
     >
-      <div className="flex items-center gap-3.5">
-        <ConnectorIcon name={block.name} brand={block.provider} logo={block.logo} size={40} />
+      <div className="flex items-center gap-3">
+        <ConnectorIcon name={block.name} brand={block.provider} logo={block.logo} size={36} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-foreground">{block.name}</span>
-          <span className="block truncate text-[13px] text-muted-foreground">
-            {block.description}
+          <span className="block text-sm font-medium text-foreground" dir="auto">
+            {block.name}
           </span>
+          {block.description ? (
+            <span className="block text-xs text-muted-foreground" dir="auto">
+              {block.description}
+            </span>
+          ) : null}
         </span>
         {status === "connected" ? (
-          <SuccessPop label={t`Connected`} />
+          <span role="status">
+            <SuccessPop label={t`Connected`} />
+          </span>
         ) : (
           <Button
             variant="secondary"
-            className="rounded-full hover:border-border hover:bg-accent hover:text-foreground"
+            className="shrink-0 hover:border-border hover:bg-accent hover:text-foreground"
+            aria-label={
+              authorization ? t`Check ${block.name} connection` : t`Connect ${block.name}`
+            }
             disabled={busy}
-            onClick={() => void authorize()}
+            onClick={() => void connect()}
           >
-            {busy ? t`Waiting…` : t`Authorize`}
+            {busy ? t`Connecting…` : authorization ? t`Check connection` : t`Connect`}
           </Button>
         )}
       </div>
-      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+      {authorization && status !== "connected" ? (
+        <a
+          href={authorization.authorizationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 block text-xs text-link underline underline-offset-4"
+        >
+          <Trans>Continue connecting</Trans>
+        </a>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
     </BuiCard>
   );
 }

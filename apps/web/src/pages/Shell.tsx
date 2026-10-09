@@ -5615,11 +5615,14 @@ export const Transcript = memo(function Transcript({
                     className={
                       peerReceipt
                         ? undefined
-                        : `relative w-fit min-w-0 ${
-                            message.role === "user"
-                              ? "max-w-[min(80%,calc(100%_-_6rem))] [@media(hover:none)]:max-w-[88%]"
-                              : "max-w-[calc(100%_-_6rem)] [@media(hover:none)]:max-w-full"
-                          }`
+                        : message.role === "bot" &&
+                            message.blocks.some((block) => block.kind === "app_connect")
+                          ? "relative w-full min-w-0 max-w-[380px]"
+                          : `relative w-fit min-w-0 ${
+                              message.role === "user"
+                                ? "max-w-[min(80%,calc(100%_-_6rem))] [@media(hover:none)]:max-w-[88%]"
+                                : "max-w-[calc(100%_-_6rem)] [@media(hover:none)]:max-w-full"
+                            }`
                     }
                   >
                     <MessageView
@@ -7446,7 +7449,7 @@ const MessageView = memo(function MessageView({
           if (!botId) return null;
           return (
             <div key={i} className="flex justify-start py-1">
-              <AppConnectCard botId={botId} block={block} />
+              <AppConnectCard botId={botId} threadId={message.threadId} block={block} />
             </div>
           );
         }

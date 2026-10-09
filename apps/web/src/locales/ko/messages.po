@@ -683,10 +683,6 @@ msgid "Authorization is still pending. Check the connection and try again."
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
-msgid "Authorization timed out. Please try again."
-msgstr "인증 시간이 만료되었습니다. 다시 시도해 주세요."
-
-#: src/pages/shell/message-cards.tsx
 msgid "Authorize"
 msgstr "인증하기"
 
@@ -945,6 +941,11 @@ msgstr "채팅 앱, 그룹 채널 및 Agent 연결을 관리합니다."
 msgid "Chat Settings"
 msgstr "채팅 설정"
 
+#. placeholder {0}: block.name
+#: src/pages/shell/message-cards.tsx
+msgid "Check {0} connection"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -952,6 +953,7 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Check connection"
 msgstr ""
 
@@ -1255,14 +1257,17 @@ msgstr "이 브라우저 세션에서 URL에 연결할 수 있는지 확인한 �
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "연결"
 
 #. placeholder {0}: appNames[app]
+#. placeholder {0}: block.name
 #. placeholder {0}: item.name
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Connect {0}"
 msgstr ""
 
@@ -1358,6 +1363,10 @@ msgstr "연결 중…"
 msgid "Connection details"
 msgstr ""
 
+#: src/pages/shell/message-cards.tsx
+msgid "Connection is still pending. Finish connecting and check again."
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Connection is unfinished. Try again when you are ready."
 msgstr ""
@@ -1394,6 +1403,10 @@ msgstr "컨텍스트 한도"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "계속"
+
+#: src/pages/shell/message-cards.tsx
+msgid "Continue connecting"
+msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Continue in Background"
@@ -1465,10 +1478,6 @@ msgstr "서버를 승인하지 못했습니다."
 msgid "Could not archive conversation"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Could not authorize this app"
-msgstr "앱 인증을 완료하지 못했습니다."
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not change password"
 msgstr "비밀번호를 변경할 수 없습니다"
@@ -1522,6 +1531,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Could not connect account"
+msgstr ""
+
+#: src/pages/shell/message-cards.tsx
+msgid "Could not connect this app"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5518,10 +5531,6 @@ msgstr "API가 다시 작동하기를 기다리는 중…"
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "줄에서 기다리는 중…"
-
-#: src/pages/shell/message-cards.tsx
-msgid "Waiting…"
-msgstr "기다리는 중…"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"

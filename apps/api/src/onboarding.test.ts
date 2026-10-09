@@ -69,10 +69,49 @@ it("marks only the authorized connector when provider slugs collide", async () =
     name: "Slack",
     status: "pending",
   }));
+  deps.prisma.connection = { findMany: vi.fn(async () => [{ provider: "slack" }]) } as never;
   deps.prisma.message = { findMany: vi.fn(async () => [{ id: "cards", blocks }]) } as never;
   await markAppConnected(deps, actor, "bot", "slack", "pipedream");
   expect(tx.message.update).toHaveBeenCalledWith({
     where: { id: "cards" },
     data: { blocks: [blocks[0], { ...blocks[1], status: "connected" }] },
+  });
+});
+
+it("rejects an unverified connection without changing card state", async () => {
+  const { deps, actor, tx } = fixture([]);
+  deps.prisma.connection = { findMany: vi.fn(async () => []) } as never;
+  deps.connectors.managed = vi.fn(() => undefined);
+  await expect(markAppConnected(deps, actor, "bot", "slack", "example")).rejects.toThrow();
+  expect(tx.message.update).not.toHaveBeenCalled();
+  expect(deps.prisma.connection.findMany).toHaveBeenCalledWith({
+    where: { spaceId: "space", userId: "user", connectorId: "example", status: "connected" },
+    select: { provider: true },
+  });
+});
+
+it("rejects a thread outside the actor's owned group membership", async () => {
+  const { deps, actor, tx } = fixture([]);
+  deps.prisma.thread = { findFirst: vi.fn(async () => null) } as never;
+  await expect(
+    markAppConnected(deps, actor, "bot", "slack", "example", "other-thread"),
+  ).rejects.toThrow();
+  expect(tx.message.update).not.toHaveBeenCalled();
+});
+
+it("updates cards in the authorized group thread instead of the bot's main thread", async () => {
+  const { deps, actor } = fixture([]);
+  deps.prisma.thread = { findFirst: vi.fn(async () => ({ id: "group-thread" })) } as never;
+  deps.prisma.connection = { findMany: vi.fn(async () => [{ provider: "slack" }]) } as never;
+  deps.prisma.message = { findMany: vi.fn(async () => []) } as never;
+  await markAppConnected(deps, actor, "bot", "slack", "example", "group-thread");
+  expect(deps.prisma.message.findMany).toHaveBeenCalledWith({
+    where: {
+      threadId: "group-thread",
+      botId: "bot",
+      blocks: { array_contains: [{ kind: "app_connect" }] },
+    },
+    select: { id: true, blocks: true },
+    orderBy: { createdAt: "asc" },
   });
 });

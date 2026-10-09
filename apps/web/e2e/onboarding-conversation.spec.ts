@@ -55,7 +55,7 @@ test("focus choice suggests apps and preserves a completed connection", async ({
     .scrollIntoViewIfNeeded();
   await page.mouse.move(1, 1);
   await captureScreenshot(page, testInfo, "02-app-suggestions");
-  const authorizeButton = slackCard(page).getByRole("button", { name: "Authorize" });
+  const authorizeButton = slackCard(page).getByRole("button", { name: "Connect Slack" });
   const restingBackground = await authorizeButton.evaluate(
     (button) => getComputedStyle(button).backgroundColor,
   );

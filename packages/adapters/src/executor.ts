@@ -133,6 +133,7 @@ import {
   formatAgentEnvironmentInstruction,
   redactShellStreams,
 } from "./agent-environment.js";
+import { appConnectionFromTool } from "./app-connection-tool.js";
 import { buildApprovalAskBlock } from "./approval-ask.js";
 import {
   approvalPausedToolResult,
@@ -388,6 +389,7 @@ const READ_ONLY_AGENT_TOOLS = new Set([
   "request_takeover",
   "run_subagent",
   "task_catalog",
+  "request_app_connection",
   "recall_memory",
   "schedule_list",
   "scratchpad_list",
@@ -2637,7 +2639,10 @@ export interface ExecutorDeps {
   home: AgentHomeStore;
   artifacts?: ArtifactStore;
   connector?: ConnectorProvider;
-  connectors?: { managed(id: string): ManagedConnectorProvider | undefined };
+  connectors?: {
+    managed(id: string): ManagedConnectorProvider | undefined;
+    managedProviders?(): ManagedConnectorProvider[];
+  };
   secrets: string[];
   secretStore: SecretStore;
   deploymentModelKey?: string;
@@ -5274,6 +5279,29 @@ export function createRunExecutor(deps: ExecutorDeps) {
               ),
             );
           }
+          if (name === "request_app_connection") {
+            const result = await appConnectionFromTool(deps.connectors, context, args);
+            if (!("block" in result)) return finish(result);
+            await publishMidTurnNarration();
+            const block = result.block;
+            // A tool retry or repeated request in this turn keeps one durable card.
+            const clientNonce = `app-connect:${JSON.stringify([run.id, block.connectorId, block.provider])}`;
+            const committed = await deps.prisma.$transaction(async (tx) => {
+              await tx.$executeRaw`SELECT id FROM threads WHERE id = ${run.threadId} FOR UPDATE`;
+              const existing = await tx.message.findFirst({
+                where: { threadId: run.threadId, clientNonce },
+              });
+              if (existing) return undefined;
+              return persistMessageInTransaction(tx, run, "bot", [block], undefined, clientNonce);
+            });
+            if (committed) await deps.events.notify(run.threadId, committed.eventSeq);
+            return finish({
+              status: "pending",
+              app: block.name,
+              next_step:
+                "A Connect card is in the conversation. Wait for the user to connect; do not claim access or start authorization yourself.",
+            });
+          }
           if (name === "task_catalog") {
             return taskCatalogFromTool(deps, {
               spaceId: run.spaceId,
@@ -7455,6 +7483,7 @@ export function selectBuiltinToolsForRun(options: {
           "recall_memory",
           "forget_memory",
           "task_catalog",
+          "request_app_connection",
         ].includes(tool.name) &&
           !tool.name.startsWith("scratchpad_"))),
   );
@@ -7788,6 +7817,11 @@ export function userTurnInstructions(parts: {
     parts.pluginLine,
     parts.agentSkillsLine,
     parts.taughtSkillsLine,
+    offeredBuiltinClause(
+      parts.disabledBuiltinTools,
+      "request_app_connection",
+      "When the user's intent needs an unconnected app, call request_app_connection with its name (for example Google Calendar for a personal schedule, Gmail for email, or Slack for messages). Offer only the app needed for this task. The tool verifies availability and posts an inline Connect card; do not send the user to settings or invent authorization links. If it is already connected, use its available tools. If unavailable, explain the limitation briefly. Keep prose around the card short and never claim access before authorization.",
+    ),
     offeredBuiltinClause(
       parts.disabledBuiltinTools,
       "render_plot",

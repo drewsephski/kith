@@ -1,23 +1,26 @@
-import type { MessageBlock } from "@rakazo/contracts";
-import { abortableDelay } from "@rakazo/core";
+import type { Connection, MessageBlock } from "@rakazo/contracts";
+import { waitForAppConnection } from "@rakazo/core";
 import { useEffect, useRef, useState } from "react";
 import type { ViewProps } from "react-native";
 import { Linking, Text, View } from "react-native";
 import { rpc } from "../lib/api";
 import { appConnectPresentation } from "../lib/app-connect";
 import { useI18n } from "../lib/i18n";
-import { native, useMobileTokens } from "../lib/native";
+import { useMobileTokens } from "../lib/native";
 import { useThreadReadOnly } from "../lib/thread-read-only";
 import { errorText } from "../lib/user-error";
+import { ConnectorIcon } from "./connector-icon";
 import { NativeActionButton } from "./native-action-button";
 
 export function AppConnectCard({
   botId,
+  threadId,
   block,
   accessibilityActions,
   onAccessibilityAction,
 }: {
   botId: string;
+  threadId?: string;
   block: Extract<MessageBlock, { kind: "app_connect" }>;
   accessibilityActions?: ViewProps["accessibilityActions"];
   onAccessibilityAction?: ViewProps["onAccessibilityAction"];
@@ -28,55 +31,75 @@ export function AppConnectCard({
   const [busy, setBusy] = useState(false);
   const [localStatus, setLocalStatus] = useState<"pending" | "connected">(block.status);
   const [error, setError] = useState<string | null>(null);
+  const [authorization, setAuthorization] = useState<{
+    connectionId: string;
+    authorizationUrl: string | null;
+  } | null>(null);
   const connectionAttempt = useRef<AbortController | null>(null);
   const status = block.status === "connected" ? "connected" : localStatus;
   const view = appConnectPresentation({ ...block, status }, busy);
 
   useEffect(() => () => connectionAttempt.current?.abort(), []);
 
-  async function authorize() {
-    if (readOnly) return;
+  async function connect() {
+    if (readOnly || busy || status === "connected") return;
     connectionAttempt.current?.abort();
     const controller = new AbortController();
     connectionAttempt.current = controller;
     setBusy(true);
     setError(null);
     try {
-      const started = await rpc<{ connectionId: string; authorizationUrl: string | null }>(
-        "connections/begin",
+      const started =
+        authorization ??
+        (await rpc<{ connectionId: string; authorizationUrl: string | null }>(
+          "connections/begin",
+          {
+            connectorId: block.connectorId ?? "composio",
+            provider: block.provider,
+            displayName: block.name,
+          },
+          { signal: controller.signal },
+        ));
+      controller.signal.throwIfAborted();
+      if (started.authorizationUrl) {
+        const url = new URL(started.authorizationUrl);
+        if (url.protocol !== "https:" || url.username || url.password)
+          throw new Error("Account authorization requires a secure URL");
+      }
+      setAuthorization(started);
+      if (started.authorizationUrl && !authorization)
+        await Linking.openURL(started.authorizationUrl);
+      const row = await waitForAppConnection(
+        () =>
+          rpc<Connection>(
+            "connections/complete",
+            { connectionId: started.connectionId },
+            { signal: controller.signal },
+          ),
+        { signal: controller.signal },
+      );
+      controller.signal.throwIfAborted();
+      if (row.status !== "connected") {
+        if (row.status !== "pending") setAuthorization(null);
+        setError(t("Connection is still pending. Finish connecting and check again."));
+        return;
+      }
+      await rpc(
+        "onboarding/appConnected",
         {
-          connectorId: block.connectorId,
+          botId,
+          threadId,
           provider: block.provider,
-          displayName: block.name,
+          connectorId: block.connectorId ?? "composio",
         },
         { signal: controller.signal },
       );
-      if (controller.signal.aborted) return;
-      if (started.authorizationUrl) await Linking.openURL(started.authorizationUrl);
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        if (controller.signal.aborted) return;
-        const row = await rpc<{ status: string }>(
-          "connections/complete",
-          { connectionId: started.connectionId },
-          { signal: controller.signal },
-        ).catch(() => undefined);
-        if (row?.status === "connected") {
-          if (controller.signal.aborted) return;
-          await rpc("onboarding/appConnected", {
-            botId,
-            provider: block.provider,
-            connectorId: block.connectorId,
-          });
-          if (controller.signal.aborted) return;
-          setLocalStatus("connected");
-          return;
-        }
-        await abortableDelay(2_000, controller.signal);
-      }
-      if (!controller.signal.aborted) setError(t("Authorization timed out. Please try again."));
+      controller.signal.throwIfAborted();
+      setLocalStatus("connected");
+      setAuthorization(null);
     } catch (reason) {
       if (!controller.signal.aborted) {
-        setError(errorText(reason, t("Could not authorize this app")));
+        setError(errorText(reason, t("Could not connect this app")));
       }
     } finally {
       if (connectionAttempt.current === controller) {
@@ -90,30 +113,18 @@ export function AppConnectCard({
     <View
       accessibilityLabel={t("{name} connection", { name: block.name })}
       style={{
-        width: "90%",
-        borderRadius: 18,
-        backgroundColor: native.fill,
+        width: "100%",
+        maxWidth: 380,
+        borderRadius: 16,
+        backgroundColor: tokens.card,
         paddingHorizontal: 16,
-        paddingVertical: 14,
+        paddingVertical: 12,
         gap: 8,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            backgroundColor: native.fillPressed,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-            {block.name.slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
+        <ConnectorIcon name={block.name} brand={block.provider} logo={block.logo} size={36} />
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Text
             accessibilityActions={accessibilityActions}
             onAccessibilityAction={onAccessibilityAction}
@@ -121,18 +132,24 @@ export function AppConnectCard({
           >
             {view.title}
           </Text>
-          <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }} numberOfLines={2}>
-            {view.description}
-          </Text>
+          {view.description ? (
+            <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }} numberOfLines={2}>
+              {view.description}
+            </Text>
+          ) : null}
         </View>
         {view.showAuthorize && !readOnly ? (
           <NativeActionButton
-            label={view.actionLabel}
-            accessibilityLabel={t("Authorize {name}", { name: block.name })}
+            label={authorization && !busy ? t("Check connection") : view.actionLabel}
+            accessibilityLabel={
+              authorization
+                ? t("Check {name} connection", { name: block.name })
+                : t("Connect {name}", { name: block.name })
+            }
             fill={false}
             busy={busy}
             style={{ alignSelf: "center" }}
-            onPress={() => void authorize()}
+            onPress={() => void connect()}
           />
         ) : !view.showAuthorize ? (
           <Text style={{ color: tokens.success, fontSize: 13.5, fontWeight: "600" }}>
@@ -140,6 +157,18 @@ export function AppConnectCard({
           </Text>
         ) : null}
       </View>
+      {authorization?.authorizationUrl && status !== "connected" && !readOnly ? (
+        <NativeActionButton
+          label={t("Continue connecting")}
+          fill={false}
+          onPress={() => {
+            if (authorization.authorizationUrl)
+              void Linking.openURL(authorization.authorizationUrl).catch((cause) =>
+                setError(errorText(cause, t("Could not open authorization"))),
+              );
+          }}
+        />
+      ) : null}
       {error ? <Text style={{ color: tokens.destructive, fontSize: 13 }}>{error}</Text> : null}
     </View>
   );

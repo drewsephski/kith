@@ -447,6 +447,19 @@ export const builtinAgentTools: ConnectorTool[] = [
     },
   },
   {
+    name: "request_app_connection",
+    description:
+      "Show an inline Connect card when the user's task needs an unconnected app, such as Google Calendar for their schedule. Pass an app name or catalog slug. Checks configured catalogs and returns connected/unavailable instead of unnecessary or unsupported cards. Does not authorize; the user connects from the card.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        app: { type: "string", description: 'App name or slug, e.g. "Google Calendar".' },
+        connectorId: { type: "string", description: "Optional configured catalog provider ID." },
+      },
+      required: ["app"],
+    },
+  },
+  {
     name: "add_mcp_server",
     description:
       "Connect an MCP tool server to this Space when the user asks you to add one and provides the details (URL or command, optional token/headers/env). The server is created immediately and assigned to you. If it needs browser OAuth authorization, an approval card appears in the chat for the user to complete — tell them to click Authorize. Do not invent endpoints; only use details the user provided.",

@@ -4451,6 +4451,7 @@ export function createRouter(deps: RouterDeps) {
           input.botId,
           input.provider,
           input.connectorId,
+          input.threadId,
         );
         return { ok: true as const };
       }),

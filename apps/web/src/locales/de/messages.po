@@ -683,10 +683,6 @@ msgid "Authorization is still pending. Check the connection and try again."
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
-msgid "Authorization timed out. Please try again."
-msgstr "Zeitüberschreitung bei der Autorisierung. Versuche es erneut."
-
-#: src/pages/shell/message-cards.tsx
 msgid "Authorize"
 msgstr "Autorisieren"
 
@@ -945,6 +941,11 @@ msgstr ""
 msgid "Chat Settings"
 msgstr "Chat-Einstellungen"
 
+#. placeholder {0}: block.name
+#: src/pages/shell/message-cards.tsx
+msgid "Check {0} connection"
+msgstr ""
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -952,6 +953,7 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Check connection"
 msgstr ""
 
@@ -1255,14 +1257,17 @@ msgstr "Prüfe, ob die URL aus dieser Browsersitzung erreichbar ist, und teste e
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "Verbinden"
 
 #. placeholder {0}: appNames[app]
+#. placeholder {0}: block.name
 #. placeholder {0}: item.name
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Connect {0}"
 msgstr ""
 
@@ -1358,6 +1363,10 @@ msgstr "Verbindung wird hergestellt…"
 msgid "Connection details"
 msgstr ""
 
+#: src/pages/shell/message-cards.tsx
+msgid "Connection is still pending. Finish connecting and check again."
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Connection is unfinished. Try again when you are ready."
 msgstr ""
@@ -1394,6 +1403,10 @@ msgstr "Kontextlimit"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "Weiter"
+
+#: src/pages/shell/message-cards.tsx
+msgid "Continue connecting"
+msgstr ""
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Continue in Background"
@@ -1465,10 +1478,6 @@ msgstr "Server konnte nicht genehmigt werden"
 msgid "Could not archive conversation"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Could not authorize this app"
-msgstr "App konnte nicht autorisiert werden"
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not change password"
 msgstr "Passwort konnte nicht geändert werden"
@@ -1522,6 +1531,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Could not connect account"
+msgstr ""
+
+#: src/pages/shell/message-cards.tsx
+msgid "Could not connect this app"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5518,10 +5531,6 @@ msgstr ""
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "Wartet in der Warteschlange…"
-
-#: src/pages/shell/message-cards.tsx
-msgid "Waiting…"
-msgstr "Warten…"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"

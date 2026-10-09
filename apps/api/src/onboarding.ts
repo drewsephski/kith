@@ -78,6 +78,7 @@ async function post(
     const message = await createThreadMessageInTransaction(tx, {
       threadId: target.threadId,
       role: "bot",
+      botId: target.botId,
       blocks,
     });
     const event = await appendEventInTransaction(tx, {
@@ -308,14 +309,54 @@ export async function markAppConnected(
   botId: string,
   provider: string,
   connectorId = "composio",
+  threadId?: string,
 ): Promise<void> {
   const { bot, thread } = await requireBotThread(deps, actor, botId);
-  const target = { spaceId: actor.spaceId, botId: bot.id, threadId: thread.id };
+  const cardThreadId = threadId ?? thread.id;
+  if (cardThreadId !== thread.id) {
+    const owned = await deps.prisma.thread.findFirst({
+      where: {
+        id: cardThreadId,
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        group: { members: { some: { botId: bot.id } } },
+      },
+      select: { id: true },
+    });
+    if (!owned) throw new IsolationError();
+  }
+  const connections = await deps.prisma.connection.findMany({
+    where: { spaceId: actor.spaceId, userId: actor.userId, connectorId, status: "connected" },
+    select: { provider: true },
+  });
+  if (!connections.some((row) => featuredConnectorProvidersMatch(row.provider, provider))) {
+    const adapter = deps.connectors.managed(connectorId);
+    const catalog = await adapter?.catalog({
+      operationId: "onboarding.appConnected",
+      traceId: "onboarding.appConnected",
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      botId,
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (
+      !catalog?.some(
+        (item) => item.connected && featuredConnectorProvidersMatch(item.slug, provider),
+      )
+    )
+      throw new IsolationError();
+  }
+  const target = { spaceId: actor.spaceId, botId: bot.id, threadId: cardThreadId };
   const messages = await deps.prisma.message.findMany({
-    where: { threadId: thread.id },
+    where: {
+      threadId: cardThreadId,
+      // Older onboarding messages predate persisted speaker IDs. Only the
+      // owned bot's main thread can contain its legacy unattributed cards.
+      ...(cardThreadId === thread.id ? { OR: [{ botId }, { botId: null }] } : { botId }),
+      blocks: { array_contains: [{ kind: "app_connect" }] },
+    },
     select: { id: true, blocks: true },
     orderBy: { createdAt: "asc" },
-    take: 100,
   });
   for (const message of messages) {
     const blocks = message.blocks as MessageBlock[];

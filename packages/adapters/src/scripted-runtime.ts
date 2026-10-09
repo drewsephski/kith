@@ -253,6 +253,18 @@ export function inferScript(
       },
     ];
   }
+  if (lower.includes("calendar connection card")) {
+    return [
+      {
+        assistant: "Connect Google Calendar and I can check your schedule.",
+        toolCalls: [
+          { name: "request_app_connection", args: { app: "Google Calendar" } },
+          // An identical repeated tool request must not duplicate the card.
+          { name: "request_app_connection", args: { app: "gcal" } },
+        ],
+      },
+    ];
+  }
   if (lower.includes("mcp approval card")) {
     return [
       {

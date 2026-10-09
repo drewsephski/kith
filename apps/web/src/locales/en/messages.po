@@ -683,10 +683,6 @@ msgid "Authorization is still pending. Check the connection and try again."
 msgstr "Authorization is still pending. Check the connection and try again."
 
 #: src/pages/shell/message-cards.tsx
-msgid "Authorization timed out. Please try again."
-msgstr "Authorization timed out. Please try again."
-
-#: src/pages/shell/message-cards.tsx
 msgid "Authorize"
 msgstr "Authorize"
 
@@ -945,6 +941,11 @@ msgstr "Chat apps, group channels, and agent connections."
 msgid "Chat Settings"
 msgstr "Chat Settings"
 
+#. placeholder {0}: block.name
+#: src/pages/shell/message-cards.tsx
+msgid "Check {0} connection"
+msgstr "Check {0} connection"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/pages/HostComputerPrompt.tsx
 msgid "Check again"
@@ -952,6 +953,7 @@ msgstr "Check again"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Check connection"
 msgstr "Check connection"
 
@@ -1255,14 +1257,17 @@ msgstr "Confirm the URL is reachable from this browser session, then test again.
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/memory-providers/SupermemorySettingsForm.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "Connect"
 
 #. placeholder {0}: appNames[app]
+#. placeholder {0}: block.name
 #. placeholder {0}: item.name
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/shell/message-cards.tsx
 msgid "Connect {0}"
 msgstr "Connect {0}"
 
@@ -1358,6 +1363,10 @@ msgstr "Connecting…"
 msgid "Connection details"
 msgstr "Connection details"
 
+#: src/pages/shell/message-cards.tsx
+msgid "Connection is still pending. Finish connecting and check again."
+msgstr "Connection is still pending. Finish connecting and check again."
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Connection is unfinished. Try again when you are ready."
 msgstr "Connection is unfinished. Try again when you are ready."
@@ -1394,6 +1403,10 @@ msgstr "Context limit"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "Continue"
+
+#: src/pages/shell/message-cards.tsx
+msgid "Continue connecting"
+msgstr "Continue connecting"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Continue in Background"
@@ -1465,10 +1478,6 @@ msgstr "Could not approve this server"
 msgid "Could not archive conversation"
 msgstr "Could not archive conversation"
 
-#: src/pages/shell/message-cards.tsx
-msgid "Could not authorize this app"
-msgstr "Could not authorize this app"
-
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Could not change password"
 msgstr "Could not change password"
@@ -1523,6 +1532,10 @@ msgstr "Could not connect {0}. Try again."
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Could not connect account"
 msgstr "Could not connect account"
+
+#: src/pages/shell/message-cards.tsx
+msgid "Could not connect this app"
+msgstr "Could not connect this app"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not connect this provider"
@@ -5518,10 +5531,6 @@ msgstr "Waiting for the API to come back…"
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "Waiting in line…"
-
-#: src/pages/shell/message-cards.tsx
-msgid "Waiting…"
-msgstr "Waiting…"
 
 #: src/pages/Paywall.tsx
 msgid "Web, desktop and mobile apps"
