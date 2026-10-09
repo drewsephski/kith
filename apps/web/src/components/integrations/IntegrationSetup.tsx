@@ -1,6 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { IntegrationCatalogResult, IntegrationSetupState } from "@rakazo/contracts";
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@rakazo/ui-web";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  ConnectorIcon,
+  Input,
+} from "@rakazo/ui-web";
 import { Check } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { connectRemoteMcp } from "../../lib/mcp-install";
@@ -137,7 +144,8 @@ export function IntegrationSetup({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[32px] font-medium text-foreground">
+      <h1 className="flex items-center gap-3 text-[32px] font-medium text-foreground">
+        {!serverSetup ? <ConnectorIcon name="MCP" size={32} /> : null}
         {serverSetup ? t`Server integrations` : t`Add MCP server`}
       </h1>
       {serverSetup ? (
@@ -160,7 +168,10 @@ export function IntegrationSetup({
                 }}
                 className={`flex min-h-11 w-full items-center justify-between border-b border-border px-3.5 py-2.5 text-left last:border-0 ${choice === id ? "bg-muted" : "hover:bg-accent"}`}
               >
-                <span>{label}</span>
+                <span className="flex items-center gap-2">
+                  {id === "direct" ? <ConnectorIcon name="MCP" size={24} /> : null}
+                  {label}
+                </span>
                 {choice === id ? <Check className="size-4" aria-hidden /> : null}
               </button>
             ))}

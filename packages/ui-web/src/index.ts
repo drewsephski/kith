@@ -37,6 +37,7 @@ export * from "./components/ui/tabs.js";
 export * from "./components/ui/textarea.js";
 export * from "./components/ui/toggle.js";
 export * from "./components/ui/tooltip.js";
+export { ConnectorIcon } from "./connector-icon.js";
 export { GroupAvatar, type GroupAvatarMember, type GroupAvatarProps } from "./group-avatar.js";
 export { KithAvatar } from "./kith-avatar.js";
 export { cn } from "./lib/utils.js";

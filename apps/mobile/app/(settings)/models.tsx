@@ -44,6 +44,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ConnectorIcon } from "../../components/connector-icon";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSwitch } from "../../components/native-switch";
 import { Checkmark, Chevron } from "../../components/row-accessories";
@@ -1567,6 +1568,7 @@ export default function Models() {
                     onPress={() => chooseProvider(group.id)}
                     style={({ pressed }) => [styles.providerRow, pressed && styles.pressed]}
                   >
+                    <ConnectorIcon name={group.name} brand={group.id} size={32} />
                     <View style={styles.providerCopy}>
                       <Text style={styles.providerName}>{group.name}</Text>
                       <Text style={styles.secondary}>
@@ -1593,6 +1595,7 @@ export default function Models() {
               onPress={() => chooseProvider(group.id)}
               style={({ pressed }) => [styles.providerRow, pressed && styles.pressed]}
             >
+              <ConnectorIcon name={group.name} brand={group.id} size={32} />
               <View style={styles.providerCopy}>
                 <Text style={styles.providerName}>{group.name}</Text>
                 <Text style={styles.secondary}>

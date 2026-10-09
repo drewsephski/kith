@@ -1,11 +1,12 @@
 import type { Connection, ConnectionCatalogItem, IntegrationSetupState } from "@rakazo/contracts";
 import { resolveFeaturedCatalogItem, waitForAppConnection } from "@rakazo/core";
 import { useEffect, useRef, useState } from "react";
-import { Alert, AppState, Linking } from "react-native";
+import { Alert, AppState, Linking, View } from "react-native";
 import { captureApiRequestContext, rpc } from "../lib/api";
 import { integrationsCacheScope, isIntegrationsScopeCurrent } from "../lib/integrations-cache";
 import { loadLastBotId } from "../lib/last-bot";
 import { errorText } from "../lib/user-error";
+import { ConnectorIcon } from "./connector-icon";
 import { NativeActionButton } from "./native-action-button";
 
 type State = {
@@ -160,45 +161,48 @@ export function CalendarConnection() {
     ]);
   }
   return (
-    <NativeActionButton
-      label={
-        busy
-          ? "Connecting Calendar…"
-          : state?.status === "connected"
-            ? "Google Calendar"
-            : state?.status === "pending"
-              ? "Connecting Calendar…"
-              : "Connect Google Calendar"
-      }
-      fill={false}
-      prominence="secondary"
-      onPress={() => {
-        if (busy) {
-          Alert.alert("Connecting Calendar", undefined, [
-            { text: "Keep waiting", style: "cancel" },
-            { text: "Stop waiting", onPress: () => attempt.current?.abort() },
-          ]);
-          return;
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <ConnectorIcon name="Google Calendar" size={28} />
+      <NativeActionButton
+        label={
+          busy
+            ? "Connecting Calendar…"
+            : state?.status === "connected"
+              ? "Google Calendar"
+              : state?.status === "pending"
+                ? "Connecting Calendar…"
+                : "Connect Google Calendar"
         }
-        if (!state?.connectionId) {
-          chooseAccount();
-          return;
-        }
-        Alert.alert("Google Calendar", undefined, [
-          { text: "Cancel", style: "cancel" },
-          ...(state.status !== "connected" ? [{ text: "Connect", onPress: chooseAccount }] : []),
-          {
-            text: state.managedConnectionId ? "Disconnect briefing" : "Disconnect",
-            style: "destructive",
-            onPress: () => {
-              void rpc("calendar/disconnect")
-                .then(() => rpc<State>("calendar/status"))
-                .then(setState)
-                .catch(() => Alert.alert("Could not disconnect Calendar", "Try again."));
+        fill={false}
+        prominence="secondary"
+        onPress={() => {
+          if (busy) {
+            Alert.alert("Connecting Calendar", undefined, [
+              { text: "Keep waiting", style: "cancel" },
+              { text: "Stop waiting", onPress: () => attempt.current?.abort() },
+            ]);
+            return;
+          }
+          if (!state?.connectionId) {
+            chooseAccount();
+            return;
+          }
+          Alert.alert("Google Calendar", undefined, [
+            { text: "Cancel", style: "cancel" },
+            ...(state.status !== "connected" ? [{ text: "Connect", onPress: chooseAccount }] : []),
+            {
+              text: state.managedConnectionId ? "Disconnect briefing" : "Disconnect",
+              style: "destructive",
+              onPress: () => {
+                void rpc("calendar/disconnect")
+                  .then(() => rpc<State>("calendar/status"))
+                  .then(setState)
+                  .catch(() => Alert.alert("Could not disconnect Calendar", "Try again."));
+              },
             },
-          },
-        ]);
-      }}
-    />
+          ]);
+        }}
+      />
+    </View>
   );
 }

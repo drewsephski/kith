@@ -12,6 +12,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  ConnectorIcon,
   Dialog,
   DialogClose,
   DialogContent,
@@ -451,7 +452,15 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
                     <Card key={server.id} size="sm">
                       <CardContent>
                         <div className="flex items-center justify-between">
-                          <span className="font-medium text-foreground">{server.name}</span>
+                          <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+                            <ConnectorIcon
+                              name={server.name}
+                              brand={server.slug}
+                              fallbackName="MCP"
+                              size={28}
+                            />
+                            <span className="truncate">{server.name}</span>
+                          </span>
                           <Badge variant="secondary" className="uppercase">
                             {server.transport.replace("_", " ")}
                           </Badge>

@@ -6,6 +6,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  ConnectorIcon,
   Dialog,
   DialogClose,
   DialogContent,
@@ -14,7 +15,7 @@ import {
   SelectField,
   Textarea,
 } from "@rakazo/ui-web";
-import { CalendarDays, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AppAuthorization } from "../lib/app-connect";
 import { connectAppAccount } from "../lib/app-connect";
@@ -165,7 +166,11 @@ export function CalendarConnection({
             : void connect()
         }
       >
-        <CalendarDays size={16} aria-hidden />
+        <ConnectorIcon
+          name="Google Calendar"
+          size={24}
+          className="rounded-md bg-transparent p-0.5"
+        />
         <span className={compact ? "hidden sm:inline" : "truncate"}>
           {state?.status === "connected"
             ? t`Calendar`
