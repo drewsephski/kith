@@ -128,8 +128,10 @@ function fill(element: HTMLInputElement | HTMLTextAreaElement | null, value: str
 function ModelShot() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const details = document.querySelector("details");
-    if (details) details.open = true;
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[data-slot="collapsible-trigger"][aria-expanded="false"]',
+    );
+    trigger?.click();
     const timer = window.setTimeout(() => setReady(true), 400);
     return () => window.clearTimeout(timer);
   }, []);

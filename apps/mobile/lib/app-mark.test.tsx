@@ -35,11 +35,6 @@ vi.mock("react-native", () => {
   };
 });
 
-vi.mock("./native", () => ({
-  native: { label: "label" },
-  useThemedStyles: <T,>(factory: () => T) => factory(),
-}));
-
 import { AppMark } from "../components/app-mark";
 
 describe("AppMark", () => {
@@ -60,7 +55,7 @@ describe("AppMark", () => {
     container?.remove();
   });
 
-  it("is hidden from VoiceOver and TalkBack and tinted like text", () => {
+  it("is hidden from VoiceOver and TalkBack and preserves the artwork colors", () => {
     act(() => {
       root?.render(<AppMark />);
     });
@@ -69,6 +64,6 @@ describe("AppMark", () => {
     expect(mark?.getAttribute("aria-hidden")).toBe("true");
     expect(mark?.dataset.accessible).toBe("false");
     expect(mark?.dataset.important).toBe("no-hide-descendants");
-    expect(container?.querySelector("img")?.dataset.tint).toBe("label");
+    expect(container?.querySelector("img")?.dataset.tint).toBeUndefined();
   });
 });

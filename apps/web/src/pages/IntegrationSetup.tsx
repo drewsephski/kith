@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import type { Bot, IntegrationSetupState } from "@rakazo/contracts";
-import { NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
+import { SelectField } from "@rakazo/ui-web";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
@@ -47,18 +47,13 @@ export function IntegrationSetupPage() {
     <div className="min-h-full bg-background px-6 py-12">
       <div className="mx-auto max-w-[560px]">
         {bots.length > 1 ? (
-          <NativeSelect
+          <SelectField
             aria-label={t`Bot`}
             value={botId}
-            onChange={(event) => setBotId(event.target.value)}
+            onValueChange={(selectedValue) => setBotId(selectedValue)}
             className="mb-6 w-full"
-          >
-            {bots.map((bot) => (
-              <NativeSelectOption key={bot.id} value={bot.id}>
-                {bot.name}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            items={[...bots.map((bot) => ({ value: String(bot.id), label: <>{bot.name}</> }))]}
+          />
         ) : null}
         {ready ? (
           <IntegrationSetup

@@ -19,10 +19,11 @@ test("bot credentials list, add, replace and remove without leaking values", asy
   await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  // The Advanced <details> mounts the Credentials section on first open, not on render.
-  await settings.getByTestId("bot-settings-advanced").evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  // The Advanced disclosure mounts the Credentials section on first open, not on render.
+  await settings
+    .getByTestId("bot-settings-advanced")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const credentials = settings.getByTestId("bot-credentials");
   await expect(credentials).toBeVisible();
   await expect(credentials.getByTestId("bot-credentials-empty")).toBeVisible();

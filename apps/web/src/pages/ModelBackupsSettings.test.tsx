@@ -26,16 +26,32 @@ vi.mock("@lingui/react/macro", () => ({
   useLingui: () => ({ t: backupApi.translate }),
   Trans: ({ children }: { children?: ReactNode }) => children,
 }));
-vi.mock("@rakazo/ui-web", () => {
+vi.mock("@rakazo/ui-web", async () => {
+  const actual = await vi.importActual<Record<string, unknown>>("@rakazo/ui-web");
   const Button = ({
     variant: _variant,
     size: _size,
     ...props
   }: ComponentProps<"button"> & { variant?: string; size?: string }) => <button {...props} />;
   return {
+    ...actual,
     Button,
-    NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
-    NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
+    SelectField: ({
+      items,
+      onValueChange,
+      ...props
+    }: ComponentProps<"select"> & {
+      items: Array<{ value: string; label: ReactNode; disabled?: boolean }>;
+      onValueChange: (value: string) => void;
+    }) => (
+      <select {...props} onChange={(event) => onValueChange(event.target.value)}>
+        {items.map((item) => (
+          <option key={item.value} value={item.value} disabled={item.disabled}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    ),
   };
 });
 

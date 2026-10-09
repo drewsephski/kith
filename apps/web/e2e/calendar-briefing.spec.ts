@@ -35,6 +35,19 @@ test("Calendar onboarding is visible in the assistant conversation", async ({ pa
     .getByRole("button", { name: "Connect Google Calendar", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }),
+  ).toHaveCount(1);
+  const preferences = page.getByRole("button", { name: "Briefing preferences", exact: true });
+  const draft = page.getByRole("textbox", { name: "Briefing preferences", exact: true });
+  await expect(preferences).toHaveAttribute("aria-expanded", "false");
+  await preferences.click();
+  await expect(draft).toBeVisible();
+  await draft.fill("Leave preparation time before meetings.");
+  await preferences.click();
+  await expect(draft).toBeHidden();
+  await preferences.click();
+  await expect(draft).toHaveValue("Leave preparation time before meetings.");
   await expect(page.getByLabel("OAuth Client ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("OAuth Client secret", { exact: true })).toHaveAttribute(
     "type",
@@ -143,6 +156,9 @@ test("saved briefing has structured facts, suggestions and an inspectable receip
   await captureScreenshot(page, testInfo, "calendar-briefing");
   await page.getByRole("button", { name: "Calendar briefing · View receipt" }).click();
   await expect(page.getByRole("heading", { name: "Briefing receipt" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }),
+  ).toHaveCount(1);
   await expect(page.getByText("Verified calendar data")).toBeVisible();
   await expect(page.getByText("completed", { exact: true })).toBeVisible();
   await page.getByText("Source records", { exact: true }).click();

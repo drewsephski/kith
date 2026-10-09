@@ -4,6 +4,7 @@ import type { Bot, Routine } from "@rakazo/contracts";
 import {
   activeBotId,
   captureScreenshot,
+  chooseSelectOption,
   completeOnboarding,
   openAdvancedNavigation,
   rpc,
@@ -97,7 +98,7 @@ test("routine editing updates in place, preserves timezone, and deletion persist
   await page.getByRole("button", { name: /Tokyo check-in/ }).click();
   await page.locator("label:has-text('Name') input").fill("Weekday check-in");
   await page.locator("label:has-text('Instruction') textarea").fill("Send the revised update");
-  await page.getByLabel("How often").selectOption("Weekdays");
+  await chooseSelectOption(page, page.getByLabel("How often"), "Weekdays");
   const patch = await saveAndReturn(page, "routines/update");
   for (const column of ["modelProvider", "modelId", "thinkingLevel"])
     expect(patch).not.toHaveProperty(column);
@@ -159,7 +160,7 @@ test("a routine runs on the bot's model until another is picked", async ({ page 
   await expect(page.getByRole("combobox", { name: "Model", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Advanced", exact: true }).click();
   const modelSelect = page.getByRole("combobox", { name: "Model", exact: true });
-  await expect(modelSelect).toHaveValue("");
+  await expect(modelSelect).toHaveAttribute("data-value", "");
   await expect(modelSelect).toContainText("Bot's model");
   await captureScreenshot(page, testInfo, "routine-model-picker");
 
@@ -186,7 +187,7 @@ test("a routine runs on the bot's model until another is picked", async ({ page 
   });
   await page.getByRole("button", { name: /Model check/ }).click();
   await page.getByRole("button", { name: "Advanced", exact: true }).click();
-  await modelSelect.selectOption("openai-compatible::llama-3.3-70b");
+  await chooseSelectOption(page, modelSelect, "openai-compatible::llama-3.3-70b");
   await page.keyboard.press("Escape");
   expect(await saveAndReturn(page, "routines/update")).toMatchObject({
     modelProvider: "openai-compatible",

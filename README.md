@@ -5,7 +5,7 @@
 Kith remembers what matters to you and helps get work done. Ask it to research a topic,
 work on a project, or handle a recurring task—then pick up where you left off.
 
-![Kith — your personal AI teammate, with memory](./docs/readme-hero.png)
+![Kith — your personal AI assistant](./docs/readme-hero.png)
 
 ## Less busy. More you.
 

@@ -1,7 +1,12 @@
 import { useId } from "react";
 import { Checkbox } from "./components/ui/checkbox.js";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./components/ui/collapsible.js";
 import { Input } from "./components/ui/input.js";
-import { NativeSelect, NativeSelectOption } from "./components/ui/native-select.js";
+import { SelectField } from "./select-field.js";
 
 export function ModelThinkingOptions({
   reasoning = false,
@@ -59,108 +64,110 @@ export function ModelThinkingOptions({
   const imagesId = useId();
   const maxImagesId = useId();
   return (
-    <details className="mt-4 text-sm text-muted-foreground">
-      <summary className="cursor-pointer">{advancedLabel}</summary>
-      {showThinking && onReasoningChange && thinkingLabel ? (
-        <label htmlFor={id} className="mt-3 flex items-center gap-2">
-          <Checkbox
-            id={id}
-            checked={reasoning}
-            onCheckedChange={(checked) => onReasoningChange(checked === true)}
-            disabled={disabled}
-          />
-          {thinkingLabel}
-        </label>
-      ) : null}
-      {showThinking &&
-      reasoning &&
-      onThinkingLevelChange &&
-      thinkingLevelOptions &&
-      thinkingLevelOptions.length > 0 ? (
-        <label htmlFor={thinkingLevelId} className="mt-3 flex items-center gap-2">
-          <span className="min-w-0 flex-1">{thinkingLevelLabel}</span>
-          <NativeSelect
-            id={thinkingLevelId}
-            value={thinkingLevel ?? ""}
-            onChange={(event) => onThinkingLevelChange(event.target.value || null)}
-            disabled={disabled}
-            aria-label={thinkingLevelLabel}
-            className="h-8 w-32 text-foreground"
-          >
-            <NativeSelectOption value="">{thinkingLevelDefaultLabel}</NativeSelectOption>
-            {thinkingLevelOptions.map((option) => (
-              <NativeSelectOption key={option.value} value={option.value}>
-                {option.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </label>
-      ) : null}
-      {onMaxTokensChange && maxTokensLabel ? (
-        <label htmlFor={maxTokensId} className="mt-3 flex items-center gap-2">
-          <span className="min-w-0 flex-1">{maxTokensLabel}</span>
-          <Input
-            id={maxTokensId}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={131072}
-            step={1}
-            value={maxTokens ?? ""}
-            onChange={(event) => onMaxTokensChange(event.target.value)}
-            disabled={disabled}
-            aria-label={maxTokensLabel}
-            className="h-8 w-24 text-center text-foreground"
-          />
-        </label>
-      ) : null}
-      {onContextWindowChange && contextWindowLabel ? (
-        <label htmlFor={contextWindowId} className="mt-3 flex items-center gap-2">
-          <span className="min-w-0 flex-1">{contextWindowLabel}</span>
-          <Input
-            id={contextWindowId}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={1048576}
-            step={1}
-            value={contextWindow ?? ""}
-            onChange={(event) => onContextWindowChange(event.target.value)}
-            disabled={disabled}
-            aria-label={contextWindowLabel}
-            className="h-8 w-24 text-center text-foreground"
-          />
-        </label>
-      ) : null}
-      {onSupportsImagesChange ? (
-        <label htmlFor={imagesId} className="mt-3 flex items-center gap-2">
-          <Checkbox
-            id={imagesId}
-            checked={supportsImages === true}
-            onCheckedChange={(checked) => onSupportsImagesChange(checked === true)}
-            disabled={disabled}
-          />
-          {imagesLabel}
-        </label>
-      ) : null}
-      {supportsImages && onMaxImagesPerPromptChange ? (
-        <label htmlFor={maxImagesId} className="mt-3 flex items-center gap-2">
-          <span className="min-w-0 flex-1">{maxImagesLabel}</span>
-          <Input
-            id={maxImagesId}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={1000}
-            step={1}
-            value={maxImagesPerPrompt ?? ""}
-            onChange={(event) => onMaxImagesPerPromptChange(event.target.value)}
-            disabled={disabled}
-            aria-label={maxImagesLabel}
-            className="h-8 w-20 text-center text-foreground"
-          />
-        </label>
-      ) : null}
-    </details>
+    <Collapsible className="mt-4 text-sm text-muted-foreground">
+      <CollapsibleTrigger className="cursor-pointer">{advancedLabel}</CollapsibleTrigger>
+      <CollapsibleContent>
+        {showThinking && onReasoningChange && thinkingLabel ? (
+          <label htmlFor={id} className="mt-3 flex items-center gap-2">
+            <Checkbox
+              id={id}
+              checked={reasoning}
+              onCheckedChange={(checked) => onReasoningChange(checked === true)}
+              disabled={disabled}
+            />
+            {thinkingLabel}
+          </label>
+        ) : null}
+        {showThinking &&
+        reasoning &&
+        onThinkingLevelChange &&
+        thinkingLevelOptions &&
+        thinkingLevelOptions.length > 0 ? (
+          <label htmlFor={thinkingLevelId} className="mt-3 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{thinkingLevelLabel}</span>
+            <SelectField
+              id={thinkingLevelId}
+              value={thinkingLevel ?? ""}
+              onValueChange={(selectedValue) => onThinkingLevelChange(selectedValue || null)}
+              disabled={disabled}
+              aria-label={thinkingLevelLabel}
+              className="h-8 w-32 text-foreground"
+              items={[
+                { value: String(""), label: <>{thinkingLevelDefaultLabel}</> },
+                ...thinkingLevelOptions.map((option) => ({
+                  value: String(option.value),
+                  label: <>{option.label}</>,
+                })),
+              ]}
+            />
+          </label>
+        ) : null}
+        {onMaxTokensChange && maxTokensLabel ? (
+          <label htmlFor={maxTokensId} className="mt-3 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{maxTokensLabel}</span>
+            <Input
+              id={maxTokensId}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={131072}
+              step={1}
+              value={maxTokens ?? ""}
+              onChange={(event) => onMaxTokensChange(event.target.value)}
+              disabled={disabled}
+              aria-label={maxTokensLabel}
+              className="h-8 w-24 text-center text-foreground"
+            />
+          </label>
+        ) : null}
+        {onContextWindowChange && contextWindowLabel ? (
+          <label htmlFor={contextWindowId} className="mt-3 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{contextWindowLabel}</span>
+            <Input
+              id={contextWindowId}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={1048576}
+              step={1}
+              value={contextWindow ?? ""}
+              onChange={(event) => onContextWindowChange(event.target.value)}
+              disabled={disabled}
+              aria-label={contextWindowLabel}
+              className="h-8 w-24 text-center text-foreground"
+            />
+          </label>
+        ) : null}
+        {onSupportsImagesChange ? (
+          <label htmlFor={imagesId} className="mt-3 flex items-center gap-2">
+            <Checkbox
+              id={imagesId}
+              checked={supportsImages === true}
+              onCheckedChange={(checked) => onSupportsImagesChange(checked === true)}
+              disabled={disabled}
+            />
+            {imagesLabel}
+          </label>
+        ) : null}
+        {supportsImages && onMaxImagesPerPromptChange ? (
+          <label htmlFor={maxImagesId} className="mt-3 flex items-center gap-2">
+            <span className="min-w-0 flex-1">{maxImagesLabel}</span>
+            <Input
+              id={maxImagesId}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={1000}
+              step={1}
+              value={maxImagesPerPrompt ?? ""}
+              onChange={(event) => onMaxImagesPerPromptChange(event.target.value)}
+              disabled={disabled}
+              aria-label={maxImagesLabel}
+              className="h-8 w-20 text-center text-foreground"
+            />
+          </label>
+        ) : null}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

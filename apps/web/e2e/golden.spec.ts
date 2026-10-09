@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import {
   activeBotId,
   captureScreenshot,
+  chooseSelectOption,
   completeOnboarding,
   openAdvancedNavigation,
   realSandboxTimeout,
@@ -222,9 +223,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(linearRow.getByRole("button", { name: "Add", exact: true })).toBeVisible();
 
   const advanced = page.getByTestId("integrations-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
+  await advanced.locator('[data-slot="collapsible-trigger"]').click();
   await expect(page.getByRole("button", { name: "Manage MCP servers", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add MCP server", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add OpenAPI", exact: true })).toBeVisible();
@@ -265,7 +264,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(page.getByPlaceholder("https://example.com/mcp")).toHaveValue(
     "https://mcp.example.test/mcp",
   );
-  await expect(page.locator("select")).toHaveValue("bearer");
+  await expect(page.getByRole("combobox")).toHaveAttribute("data-value", "bearer");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
 
   await page.getByRole("button", { name: "Add Treg", exact: true }).click();
@@ -284,7 +283,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await page
     .getByPlaceholder("https://example.com/openapi.json")
     .fill("https://api.example.test/openapi.json");
-  await page.locator("select").selectOption("bearer");
+  await chooseSelectOption(page, page.getByRole("combobox"), "bearer");
   await page.getByPlaceholder("Credential").fill("fake-openapi-browser-credential");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
   await expect(

@@ -11,7 +11,8 @@ vi.mock("@lingui/react/macro", () => ({
   Trans: ({ children }: { children: ReactNode }) => children,
 }));
 
-vi.mock("@rakazo/ui-web", () => ({
+vi.mock("@rakazo/ui-web", async () => ({
+  ...(await vi.importActual<Record<string, unknown>>("@rakazo/ui-web")),
   BotAvatar: () => null,
   Button: ({ children, ...props }: React.ComponentProps<"button">) => (
     <button type="button" {...props}>

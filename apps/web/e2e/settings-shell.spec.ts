@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, openUserSettings, signup } from "./helpers";
+import {
+  captureScreenshot,
+  chooseSelectOption,
+  completeOnboarding,
+  openAdvancedNavigation,
+  openUserSettings,
+  signup,
+} from "./helpers";
 
 for (const totalTokens of [201, null]) {
   test(`usage shows ${totalTokens === null ? "unknown" : "complete"} token totals`, async ({
@@ -33,6 +40,7 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await signup(page, `settings-shell-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
 
+  await openAdvancedNavigation(page);
   await page.getByTestId("user-menu-trigger").click();
   const menu = page.locator('[data-slot="popover-content"]');
   await expect(menu.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
@@ -51,7 +59,10 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect(settings.getByRole("heading", { name: "General", exact: true })).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
   await expect(settings.getByRole("heading", { name: "Replies", exact: true })).toHaveCount(0);
-  await settings.getByTestId("advanced-settings").locator("summary").click();
+  await settings
+    .getByTestId("advanced-settings")
+    .locator('[data-slot="collapsible-trigger"]')
+    .click();
   const streamReplies = settings.getByTestId("response-streaming-toggle");
   await expect(streamReplies).toBeVisible();
   await expect(streamReplies).not.toBeChecked();
@@ -76,7 +87,7 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
   await expect(settings.getByTestId("memory-settings")).toBeVisible();
   const memory = settings.getByTestId("memory-settings");
   await expect(memory.getByLabel("Provider")).toBeVisible();
-  await memory.getByLabel("Provider").selectOption("serenity");
+  await chooseSelectOption(page, memory.getByLabel("Provider"), "serenity");
   await expect(memory.getByLabel("MCP endpoint")).toBeVisible();
   await expect(memory.getByLabel("Bearer token")).toBeVisible();
   await expect(memory.getByRole("button", { name: "Recall only" })).toBeVisible();

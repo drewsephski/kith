@@ -13,10 +13,9 @@ import {
   AlertDialogTitle,
   BotAvatar,
   Button,
-  NativeSelect,
-  NativeSelectOption,
   parseBotAvatar,
   resolvePersonaColorDef,
+  SelectField,
 } from "@rakazo/ui-web";
 import {
   ChevronLeft,
@@ -281,17 +280,18 @@ export function ArtifactsPage() {
                 className="w-full rounded-lg border border-border bg-background py-1.5 ps-8 pe-3 text-[13px] outline-none focus:border-ring"
               />
             </div>
-            <NativeSelect
+            <SelectField
               aria-label={t`Filter by date`}
               className="w-auto text-[13px]"
               value={dateFilter}
-              onChange={(event) => setDateFilter(event.target.value as DateFilter)}
-            >
-              <NativeSelectOption value="all">{t`All time`}</NativeSelectOption>
-              <NativeSelectOption value="today">{t`Today`}</NativeSelectOption>
-              <NativeSelectOption value="week">{t`This week`}</NativeSelectOption>
-              <NativeSelectOption value="month">{t`This month`}</NativeSelectOption>
-            </NativeSelect>
+              onValueChange={(selectedValue) => setDateFilter(selectedValue as DateFilter)}
+              items={[
+                { value: String("all"), label: <>{t`All time`}</> },
+                { value: String("today"), label: <>{t`Today`}</> },
+                { value: String("week"), label: <>{t`This week`}</> },
+                { value: String("month"), label: <>{t`This month`}</> },
+              ]}
+            />
             <FilterChip active={activeBotId === null} onClick={() => setActiveBotId(null)}>
               <Trans>All conversations</Trans>
             </FilterChip>
@@ -878,18 +878,18 @@ function PreviewPane({
           ) : null}
         </div>
         {versions && versions.length > 1 && selectedVersionId ? (
-          <NativeSelect
+          <SelectField
             aria-label={t`Version`}
             className="w-auto shrink-0 text-[13px]"
             value={selectedVersionId}
-            onChange={(event) => setSelectedVersionId(event.target.value)}
-          >
-            {versions.map((entry) => (
-              <NativeSelectOption key={entry.id} value={entry.id}>
-                {`v${entry.version} · ${formatRelativeTime(entry.createdAt)}`}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            onValueChange={(selectedValue) => setSelectedVersionId(selectedValue)}
+            items={[
+              ...versions.map((entry) => ({
+                value: String(entry.id),
+                label: <>{`v${entry.version} · ${formatRelativeTime(entry.createdAt)}`}</>,
+              })),
+            ]}
+          />
         ) : null}
         {state.status === "ready" ? (
           <>

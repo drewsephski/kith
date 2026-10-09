@@ -55,6 +55,51 @@
   }
 }
 
+/* Shared motion for web and Electron disclosures and floating controls. */
+.ui-popup-motion {
+  opacity: 1;
+  scale: 1;
+  transition:
+    opacity 180ms ease,
+    scale 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ui-popup-motion[data-starting-style],
+.ui-popup-motion[data-ending-style] {
+  opacity: 0;
+  scale: 0.98;
+}
+.ui-popup-motion[data-ending-style] {
+  transition-duration: 140ms;
+}
+.ui-overlay-motion {
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+.ui-overlay-motion[data-starting-style],
+.ui-overlay-motion[data-ending-style] {
+  opacity: 0;
+}
+.ui-collapsible-panel {
+  height: var(--collapsible-panel-height, auto);
+  overflow: hidden;
+  opacity: 1;
+  transition:
+    height 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 180ms ease;
+}
+.ui-collapsible-panel[data-starting-style],
+.ui-collapsible-panel[data-ending-style] {
+  height: 0;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-popup-motion,
+  .ui-overlay-motion,
+  .ui-collapsible-panel {
+    transition: none;
+  }
+}
+
 @keyframes rakazo-avatar-spin {
   0% {
     transform: rotate(0deg);

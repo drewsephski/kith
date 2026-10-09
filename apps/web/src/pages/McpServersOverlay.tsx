@@ -9,6 +9,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Dialog,
   DialogClose,
   DialogContent,
@@ -335,49 +338,45 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
                     />
                   </Field>
                 )}
-                <details className="group rounded-xl border border-border">
-                  <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm text-foreground">
+                <Collapsible className="group rounded-xl border border-border">
+                  <CollapsibleTrigger className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm text-foreground">
                     <span>
                       <Trans>Advanced</Trans>
                     </span>
-                    <span
-                      aria-hidden="true"
-                      className="text-muted-foreground transition-transform group-open:rotate-90"
-                    >
-                      ›
-                    </span>
-                  </summary>
-                  <div className="space-y-4 border-t border-border p-3">
-                    <Field>
-                      <FieldLabel htmlFor="mcp-secret">
-                        <Trans>Access token (optional)</Trans>
-                      </FieldLabel>
-                      <Input
-                        id="mcp-secret"
-                        type="password"
-                        value={secret}
-                        onChange={(e) => setSecret(e.target.value)}
-                        placeholder={t`Stored encrypted`}
-                      />
-                    </Field>
-                    {transport !== "stdio" ? (
-                      <div className="grid grid-cols-[.7fr_1fr] gap-2">
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-4 border-t border-border p-3">
+                      <Field>
+                        <FieldLabel htmlFor="mcp-secret">
+                          <Trans>Access token (optional)</Trans>
+                        </FieldLabel>
                         <Input
-                          aria-label={t`Header name`}
-                          value={headerName}
-                          onChange={(e) => setHeaderName(e.target.value)}
-                        />
-                        <Input
-                          aria-label={t`Header value`}
+                          id="mcp-secret"
                           type="password"
-                          value={headerValue}
-                          onChange={(e) => setHeaderValue(e.target.value)}
-                          placeholder={t`Optional header value`}
+                          value={secret}
+                          onChange={(e) => setSecret(e.target.value)}
+                          placeholder={t`Stored encrypted`}
                         />
-                      </div>
-                    ) : null}
-                  </div>
-                </details>
+                      </Field>
+                      {transport !== "stdio" ? (
+                        <div className="grid grid-cols-[.7fr_1fr] gap-2">
+                          <Input
+                            aria-label={t`Header name`}
+                            value={headerName}
+                            onChange={(e) => setHeaderName(e.target.value)}
+                          />
+                          <Input
+                            aria-label={t`Header value`}
+                            type="password"
+                            value={headerValue}
+                            onChange={(e) => setHeaderValue(e.target.value)}
+                            placeholder={t`Optional header value`}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
                 {bots.length > 0 ? (
                   <Field>
                     <FieldTitle>

@@ -9,8 +9,7 @@ import {
   Field,
   FieldLabel,
   Input,
-  NativeSelect,
-  NativeSelectOption,
+  SelectField,
 } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -314,20 +313,24 @@ export function VoiceSettingsOverlay({
                     <FieldLabel htmlFor={voiceSelectId}>
                       <Trans>Voice</Trans>
                     </FieldLabel>
-                    <NativeSelect
+                    <SelectField
                       id={voiceSelectId}
                       className="w-full"
                       value={voiceId}
                       disabled={busy}
-                      onChange={(event) => void chooseVoice(event.target.value)}
-                    >
-                      {voiceOptions.map((voice) => (
-                        <NativeSelectOption key={voice.id} value={voice.id}>
-                          {voice.label}
-                          {voice.description ? ` · ${voice.description}` : ""}
-                        </NativeSelectOption>
-                      ))}
-                    </NativeSelect>
+                      onValueChange={(selectedValue) => void chooseVoice(selectedValue)}
+                      items={[
+                        ...voiceOptions.map((voice) => ({
+                          value: String(voice.id),
+                          label: (
+                            <>
+                              {voice.label}
+                              {voice.description ? ` · ${voice.description}` : ""}
+                            </>
+                          ),
+                        })),
+                      ]}
+                    />
                   </Field>
                   {selected.id === "fish-audio" ? (
                     <Field className="mt-6">
