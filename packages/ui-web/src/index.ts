@@ -1,3 +1,4 @@
+export { ArchiveIcon, type ArchiveIconHandle } from "./archive-icon.js";
 export { type AvatarStyle, AvatarStyleProvider, useAvatarStyle } from "./avatar-style.js";
 export {
   BotAvatar,

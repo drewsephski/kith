@@ -1,6 +1,8 @@
 import { useLingui } from "@lingui/react/macro";
 import type { Bot, BotSection } from "@rakazo/contracts";
+import type { ArchiveIconHandle } from "@rakazo/ui-web";
 import {
+  ArchiveIcon,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -11,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@rakazo/ui-web";
 import {
-  Archive,
   Bell,
   BellDot,
   Check,
@@ -23,6 +24,7 @@ import {
   Pin,
   Trash2,
 } from "lucide-react";
+import { useRef } from "react";
 
 export type ContextMenuPosition = { x: number; y: number };
 
@@ -64,6 +66,7 @@ export function BotContextMenu({
   compact?: boolean;
 }) {
   const { t } = useLingui();
+  const archiveIcon = useRef<ArchiveIconHandle>(null);
 
   return (
     <DropdownMenu
@@ -158,8 +161,14 @@ export function BotContextMenu({
             </DropdownMenuItem>
           </>
         ) : null}
-        <DropdownMenuItem onClick={onArchive}>
-          <Archive />
+        <DropdownMenuItem
+          onClick={onArchive}
+          onMouseEnter={() => archiveIcon.current?.startAnimation()}
+          onMouseLeave={() => archiveIcon.current?.stopAnimation()}
+          onFocus={() => archiveIcon.current?.startAnimation()}
+          onBlur={() => archiveIcon.current?.stopAnimation()}
+        >
+          <ArchiveIcon ref={archiveIcon} size={16} />
           {t`Archive`}
         </DropdownMenuItem>
         <DropdownMenuItem variant="destructive" onClick={onDelete}>

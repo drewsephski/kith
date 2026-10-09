@@ -1,8 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, Group } from "@rakazo/contracts";
-import { Button, KithAvatar, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
+import type { ArchiveIconHandle } from "@rakazo/ui-web";
+import { ArchiveIcon, Button, KithAvatar, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
 import {
-  Archive,
   Brain,
   Check,
   CircleAlert,
@@ -17,6 +17,7 @@ import {
   Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useRef } from "react";
 import type { ContextMenuPosition } from "../BotContextMenu";
 
 type ConversationTarget = { kind: "bot" | "group"; id: string };
@@ -44,6 +45,7 @@ function ConversationRow({
   onArchive: (target: ConversationTarget) => void;
 }) {
   const { t } = useLingui();
+  const archiveIcon = useRef<ArchiveIconHandle>(null);
   return (
     <div className="group/conversation relative">
       <NavigationButton
@@ -74,9 +76,13 @@ function ConversationRow({
         className="absolute end-1 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover/conversation:opacity-100 group-focus-within/conversation:opacity-100 [@media(hover:none)]:opacity-100"
         aria-label={t`Archive ${name}`}
         title={t`Archive`}
+        onMouseEnter={() => archiveIcon.current?.startAnimation()}
+        onMouseLeave={() => archiveIcon.current?.stopAnimation()}
+        onFocus={() => archiveIcon.current?.startAnimation()}
+        onBlur={() => archiveIcon.current?.stopAnimation()}
         onClick={() => onArchive(target)}
       >
-        <Archive size={15} />
+        <ArchiveIcon ref={archiveIcon} size={15} />
       </Button>
     </div>
   );
