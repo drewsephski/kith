@@ -11,7 +11,7 @@ Each plan is self-contained. Read it fully before execution, use its narrow scop
 | [001](001-preserve-compose-data.md) | Preserve PostgreSQL data on ordinary shutdown | 2 | P1 | S | — | DONE |
 | [002](002-recover-job-publisher.md) | Recover publishing after failed initialization | 3 | P1 | S | — | DONE |
 | [003](003-serialize-mobile-session.md) | Prevent stale writes restoring cleared mobile credentials | 4 | P1 | M | — | DONE |
-| [004](004-revoke-session-screen-access.md) | Revoke screen/terminal access with its issuing session | 5 | P1 | M | — | IN PROGRESS |
+| [004](004-revoke-session-screen-access.md) | Revoke screen/terminal access with its issuing session | 5 | P1 | M | — | DONE |
 
 Status values: TODO, IN PROGRESS, DONE, BLOCKED (with reason), or REJECTED (with rationale). BLOCKED here describes an implementation handoff status, not an autonomous goal.
 
