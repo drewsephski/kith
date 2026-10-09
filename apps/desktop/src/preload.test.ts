@@ -35,6 +35,7 @@ describe("desktop preload bridge", () => {
       "localSettings",
       "oauth",
       "platform",
+      "quickAsk",
       "update",
       "window",
     ]);
@@ -77,6 +78,7 @@ describe("desktop preload bridge", () => {
       "localSettings",
       "oauth",
       "platform",
+      "quickAsk",
       "update",
       "window",
     ]);

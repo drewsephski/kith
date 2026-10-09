@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 /** Activity rows sit above `[data-sidebar-group]` bots; match their aria-label. */
 function activityRow(page: Page, botName: string) {
@@ -42,6 +42,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   const stamp = Date.now();
   await signup(page, `activity-${stamp}@rakazo.test`, "password12", "Activity");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const aside = page.locator("aside").first();
   const activityToggle = page.getByRole("button", { name: "Activity", exact: true });
@@ -50,7 +51,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await expect(aside.getByText("Now", { exact: true })).toHaveCount(0);
   await expect(aside.getByText("Recent", { exact: true })).toHaveCount(0);
   await expect(aside.getByText("Loading activity…")).toHaveCount(0);
-  await expect(aside.locator("[data-sidebar-group]").getByText("Chief").first()).toBeVisible();
+  await expect(aside.locator("[data-sidebar-group]").getByText("Kith").first()).toBeVisible();
   await captureActivitySidebar(page, testInfo, "57-activity-mode-off");
 
   const composer = page.getByPlaceholder(/Message/);
@@ -66,6 +67,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
 
   // Remount ActivityList so the first poll sees the in-flight run (15s interval otherwise).
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
@@ -73,70 +75,76 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   });
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
   await expect(aside.getByText("Now", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(activityRow(page, "Chief")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toContainText(/keep working|Running|Queued|Starting/i);
+  await expect(activityRow(page, "Kith")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toContainText(
+    /keep working|In progress|Queued|Starting/i,
+  );
   await captureActivitySidebar(page, testInfo, "58-activity-now");
 
   await page.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
 
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
   await expect(aside.getByText("Recent", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(activityRow(page, "Chief")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toContainText(/Cancelled|keep working/i);
+  await expect(activityRow(page, "Kith")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toContainText(/Cancelled|keep working/i);
   await expect(aside.getByText("Now", { exact: true })).toHaveCount(0);
   await captureActivitySidebar(page, testInfo, "59-activity-recent");
 
   const sidebarSearch = page
     .getByTestId("sidebar-search")
     .getByPlaceholder("Search", { exact: true });
-  await sidebarSearch.fill("Chief");
+  await sidebarSearch.fill("Kith");
   await expect(aside.getByText("Recent", { exact: true })).toHaveCount(0);
-  await expect(activityRow(page, "Chief")).toHaveCount(0);
+  await expect(activityRow(page, "Kith")).toHaveCount(0);
 
   await sidebarSearch.fill("");
   await expect(aside.getByText("Recent", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toBeVisible();
 
   const activitySearch = page.getByTestId("activity-search");
-  await activitySearch.fill("Chief");
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await activitySearch.fill("Kith");
+  await expect(activityRow(page, "Kith")).toBeVisible();
   await expect(aside.getByText("Recent", { exact: true })).toBeVisible();
   await captureActivitySidebar(page, testInfo, "60-activity-search-match");
 
   await activitySearch.fill("no-such-run");
-  await expect(aside.getByText("No runs match these filters.")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toHaveCount(0);
+  await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toHaveCount(0);
   await expect(aside.getByText("Recent", { exact: true })).toHaveCount(0);
   await captureActivitySidebar(page, testInfo, "61-activity-filters-empty");
 
   await page.getByTestId("activity-reset-filters").click();
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toBeVisible();
 
-  await page.getByTestId("activity-status-filter").selectOption("failed");
-  await expect(aside.getByText("No runs match these filters.")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toHaveCount(0);
+  await page.getByText("Filters", { exact: true }).click();
+  await page.getByTestId("activity-status-filter").click();
+  await page.getByRole("option", { name: "Failed", exact: true }).click();
+  await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toHaveCount(0);
   await page.getByTestId("activity-reset-filters").click();
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toBeVisible();
 
   await page.getByTestId("activity-date-from").fill("2999-01-01");
-  await expect(aside.getByText("No runs match these filters.")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toHaveCount(0);
+  await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toHaveCount(0);
   await page.getByTestId("activity-reset-filters").click();
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toBeVisible();
 
   await page.getByTestId("activity-date-to").fill("2000-01-01");
-  await expect(aside.getByText("No runs match these filters.")).toBeVisible();
-  await expect(activityRow(page, "Chief")).toHaveCount(0);
+  await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
+  await expect(activityRow(page, "Kith")).toHaveCount(0);
 });
 
 test("activity filters keep retry when a refresh fails", async ({ page }) => {
   const stamp = Date.now();
   await signup(page, `activity-retry-${stamp}@rakazo.test`, "password12", "Activity");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   type Phase = "ok" | "empty" | "fail" | "hang";
   let phase: Phase = "ok";
@@ -146,7 +154,7 @@ test("activity filters keep retry when a refresh fails", async ({ page }) => {
   const run = {
     runId: "run-filter",
     botId: "bot-filter",
-    botName: "Chief",
+    botName: "Kith",
     groupId: null,
     groupName: null,
     threadId: "thread-filter",
@@ -184,32 +192,33 @@ test("activity filters keep retry when a refresh fails", async ({ page }) => {
   const activityToggle = page.getByRole("button", { name: "Activity", exact: true });
   await activityToggle.click();
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
-  await expect(activityRow(page, "Chief")).toBeVisible({ timeout: 20_000 });
+  await expect(activityRow(page, "Kith")).toBeVisible({ timeout: 20_000 });
 
   const activitySearch = page.getByTestId("activity-search");
-  await activitySearch.fill("Chief");
-  await expect(activityRow(page, "Chief")).toBeVisible();
+  await activitySearch.fill("Kith");
+  await expect(activityRow(page, "Kith")).toBeVisible();
 
   phase = "empty";
-  await expect(activityRow(page, "Chief")).toHaveCount(0, { timeout: 25_000 });
-  await expect(aside.getByText("No runs match these filters.")).toHaveCount(0);
-  await expect(activitySearch).toHaveValue("Chief");
+  await expect(activityRow(page, "Kith")).toHaveCount(0, { timeout: 25_000 });
+  await expect(aside.getByText("No tasks match these filters.")).toHaveCount(0);
+  await expect(activitySearch).toHaveValue("Kith");
 
   phase = "fail";
   const retry = page.getByRole("button", { name: "Try again" });
   await expect(retry).toBeVisible({ timeout: 25_000 });
-  await expect(aside.getByText("No runs match these filters.")).toHaveCount(0);
-  await expect(activitySearch).toHaveValue("Chief");
+  await expect(aside.getByText("No tasks match these filters.")).toHaveCount(0);
+  await expect(activitySearch).toHaveValue("Kith");
 
   phase = "hang";
   await retry.click();
   await expect(aside.getByText("Loading activity…")).toBeVisible();
-  await expect(aside.getByText("No runs match these filters.")).toHaveCount(0);
+  await expect(aside.getByText("No tasks match these filters.")).toHaveCount(0);
   await expect.poll(() => releaseHang !== null).toBe(true);
   releaseHang?.();
   await expect(aside.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
   await expect(retry).toHaveCount(0);
-  await expect(aside.getByText("No runs match these filters.")).toHaveCount(0);
-  await expect(activitySearch).toHaveValue("Chief");
+  await expect(aside.getByText("No tasks match these filters.")).toHaveCount(0);
+  await expect(activitySearch).toHaveValue("Kith");
 });

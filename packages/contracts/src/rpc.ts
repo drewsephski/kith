@@ -8,6 +8,7 @@ import {
   ATTACHMENT_MAX_COUNT,
 } from "./attachments.js";
 import { BotSecretMetadata, BotSecretPutInput, StoredBotSecretName } from "./bot-secrets.js";
+import { CalendarOAuthConfigSchema, CalendarReceiptSchema, CalendarTimezone } from "./calendar.js";
 import {
   ActionApprovalRuleSchema,
   ActionAutoReviewSettingsSchema,
@@ -190,6 +191,7 @@ export const appContract = {
       .input(z.object({ spaceId: Id }))
       .output(z.object({ ok: z.literal(true), activeSpaceId: Id })),
   },
+  assistant: { get: oc.output(z.object({ botId: Id.nullable() })) },
   bootstrap: oc.input(z.object({ botId: Id.optional() })).output(AppBootstrapSchema),
   deployment: {
     get: oc.output(DeploymentSettingsSchema),
@@ -454,7 +456,35 @@ export const appContract = {
     screenUrl: oc.input(botId).output(z.object({ url: z.string().nullable() })),
     heartbeat: oc.input(botId).output(z.object({ ok: z.literal(true) })),
   },
+  calendar: {
+    status: oc.output(
+      z.object({
+        configured: z.boolean(),
+        redirectUri: z.string(),
+        canConfigure: z.boolean(),
+        connectionId: Id.nullable(),
+        status: z.enum(["disconnected", "pending", "connected", "error"]),
+      }),
+    ),
+    configure: oc.input(CalendarOAuthConfigSchema).output(z.object({ ok: z.literal(true) })),
+    begin: oc
+      .input(z.object({ botId: Id, timezone: CalendarTimezone }))
+      .output(z.object({ authorizationUrl: z.string().url() })),
+    disconnect: oc.output(z.object({ ok: z.literal(true) })),
+    receipt: oc.input(z.object({ receiptId: Id })).output(CalendarReceiptSchema),
+    retry: oc.input(z.object({ receiptId: Id })).output(z.object({ ok: z.literal(true) })),
+    preferences: oc
+      .input(
+        z.object({
+          botId: Id,
+          content: z.string().max(4000),
+          expectedRevision: z.number().int().nonnegative(),
+        }),
+      )
+      .output(z.object({ ok: z.literal(true) })),
+  },
   memory: {
+    remove: oc.input(z.object({ documentId: Id })).output(z.object({ ok: z.literal(true) })),
     list: oc
       .input(z.object({ botId: Id.optional(), scope: z.enum(["bot", "user"]).optional() }))
       .output(z.array(MemoryDocumentSchema)),

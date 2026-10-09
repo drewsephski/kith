@@ -79,6 +79,7 @@ import {
   messagingDmSurfaceNote,
   nextCronDateAcross,
   nextFence,
+  PERSONAL_ASSISTANT_GUIDANCE,
   planActionGate,
   promptInvokesSkill,
   redactSecrets,
@@ -6404,6 +6405,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             .map((candidate) => JSON.stringify([candidate.provider, candidate.modelId])),
         );
 
+        const isPersonalAssistant = Boolean(
+          await deps.prisma.personalAssistant?.findFirst({
+            where: { botId: bot.id, spaceId: run.spaceId, userId: run.userId },
+            select: { botId: true },
+          }),
+        );
         try {
           const runtimeEvents = deps.runtime.run(
             {
@@ -6424,7 +6431,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
               prompt,
               contextStrategy,
               instructions: userTurnInstructions({
-                botInstructions: runIdentityInstruction(bot, run.trigger),
+                botInstructions: [
+                  isPersonalAssistant ? PERSONAL_ASSISTANT_GUIDANCE : "",
+                  runIdentityInstruction(bot, run.trigger),
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
                 groupContext,
                 messagingContext,
                 redactedMemoryContext: memoryContext

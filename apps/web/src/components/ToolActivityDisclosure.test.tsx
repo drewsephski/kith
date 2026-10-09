@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -8,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 // The macro compiles away in the app build; tests run the source, so expand the
 // plural by hand to assert the singular vs plural English forms.
 vi.mock("@lingui/react/macro", () => ({
+  Trans: ({ children }: { children: ReactNode }) => children,
   Plural: ({ value, one, other }: { value: number; one: string; other: string }) =>
     (value === 1 ? one : other).replace("#", String(value)),
 }));
@@ -62,30 +64,30 @@ function mountCard() {
 describe("ToolActivityDisclosure", () => {
   it("labels a finished card with the tool count and duration", () => {
     const html = markup({ live: false, stepCount: 2, durationMs: 12000 });
-    expect(html).toContain("Done · 2 tools · 12s");
+    expect(html).toContain("Activity · 2 steps · 12s");
   });
 
   it("uses the singular for one tool", () => {
     expect(markup({ live: false, stepCount: 1, durationMs: 850 })).toContain(
-      "Done · 1 tool · 850ms",
+      "Activity · 1 step · 850ms",
     );
-    expect(markup({ live: true, stepCount: 1 })).toContain("Working… · 1 tool");
+    expect(markup({ live: true, stepCount: 1 })).toContain("Working…");
   });
 
   it("omits the duration when it is not usable", () => {
     const html = markup({ live: false, stepCount: 3 });
-    expect(html).toContain("Done · 3 tools");
-    expect(html).not.toContain("Done · 3 tools ·");
+    expect(html).toContain("Activity · 3 steps");
+    expect(html).not.toContain("Activity · 3 steps ·");
   });
 
   it("shows the live label while working", () => {
     const html = markup({ live: true, stepCount: 2 });
-    expect(html).toContain("Working… · 2 tools");
+    expect(html).toContain("Working…");
     expect(html).toContain('data-live="true"');
   });
 
-  it("starts open while working", () => {
-    expect(markup({ live: true, stepCount: 2 })).toMatch(OPEN_DETAILS);
+  it("keeps execution details collapsed while working", () => {
+    expect(markup({ live: true, stepCount: 2 })).not.toMatch(OPEN_DETAILS);
   });
 
   it("is collapsed once done and expands to the tool rows", () => {
@@ -98,23 +100,25 @@ describe("ToolActivityDisclosure", () => {
   it("folds when the run finishes", () => {
     const card = mountCard();
     card.render(true);
+    expect(card.details()?.open).toBe(false);
+    card.summary()?.click();
     expect(card.details()?.open).toBe(true);
 
     card.render(false);
     expect(card.details()?.open).toBe(false);
-    expect(card.summary()?.textContent).toContain("Done · 2 tools");
+    expect(card.summary()?.textContent).toContain("Activity · 2 steps");
     card.unmount();
   });
 
-  it("keeps a manual collapse while more tools arrive in the same run", () => {
+  it("keeps a manual expansion while more steps arrive in the same run", () => {
     const card = mountCard();
     card.render(true, 2);
     card.summary()?.click();
-    expect(card.details()?.open).toBe(false);
+    expect(card.details()?.open).toBe(true);
 
     card.render(true, 3);
-    expect(card.details()?.open).toBe(false);
-    expect(card.summary()?.textContent).toContain("Working… · 3 tools");
+    expect(card.details()?.open).toBe(true);
+    expect(card.summary()?.textContent).toContain("Working…");
 
     card.render(false, 3);
     expect(card.details()?.open).toBe(false);
@@ -177,15 +181,15 @@ describe("StandaloneToolActivity", () => {
       <StandaloneToolActivity live={false} steps={stepsOf(2)} stepCount={2} durationMs={4000} />,
     );
     expect(html).toContain('data-testid="tool-activity-line"');
-    expect(html).toContain("Done · 2 tools · 4s");
+    expect(html).toContain("Activity · 2 steps · 4s");
     expect(html).not.toContain("bg-muted");
     expect(html).not.toContain("rounded-[20px]");
   });
 
-  it("is open with a windowed list while live, and lists every step once done", () => {
+  it("offers a windowed list while live, and lists every step once done", () => {
     const steps = stepsOf(9);
     const live = renderToStaticMarkup(<StandaloneToolActivity live steps={steps} stepCount={9} />);
-    expect(live).toMatch(OPEN_DETAILS);
+    expect(live).not.toMatch(OPEN_DETAILS);
     expect(live).toContain("+3 earlier steps");
 
     const done = renderToStaticMarkup(
@@ -198,13 +202,13 @@ describe("StandaloneToolActivity", () => {
 });
 
 describe("ToolOnlyNarration", () => {
-  it("renders a live tools-only message as an open slim line, not a bubble", () => {
+  it("renders a live steps-only message as a collapsed slim line, not a bubble", () => {
     const html = renderToStaticMarkup(
       <ToolOnlyNarration live blocks={[{ kind: "steps", steps: stepsOf(2) }]} />,
     );
     expect(html).toContain('data-testid="tool-activity-line"');
-    expect(html).toContain("Working… · 2 tools");
-    expect(html).toMatch(OPEN_DETAILS);
+    expect(html).toContain("Working…");
+    expect(html).not.toMatch(OPEN_DETAILS);
     expect(html).not.toContain("bg-muted");
   });
 
@@ -219,7 +223,7 @@ describe("ToolOnlyNarration", () => {
       />,
     );
     expect(html.match(/data-testid="tool-activity-line"/g)).toHaveLength(2);
-    expect(html).toContain("Done · 3 tools · 12s");
+    expect(html).toContain("Activity · 3 steps · 12s");
     expect(html).not.toMatch(OPEN_DETAILS);
   });
 });

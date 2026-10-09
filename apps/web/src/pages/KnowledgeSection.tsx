@@ -196,6 +196,25 @@ function MemoryDocumentList({
               <div className="mt-2 flex gap-2">
                 <Button
                   variant="ghost"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setError(null);
+                    try {
+                      await rpc.memory.remove({ documentId: doc.id });
+                      setDocs((current) => current.filter((d) => d.id !== doc.id));
+                      setOpenId(null);
+                    } catch {
+                      setError(t`Could not forget`);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  <Trans>Forget</Trans>
+                </Button>
+                <Button
+                  variant="ghost"
                   type="button"
                   disabled={busy || draft === doc.content}
                   onClick={() => void save(doc)}

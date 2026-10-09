@@ -13,7 +13,7 @@ test("computer maintenance shows durable background progress and failure recover
   const updating: ComputerUpdate = {
     id: "update-example",
     botId,
-    name: "Chief",
+    name: "Kith",
     mode: "team",
     action: "update",
     status: "running",

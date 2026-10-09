@@ -1070,7 +1070,7 @@ export function ModelSettingsOverlay({
       {selected?.auth === "oauth" && !subscriptionSignIn ? (
         <p className="mt-5 text-sm leading-[1.5] text-muted-foreground first:mt-0">
           <Trans>
-            This subscription sign-in is not available in Rakazo yet. Use a deployment credential or
+            This subscription sign-in is not available in Kith yet. Use a deployment credential or
             choose another provider.
           </Trans>
         </p>
@@ -1135,7 +1135,7 @@ export function ModelSettingsOverlay({
   ) : localOwner ? (
     <Trans>Models for the server owner’s default space.</Trans>
   ) : (
-    <Trans>Choose which connected model Rakazo uses.</Trans>
+    <Trans>Choose which connected model Kith uses.</Trans>
   );
 
   const body = (
@@ -1254,7 +1254,7 @@ export function ModelSettingsOverlay({
                       <Trans>Setup help</Trans>
                     </summary>
                     <p className="mt-1">
-                      {t`Paste the OpenAI-compatible address from your server. Rakazo adds /v1 if needed.`}
+                      {t`Paste the OpenAI-compatible address from your server. Kith adds /v1 if needed.`}
                     </p>
                   </details>
                   <div className="mt-3 flex items-center gap-2">

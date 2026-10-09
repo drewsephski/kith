@@ -21,6 +21,7 @@ import {
   SecretStoreUnavailableError,
 } from "@rakazo/adapter-kit";
 import type {
+  CalendarService,
   CloudAgentConnection,
   CodexLiveCatalog,
   ComposioProvider,
@@ -241,6 +242,7 @@ import {
   promptFocus,
   startOnboarding,
 } from "./onboarding.js";
+import { personalAssistantBotId } from "./personal-assistant.js";
 import { listRoutineRuns } from "./routine-runs.js";
 import { listSpaceRuns } from "./runs.js";
 import { addScreenProxyCapability } from "./screen-proxy.js";
@@ -554,6 +556,7 @@ export interface RouterDeps {
     provider: string,
   ) => void;
   integrationSettings?: IntegrationProviderSettings;
+  calendar?: CalendarService;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
   connectors: ConnectorRegistry;
@@ -974,6 +977,11 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
     },
+    assistant: {
+      get: authed.assistant.get.handler(async ({ context }) => ({
+        botId: await personalAssistantBotId(deps.prisma, context.actor),
+      })),
+    },
     bootstrap: authed.bootstrap.handler(async ({ context, input }) => {
       const actor = context.actor;
       const [me, navigation, archivedBots, archivedGroups] = await Promise.all([
@@ -983,7 +991,8 @@ export function createRouter(deps: RouterDeps) {
         groupRepos.listGroups(actor, { archived: true }),
       ]);
       const { bots, groups, botSections } = navigation.current;
-      const active = bots.find((bot) => bot.id === input.botId) ?? bots[0];
+      const assistantId = await personalAssistantBotId(deps.prisma, actor);
+      const active = bots.find((bot) => bot.id === (input.botId ?? assistantId)) ?? bots[0];
       const [thread, routines] = active
         ? await Promise.all([
             resolveThreadTarget(deps.prisma, actor, { botId: active.id }).then((target) =>
@@ -994,6 +1003,7 @@ export function createRouter(deps: RouterDeps) {
         : [null, []];
       return {
         me,
+        personalAssistantBotId: assistantId,
         bots,
         groups,
         botSections,
@@ -1540,9 +1550,11 @@ export function createRouter(deps: RouterDeps) {
         } catch (error) {
           throw mapSpaceLifecycleError(error);
         }
-        await enqueueBotIntroRun(deps, context.actor, bot).catch((error) => {
-          getLogger().error("bot intro run enqueue", error);
-        });
+        if (!input.startEmpty) {
+          await enqueueBotIntroRun(deps, context.actor, bot).catch((error) => {
+            getLogger().error("bot intro run enqueue", error);
+          });
+        }
         return bot;
       }),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
@@ -3105,7 +3117,53 @@ export function createRouter(deps: RouterDeps) {
         return { ok: true as const };
       }),
     },
+    calendar: {
+      status: authed.calendar.status.handler(async ({ context }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.calendar.status(context.actor);
+      }),
+      configure: authed.calendar.configure.handler(async ({ context, input }) => {
+        if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        await deps.calendar.configure(input, context.actor);
+        return { ok: true as const };
+      }),
+      begin: authed.calendar.begin.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.calendar.begin(context.actor, input);
+      }),
+      disconnect: authed.calendar.disconnect.handler(async ({ context }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        await deps.calendar.disconnect(context.actor);
+        return { ok: true as const };
+      }),
+      receipt: authed.calendar.receipt.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.calendar.receipt(context.actor, input.receiptId);
+      }),
+      retry: authed.calendar.retry.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        await deps.calendar.retry(context.actor, input.receiptId);
+        return { ok: true as const };
+      }),
+      preferences: authed.calendar.preferences.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        await deps.calendar.preferences(context.actor, input);
+        return { ok: true as const };
+      }),
+    },
     memory: {
+      remove: authed.memory.remove.handler(async ({ context, input }) => {
+        const removed = await deps.prisma.memoryDocument.deleteMany({
+          where: {
+            id: input.documentId,
+            spaceId: context.actor.spaceId,
+            userId: context.actor.userId,
+          },
+        });
+        if (!removed.count) throw new IsolationError();
+        return { ok: true as const };
+      }),
       list: authed.memory.list.handler(async ({ context, input }) => {
         const docs = await deps.prisma.memoryDocument.findMany({
           where: {

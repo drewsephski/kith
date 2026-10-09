@@ -3,6 +3,7 @@ import {
   captureScreenshot,
   completeOnboarding,
   createBotFromPicker,
+  openAdvancedNavigation,
   openNewBot,
   signup,
 } from "./helpers";
@@ -11,11 +12,13 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const stamp = Date.now();
   await signup(page, `bot-crud-${stamp}@rakazo.test`, "password12", "Bot CRUD");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const botList = page.locator("aside").first();
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
 
   let createFailed = false;
   let resolveCreateAborted!: () => void;
@@ -33,7 +36,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await createAborted;
   // Failed create keeps the form open on the current bot chat.
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
   await expect(page.getByTestId("create-bot-error")).toBeVisible();
   expect(createFailed).toBe(true);
@@ -56,6 +59,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await page.unroute("**/rpc/spaces/list");
   await expect(botList.getByRole("button", { name: /^New Bot/ })).toBeVisible();
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
   const deletedBotPath = new URL(page.url()).pathname;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.waitForTimeout(500);
@@ -149,6 +153,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await captureScreenshot(page, testInfo, "28-edited-bot-profile");
 
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(botList.getByRole("button", { name: /^Atlas/ })).toBeVisible();
   await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();
   await page.locator("main").getByRole("button", { name: "Atlas", exact: true }).click();
@@ -178,13 +183,13 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
 
   await expect(botList.getByText(longUnbrokenName, { exact: true })).toHaveCount(0);
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
   await page.waitForURL((url) => url.pathname !== deletedBotPath);
 
   await page.goto(deletedBotPath);
   await page.waitForURL((url) => url.pathname !== deletedBotPath);
   await expect(botList.getByText(longUnbrokenName, { exact: true })).toHaveCount(0);
-  await expect(botList.getByRole("button", { name: /^Chief/ })).toBeVisible();
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  await expect(botList.getByRole("button", { name: /^Kith/ })).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await captureScreenshot(page, testInfo, "31-deleted-bot-fallback");
 });

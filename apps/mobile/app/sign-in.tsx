@@ -1,4 +1,3 @@
-import type { IntegrationSetupState } from "@rakazo/contracts";
 import { credentialIssue } from "@rakazo/core";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -23,7 +22,6 @@ import {
   loadSessionToken,
   passwordResetCapabilities,
   requestPasswordReset,
-  rpc,
   signIn,
   signUp,
   usesCustomApiBase,
@@ -135,11 +133,7 @@ export default function SignIn() {
       } else {
         await signIn(email.trim(), password);
       }
-      const setup =
-        mode === "up"
-          ? await rpc<IntegrationSetupState>("integrationSetup/get").catch(() => null)
-          : null;
-      router.replace(setup?.needsSetup ? "/integration-setup" : "/");
+      router.replace("/");
     } catch (err) {
       setError(errorText(err, t("Could not continue")));
     } finally {
@@ -191,9 +185,9 @@ export default function SignIn() {
                 {resetSent
                   ? t("Check your email")
                   : mode === "in"
-                    ? t("Sign in to Rakazo")
+                    ? t("Sign in to Kith")
                     : mode === "up"
-                      ? t("Sign up for Rakazo")
+                      ? t("Sign up for Kith")
                       : t("Reset your password")}
               </Text>
               {resetSent ? (

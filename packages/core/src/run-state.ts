@@ -13,7 +13,7 @@ const TERMINAL: RunStatus[] = ["completed", "failed", "cancelled"];
  * Routine and webhook runs are not the conversation. The creation intro has no tools;
  * a message that lands during it waits, and the continuation after the intro finishes answers it.
  */
-const NON_CONVERSATIONAL_RUN_TRIGGERS = new Set(["routine", "webhook", "created"]);
+const NON_CONVERSATIONAL_RUN_TRIGGERS = new Set(["routine", "webhook", "created", "calendar"]);
 
 const allowed: Record<RunStatus, RunStatus[]> = {
   queued: ["leased", "cancelled"],

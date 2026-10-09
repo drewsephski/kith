@@ -4,6 +4,7 @@ export * from "./bootstrap-user.js";
 export * from "./cancel-runs.js";
 export * from "./client.js";
 export * from "./computers.js";
+export * from "./connections.js";
 export * from "./credential-secrets.js";
 export * from "./events.js";
 export * from "./expire-stuck-run.js";

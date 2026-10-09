@@ -53,6 +53,7 @@ async function main() {
     const webOrigin = `http://127.0.0.1:${webPort}`;
 
     process.env.DATABASE_URL = databaseUrl;
+    process.env.DATABASE_DIRECT_URL = databaseUrl;
     process.env.REALTIME_DATABASE_URL = databaseUrl;
     process.env.VERIFY_DATABASE = "1";
     process.env.WAKEUP_DRIVER = "memory";
@@ -145,6 +146,7 @@ async function main() {
           await runProcess("pnpm", ["exec", "vitest", "run", suite], {
             ...process.env,
             DATABASE_URL: suiteUrl.toString(),
+            DATABASE_DIRECT_URL: suiteUrl.toString(),
             REALTIME_DATABASE_URL: suiteUrl.toString(),
             OPENROUTER_API_KEY: "",
             MODEL_API_KEY: "",

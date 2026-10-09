@@ -56,7 +56,7 @@ test("restricted signup waits for mailbox verification", async ({ page }, testIn
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   await captureScreenshot(page, testInfo, "signup-verification-required");
   await page.getByRole("link", { name: "Back to sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Kith" })).toBeVisible();
 });
 
 test("signed-out welcome fits a narrow phone and offers sign in", async ({ page }, testInfo) => {
@@ -69,13 +69,13 @@ test("signed-out welcome fits a narrow phone and offers sign in", async ({ page 
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/");
   const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { name: "Rakazo", level: 1 })).toBeVisible();
+  await expect(main.getByRole("heading", { name: "Kith", level: 1 })).toBeVisible();
   await expect(main.getByRole("button", { name: "Sign up", exact: true })).toBeVisible();
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 320);
   await captureScreenshot(page, testInfo, "logged-out-welcome-phone");
   await main.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
-  await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Kith" })).toBeVisible();
 });
 
 test("logout protects bot deep links and sign-in restores the session", async ({
@@ -99,7 +99,7 @@ test("logout protects bot deep links and sign-in restores the session", async ({
 
   await page.waitForURL(/\/app\/[^/]+$/);
   const protectedBotPath = new URL(page.url()).pathname;
-  await expect(page.getByPlaceholder("Message Chief")).toBeVisible();
+  await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
 
   await page.getByRole("button", { name: new RegExp(userName, "i") }).click();
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
@@ -123,20 +123,20 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await captureScreenshot(page, testInfo, "36-account-menu");
 
   await page.getByRole("button", { name: "Log out" }).click();
-  await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sign in to Kith" })).toBeVisible();
   await page.goto("/");
   await expect(page.locator('[data-rakazo-surface="welcome"]')).toBeVisible();
   await expect(page.getByText(/Your team of always-on agents/)).toBeVisible();
   await page.getByRole("button", { name: /Sign up/ }).click();
   await expect(page).toHaveURL(/\/sign-up$/);
-  await expect(page.getByRole("heading", { name: "Create your Rakazo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your Kith" })).toBeVisible();
   await page.goto("/");
   await captureScreenshot(page, testInfo, "37-logged-out-welcome");
 
   await page.goto(protectedBotPath);
   await page.waitForURL((url) => url.pathname === "/sign-in");
-  await expect(page.getByRole("heading", { name: "Sign in to Rakazo" })).toBeVisible();
-  await expect(page.getByText("Chief", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Sign in to Kith" })).toBeVisible();
+  await expect(page.getByText("Kith", { exact: true })).toHaveCount(0);
   await expect(page.getByText(userName, { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Email")).toHaveAttribute("autocomplete", "username");
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute(
@@ -161,10 +161,10 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await page.waitForURL((url) => url.pathname === protectedBotPath, {
     timeout: 20_000,
   });
-  const composer = page.getByRole("combobox", { name: "Message Chief" });
+  const composer = page.getByRole("combobox", { name: "Message Kith" });
   await expect(composer).toHaveAttribute("name", "chat-message");
   await expect(composer).toHaveAttribute("autocomplete", "off");
-  await expect(composer).toHaveAttribute("aria-label", "Message Chief");
+  await expect(composer).toHaveAttribute("aria-label", "Message Kith");
   await expect(page.getByRole("button", { name: new RegExp(userName, "i") })).toBeVisible();
 
   await composer.fill("line one");

@@ -12,7 +12,8 @@ body,
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Geist Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 .rk-scroll::-webkit-scrollbar {
@@ -50,4 +51,61 @@ body,
   50% {
     opacity: 0.3;
   }
+}
+
+/* Kith keeps the conversation readable at large desktop window sizes. */
+.kith-transcript > [data-message-id],
+.kith-transcript > [data-testid="time-separator"],
+.kith-transcript > [data-testid="assistant-welcome"] {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+}
+::selection {
+  background: var(--chat-user);
+  color: var(--foreground);
+}
+textarea,
+input {
+  caret-color: var(--foreground);
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+:focus-visible {
+  outline-color: var(--ring);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: the user motion preference must override inline and component motion. */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the user motion preference must override inline and component motion. */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the user motion preference must override inline and component motion. */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: the user motion preference must override inline and component motion. */
+    scroll-behavior: auto !important;
+  }
+}
+[data-quick-ask="true"] > aside,
+[data-quick-ask="true"] > [data-testid="bots-sidebar-edge"] {
+  display: none;
+}
+[data-quick-ask="true"] [data-testid="assistant-welcome"] {
+  padding-block: 8px;
+}
+[data-quick-ask="true"] [data-testid="assistant-welcome"] > img {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 8px;
+}
+[data-quick-ask="true"] [data-testid="assistant-welcome"] h1 {
+  font-size: 26px;
+}
+[data-quick-ask="true"] [data-testid="assistant-welcome"] > div {
+  display: none;
 }

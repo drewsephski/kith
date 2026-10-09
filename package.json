@@ -10,6 +10,8 @@
   },
   "scripts": {
     "dev": "cross-env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 turbo dev --filter=@rakazo/api --filter=@rakazo/worker --filter=@rakazo/web --filter=@rakazo/sandbox-supervisor",
+    "dev:host": "node scripts/run-host.mjs dev",
+    "start:host": "node scripts/run-host.mjs start",
     "build": "turbo build",
     "check": "turbo check",
     "lint": "biome check .",

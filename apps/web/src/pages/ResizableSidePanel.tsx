@@ -6,8 +6,8 @@ const STORAGE_KEY = "rakazo:right-panel-width";
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 384;
 const ABSOLUTE_MAX = 1000;
-/** Desktop bots sidebar width (`md:w-[316px]` in Shell). */
-const BOTS_SIDEBAR_WIDTH = 316;
+/** Desktop bots sidebar width in Shell. */
+const BOTS_SIDEBAR_WIDTH = 260;
 const MIN_CHAT_WIDTH = 320;
 
 function maximumWidth(reservedLeadingPx: number) {
@@ -32,12 +32,17 @@ export function ResizableSidePanel({
   panel,
   botsSidebarCollapsed = false,
   children,
+  onClose,
 }: {
   open: boolean;
   panel: string;
   botsSidebarCollapsed?: boolean;
   children: ReactNode;
+  onClose?: () => void;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const reservedLeadingPx = botsSidebarCollapsed ? 0 : BOTS_SIDEBAR_WIDTH;
   const [preferredWidth, setPreferredWidth] = useState(readPreferredWidth);
   const [maxWidth, setMaxWidth] = useState(() => maximumWidth(reservedLeadingPx));
@@ -62,6 +67,49 @@ export function ResizableSidePanel({
     return () => window.removeEventListener("resize", syncMax);
   }, [reservedLeadingPx]);
 
+  useEffect(() => {
+    if (!open || !closeRef.current) return;
+    const trigger = document.activeElement;
+    const frame = requestAnimationFrame(() => {
+      panelRef.current?.querySelector<HTMLButtonElement>("button[aria-label]")?.focus();
+    });
+    const keydown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || document.querySelector('[role="dialog"], [role="alertdialog"]'))
+        return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current?.();
+      } else if (event.key === "Tab" && !window.matchMedia("(min-width: 768px)").matches) {
+        const focusable = [
+          ...(panelRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]',
+          ) ?? []),
+        ];
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (
+          event.shiftKey &&
+          (document.activeElement === first || !panelRef.current?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          last?.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last || !panelRef.current?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", keydown);
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
+  }, [open]);
+
   function stopDrag(event: PointerEvent<HTMLHRElement>) {
     drag.current = null;
     setDragging(false);
@@ -75,10 +123,12 @@ export function ResizableSidePanel({
 
   return (
     <aside
+      ref={panelRef}
+      aria-label={panel === "closed" ? undefined : panel}
       data-testid="side-panel"
       data-panel={panel}
       style={{ "--panel-width": `${width}px` } as CSSProperties}
-      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background md:relative ${dragging ? "" : "transition-[width] duration-150 ease-out"} ${open ? "w-full max-w-[384px] border-s border-sidebar-border md:w-(--panel-width) md:max-w-none" : "pointer-events-none w-0"}`}
+      className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-card md:relative ${dragging ? "" : "transition-[width] duration-200 ease-out motion-reduce:transition-none"} ${open ? "w-full max-w-[384px] border-s border-sidebar-border md:w-(--panel-width) md:max-w-none" : "pointer-events-none w-0"}`}
     >
       {open ? (
         <hr

@@ -1,19 +1,28 @@
 import { expect, test } from "@playwright/test";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `bot-organize-${stamp}@rakazo.test`, "password12", "Test User");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
-  const bot = sidebar.getByRole("button", { name: /^Chief/ });
+  const bot = sidebar.getByRole("button", { name: /^Kith/ });
 
   await bot.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Pin", exact: true }).click();
-  await expect(sidebar.locator('[data-sidebar-group="pinned"]')).toContainText("Chief");
+  await expect(sidebar.locator('[data-sidebar-group="pinned"]')).toContainText("Kith");
   await captureScreenshot(page, testInfo, "pinned-bots");
 
   await bot.click({ button: "right" });
@@ -32,12 +41,13 @@ test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
 
   const projects = sidebar.locator('[data-sidebar-group^="section:"]');
   await expect(projects).toContainText("Projects");
-  await expect(projects).toContainText("Chief");
+  await expect(projects).toContainText("Kith");
   await captureScreenshot(page, testInfo, "bot-sections");
 
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(projects).toContainText("Projects");
-  await expect(projects).toContainText("Chief");
+  await expect(projects).toContainText("Kith");
 
   await bot.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Move to", exact: true }).hover();
@@ -58,15 +68,17 @@ test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
     .getByRole("menu", { name: "Move to", exact: true })
     .getByRole("menuitem", { name: "Unassigned", exact: true })
     .click();
-  await expect(sidebar.locator('[data-sidebar-group="unassigned"]')).toContainText("Chief");
+  await expect(sidebar.locator('[data-sidebar-group="unassigned"]')).toContainText("Kith");
 });
 
 test("bots can be reordered by drag or keyboard and keep that order", async ({ page }) => {
   const stamp = Date.now();
   await signup(page, `bot-reorder-${stamp}@rakazo.test`, "password12", "Bot Order");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
   const alpha = await rpc<{ id: string }>(page, "bots/create", {
@@ -86,6 +98,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
     computerMode: "team",
   });
   await page.reload();
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const rows = sidebar.locator("[data-roster-bot-id]");
@@ -132,6 +145,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await staleListDelivered;
   await expect.poll(order).toEqual([beta.id, chiefId, alpha.id]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([beta.id, chiefId, alpha.id]);
 
   const betaRow = sidebar.locator(`[data-roster-bot-id="${beta.id}"]`);
@@ -139,6 +153,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await page.keyboard.press("Alt+ArrowDown");
   await expect.poll(order).toEqual([chiefId, beta.id, alpha.id]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([chiefId, beta.id, alpha.id]);
 
   let releaseRejectedReorder!: () => void;
@@ -173,6 +188,7 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await queuedReorderSaved;
   await expect.poll(order).toEqual([beta.id, alpha.id, chiefId]);
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect.poll(order).toEqual([beta.id, alpha.id, chiefId]);
 });
 
@@ -180,11 +196,12 @@ test("chat composer controls are vertically centered", async ({ page }, testInfo
   const stamp = Date.now();
   await signup(page, `composer-layout-${stamp}@rakazo.test`, "password12", "Composer Layout");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const bar = page.getByTestId("composer-bar");
-  const composer = page.getByRole("combobox", { name: "Message Chief" });
+  const composer = page.getByRole("combobox", { name: "Message Kith" });
   const centers = await bar.evaluate((composerBar) =>
-    ["Attach file", "Message Chief", "Voice", "Send"].map((label) => {
+    ["Attach file", "Message Kith", "Voice", "Send"].map((label) => {
       const element = composerBar.querySelector<HTMLElement>(`[aria-label="${label}"]`);
       if (!element) throw new Error(`Missing composer control: ${label}`);
       const box = element.getBoundingClientRect();
@@ -251,8 +268,10 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
   const stamp = Date.now();
   await signup(page, `group-organize-${stamp}@rakazo.test`, "password12", "Group Menu");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
   const partner = await rpc<{ id: string }>(page, "bots/create", {
@@ -268,6 +287,7 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
     botIds: [chiefId, partner.id],
   });
   await page.reload();
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const group = sidebar.getByRole("button", { name: /^Group menu/ });

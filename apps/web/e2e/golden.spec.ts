@@ -3,6 +3,7 @@ import {
   activeBotId,
   captureScreenshot,
   completeOnboarding,
+  openAdvancedNavigation,
   realSandboxTimeout,
   rpc,
   signup,
@@ -25,11 +26,13 @@ test("two users are isolated and a bot completes durable work", async ({ browser
   const stamp = Date.now();
   await signup(pageA, `ada-${stamp}@rakazo.test`, "password12", "Ada", testInfo);
   await completeOnboarding(pageA, testInfo);
-  await expect(pageA.getByText("Chief").first()).toBeVisible();
+  await openAdvancedNavigation(pageA);
+  await expect(pageA.getByText("Kith").first()).toBeVisible();
 
   await signup(pageB, `bob-${stamp}@rakazo.test`, "password12", "Bob");
   await completeOnboarding(pageB);
-  await expect(pageB.getByText("Chief").first()).toBeVisible();
+  await openAdvancedNavigation(pageB);
+  await expect(pageB.getByText("Kith").first()).toBeVisible();
   await expect(pageB.getByText("Ada", { exact: true })).toHaveCount(0);
 
   const composer = pageA.getByPlaceholder(/Message/);
@@ -42,6 +45,7 @@ test("two users are isolated and a bot completes durable work", async ({ browser
   });
 
   await pageA.reload();
+  await openAdvancedNavigation(pageA);
   await expect(pageA.getByText(/isolation-ok|writing that into my home/i).first()).toBeVisible();
   await captureScreenshot(pageA, testInfo, "07-durable-bot-work");
 
@@ -53,6 +57,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   const stamp = Date.now();
   await signup(page, `flow-${stamp}@rakazo.test`, "password12", "Flow");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const composer = page.getByPlaceholder(/Message/);
   await composer.fill("install the gsc cli and sign in");
@@ -300,7 +305,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
 
   await page.getByRole("button", { name: "Close integrations" }).click();
 
-  await page.getByText("Chief").first().click();
+  await page.getByText("Kith").first().click();
   const gear = page.getByRole("button", { name: "Show settings" });
   if (!(await gear.isVisible().catch(() => false))) {
     await page.getByTitle("Agent computer").click();
@@ -315,10 +320,10 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(settings.getByRole("button", { name: "Delete bot" })).toHaveCount(0);
   await page.getByRole("button", { name: "Close panel" }).click();
 
-  await page.locator("aside").first().getByRole("button", { name: /Chief/ }).first().click({
+  await page.locator("aside").first().getByRole("button", { name: /Kith/ }).first().click({
     button: "right",
   });
-  const botMenu = page.getByRole("menu", { name: "Actions for Chief" });
+  const botMenu = page.getByRole("menu", { name: "Actions for Kith" });
   await expect(botMenu.getByRole("menuitem", { name: "Archive" })).toBeVisible();
   await botMenu.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("radio", { name: /Keep memories/ })).toBeChecked();
@@ -343,6 +348,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   const email = `shell-${stamp}@rakazo.test`;
   await signup(page, email, "password12", "Shell");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.evaluate(() => {
     Object.defineProperty(globalThis.crypto, "randomUUID", {
       value: undefined,
@@ -358,10 +364,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   });
   await captureScreenshot(page, testInfo, "13-spawned-bot");
 
-  await page
-    .locator("[data-sidebar-group]")
-    .getByRole("button", { name: /^Chief/ })
-    .click();
+  await page.locator("[data-sidebar-group]").getByRole("button", { name: /^Kith/ }).click();
   await composer.fill("keep working until I stop you");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
@@ -370,7 +373,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await expect(page.getByTestId("composer-steering-status")).toHaveCount(0);
   await expect(page.getByText("Messages sent now guide the next turn.")).toHaveCount(0);
   await expect(page.getByText(/^Steer /)).toHaveCount(0);
-  await expect(composer).toHaveAttribute("placeholder", "Message Chief");
+  await expect(composer).toHaveAttribute("placeholder", "Message Kith");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
   const voiceButton = page
     .getByTestId("composer-bar")
@@ -389,7 +392,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
-  await expect(composer).toHaveAttribute("placeholder", "Message Chief");
+  await expect(composer).toHaveAttribute("placeholder", "Message Kith");
   await captureScreenshot(page, testInfo, "14-active-bot-work-mobile");
   await page.setViewportSize({ width: 1280, height: 720 });
   expect(browserErrors).toEqual([]);
@@ -423,7 +426,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await page.getByPlaceholder("Password").fill("password12");
   await page.getByRole("button", { name: "Continue with email" }).click();
   await page.waitForURL(/\/app/, { timeout: 20_000 });
-  await expect(sidebarBotButton(page, /^Chief/)).toBeVisible();
+  await expect(sidebarBotButton(page, /^Kith/)).toBeVisible();
   await expect(sidebarBotButton(page, /Scout/)).toBeVisible();
   await captureScreenshot(page, testInfo, "15-restored-session");
 });
@@ -434,17 +437,18 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   const stamp = Date.now();
   await signup(page, `menu-${stamp}@rakazo.test`, "password12", "Menu");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
-  const chief = page.getByRole("button", { name: /Chief/ }).first();
+  const chief = page.getByRole("button", { name: /Kith/ }).first();
   await chief.click({ button: "right" });
-  await expect(page.getByRole("menu", { name: "Actions for Chief" })).toBeVisible();
+  await expect(page.getByRole("menu", { name: "Actions for Kith" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Edit Profile" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
   await captureScreenshot(page, testInfo, "16-bot-context-menu");
   await page.getByRole("menuitem", { name: "Mark as Unread" }).click();
 
-  // Chief is the open bot, so the auto-read on window focus must not undo the manual mark.
+  // Kith is the open bot, so the auto-read on window focus must not undo the manual mark.
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await chief.click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Mark as Read" })).toBeVisible();
@@ -456,19 +460,19 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await chief.click({ button: "right" });
   await expect(page.getByRole("menuitem", { name: "Unpin", exact: true })).toBeVisible();
   await page.getByRole("menuitem", { name: "Duplicate" }).click();
-  await expect(page.getByText("Chief copy").first()).toBeVisible();
+  await expect(page.getByText("Kith copy").first()).toBeVisible();
   await captureScreenshot(page, testInfo, "17-pinned-and-duplicated-bot");
 
-  const copy = page.getByRole("button", { name: /Chief copy/ }).first();
+  const copy = page.getByRole("button", { name: /Kith copy/ }).first();
   await copy.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete" }).click();
-  await expect(page.getByRole("alertdialog", { name: "Delete Chief copy?" })).toBeVisible();
+  await expect(page.getByRole("alertdialog", { name: "Delete Kith copy?" })).toBeVisible();
   await captureScreenshot(page, testInfo, "18-delete-confirmation");
   await page.getByRole("button", { name: "Cancel" }).click();
 
   await chief.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Edit Profile" }).click();
-  await expect(page.locator("label:has-text('Name') input")).toHaveValue("Chief");
+  await expect(page.locator("label:has-text('Name') input")).toHaveValue("Kith");
   await captureScreenshot(page, testInfo, "19-edit-profile");
 });
 

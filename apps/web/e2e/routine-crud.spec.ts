@@ -1,7 +1,14 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { Bot, Routine } from "@rakazo/contracts";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 async function addScheduleTrigger(page: Page, freq: string) {
   await page.getByRole("button", { name: "Add trigger" }).click();
@@ -24,6 +31,7 @@ test("routine active switch keeps its thumb inside the track", async ({ page }, 
   const stamp = Date.now();
   await signup(page, `routine-toggle-${stamp}@rakazo.test`, "password12", "Routine Toggle");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.getByTitle("Agent computer").click();
   await page.getByRole("button", { name: "Create Routine" }).click();
 
@@ -68,6 +76,7 @@ test("routine editing updates in place, preserves timezone, and deletion persist
   const stamp = Date.now();
   await signup(page, `routine-crud-${stamp}@rakazo.test`, "password12", "Routine CRUD");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const botId = activeBotId(page);
 
   const created = await rpc<Routine>(page, "routines/create", {
@@ -82,6 +91,7 @@ test("routine editing updates in place, preserves timezone, and deletion persist
   expect(created.nextRunAt).not.toBeNull();
   expect(localSchedule(created.nextRunAt!, created.timezone)).toMatchObject({ hour: 9, minute: 0 });
   await page.reload();
+  await openAdvancedNavigation(page);
   await page.getByTitle("Agent computer").click();
 
   await page.getByRole("button", { name: /Tokyo check-in/ }).click();
@@ -128,6 +138,7 @@ test("routine editing updates in place, preserves timezone, and deletion persist
   expect(await rpc<Routine[]>(page, "routines/list", { botId })).toEqual([]);
 
   await page.reload();
+  await openAdvancedNavigation(page);
   await page.getByTitle("Agent computer").click();
   await expect(updatedButton).toHaveCount(0);
 });
@@ -136,6 +147,7 @@ test("a routine runs on the bot's model until another is picked", async ({ page 
   const stamp = Date.now();
   await signup(page, `routine-model-${stamp}@rakazo.test`, "password12", "Routine Model");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const botId = activeBotId(page);
 
   await page.getByTitle("Agent computer").click();
@@ -194,6 +206,7 @@ test("invalid advanced cron is rejected without creating a routine", async ({ pa
   const stamp = Date.now();
   await signup(page, `routine-invalid-${stamp}@rakazo.test`, "password12", "Invalid Routine");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const botId = activeBotId(page);
 
   await page.getByTitle("Agent computer").click();
@@ -215,6 +228,7 @@ test("a successful routine create is not reported as failed when refresh fails",
   const stamp = Date.now();
   await signup(page, `routine-refresh-${stamp}@rakazo.test`, "password12", "Routine Refresh");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const botId = activeBotId(page);
 
   await page.getByTitle("Agent computer").click();
@@ -253,6 +267,7 @@ test("switching bots while a routine save is pending does not reopen stale state
   const stamp = Date.now();
   await signup(page, `routine-switch-${stamp}@rakazo.test`, "password12", "Routine Switch");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const firstBotId = activeBotId(page);
   const secondBot = await rpc<Bot>(page, "bots/create", {
     name: "Second",
@@ -282,6 +297,7 @@ test("switching bots while a routine save is pending does not reopen stale state
     }),
   ]);
   await page.reload();
+  await openAdvancedNavigation(page);
 
   await page.getByTitle("Agent computer").click();
   await page.getByRole("button", { name: /First routine/ }).click();
@@ -351,7 +367,7 @@ test("switching bots while a routine save is pending does not reopen stale state
   );
 
   const botList = page.locator("aside").first();
-  await botList.getByRole("button", { name: /^Chief/ }).click();
+  await botList.getByRole("button", { name: /^Kith/ }).click();
   await staleListIntercepted;
   await botList.getByRole("button", { name: /^Second/ }).click();
   await page.waitForURL(new RegExp(`/app/${secondBot.id}$`));

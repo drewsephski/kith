@@ -385,6 +385,7 @@ model SpaceVoicePreference {
 }
 
 model Bot {
+  personalAssistants PersonalAssistant[]
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
   spaceId           String
@@ -639,6 +640,7 @@ model Run {
   teamChatMirroredAt   DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
+  calendarBriefing     CalendarBriefing?
   attempts             Attempt[]
   effects              ExternalEffect[]
   usageRecords         UsageRecord[]
@@ -860,6 +862,8 @@ model Connection {
   provider    String
   displayName String
   status      String
+  calendarAuthorization CalendarAuthorization?
+  calendarBriefings CalendarBriefing[]
   secretId    String?
   providerRef String?
   metadata    Json     @default("{}")
@@ -1404,4 +1408,48 @@ model IntegrationProviderConfig {
   updatedAt  DateTime @updatedAt
 
   @@map("integration_provider_configs")
+}
+
+/// One-use OAuth state; the verifier is in the existing encrypted Secret store.
+model CalendarAuthorization {
+  connectionId String @id
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  stateHash String @unique
+  secretId String
+  botId String
+  timezone String
+  expiresAt DateTime
+  consumedAt DateTime?
+  @@map("calendar_authorizations")
+}
+
+/// Run owns lifecycle/lease/attempts; this record owns evidence and the cached outcome.
+model CalendarBriefing {
+  id String @id @default(cuid())
+  runId String @unique
+  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+  connectionId String?
+  connection Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  generation String
+  attemptBase Int @default(0)
+  timezone String
+  snapshot Json?
+  outcome String? @db.Text
+  suggestions Json @default("[]")
+  suggestionStatus String?
+  memorySources Json @default("[]")
+  createdAt DateTime @default(now())
+  @@unique([connectionId, generation])
+  @@map("calendar_briefings")
+}
+
+/// Stable personal conversation per user and space, independent of roster order.
+model PersonalAssistant {
+  spaceId String
+  userId String
+  botId String
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  @@id([spaceId, userId])
+  @@index([botId])
+  @@map("personal_assistants")
 }

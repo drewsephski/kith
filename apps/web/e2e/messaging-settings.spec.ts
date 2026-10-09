@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test.afterEach(async ({ page }) => {
   // Polling can leave a route.fetch response in use when the assertions finish.
@@ -29,7 +29,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
               provider: "sendblue",
               address: "+15551230001",
               botId: "bot-1",
-              botName: "Chief",
+              botName: "Kith",
             },
           ],
         },
@@ -83,6 +83,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   const userName = `Messenger ${stamp}`;
   await signup(page, `messaging-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
   await page.getByRole("button", { name: "Settings" }).click();
@@ -95,7 +96,7 @@ test("Korean messaging settings show linked chat apps, channels, and connections
   await expect(page.getByTestId("messaging-settings")).toBeVisible();
   await expect(page.getByText("iMessage · Slack · WhatsApp · Telegram · Feishu")).toBeVisible();
   await expect(page.getByText("iMessage · +15551230001")).toBeVisible();
-  await expect(page.getByText("→ Chief")).toBeVisible();
+  await expect(page.getByText("→ Kith")).toBeVisible();
   await expect(page.getByRole("button", { name: "연결 해제" })).toBeVisible();
   await expect(page.getByText("Family")).toBeVisible();
   await expect(page.getByText("Dana's Assistant")).toBeVisible();
@@ -203,6 +204,7 @@ test("team conversation settings open from messaging overlay", async ({ page }, 
   const userName = `TeamChat ${stamp}`;
   await signup(page, `team-chat-${stamp}@rakazo.test`, "password12", userName);
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   await page.getByRole("button", { name: new RegExp(userName) }).click();
   await page.getByRole("button", { name: "Settings" }).click();

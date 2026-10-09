@@ -61,7 +61,7 @@ test("billing paywall holds the app until the subscription is active", async ({
     hasCustomer: true,
   });
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByText("Chief").first()).toBeVisible();
+  await expect(page.getByText("Kith").first()).toBeVisible();
 
   const settings = await openUserSettings(page, "billing");
   await expect(settings).toHaveAttribute("data-settings-section", "billing");

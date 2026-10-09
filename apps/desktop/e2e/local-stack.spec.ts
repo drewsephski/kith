@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { type ElectronApplication, _electron as electron, expect, test } from "@playwright/test";
 
-const APP_MARKER = "Local Rakazo stack ready";
+const APP_MARKER = "Local Kith stack ready";
 const IMAGE_TAG = "v9.9.9";
 const STACK_PROBE_PATH = "/.well-known/rakazo-desktop-stack";
 const STACK_TOKEN_HEADER = "x-rakazo-desktop-stack-token";
@@ -60,7 +60,7 @@ test.beforeAll(async () => {
     }
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Rakazo</title></head><body><main>${APP_MARKER}</main></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Kith</title></head><body><main>${APP_MARKER}</main></body></html>`,
     );
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -169,16 +169,16 @@ test("This computer installs and starts the stack, then opens the app", async ()
   app = await launch("ok");
   const setup = await app.firstWindow();
 
-  await expect(setup.getByRole("radio", { name: /This computer/ })).toBeChecked();
+  await expect(setup.locator("#mode-new")).toBeChecked();
   // The panel is empty until a start begins, so check the attribute rather than the box.
   await expect(setup.locator("#panel-new")).toHaveJSProperty("hidden", false);
   await expect(setup.locator("#stack")).toBeHidden();
   await expect(setup.getByRole("button", { name: "Check connection" })).toBeHidden();
 
   const appWindowPromise = app.waitForEvent("window");
-  await setup.getByRole("button", { name: "Continue" }).click();
-  await expect(setup.locator("#stack-phase")).toHaveText("Downloading Rakazo…");
-  await expect(setup.getByRole("button", { name: "Continue" })).toBeDisabled();
+  await setup.locator("#continue").click();
+  await expect(setup.locator("#stack-phase")).toHaveText("Downloading Kith…");
+  await expect(setup.locator("#continue")).toBeDisabled();
   // Docker output stays behind the details toggle; the phase, the bar, and the size show by default.
   await expect(setup.locator("#stack-detail")).toHaveText("412 MB downloaded");
   await expect(setup.locator("#stack-progress")).toBeVisible();
@@ -224,7 +224,7 @@ test("without Docker the app explains how to get it and offers to check again", 
   app = await launch("missing");
   const setup = await app.firstWindow();
 
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect(setup.locator("#stack-phase")).toHaveText(
     "Docker is not installed on this computer.",
   );
@@ -238,9 +238,9 @@ test("without Docker the app explains how to get it and offers to check again", 
   });
 
   // Existing instance stays available without Docker.
-  await setup.getByRole("radio", { name: /Existing instance/ }).check();
+  await setup.getByRole("button", { name: "Connect to a server" }).click();
   await expect(setup.locator("#stack")).toBeHidden();
-  await expect(setup.getByRole("button", { name: "Continue" })).toBeEnabled();
+  await expect(setup.locator("#continue")).toBeEnabled();
   expect(await savedSetup()).toBeNull();
 });
 
@@ -248,13 +248,13 @@ test("switching to Existing instance while the stack starts keeps that choice", 
   app = await launch("ok");
   const setup = await app.firstWindow();
 
-  await setup.getByRole("button", { name: "Continue" }).click();
-  await expect(setup.locator("#stack-phase")).toHaveText("Downloading Rakazo…");
+  await setup.locator("#continue").click();
+  await expect(setup.locator("#stack-phase")).toHaveText("Downloading Kith…");
 
   // Fake docker sleeps during pull; leave This computer before ready so followStack must not save.
-  await setup.getByRole("radio", { name: /Existing instance/ }).check();
+  await setup.getByRole("button", { name: "Connect to a server" }).click();
   await expect(setup.locator("#panel-existing")).toBeVisible();
-  await expect(setup.getByRole("button", { name: "Continue" })).toBeEnabled();
+  await expect(setup.locator("#continue")).toBeEnabled();
   await expect(setup.getByRole("button", { name: "Check connection" })).toBeVisible();
 
   // Main process still finishes the install; setup.json must stay untouched.
@@ -266,9 +266,9 @@ test("switching to Existing instance while the stack starts keeps that choice", 
   expect(app.windows()).toHaveLength(1);
 
   // Back on This computer, Continue starts (or re-follows) and opens the app.
-  await setup.getByRole("radio", { name: /This computer/ }).check();
+  await setup.getByRole("button", { name: "Use this computer" }).click();
   const appWindowPromise = app.waitForEvent("window");
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect((await appWindowPromise).getByText(APP_MARKER)).toBeVisible();
   await expect.poll(savedSetup).toEqual({ mode: "new", serverUrl });
 });
@@ -277,7 +277,7 @@ test("a stopped Docker daemon is reported and Check again asks Docker once more"
   app = await launch("daemon-down");
   const setup = await app.firstWindow();
 
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect(setup.locator("#stack-phase")).toHaveText(
     "Docker is installed but not running. Start Docker, then check again.",
   );
@@ -294,7 +294,7 @@ test("unpublished images show the docker output and a Retry button", async () =>
   app = await launch("pull-fails");
   const setup = await app.firstWindow();
 
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect(setup.locator("#stack-phase")).toHaveText(
     `Images for ${IMAGE_TAG} are not published yet. Try again in a few minutes.`,
   );
@@ -323,7 +323,7 @@ test("a saved local stack that is down is started again without asking", async (
 
   app = await launch("ok");
   const setup = await app.firstWindow();
-  await expect(setup.getByRole("radio", { name: /This computer/ })).toBeChecked();
+  await expect(setup.locator("#mode-new")).toBeChecked();
   await expect(setup.locator("#stack")).toBeVisible();
   await expect(setup.locator("#status")).toBeEmpty();
 
@@ -386,7 +386,7 @@ test("a saved local target is the exact origin authenticated before reuse", asyn
 
     app = await launch("ok");
     const setup = await app.firstWindow();
-    await expect(setup.getByRole("radio", { name: /This computer/ })).toBeChecked();
+    await expect(setup.locator("#mode-new")).toBeChecked();
     await expect(setup.locator("#stack")).toBeVisible();
     await expect(setup.getByText("Unchecked listener")).toHaveCount(0);
   } finally {
@@ -405,7 +405,7 @@ test("an existing stack .env is never rewritten", async () => {
   app = await launch("ok");
   const setup = await app.firstWindow();
   const appWindowPromise = app.waitForEvent("window");
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   const appWindow = await appWindowPromise;
   await expect(appWindow.getByText(APP_MARKER)).toBeVisible();
 
@@ -415,7 +415,7 @@ test("an existing stack .env is never rewritten", async () => {
 test("exhausted address pools explain recovery", async () => {
   app = await launch("pool-exhausted");
   const setup = await app.firstWindow();
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect(setup.locator("#stack-phase")).toHaveText(
     "Docker has no free network address pools. Remove unused Docker networks or expand Docker’s address pools, then retry.",
   );
@@ -429,7 +429,7 @@ test("a port conflict opens and saves the replacement managed origin", async () 
   app = await launch("port-conflict");
   const setup = await app.firstWindow();
   const appWindowPromise = app.waitForEvent("window");
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   const urlFile = path.join(userData, "stack", ".desktop-web-url");
   let replacementUrl = "";
   await expect
@@ -459,7 +459,7 @@ test("a port conflict opens and saves the replacement managed origin", async () 
 test("repeated port conflicts stop with a retry action", async () => {
   app = await launch("ports-exhausted");
   const setup = await app.firstWindow();
-  await setup.getByRole("button", { name: "Continue" }).click();
+  await setup.locator("#continue").click();
   await expect(setup.locator("#stack-phase")).toHaveText(
     "Could not bind a local port after retrying. Retry to choose another port.",
   );

@@ -34,8 +34,10 @@ test("onboarding uses compact model selects without misleading latest labels", a
   await expect(page.getByRole("option", { name: "Vercel AI Gateway" })).toBeVisible();
   await page.getByRole("option", { name: "Anthropic" }).click();
   await expect(provider).toContainText("Anthropic");
+  await page.getByText("Use an API key", { exact: true }).click();
   await expect(page.getByLabel(/API key/)).toHaveValue("");
 
+  await page.getByText("Model settings", { exact: true }).click();
   const models = page.getByRole("combobox", { name: "Model", exact: true });
   await models.click();
   const labels = await page.getByRole("option").allTextContents();

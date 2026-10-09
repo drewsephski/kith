@@ -17,4 +17,8 @@ await mkdir(dist, { recursive: true });
 await Promise.all([
   ...STATIC_FILES.map((file) => copyFile(path.join(root, "src", file), path.join(dist, file))),
   copyFile(TOKENS_FILE, path.join(dist, "tokens.css")),
+  copyFile(
+    path.resolve(root, "../../packages/ui-tokens/assets/kith-companion.webp"),
+    path.join(dist, "kith-companion.webp"),
+  ),
 ]);

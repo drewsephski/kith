@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, createNamedBot, signup } from "./helpers";
+import {
+  captureScreenshot,
+  completeOnboarding,
+  createNamedBot,
+  openAdvancedNavigation,
+  signup,
+} from "./helpers";
 
 async function captureSidebarSearchSelected(
   page: Page,
@@ -8,7 +14,7 @@ async function captureSidebarSearchSelected(
 ) {
   const aside = page.locator("aside").first();
   const search = aside.getByTestId("sidebar-search");
-  const selected = aside.getByRole("button", { name: /^Chief/ }).first();
+  const selected = aside.getByRole("button", { name: /^Kith/ }).first();
   await expect(search).toBeVisible();
   await expect(selected).toBeVisible();
   await search.scrollIntoViewIfNeeded();
@@ -48,6 +54,7 @@ test("account settings appearance control switches to light mode", async ({ page
   const stamp = Date.now();
   await signup(page, `ui-appearance-${stamp}@rakazo.test`, "password12", "Appearance QA");
   await completeOnboarding(page, testInfo);
+  await openAdvancedNavigation(page);
 
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -101,17 +108,18 @@ test("sidebar bot rows hover with the same tone as the integrations row", async 
   const stamp = Date.now();
   await signup(page, `ui-hover-${stamp}@rakazo.test`, "password12", "Hover QA");
   await completeOnboarding(page, testInfo);
+  await openAdvancedNavigation(page);
   await createNamedBot(page, "Second Bot");
 
   const sidebar = page.locator("aside").first();
-  const chief = sidebar.getByRole("button", { name: /^Chief/ }).first();
+  const chief = sidebar.getByRole("button", { name: /^Kith/ }).first();
   await expect(chief).toBeVisible();
-  const readChiefBg = () => chief.evaluate((el) => getComputedStyle(el).backgroundColor);
-  await expect.poll(readChiefBg).toBe("rgba(0, 0, 0, 0)");
+  const readKithBg = () => chief.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await expect.poll(readKithBg).toBe("rgba(0, 0, 0, 0)");
 
   await chief.hover();
-  await expect.poll(readChiefBg).not.toBe("rgba(0, 0, 0, 0)");
-  const chiefBg = await readChiefBg();
+  await expect.poll(readKithBg).not.toBe("rgba(0, 0, 0, 0)");
+  const chiefBg = await readKithBg();
   await captureScreenshot(page, testInfo, "sidebar-row-hover");
 
   const integrations = sidebar.getByRole("button", { name: "Integrations", exact: true });

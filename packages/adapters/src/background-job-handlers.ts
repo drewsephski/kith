@@ -10,6 +10,8 @@ import type {
 import { messagingDeliverJob } from "@rakazo/adapter-kit";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
+import { executeCalendarBriefing } from "./calendar-briefing.js";
+import type { CalendarService } from "./calendar-service.js";
 import type { CloudAgentConnection } from "./cloud-agent-factory.js";
 import { pollCloudAgent } from "./cloud-agent-poll.js";
 import { expireComputerControl } from "./computer-control.js";
@@ -36,6 +38,7 @@ export function createBackgroundJobHandlers(deps: {
   deploymentModelConfigured?: boolean;
   messaging?: MessagingSurface;
   cloudAgent?: CloudAgentConnection | null;
+  calendar?: CalendarService;
 }): BackgroundJobHandlers {
   const deliverMessaging = async (runId?: string) => {
     if (!deps.messaging) return;
@@ -54,7 +57,20 @@ export function createBackgroundJobHandlers(deps: {
 
   return {
     "run.continue": async (payload) => {
-      await deps.executor.continueRun(payload.runId, deps.workerId);
+      const run = deps.calendar
+        ? await deps.prisma.run.findUnique({
+            where: { id: payload.runId },
+            select: { trigger: true },
+          })
+        : null;
+      if (run?.trigger === "calendar") {
+        if (!deps.calendar) throw new Error("Calendar worker is not configured");
+        await executeCalendarBriefing(
+          { ...deps, calendar: deps.calendar, resolveModel: deps.executor.resolveModel },
+          payload.runId,
+          deps.workerId,
+        );
+      } else await deps.executor.continueRun(payload.runId, deps.workerId);
       // Automatic messaging mirror: once the run's bot messages are durable,
       // copy them into the outbox. Never let mirror failures fail the run.
       if (deps.messaging) {

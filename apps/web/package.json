@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "cross-env NODE_ENV=production vite build",
     "preview": "vite preview",
+    "start": "vite preview",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --root ../.. apps/web/src",
     "e2e": "playwright test",

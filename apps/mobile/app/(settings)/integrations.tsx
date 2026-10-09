@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CalendarConnection } from "../../components/CalendarConnection";
 import { ConnectorIcon } from "../../components/connector-icon";
 import { NativeActionButton } from "../../components/native-action-button";
 import { Chevron } from "../../components/row-accessories";
@@ -69,6 +70,7 @@ export default function Integrations() {
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [lastBotId, setLastBotId] = useState("");
   const [catalogReady, setCatalogReady] = useState(false);
+  const [calendarIdentity, setCalendarIdentity] = useState<string | null>(null);
   const [labelDrafts, setLabelDrafts] = useState<Record<string, string>>({});
   const [detailKey, setDetailKey] = useState<{ connectorId: string; slug: string } | null>(null);
   const [tools, setTools] = useState<ConnectionTool[]>([]);
@@ -164,6 +166,7 @@ export default function Integrations() {
   function clearStaleScope() {
     if (!cacheScope.current || isIntegrationsScopeCurrent(cacheScope.current)) return;
     cacheScope.current = null;
+    setCalendarIdentity(null);
     refreshGeneration.current += 1;
     sourcesGeneration.current += 1;
     applySnapshot({ catalog: [], connections: [] });
@@ -203,6 +206,7 @@ export default function Integrations() {
       setLabelDrafts({});
     }
     cacheScope.current = scope;
+    setCalendarIdentity(`${scope.userId}:${scope.spaceId}`);
     if (!previous || previous.userId !== scope.userId || previous.spaceId !== scope.spaceId) {
       const cached = readIntegrationsCache(scope);
       if (cached) applySnapshot(cached);
@@ -718,6 +722,7 @@ export default function Integrations() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
       >
+        {!detailItem && calendarIdentity ? <CalendarConnection key={calendarIdentity} /> : null}
         {!detailItem ? (
           <TextInput
             value={query}

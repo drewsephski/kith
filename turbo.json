@@ -1,7 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["COREPACK_ENABLE_DOWNLOAD_PROMPT"],
+  "globalPassThroughEnv": [
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT",
+    "SANDBOX_PROVIDER",
+    "DATA_DIR",
+    "npm_execpath"
+  ],
   "tasks": {
+    "start": {
+      "cache": false,
+      "persistent": true
+    },
     "generate": {
       "cache": false
     },

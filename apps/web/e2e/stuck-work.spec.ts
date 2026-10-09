@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 const EXPIRED_TAKEOVER = "Stopped. This was still waiting for you on the screen.";
 const EXPIRED_MESSAGE_ID = "msg-stuck-expired";
@@ -81,6 +81,7 @@ test("aged queued work is marked and an expired wait leaves a status line", asyn
   const stamp = Date.now();
   await signup(page, `stuck-${stamp}@rakazo.test`, "password12", "Stuck");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const agedAt = new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString();
   await page.route("**/rpc/runs/list", async (route) => {
@@ -91,7 +92,7 @@ test("aged queued work is marked and an expired wait leaves a status line", asyn
             {
               runId: "run-aged",
               botId: "bot-aged",
-              botName: "Chief",
+              botName: "Kith",
               groupId: null,
               groupName: null,
               threadId: "thread-aged",
@@ -112,9 +113,10 @@ test("aged queued work is marked and an expired wait leaves a status line", asyn
   const activityToggle = page.getByRole("button", { name: "Activity", exact: true });
   await activityToggle.click();
   await page.reload();
+  await openAdvancedNavigation(page);
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
-  const row = activityRow(page, "Chief");
+  const row = activityRow(page, "Kith");
   await expect(row).toBeVisible({ timeout: 20_000 });
   await expect(row).toContainText("2d ago");
   await expect(row.locator(".text-warning").filter({ hasText: "Queued" })).toBeVisible();

@@ -41,6 +41,12 @@ export interface RakazoDesktop {
   localSettings?: {
     request: (pathname: string, body: string) => Promise<{ status: number; body: string }>;
   };
+  quickAsk?: {
+    state: () => Promise<boolean>;
+    expand: () => Promise<void>;
+    dismiss: () => Promise<void>;
+    onChange: (listener: (active: boolean) => void) => () => void;
+  };
   platform: string;
   window: {
     close: () => Promise<void>;

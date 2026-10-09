@@ -161,6 +161,7 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     title: z.string(),
     farewell: z.string(),
   }),
+  z.object({ kind: z.literal("calendar_receipt"), receiptId: Id }),
   z.object({ kind: z.literal("meta"), text: z.string() }),
   z.object({
     kind: z.literal("progress"),

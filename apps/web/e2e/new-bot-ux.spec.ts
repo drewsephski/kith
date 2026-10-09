@@ -3,6 +3,7 @@ import {
   captureScreenshot,
   completeOnboarding,
   createBotFromPicker,
+  openAdvancedNavigation,
   openNewBot,
   rpc,
   signup,
@@ -14,15 +15,17 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   const stamp = Date.now();
   await signup(page, `new-bot-ux-${stamp}@rakazo.test`, "password12", "New Bot UX");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   await page.getByTestId("create-menu-trigger").click();
   const picker = page.getByTestId("bot-create-picker");
   await expect(picker).toBeVisible();
   await expect(picker.getByPlaceholder("Search")).toBeVisible();
   await expect(picker.getByTestId("create-new-bot")).toBeVisible();
-  await expect(picker.getByText("Chief", { exact: true })).toBeVisible();
+  await expect(picker.getByText("Kith", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "plus-picker-bots");
 
   await picker.getByTestId("create-new-bot").click();
@@ -40,6 +43,7 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await form.locator("label:has-text('Name') input").fill("New Bot");
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
   await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
   await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
@@ -74,8 +78,10 @@ test("picker rows explain groups and spaces", async ({ page }, testInfo) => {
   const stamp = Date.now();
   await signup(page, `picker-info-${stamp}@rakazo.test`, "password12", "Picker Info");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   await page.getByTestId("create-menu-trigger").click();
   const picker = page.getByTestId("bot-create-picker");
@@ -113,6 +119,7 @@ test("later bot waits before showing the focus card; sending cancels it", async 
   const stamp = Date.now();
   await signup(page, `focus-delay-${stamp}@rakazo.test`, "password12", "Focus Delay");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   // First bot from onboarding shows the focus card immediately.
   await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible();
 
@@ -155,8 +162,10 @@ test("plus picker can create a Private computer bot", async ({ page }, testInfo)
   const stamp = Date.now();
   await signup(page, `new-bot-private-${stamp}@rakazo.test`, "password12", "New Bot Private");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   await createBotFromPicker(page, { computerMode: "dedicated" });
   await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
@@ -171,8 +180,10 @@ test("second bot from plus opens create form before persist", async ({ page }, t
   const stamp = Date.now();
   await signup(page, `second-bot-form-${stamp}@rakazo.test`, "password12", "Second Bot Form");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   await page.goto("/app");
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
 
   await openNewBot(page);
   const form = page.getByTestId("create-bot-form");
@@ -188,6 +199,7 @@ test("second bot from plus opens create form before persist", async ({ page }, t
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await create;
   await page.waitForURL(/\/app\/[^/]+$/);
+  await openAdvancedNavigation(page);
   await expect(page.getByPlaceholder("Message Researcher")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
   await captureScreenshot(page, testInfo, "second-bot-created");

@@ -21,6 +21,7 @@ async function main() {
     const env = {
       ...process.env,
       DATABASE_URL: postgres?.getConnectionUri() ?? "",
+      DATABASE_DIRECT_URL: postgres?.getConnectionUri() ?? "",
       REALTIME_DATABASE_URL: postgres?.getConnectionUri() ?? "",
       VERIFY_PROVIDERS: "1",
       WAKEUP_DRIVER: "memory",
