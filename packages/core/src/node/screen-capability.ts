@@ -11,6 +11,9 @@ export const SCREEN_RECHECK_MS = 1_000;
 export const REMOTE_SCREEN_CAPABILITY_MIN_REMAINING_MS = 10 * 60_000;
 
 export interface ScreenCapabilityScope {
+  sessionId: string;
+  userId: string;
+  spaceId: string;
   botId: string;
   computerId: string;
   botGeneration: number;
@@ -137,6 +140,9 @@ function remoteScreenSealKey(
     createHash("sha256").update(secret).digest("base64url"),
     new URL(origin).origin,
     url,
+    scope.sessionId,
+    scope.userId,
+    scope.spaceId,
     scope.botId,
     scope.computerId,
     String(scope.botGeneration),
@@ -173,6 +179,12 @@ export function openScreenCapability(
     const scope = payload.scope as ScreenCapabilityScope;
     if (
       !scope ||
+      typeof scope.sessionId !== "string" ||
+      !scope.sessionId ||
+      typeof scope.userId !== "string" ||
+      !scope.userId ||
+      typeof scope.spaceId !== "string" ||
+      !scope.spaceId ||
       typeof scope.botId !== "string" ||
       typeof scope.computerId !== "string" ||
       !Number.isSafeInteger(scope.botGeneration) ||

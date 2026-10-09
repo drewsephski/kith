@@ -350,6 +350,46 @@ describe("mobile API authentication", () => {
     );
   });
 
+  it.each([false, true])(
+    "does not restore credentials or notifications after clearing a pending password replacement (%s)",
+    async (fails) => {
+      const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
+      mockSecureStore(store);
+      await selectSpace("space-default");
+      vi.mocked(resumeLiveNotifications).mockClear();
+      let started!: () => void;
+      const writeStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      let release!: () => void;
+      const write = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+        if (key === "rakazo.session_token" && value === "rotated-token") {
+          started();
+          await write;
+          if (fails) throw new Error("keychain unavailable");
+        }
+        store.set(key, value);
+      });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => jsonResponse({ token: "rotated-token" })),
+      );
+      const pending = changePassword("old-password", "new-password");
+      const observed = Promise.allSettled([pending]);
+      await writeStarted;
+      const clearing = clearSessionToken();
+      release();
+      await clearing;
+      expect((await observed)[0]?.status).toBe(fails ? "rejected" : "fulfilled");
+      expect(await snapshotSessionToken()).toEqual({ ok: true, value: "" });
+      expect(store.get("rakazo.session_token") ?? "").toBe("");
+      expect(resumeLiveNotifications).not.toHaveBeenCalled();
+    },
+  );
+
   it("drops a rotated token when the server changes before the response", async () => {
     const store = new Map<string, string>([["rakazo.session_token", "session-token"]]);
     mockSecureStore(store);
@@ -1074,6 +1114,7 @@ describe("mobile API authentication", () => {
 
   it("restores credentials when the new endpoint cannot be persisted", async () => {
     const previous = currentApiBase();
+    await saveSessionToken("session-token");
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       if (key === "rakazo.session_token") return "session-token";
       return null;
@@ -1226,6 +1267,7 @@ describe("mobile API authentication", () => {
   it("restores credentials when resetting the endpoint cannot be persisted", async () => {
     await saveApiBase("https://second-server.example");
     const previous = currentApiBase();
+    await saveSessionToken("session-token");
     vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => {
       if (key === "rakazo.session_token") return "session-token";
       return null;

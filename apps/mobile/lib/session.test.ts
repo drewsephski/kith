@@ -6,6 +6,7 @@ import {
   currentSessionGeneration,
   loadSessionToken,
   loadVerifiedIntegrationsScope,
+  replaceSessionTokenIfCurrent,
   restoreSessionToken,
   saveAvatarStyleIfCurrent,
   saveSessionToken,
@@ -162,6 +163,131 @@ describe("mobile session storage", () => {
     vi.mocked(SecureStore.getItemAsync).mockRejectedValueOnce(new Error("device locked"));
 
     await expect(snapshotSessionToken()).resolves.toEqual({ ok: false });
+  });
+});
+
+function barrier() {
+  let resolve!: () => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<void>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("mobile session mutation ordering", () => {
+  const key = "rakazo.session_token";
+  let disk: Map<string, string>;
+  beforeEach(async () => {
+    vi.mocked(SecureStore.getItemAsync).mockReset();
+    vi.mocked(SecureStore.setItemAsync).mockReset();
+    vi.mocked(SecureStore.deleteItemAsync).mockReset();
+    disk = new Map();
+    vi.mocked(SecureStore.getItemAsync).mockImplementation(async (name) => disk.get(name) ?? null);
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (name, value) => {
+      disk.set(name, value);
+    });
+    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (name) => {
+      disk.delete(name);
+    });
+    await restoreSessionToken("");
+  });
+
+  it.each(["save", "restore", "replace", "failed restore", "failed replace"])(
+    "clear fences an older %s immediately and after completion",
+    async (operation) => {
+      await saveSessionToken("old-token");
+      const started = barrier();
+      const write = barrier();
+      vi.mocked(SecureStore.setItemAsync).mockImplementation(async (name, value) => {
+        if (name === key && value === "replacement") {
+          started.resolve();
+          await write.promise;
+        }
+        disk.set(name, value);
+      });
+      const generation = currentSessionGeneration();
+      const saving = operation.includes("restore")
+        ? restoreSessionToken("replacement")
+        : operation.includes("replace")
+          ? replaceSessionTokenIfCurrent(generation, "replacement")
+          : saveSessionToken("replacement");
+      const observed = Promise.allSettled([saving]);
+      await started.promise;
+      const clearing = clearSessionToken();
+      try {
+        expect(await loadSessionToken()).toBe("");
+      } finally {
+        if (operation.startsWith("failed")) write.reject(new Error("locked"));
+        else write.resolve();
+        await clearing;
+      }
+      const [result] = await observed;
+      if (operation === "replace") expect(result).toEqual({ status: "fulfilled", value: false });
+      if (operation === "failed replace") expect(result?.status).toBe("rejected");
+      expect(disk.get(key) ?? "").toBe("");
+      expect(await loadSessionToken()).toBe("");
+    },
+  );
+
+  it("discards a read captured before clear", async () => {
+    await saveSessionToken("old-token");
+    const read = barrier();
+    vi.mocked(SecureStore.getItemAsync).mockImplementationOnce(async () => {
+      await read.promise;
+      return "old-token";
+    });
+    const reading = snapshotSessionToken();
+    await clearSessionToken();
+    read.resolve();
+    expect(await reading).toEqual({ ok: true, value: "" });
+  });
+
+  it("serializes saves in invocation order", async () => {
+    const started = barrier();
+    const write = barrier();
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (name, value) => {
+      if (name === key && value === "first") {
+        started.resolve();
+        await write.promise;
+      }
+      disk.set(name, value);
+    });
+    const first = saveSessionToken("first");
+    await started.promise;
+    const second = saveSessionToken("second");
+    write.resolve();
+    await Promise.all([first, second]);
+    expect(await loadSessionToken()).toBe("second");
+  });
+
+  it("queues a deliberate new save after an in-flight clear", async () => {
+    const started = barrier();
+    const deletion = barrier();
+    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (name) => {
+      if (name === key) {
+        started.resolve();
+        await deletion.promise;
+      }
+      disk.delete(name);
+    });
+    const clearing = clearSessionToken();
+    await started.promise;
+    const saving = saveSessionToken("new-token");
+    deletion.resolve();
+    await Promise.all([clearing, saving]);
+    expect(await loadSessionToken()).toBe("new-token");
+  });
+
+  it("continues after rejected writes and retains current replacement fallback", async () => {
+    vi.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("locked"));
+    await expect(
+      replaceSessionTokenIfCurrent(currentSessionGeneration(), "replacement"),
+    ).rejects.toThrow("locked");
+    expect(await loadSessionToken()).toBe("replacement");
+    await saveSessionToken("next-token");
+    expect(await loadSessionToken()).toBe("next-token");
   });
 });
 

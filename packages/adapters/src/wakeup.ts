@@ -40,12 +40,19 @@ export class GraphileJobPublisher implements JobPublisher {
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
-    if (this.utils) await (await this.utils).release();
+    const utils = await this.utils?.catch(() => undefined);
+    if (utils) await utils.release();
   }
 
   private getUtils(): Promise<WorkerUtils> {
     if (this.closed) throw new Error("Background job publisher is closed");
-    this.utils ??= makeWorkerUtils({ pgPool: this.pgPool });
+    if (!this.utils) {
+      const initializing = makeWorkerUtils({ pgPool: this.pgPool }).catch((error: unknown) => {
+        if (this.utils === initializing) this.utils = undefined;
+        throw error;
+      });
+      this.utils = initializing;
+    }
     return this.utils;
   }
 }

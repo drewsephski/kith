@@ -36,9 +36,21 @@ export function mountScreenTarget(app: Hono, prisma: PrismaClient, secret: strin
     const capability = openScreenCapability(body.path, secret);
     if (!capability) return c.body(null, 403);
     const { scope, target } = capability;
+    const session = await prisma.session.findFirst({
+      where: { id: scope.sessionId, userId: scope.userId, expiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    if (!session) return c.body(null, 403);
+    const membership = await prisma.spaceMember.findFirst({
+      where: { userId: scope.userId, spaceId: scope.spaceId },
+      select: { id: true },
+    });
+    if (!membership) return c.body(null, 403);
     const bot = await prisma.bot.findFirst({
       where: {
         id: scope.botId,
+        userId: scope.userId,
+        spaceId: scope.spaceId,
         computerId: scope.computerId,
         archivedAt: null,
         screenGeneration: scope.botGeneration,

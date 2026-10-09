@@ -54,6 +54,8 @@ Use a URI-safe `POSTGRES_PASSWORD` (`openssl rand -hex 16`). An existing `pgdata
 user, password, and database from first init, so keep those values in `.env`, or change them in
 place with `ALTER ROLE` / rename. Recreate the volume only after a backup (or when the data is
 disposable); `docker compose down -v` deletes all Postgres state.
+`pnpm compose:down` preserves data; `pnpm compose:reset` deletes PostgreSQL data and requires a
+backup or a disposable database.
 
 Open [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account, connect a model, and create
 your first bot.

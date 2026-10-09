@@ -731,7 +731,7 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
 export function createRouter(deps: RouterDeps) {
   const os = implement(appContract).$context<{
     actor: Actor | null;
-    /** The signed-in session, so a push token ends with the session that registered it. */
+    /** The issuing session for push registrations and screen/terminal capabilities. */
     sessionId?: string;
     signal?: AbortSignal;
     /** Re-runs the request's auth so a long-lived stream notices sign-out and revocation. */
@@ -3002,6 +3002,7 @@ export function createRouter(deps: RouterDeps) {
         );
       }),
       terminalUrl: authed.computer.terminalUrl.handler(async ({ context, input }) => {
+        if (!context.sessionId) throw new ORPCError("UNAUTHORIZED");
         let bot = await repos.getBot(context.actor, input.botId);
         if (await expireStaleComputerControl(deps, bot.computer)) {
           bot = await repos.getBot(context.actor, input.botId);
@@ -3047,6 +3048,9 @@ export function createRouter(deps: RouterDeps) {
             deps.env.screenProxySecret,
             deps.env.screenProxyOrigin ?? deps.env.webOrigin,
             {
+              sessionId: context.sessionId,
+              userId: context.actor.userId,
+              spaceId: context.actor.spaceId,
               botId: bot.id,
               computerId: computer.id,
               botGeneration: bot.screenGeneration,
@@ -3057,6 +3061,7 @@ export function createRouter(deps: RouterDeps) {
         };
       }),
       screenUrl: authed.computer.screenUrl.handler(async ({ context, input }) => {
+        if (!context.sessionId) throw new ORPCError("UNAUTHORIZED");
         let bot = await repos.getBot(context.actor, input.botId);
         if (await expireStaleComputerControl(deps, bot.computer)) {
           bot = await repos.getBot(context.actor, input.botId);
@@ -3099,6 +3104,9 @@ export function createRouter(deps: RouterDeps) {
             deps.env.screenProxySecret,
             deps.env.screenProxyOrigin ?? deps.env.webOrigin,
             {
+              sessionId: context.sessionId,
+              userId: context.actor.userId,
+              spaceId: context.actor.spaceId,
               botId: bot.id,
               computerId: computer.id,
               botGeneration: bot.screenGeneration,

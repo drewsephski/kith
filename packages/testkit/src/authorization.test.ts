@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComposioEmulator, ExpoPushProvider, loadPushToken } from "@rakazo/adapters";
 import type { appContract, Space, SpaceNavigation } from "@rakazo/contracts";
+import type { ScreenCapabilityScope } from "@rakazo/core/node/screen-capability";
+import { SCREEN_TARGET_ENDPOINT } from "@rakazo/core/node/screen-capability";
 import {
   claimEmptySpaceDeletionForMember,
   deleteEmptySpaceForMember,
@@ -10,8 +12,10 @@ import {
   releaseSpaceDeletionClaim,
   renewSpaceDeletionClaim,
 } from "@rakazo/db";
+import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { createApp } from "../../../apps/api/src/app.ts";
+import { addScreenProxyCapability, mountScreenTarget } from "../../../apps/api/src/screen-proxy.js";
 import type { BotIntroHarness } from "./discard-bot-intro.js";
 import { discardBotIntroFromCreate } from "./discard-bot-intro.js";
 import { sessionCookieHeader } from "./index.js";
@@ -507,6 +511,106 @@ describeWithDatabase("API authorization and resource isolation", () => {
     });
     expect(await handles.prisma.bot.findUnique({ where: { id: ownerBot.id } })).not.toBeNull();
   });
+
+  async function screenGrant(cookie: string, interactive: boolean) {
+    const actor = await rpc<Actor>(app, cookie, "me");
+    const bot = await rpc<Bot>(app, cookie, "bots/create", botInput("Screen session"));
+    await rpc(app, cookie, "computer/boot", { botId: bot.id });
+    if (interactive) await rpc(app, cookie, "computer/takeover", { botId: bot.id });
+    const row = await handles.prisma.bot.findUniqueOrThrow({
+      where: { id: bot.id },
+      include: { computer: true },
+    });
+    if (!row.computer) throw new Error("Expected booted computer");
+    const response = await app.request("/api/auth/get-session", { headers: { cookie } });
+    expect(response.status).toBe(200);
+    const current = (await response.json()) as { session: { id: string } };
+    const scope: ScreenCapabilityScope = {
+      sessionId: current.session.id,
+      userId: actor.userId,
+      spaceId: actor.spaceId,
+      botId: bot.id,
+      computerId: row.computer.id,
+      botGeneration: row.screenGeneration,
+      computerGeneration: row.computer.screenGeneration,
+      controlLeaseId: row.computer.controlLeaseId,
+    };
+    const secret = "fake-isolated-screen-secret";
+    const authority = new Hono();
+    mountScreenTarget(authority, handles.prisma, secret);
+    const mint = (identity: ScreenCapabilityScope) =>
+      new URL(
+        addScreenProxyCapability(
+          `http://127.0.0.1:49152/embed.html?view_only=${!interactive}`,
+          secret,
+          "https://app.example.test",
+          identity,
+        ),
+      ).pathname;
+    const request = (path: string) =>
+      authority.request(SCREEN_TARGET_ENDPOINT, {
+        method: "POST",
+        headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+    return { actor, scope, path: mint(scope), mint, request };
+  }
+
+  it.each([false, true])(
+    "revokes the signed-out session's screen/terminal seal only (interactive=%s)",
+    async (interactive) => {
+      const email = `screen-signout-${interactive}-${stamp}@rakazo.test`;
+      const first = await signup(app, email, "Screen sign-out");
+      const second = await signin(app, email);
+      const { scope, path, mint, request } = await screenGrant(first, interactive);
+      const current = (await (
+        await app.request("/api/auth/get-session", { headers: { cookie: second } })
+      ).json()) as { session: { id: string } };
+      const secondPath = mint({ ...scope, sessionId: current.session.id });
+      expect(secondPath).not.toBe(path);
+      expect((await request(path)).status).toBe(200);
+      expect((await request(secondPath)).status).toBe(200);
+      await authPost(app, first, "/sign-out");
+      expect((await request(path)).status).toBe(403);
+      expect((await request(secondPath)).status).toBe(200);
+      const row = await handles.prisma.bot.findUniqueOrThrow({
+        where: { id: scope.botId },
+        include: { computer: true },
+      });
+      expect(row.screenGeneration).toBe(scope.botGeneration);
+      expect(row.computer?.screenGeneration).toBe(scope.computerGeneration);
+      expect(row.computer?.controlLeaseId).toBe(scope.controlLeaseId);
+    },
+  );
+
+  it.each(["expiry", "membership"])(
+    "revokes a screen seal on session %s without changing the computer",
+    async (change) => {
+      const cookie = await signup(
+        app,
+        `screen-${change}-${stamp}@rakazo.test`,
+        "Screen revocation",
+      );
+      const { actor, scope, path, request } = await screenGrant(cookie, false);
+      expect((await request(path)).status).toBe(200);
+      if (change === "expiry") {
+        await handles.prisma.session.update({
+          where: { id: scope.sessionId },
+          data: { expiresAt: new Date(0) },
+        });
+      } else {
+        await handles.prisma.spaceMember.deleteMany({
+          where: { userId: actor.userId, spaceId: actor.spaceId },
+        });
+      }
+      expect((await request(path)).status).toBe(403);
+      const computer = await handles.prisma.computer.findUniqueOrThrow({
+        where: { id: scope.computerId },
+      });
+      expect(computer.screenGeneration).toBe(scope.computerGeneration);
+      expect(computer.controlLeaseId).toBe(scope.controlLeaseId);
+    },
+  );
 
   it("hands a device's push token to the account that registers it last", async () => {
     const first = await signup(app, `push-first-${stamp}@rakazo.test`, "Push First");

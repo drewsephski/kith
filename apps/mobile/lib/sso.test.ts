@@ -1,6 +1,8 @@
+import * as SecureStore from "expo-secure-store";
 import { openAuthSessionAsync, WebBrowserResultType } from "expo-web-browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { authHeaders, clearSpace, currentApiBase, fetchMobileJson } from "./api";
+import type * as sessionModule from "./session";
 import { currentSessionGeneration, replaceSessionTokenIfCurrent } from "./session";
 import { continueWithSso } from "./sso";
 
@@ -14,15 +16,24 @@ vi.mock("./api", () => ({
   currentApiBase: vi.fn(() => "https://rakazo.example.test"),
   fetchMobileJson: vi.fn(),
 }));
-vi.mock("./session", () => ({
-  currentSessionGeneration: vi.fn(() => 1),
-  replaceSessionTokenIfCurrent: vi.fn(async () => true),
-  tokenFromAuthResponse: (response: Response) =>
-    response.headers.get("set-cookie")?.match(/session_token=([^;]+)/)?.[1] ?? "",
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
 }));
+vi.mock("./live-notifications", () => ({ stopLiveNotifications: vi.fn(async () => undefined) }));
+vi.mock("./session", async (importOriginal) => {
+  const actual = await importOriginal<typeof sessionModule>();
+  return {
+    ...actual,
+    currentSessionGeneration: vi.fn(() => 1),
+    replaceSessionTokenIfCurrent: vi.fn(async () => true),
+  };
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(fetchMobileJson).mockReset();
   vi.mocked(currentApiBase).mockReturnValue("https://rakazo.example.test");
   vi.mocked(currentSessionGeneration).mockReturnValue(1);
   vi.mocked(clearSpace).mockResolvedValue(true);
@@ -118,4 +129,45 @@ it("does not send a different server's token during authenticated linking", asyn
   await expect(continueWithSso("link")).rejects.toThrow();
   expect(fetchMobileJson).not.toHaveBeenCalled();
   expect(openAuthSessionAsync).not.toHaveBeenCalled();
+});
+
+it("returns false when clearing supersedes a pending SSO token write", async () => {
+  const actual = await vi.importActual<typeof sessionModule>("./session");
+  const disk = new Map<string, string>();
+  vi.mocked(SecureStore.getItemAsync).mockImplementation(async (key) => disk.get(key) ?? null);
+  vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
+    disk.delete(key);
+  });
+  let started!: () => void;
+  const writeStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  let release!: () => void;
+  const write = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+    if (key === "rakazo.session_token") {
+      started();
+      await write;
+    }
+    disk.set(key, value);
+  });
+  vi.mocked(currentSessionGeneration).mockImplementation(actual.currentSessionGeneration);
+  vi.mocked(replaceSessionTokenIfCurrent).mockImplementationOnce(
+    actual.replaceSessionTokenIfCurrent,
+  );
+  const signingIn = continueWithSso();
+  await Promise.race([
+    writeStarted,
+    signingIn.then(() => {
+      throw new Error("SSO ended before writing");
+    }),
+  ]);
+  const clearing = actual.clearSessionToken();
+  release();
+  await expect(signingIn).resolves.toBe(false);
+  await clearing;
+  expect(await actual.loadSessionToken()).toBe("");
+  expect(disk.has("rakazo.session_token")).toBe(false);
 });
