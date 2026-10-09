@@ -241,11 +241,11 @@ function attachNovncProxy(server: ViteDevServer | PreviewServer, secret: string,
       socket.destroy();
       return;
     }
-    const upstream =
-      target.protocol === "https:"
-        ? tls.connect({ port: target.port, host: target.hostname, servername: target.hostname })
-        : net.connect(target.port, target.hostname);
+    let upstream: net.Socket | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let retries = 0;
     let upgraded = false;
+    let handshakeForwarded = false;
     let closed = false;
     let closeInitiator: "client" | "upstream" | "revoked" | undefined;
     const logClose = (side: "client" | "upstream") => {
@@ -267,94 +267,149 @@ function attachNovncProxy(server: ViteDevServer | PreviewServer, secret: string,
         screenLog.warn("screen.proxy.websocket_revoked", bindings);
         closeInitiator ??= "revoked";
         socket.destroy();
-        upstream.destroy();
+        upstream?.destroy();
       },
     );
     socket.once("close", () => {
       logClose("client");
       stopChecking();
-      upstream.destroy();
+      clearTimeout(retryTimer);
+      upstream?.destroy();
     });
-    upstream.once("close", () => {
-      logClose("upstream");
-      stopChecking();
-      socket.destroy();
-    });
-    upstream.once(target.protocol === "https:" ? "secureConnect" : "connect", () => {
-      const headerLines = [
-        `${req.method ?? "GET"} ${target.path} HTTP/1.1`,
-        `Host: ${target.hostname}:${target.port}`,
-      ];
-      for (const [key, value] of Object.entries(safeProxyHeaders(req.headers))) {
-        headerLines.push(`${key}: ${Array.isArray(value) ? value.join(",") : value}`);
-      }
-      upstream.write(`${headerLines.join("\r\n")}\r\n\r\n`);
-      if (head.length) upstream.write(head);
-      socket.pipe(upstream);
-      const responseChunks: Buffer[] = [];
-      let responseSize = 0;
-      let responseTail = Buffer.alloc(0);
-      const forwardHandshake = (chunk: Buffer) => {
-        responseChunks.push(chunk);
-        responseSize += chunk.length;
-        if (responseSize > 64 * 1024) {
-          screenLog.warn("screen.proxy.websocket_handshake_failed", {
-            ...bindings,
-            reason: "header_too_large",
-          });
+    // Retry only a handshake: never replay client frames or an established stream.
+    const scheduleRetry = (connection: net.Socket) => {
+      if (
+        upgraded ||
+        handshakeForwarded ||
+        req.method !== "GET" ||
+        head.length ||
+        retries >= 3 ||
+        socket.destroyed
+      )
+        return false;
+      upstream = undefined;
+      connection.destroy();
+      retries += 1;
+      screenLog.info("screen.proxy.websocket_retry", { ...bindings, attempt: retries });
+      retryTimer = setTimeout(async () => {
+        const current = await resolveNovncTarget(req.url, secret, api);
+        if (socket.destroyed) return;
+        if (!current) {
+          closeInitiator = "revoked";
           socket.destroy();
-          upstream.destroy();
           return;
         }
-        const boundarySearch = Buffer.concat([responseTail, chunk]);
-        if (boundarySearch.indexOf("\r\n\r\n") < 0) {
-          responseTail = Buffer.from(boundarySearch.subarray(-3));
-          return;
-        }
-        const responseHead = Buffer.concat(responseChunks, responseSize);
-        const safe = stripSensitiveHandshakeHeaders(responseHead);
-        if (!safe) {
-          screenLog.warn("screen.proxy.websocket_handshake_failed", {
-            ...bindings,
-            reason: "malformed_response",
-          });
+        connectUpstream(current);
+      }, 250 * retries);
+      return true;
+    };
+    const connectUpstream = (destination: NonNullable<typeof target>) => {
+      const connection =
+        destination.protocol === "https:"
+          ? tls.connect({
+              port: destination.port,
+              host: destination.hostname,
+              servername: destination.hostname,
+            })
+          : net.connect(destination.port, destination.hostname);
+      upstream = connection;
+      connection.setTimeout(5_000, () => {
+        if (connection !== upstream) return;
+        if (!scheduleRetry(connection)) {
           socket.destroy();
-          upstream.destroy();
-          return;
+          connection.destroy();
         }
-        const status = Number(
-          responseHead
-            .toString("latin1", 0, responseHead.indexOf("\r\n"))
-            .match(/^HTTP\/1\.\d (\d{3})/)?.[1] ?? 0,
-        );
-        if (status !== 101) {
-          screenLog.warn("screen.proxy.websocket_handshake_failed", {
-            ...bindings,
-            reason: "upstream_status",
-            "http.status": status,
-          });
-        } else {
-          upgraded = true;
-          screenLog.info("screen.proxy.websocket_upgraded", {
-            ...bindings,
-            "screen.duration_ms": Date.now() - startedAt,
-          });
-        }
-        upstream.off("data", forwardHandshake);
-        socket.write(safe);
-        upstream.pipe(socket);
-      };
-      upstream.on("data", forwardHandshake);
-    });
-    upstream.on("error", (error) => {
-      screenLog.warn("screen.proxy.websocket_error", {
-        ...bindings,
-        "screen.side": "upstream",
-        "error.code": socketErrorCode(error),
       });
-      closeInitiator ??= "upstream";
-      socket.destroy();
-    });
+      connection.once("close", () => {
+        if (connection !== upstream) return;
+        if (!upgraded && scheduleRetry(connection)) return;
+        logClose("upstream");
+        stopChecking();
+        socket.destroy();
+      });
+      connection.once(destination.protocol === "https:" ? "secureConnect" : "connect", () => {
+        const headerLines = [
+          `${req.method ?? "GET"} ${destination.path} HTTP/1.1`,
+          `Host: ${destination.hostname}:${destination.port}`,
+        ];
+        for (const [key, value] of Object.entries(safeProxyHeaders(req.headers))) {
+          headerLines.push(`${key}: ${Array.isArray(value) ? value.join(",") : value}`);
+        }
+        connection.write(`${headerLines.join("\r\n")}\r\n\r\n`);
+        if (head.length) connection.write(head);
+
+        const responseChunks: Buffer[] = [];
+        let responseSize = 0;
+        let responseTail = Buffer.alloc(0);
+        const forwardHandshake = (chunk: Buffer) => {
+          responseChunks.push(chunk);
+          responseSize += chunk.length;
+          if (responseSize > 64 * 1024) {
+            screenLog.warn("screen.proxy.websocket_handshake_failed", {
+              ...bindings,
+              reason: "header_too_large",
+            });
+            socket.destroy();
+            connection.destroy();
+            return;
+          }
+          const boundarySearch = Buffer.concat([responseTail, chunk]);
+          if (boundarySearch.indexOf("\r\n\r\n") < 0) {
+            responseTail = Buffer.from(boundarySearch.subarray(-3));
+            return;
+          }
+          connection.setTimeout(0);
+          const responseHead = Buffer.concat(responseChunks, responseSize);
+          const safe = stripSensitiveHandshakeHeaders(responseHead);
+          if (!safe) {
+            screenLog.warn("screen.proxy.websocket_handshake_failed", {
+              ...bindings,
+              reason: "malformed_response",
+            });
+            socket.destroy();
+            connection.destroy();
+            return;
+          }
+          const status = Number(
+            responseHead
+              .toString("latin1", 0, responseHead.indexOf("\r\n"))
+              .match(/^HTTP\/1\.\d (\d{3})/)?.[1] ?? 0,
+          );
+          if ([502, 503, 504].includes(status) && scheduleRetry(connection)) return;
+          if (status !== 101) {
+            screenLog.warn("screen.proxy.websocket_handshake_failed", {
+              ...bindings,
+              reason: "upstream_status",
+              "http.status": status,
+            });
+          } else {
+            upgraded = true;
+            screenLog.info("screen.proxy.websocket_upgraded", {
+              ...bindings,
+              "screen.duration_ms": Date.now() - startedAt,
+            });
+          }
+          connection.off("data", forwardHandshake);
+          handshakeForwarded = true;
+          socket.write(safe);
+          socket.pipe(connection);
+          connection.pipe(socket);
+        };
+        connection.on("data", forwardHandshake);
+      });
+      connection.on("error", (error) => {
+        if (connection !== upstream) return;
+        if (scheduleRetry(connection)) return;
+        screenLog.warn("screen.proxy.websocket_error", {
+          ...bindings,
+          "screen.side": "upstream",
+          "error.code": socketErrorCode(error),
+        });
+        closeInitiator ??= "upstream";
+        socket.destroy();
+      });
+    };
+    connectUpstream(target);
     socket.on("error", (error) => {
       screenLog.warn("screen.proxy.websocket_error", {
         ...bindings,
@@ -362,7 +417,7 @@ function attachNovncProxy(server: ViteDevServer | PreviewServer, secret: string,
         "error.code": socketErrorCode(error),
       });
       closeInitiator ??= "client";
-      upstream.destroy();
+      upstream?.destroy();
     });
   });
 }

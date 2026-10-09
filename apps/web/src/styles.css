@@ -53,12 +53,34 @@ body,
   }
 }
 
-/* Kith keeps the conversation readable at large desktop window sizes. */
-.kith-transcript > [data-message-id],
-.kith-transcript > [data-testid="time-separator"] {
+/* The transcript and composer share one measure and responsive inset. */
+.kith-transcript,
+.kith-composer {
+  --conversation-width: 1120px;
+  --conversation-inset: 20px;
+  padding-inline: var(--conversation-inset);
+}
+@media (min-width: 768px) {
+  .kith-transcript,
+  .kith-composer {
+    --conversation-inset: 40px;
+  }
+}
+.kith-composer {
+  max-width: calc(var(--conversation-width) + 2 * var(--conversation-inset));
+}
+.kith-transcript > .kith-conversation-item {
   width: 100%;
-  max-width: 760px;
+  max-width: var(--conversation-width);
   margin-inline: auto;
+  margin-block-start: 24px;
+}
+.kith-transcript > .kith-conversation-item:first-child,
+.kith-transcript > [data-testid="time-separator"] + .kith-conversation-item {
+  margin-block-start: 0;
+}
+.kith-transcript > [data-message-continuation="true"] {
+  margin-block-start: 8px;
 }
 .kith-transcript > [data-testid="assistant-welcome"] {
   max-width: 576px;

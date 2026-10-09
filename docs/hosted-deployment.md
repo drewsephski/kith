@@ -80,7 +80,34 @@ migration attempts. A child service failure stops the stack, and Fly restarts th
 `SANDBOX_PROVIDER=none` is the default. To enable computers, configure an existing remote
 provider as described in [computer providers](./self-host-sandbox-providers.md). The provider
 credential remains on Fly; no Docker socket or sandbox supervisor is exposed by this image.
-Model connections and other optional services keep their existing setup flows.
+For an operator-funded initial deployment, add these settings to the private backend file:
+
+```dotenv
+SANDBOX_PROVIDER=e2b
+E2B_API_KEY=REPLACE_WITH_SERVER_SIDE_KEY
+OPENROUTER_API_KEY=REPLACE_WITH_SERVER_SIDE_KEY
+PI_DEFAULT_PROVIDER=openrouter
+PI_DEFAULT_MODEL=openai/gpt-6-luna
+SANDBOX_IDLE_MS=600000
+SANDBOX_MAX_COMPUTERS_PER_USER=4
+SANDBOX_MAX_COMPUTERS_PER_SPACE=4
+```
+
+Import them with the same `fly secrets import` command. Fly secrets override the image's
+`none` default. Users can start conversations and use computers without bringing API keys;
+user model connections retain their existing precedence over the deployment fallback.
+The caps limit computer counts, not model spending. Idle computers pause, retaining files
+and browser profiles; active runs keep their computer awake.
+
+Keep these settings only on Fly, never in `VITE_*` variables or Vercel's frontend environment.
+Verify a real model reply, computer file write/read, external browsing, and a screen connection.
+A successful `/health` alone does not validate either vendor credential. End-user OAuth
+account authorization remains necessary for their personal email, calendar, and other apps.
+
+With `SANDBOX_PROVIDER=none`, conversations still work with a model connection; shell,
+filesystem, and desktop tools are unavailable. See the dated
+[provider comparison](../outputs/kith-computer-provider-comparison.md) for the initial
+E2B choice and Daytona's account-tier network restrictions.
 
 ## Composio
 

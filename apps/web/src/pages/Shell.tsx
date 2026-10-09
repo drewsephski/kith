@@ -3004,9 +3004,11 @@ export function ShellPage() {
             : "md:w-[260px]"
         }`}
       >
-        <div className="app-drag flex h-12 shrink-0 items-center px-4">
-          <WindowChrome />
-        </div>
+        {desktopBridge() ? (
+          <div className="app-drag flex h-12 shrink-0 items-center px-4">
+            <WindowChrome />
+          </div>
+        ) : null}
         {!advancedNavigation ? (
           <KithSidebar
             assistantId={assistantId}
@@ -3916,7 +3918,7 @@ export function ShellPage() {
             scrollPositions={conversationScroll.current}
             welcome={
               shellReady && transcriptMessages.length === 0 && !transcriptRunning ? (
-                isMainConversation ? (
+                !inGroup ? (
                   <AssistantWelcome
                     name={session.data?.user.name}
                     onSuggest={(text, starter) =>
@@ -5186,7 +5188,7 @@ export function ShellPage() {
   );
 }
 
-const Transcript = memo(function Transcript({
+export const Transcript = memo(function Transcript({
   conversationKey,
   scrollPositions,
   welcome,
@@ -5281,6 +5283,10 @@ const Transcript = memo(function Transcript({
     reactionView.visibleMessages.filter((message) =>
       messageHasVisibleBlocks(message.blocks, showToolActivity),
     ),
+  );
+  const transcriptItems = groupVoiceChats(reactionView.visibleMessages).filter(
+    (item) =>
+      item.kind === "voiceChat" || messageHasVisibleBlocks(item.message.blocks, showToolActivity),
   );
   const workingBotName = workingBots.length === 1 ? workingBots[0]?.name : undefined;
   const workingLabel =
@@ -5559,7 +5565,7 @@ const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        className="rk-scroll kith-transcript flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 md:px-10 md:py-8"
+        className="rk-scroll kith-transcript flex min-h-0 flex-1 flex-col overflow-y-auto py-5 md:py-8"
       >
         {welcome}
         {olderCursor != null ? (
@@ -5572,10 +5578,10 @@ const Transcript = memo(function Transcript({
             {loadingOlder ? t`Loading…` : t`Load earlier messages`}
           </button>
         ) : null}
-        {groupVoiceChats(reactionView.visibleMessages).map((item) => {
+        {transcriptItems.map((item, index) => {
           if (item.kind === "voiceChat") {
             return (
-              <div key={item.key}>
+              <div key={item.key} className="kith-conversation-item">
                 {item.messages[0] && separatorIds.has(item.messages[0].id) ? (
                   <TimeSeparator
                     createdAt={item.messages[0].createdAt}
@@ -5587,7 +5593,13 @@ const Transcript = memo(function Transcript({
             );
           }
           const message = item.message;
-          if (!messageHasVisibleBlocks(message.blocks, showToolActivity)) return null;
+          const previous = transcriptItems[index - 1];
+          const continuation =
+            previous?.kind === "message" &&
+            previous.message.role === message.role &&
+            previous.message.botId === message.botId &&
+            !isPeerReceiptBlocks(previous.message.blocks) &&
+            !separatorIds.has(message.id);
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
           const showAssistantAvatar = !peerReceipt && isLiveAssistantMessage(message);
           const messageReactions = reactionView.reactions.get(message.id);
@@ -5598,7 +5610,11 @@ const Transcript = memo(function Transcript({
               ) : null}
               <div
                 data-message-id={message.id}
-                className={peerReceipt ? "relative py-0.5" : "group/message relative hover:z-20"}
+                data-message-continuation={!peerReceipt && continuation}
+                className={cn(
+                  "kith-conversation-item relative shrink-0",
+                  peerReceipt ? "py-0.5" : "group/message hover:z-20",
+                )}
               >
                 <div
                   className={
@@ -5614,8 +5630,8 @@ const Transcript = memo(function Transcript({
                         ? undefined
                         : `relative w-fit min-w-0 ${
                             message.role === "user"
-                              ? "max-w-[min(84%,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[84%]"
-                              : "max-w-[min(88%,calc(100%_-_8rem))] [@media(hover:none)]:max-w-[88%]"
+                              ? "max-w-[min(80%,calc(100%_-_6rem))] [@media(hover:none)]:max-w-[88%]"
+                              : "max-w-[calc(100%_-_6rem)] [@media(hover:none)]:max-w-full"
                           }`
                     }
                   >
@@ -5718,7 +5734,9 @@ const Transcript = memo(function Transcript({
                     block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
                 ),
             )) ? (
-          <ActiveBotGlyph bots={workingBots} label={workingLabel} assistantId={assistantId} />
+          <div className="kith-conversation-item shrink-0">
+            <ActiveBotGlyph bots={workingBots} label={workingLabel} assistantId={assistantId} />
+          </div>
         ) : null}
       </div>
       {quoteDraft ? (
@@ -6418,7 +6436,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative z-30 mx-auto w-full max-w-[840px] min-w-0 border-0 px-5 pb-5 pt-3 md:px-10 md:pb-7 ${
+      className={`kith-composer relative z-30 mx-auto w-full min-w-0 border-0 pb-5 pt-3 md:pb-7 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >

@@ -22,6 +22,7 @@ import {
   resolveSelectableModelId,
 } from "@rakazo/core";
 import {
+  BotAvatar,
   Button,
   Collapsible,
   CollapsibleContent,
@@ -32,7 +33,7 @@ import {
   Textarea,
   Toggle,
 } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { ErrorBoundary, SectionLoadFailed } from "../../components/ErrorBoundary";
 import { botProfilePatch } from "../../lib/bot-profile-patch";
@@ -108,9 +109,15 @@ export function CreateBotForm({
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
   async function handleSubmit() {
-    if (!name.trim() || submitting) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setSubmitting(true);
     try {
@@ -123,79 +130,109 @@ export function CreateBotForm({
     } catch (err) {
       setError(errorText(err, t`Could not create bot`));
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
 
   return (
-    <div data-testid="create-bot-form">
-      <div className="mb-4 flex items-center justify-between">
-        <span className="text-[13.5px] text-muted-foreground">
-          <Trans>New bot</Trans>
-        </span>
-        <Button variant="ghost" size="icon-sm" aria-label={t`Cancel new bot`} onClick={onCancel}>
+    <form
+      data-testid="create-bot-form"
+      aria-labelledby={`${ids}-heading`}
+      aria-busy={submitting}
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSubmit();
+      }}
+      className="flex flex-col gap-6"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <BotAvatar color="ink" identity={ids} size={36} />
+          <h2
+            id={`${ids}-heading`}
+            className="text-xl font-semibold tracking-tight text-foreground"
+          >
+            <Trans>New bot</Trans>
+          </h2>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t`Cancel new bot`}
+          disabled={submitting}
+          onClick={onCancel}
+        >
           <X size={16} strokeWidth={1.8} />
         </Button>
       </div>
+      <fieldset disabled={submitting} className="min-w-0 space-y-5 border-0 p-0">
+        <label htmlFor={`${ids}-name`} className="block text-sm font-medium text-foreground">
+          <Trans>Name</Trans>
+          <Input
+            ref={nameRef}
+            id={`${ids}-name`}
+            required
+            autoComplete="off"
+            value={name}
+            maxLength={BOT_NAME_MAX_LENGTH}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t`Name this bot`}
+            className="mt-2 h-11"
+          />
+        </label>
+        <label htmlFor={`${ids}-description`} className="block text-sm font-medium text-foreground">
+          <Trans>Description</Trans>
+          <Textarea
+            id={`${ids}-description`}
+            value={description}
+            maxLength={BOT_DESCRIPTION_MAX_LENGTH}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t`What this bot is for`}
+            rows={4}
+            className="mt-2 min-h-32 resize-y font-normal leading-relaxed"
+          />
+        </label>
+        <Collapsible>
+          <CollapsibleTrigger className="min-h-11 text-sm font-normal">
+            <Trans>More options</Trans>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <label
+              htmlFor={`${ids}-title`}
+              className="mt-3 block text-sm font-medium text-foreground"
+            >
+              <Trans>Title</Trans>
+              <Input
+                id={`${ids}-title`}
+                value={title}
+                maxLength={BOT_TITLE_MAX_LENGTH}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t`Describe what this bot does`}
+                className="mt-2 h-11 font-normal"
+              />
+            </label>
+            <div data-testid="create-bot-computer">
+              <ComputerModePicker
+                value={computerMode}
+                onChange={setComputerMode}
+                teamTestId="create-bot-team"
+                privateTestId="create-bot-private"
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </fieldset>
       {error ? (
-        <p
-          role="alert"
-          data-testid="create-bot-error"
-          className="mb-3 text-[13px] text-destructive"
-        >
+        <p role="alert" data-testid="create-bot-error" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
-      <label htmlFor={`${ids}-name`} className="mt-6 block text-[14px] text-muted-foreground">
-        <Trans>Name</Trans>
-        <Input
-          id={`${ids}-name`}
-          value={name}
-          maxLength={BOT_NAME_MAX_LENGTH}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t`Name this bot`}
-          className="mt-2"
-        />
-      </label>
-      <label htmlFor={`${ids}-title`} className={fieldLabelClass}>
-        <Trans>Title</Trans>
-        <Input
-          id={`${ids}-title`}
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t`Describe what this bot does`}
-          className="mt-2"
-        />
-      </label>
-      <label htmlFor={`${ids}-description`} className={fieldLabelClass}>
-        <Trans>Description</Trans>
-        <Textarea
-          id={`${ids}-description`}
-          value={description}
-          maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder={t`What this bot is for`}
-          rows={4}
-          className="mt-2"
-        />
-      </label>
-      <div data-testid="create-bot-computer">
-        <ComputerModePicker
-          value={computerMode}
-          onChange={setComputerMode}
-          teamTestId="create-bot-team"
-          privateTestId="create-bot-private"
-        />
-      </div>
-      <Button
-        className="mt-5"
-        disabled={!name.trim() || submitting}
-        onClick={() => void handleSubmit()}
-      >
+      <Button type="submit" className="h-11 w-full gap-2" disabled={!name.trim() || submitting}>
         {submitting ? <Trans>Creating…</Trans> : <Trans>Create</Trans>}
+        {submitting ? null : <ArrowRight size={16} aria-hidden="true" />}
       </Button>
-    </div>
+    </form>
   );
 }
 

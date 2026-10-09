@@ -6,10 +6,11 @@ import {
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
 import { Stack, useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Text, TextInput } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import { NativeActionButton } from "../components/native-action-button";
+import { Chevron } from "../components/row-accessories";
 import { cancelHeaderOptions } from "../components/sheet-header";
 import type { MobileBot } from "../lib/api";
 import { rpc } from "../lib/api";
@@ -28,6 +29,9 @@ export default function NewBot() {
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [moreOptions, setMoreOptions] = useState(false);
+  const submittingRef = useRef(false);
+  const descriptionRef = useRef<TextInput>(null);
 
   function close() {
     if (router.canDismiss()) {
@@ -42,7 +46,8 @@ export default function NewBot() {
   }
 
   async function create() {
-    if (!name.trim() || pending) return;
+    if (!name.trim() || submittingRef.current) return;
+    submittingRef.current = true;
     setPending(true);
     setError(null);
     try {
@@ -66,13 +71,14 @@ export default function NewBot() {
     } catch (err) {
       setError(errorText(err, t("Could not create bot")));
     } finally {
+      submittingRef.current = false;
       setPending(false);
     }
   }
 
   return (
     <>
-      <Stack.Screen options={cancelHeaderOptions(t("Cancel"), close)} />
+      <Stack.Screen options={{ ...cancelHeaderOptions(t("Cancel"), close), title: t("New bot") }} />
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: tokens.background }}
@@ -83,6 +89,10 @@ export default function NewBot() {
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
         <TextInput
           value={name}
+          accessibilityLabel={t("Name")}
+          editable={!pending}
+          returnKeyType="next"
+          onSubmitEditing={() => descriptionRef.current?.focus()}
           maxLength={BOT_NAME_MAX_LENGTH}
           onChangeText={setName}
           placeholder={t("Name this bot")}
@@ -96,27 +106,13 @@ export default function NewBot() {
           }}
         />
         <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Title")}
-        </Text>
-        <TextInput
-          value={title}
-          maxLength={BOT_TITLE_MAX_LENGTH}
-          onChangeText={setTitle}
-          placeholder={t("Describe what this bot does")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-          }}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
           {t("Description")}
         </Text>
         <TextInput
+          ref={descriptionRef}
           value={description}
+          accessibilityLabel={t("Description")}
+          editable={!pending}
           maxLength={BOT_DESCRIPTION_MAX_LENGTH}
           onChangeText={setDescription}
           placeholder={t("What this bot is for")}
@@ -132,10 +128,59 @@ export default function NewBot() {
             textAlignVertical: "top",
           }}
         />
-        <ComputerModePicker value={computerMode} onChange={setComputerMode} />
-        {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("More options")}
+          accessibilityState={{ expanded: moreOptions, disabled: pending }}
+          disabled={pending}
+          onPress={() => setMoreOptions((open) => !open)}
+          style={{
+            marginTop: 16,
+            minHeight: 44,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("More options")}</Text>
+          <Chevron expanded={moreOptions} />
+        </Pressable>
+        {moreOptions ? (
+          <View>
+            <Text style={{ color: tokens.mutedForeground, marginTop: 8, fontSize: 14 }}>
+              {t("Title")}
+            </Text>
+            <TextInput
+              value={title}
+              accessibilityLabel={t("Title")}
+              editable={!pending}
+              maxLength={BOT_TITLE_MAX_LENGTH}
+              onChangeText={setTitle}
+              placeholder={t("Describe what this bot does")}
+              placeholderTextColor={tokens.mutedForeground}
+              style={{
+                marginTop: 8,
+                backgroundColor: native.fill,
+                borderRadius: 11,
+                padding: 16,
+                color: tokens.foreground,
+              }}
+            />
+            <ComputerModePicker
+              value={computerMode}
+              onChange={setComputerMode}
+              disabled={pending}
+            />
+          </View>
+        ) : null}
+        {error ? (
+          <Text accessibilityRole="alert" style={{ color: tokens.destructive, marginTop: 16 }}>
+            {error}
+          </Text>
+        ) : null}
         <NativeActionButton
           disabled={!name.trim() || pending}
+          busy={pending}
           label={pending ? t("Creating…") : t("Create")}
           onPress={() => void create()}
           style={{ marginTop: 24 }}

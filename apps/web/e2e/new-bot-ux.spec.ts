@@ -33,6 +33,9 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
   await expect(form).toBeVisible();
   await expect(form.locator("label:has-text('Name') input")).toBeVisible();
+  await expect(form.locator("label:has-text('Name') input")).toBeFocused();
+  await expect(form.locator("label:has-text('Title') input")).toBeHidden();
+  await form.getByRole("button", { name: "More options", exact: true }).click();
   await expect(form.locator("label:has-text('Title') input")).toBeVisible();
   await expect(form.locator("label:has-text('Description') textarea")).toBeVisible();
   await expect(form.getByTestId("create-bot-computer")).toBeVisible();
@@ -189,6 +192,7 @@ test("second bot from plus opens create form before persist", async ({ page }, t
   const form = page.getByTestId("create-bot-form");
   await expect(form).toBeVisible();
   await form.locator("label:has-text('Name') input").fill("Researcher");
+  await form.getByRole("button", { name: "More options", exact: true }).click();
   await form.locator("label:has-text('Title') input").fill("Finds sources");
   await form.locator("label:has-text('Description') textarea").fill("Briefs from the web.");
   await captureScreenshot(page, testInfo, "second-bot-create-form");

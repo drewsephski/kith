@@ -165,7 +165,7 @@ export function KithSidebar({
   return (
     <SelectionGroup>
       <div className="flex min-h-0 flex-1 flex-col" data-testid="kith-navigation">
-        <div className="flex items-center justify-between px-5 pb-5 pt-2">
+        <div className="app-drag flex h-16 shrink-0 items-center justify-between px-5">
           <span className="text-2xl font-semibold tracking-tight">
             Kith<span className="text-muted-foreground">.</span>
           </span>

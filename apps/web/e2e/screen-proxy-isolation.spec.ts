@@ -58,6 +58,9 @@ for (const mode of ["development", "preview"] as const) {
 
     let authorized = true;
     let assetAttempts = 0;
+    let socketFailures = 0;
+    let socketAttempts = 0;
+    let revokeOnSocketFailure = false;
     test.beforeAll(async () => {
       const root = await mkdtemp(path.join(tmpdir(), "rakazo-screen-test-"));
       await mkdir(path.join(root, "dist"));
@@ -81,6 +84,13 @@ for (const mode of ["development", "preview"] as const) {
         }
       });
       upstream.on("upgrade", (req, socket) => {
+        socketAttempts += 1;
+        if (socketFailures > 0) {
+          socketFailures -= 1;
+          if (revokeOnSocketFailure) authorized = false;
+          socket.end("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+          return;
+        }
         const accept = createHash("sha1")
           .update(`${req.headers["sec-websocket-key"]}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
           .digest("base64");
@@ -185,6 +195,46 @@ for (const mode of ["development", "preview"] as const) {
         (await page.context().cookies(origin)).find((c) => c.name === "app-session")?.value,
       ).toBe("fake-session");
     });
+
+    test("transient handshake failures recover without a viewer reload", async ({ page }) => {
+      socketFailures = 2;
+      socketAttempts = 0;
+      await page.goto(screenUrl);
+      await expect(page.locator("body")).toContainText('"socket":"ok"');
+      expect(socketAttempts).toBe(3);
+    });
+
+    for (const revoked of [false, true]) {
+      test(`handshake retries stop when ${revoked ? "authorization is revoked" : "the retry budget is exhausted"}`, async ({
+        page,
+      }) => {
+        socketFailures = 10;
+        socketAttempts = 0;
+        revokeOnSocketFailure = revoked;
+        try {
+          await page.goto(`${origin}/app`);
+          const outcome = await page.evaluate(async (url) => {
+            const target = new URL(url);
+            target.protocol = "ws:";
+            target.pathname = target.pathname.replace("/embed.html", "/websockify");
+            return await new Promise<string>((resolve) => {
+              const socket = new WebSocket(target);
+              socket.onerror = () => resolve("failed");
+              socket.onopen = () => {
+                socket.close();
+                resolve("opened");
+              };
+            });
+          }, screenUrl);
+          expect(outcome).toBe("failed");
+          expect(socketAttempts).toBe(revoked ? 1 : 4);
+        } finally {
+          socketFailures = 0;
+          revokeOnSocketFailure = false;
+          authorized = true;
+        }
+      });
+    }
 
     test("revocation blocks replay and closes an already connected socket", async ({
       page,

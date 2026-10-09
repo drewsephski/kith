@@ -104,6 +104,9 @@ export async function createBotFromPicker(
   await openNewBot(page);
   const form = page.getByTestId("create-bot-form");
   await form.locator("label:has-text('Name') input").fill(name);
+  if (options.title != null || options.computerMode != null) {
+    await form.getByRole("button", { name: "More options", exact: true }).click();
+  }
   if (options.title != null) {
     await form.locator("label:has-text('Title') input").fill(options.title);
   }
