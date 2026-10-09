@@ -25,9 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
-  NativeSelect,
-  NativeSelectOption,
-} from "@rakazo/ui-web";
+  SelectField,
+  } from "@rakazo/ui-web";
 import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
@@ -1025,21 +1024,17 @@ export function PluginsOverlay({
                           />
                         ) : null}
                         {sourceKind !== "treg" && sourceKind !== "executor" ? (
-                          <NativeSelect
-                            className="w-full"
-                            value={authType}
-                            onChange={(event) => setAuthType(event.target.value as typeof authType)}
-                          >
-                            <NativeSelectOption value="none">
+                          <SelectField className="w-full"
+value={authType}
+onValueChange={(selectedValue) => setAuthType(selectedValue as typeof authType)} items={[{ value: String("none"), label: <>
                               <Trans>No authentication</Trans>
-                            </NativeSelectOption>
-                            <NativeSelectOption value="bearer">
+                            </> },
+{ value: String("bearer"), label: <>
                               <Trans>Bearer token</Trans>
-                            </NativeSelectOption>
-                            <NativeSelectOption value="header">
+                            </> },
+{ value: String("header"), label: <>
                               <Trans>API key header</Trans>
-                            </NativeSelectOption>
-                          </NativeSelect>
+                            </> }]} />
                         ) : null}
                         {authType === "header" &&
                         sourceKind !== "treg" &&

@@ -9,8 +9,7 @@ import {
   DialogTitle,
   Field,
   FieldLabel,
-  NativeSelect,
-  NativeSelectOption,
+  SelectField,
   Toggle,
 } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
@@ -219,19 +218,15 @@ export function MemorySettingsOverlay({
                 <FieldLabel htmlFor={providerSelectId}>
                   <Trans>Provider</Trans>
                 </FieldLabel>
-                <NativeSelect
-                  id={providerSelectId}
-                  className="w-full"
-                  value={selectedProvider}
-                  disabled={busy}
-                  onChange={(event) => setSelectedProvider(event.target.value)}
-                >
-                  {MEMORY_PROVIDER_SETTINGS.map((entry) => (
-                    <NativeSelectOption key={entry.id} value={entry.id}>
+                <SelectField id={providerSelectId}
+className="w-full"
+value={selectedProvider}
+disabled={busy}
+onValueChange={(selectedValue) => setSelectedProvider(selectedValue)} items={[...(MEMORY_PROVIDER_SETTINGS.map((entry) => (
+                    ({ value: String(entry.id), label: <>
                       {entry.name}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                    </> })
+                  )))]} />
               </Field>
             ) : null}
 

@@ -12,9 +12,8 @@ import {
   DialogClose,
   DialogContent,
   DialogTitle,
-  NativeSelect,
-  NativeSelectOption,
-} from "@rakazo/ui-web";
+  SelectField,
+  } from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -147,21 +146,17 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
             </p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <NativeSelect
-              aria-label={t`Bot to link`}
-              value={linkBotId}
-              onChange={(event) => {
-                setLinkBotId(event.target.value);
+            <SelectField aria-label={t`Bot to link`}
+value={linkBotId}
+onValueChange={(selectedValue) => {
+                setLinkBotId(selectedValue);
                 setLinkCode(null);
-              }}
-            >
-              <NativeSelectOption value="">{t`Choose a bot…`}</NativeSelectOption>
-              {bots.map((bot) => (
-                <NativeSelectOption key={bot.id} value={bot.id}>
+              }} items={[{ value: String(""), label: <>{t`Choose a bot…`}</> },
+...(bots.map((bot) => (
+                ({ value: String(bot.id), label: <>
                   {bot.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+                </> })
+              )))]} />
             <Button
               className="rounded-full"
               disabled={!linkBotId}

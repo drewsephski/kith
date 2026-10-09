@@ -20,8 +20,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Input,
-  NativeSelect,
-  NativeSelectOption,
+  SelectField,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -417,27 +416,19 @@ export function RoutineEditor({
             <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
               <label htmlFor={`${fieldId}-model`} className="block text-sm text-muted-foreground">
                 <Trans>Model</Trans>
-                <NativeSelect
-                  id={`${fieldId}-model`}
-                  className="mt-2 w-full"
-                  value={draft.modelKey}
-                  onChange={(event) =>
-                    onChange({ ...draft, modelKey: event.target.value, thinkingLevel: "" })
-                  }
-                >
-                  <NativeSelectOption value="">{t`Bot's model`}</NativeSelectOption>
-                  {draft.modelKey &&
-                  !modelOptions.some((option) => option.key === draft.modelKey) ? (
-                    <NativeSelectOption value={draft.modelKey}>
+                <SelectField id={`${fieldId}-model`}
+className="mt-2 w-full"
+value={draft.modelKey}
+onValueChange={(selectedValue) => onChange({ ...draft, modelKey: selectedValue, thinkingLevel: "" })} items={[{ value: String(""), label: <>{t`Bot's model`}</> },
+...(draft.modelKey &&
+                  !modelOptions.some((option) => option.key === draft.modelKey) ? [{ value: String(draft.modelKey), label: <>
                       {selectedModel?.modelId ?? draft.modelKey}
-                    </NativeSelectOption>
-                  ) : null}
-                  {modelOptions.map((option) => (
-                    <NativeSelectOption key={option.key} value={option.key}>
+                    </> }] : []),
+...(modelOptions.map((option) => (
+                    ({ value: String(option.key), label: <>
                       {option.label}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
+                    </> })
+                  )))]} />
               </label>
 
               {thinkingOptions.length ? (
@@ -446,21 +437,17 @@ export function RoutineEditor({
                   className="mt-5 block text-sm text-muted-foreground"
                 >
                   <Trans>Thinking</Trans>
-                  <NativeSelect
-                    id={`${fieldId}-thinking`}
-                    className="mt-2 w-full"
-                    value={draft.thinkingLevel}
-                    onChange={(event) => onChange({ ...draft, thinkingLevel: event.target.value })}
-                  >
-                    <NativeSelectOption value="">
+                  <SelectField id={`${fieldId}-thinking`}
+className="mt-2 w-full"
+value={draft.thinkingLevel}
+onValueChange={(selectedValue) => onChange({ ...draft, thinkingLevel: selectedValue })} items={[{ value: String(""), label: <>
                       {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
-                    </NativeSelectOption>
-                    {thinkingOptions.map((level) => (
-                      <NativeSelectOption key={level} value={level}>
+                    </> },
+...(thinkingOptions.map((level) => (
+                      ({ value: String(level), label: <>
                         {thinkingLevelLabel(level)}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                      </> })
+                    )))]} />
                 </label>
               ) : null}
             </PopoverContent>

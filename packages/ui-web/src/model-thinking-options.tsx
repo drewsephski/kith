@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { Checkbox } from "./components/ui/checkbox.js";
 import { Input } from "./components/ui/input.js";
-import { NativeSelect, NativeSelectOption } from "./components/ui/native-select.js";
+import { SelectField, } from "./select-field.js";
 
 export function ModelThinkingOptions({
   reasoning = false,
@@ -79,21 +79,17 @@ export function ModelThinkingOptions({
       thinkingLevelOptions.length > 0 ? (
         <label htmlFor={thinkingLevelId} className="mt-3 flex items-center gap-2">
           <span className="min-w-0 flex-1">{thinkingLevelLabel}</span>
-          <NativeSelect
-            id={thinkingLevelId}
-            value={thinkingLevel ?? ""}
-            onChange={(event) => onThinkingLevelChange(event.target.value || null)}
-            disabled={disabled}
-            aria-label={thinkingLevelLabel}
-            className="h-8 w-32 text-foreground"
-          >
-            <NativeSelectOption value="">{thinkingLevelDefaultLabel}</NativeSelectOption>
-            {thinkingLevelOptions.map((option) => (
-              <NativeSelectOption key={option.value} value={option.value}>
+          <SelectField id={thinkingLevelId}
+value={thinkingLevel ?? ""}
+onValueChange={(selectedValue) => onThinkingLevelChange(selectedValue || null)}
+disabled={disabled}
+aria-label={thinkingLevelLabel}
+className="h-8 w-32 text-foreground" items={[{ value: String(""), label: <>{thinkingLevelDefaultLabel}</> },
+...(thinkingLevelOptions.map((option) => (
+              ({ value: String(option.value), label: <>
                 {option.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+              </> })
+            )))]} />
         </label>
       ) : null}
       {onMaxTokensChange && maxTokensLabel ? (

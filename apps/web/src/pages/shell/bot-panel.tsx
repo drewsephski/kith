@@ -24,8 +24,7 @@ import {
 import {
   Button,
   Input,
-  NativeSelect,
-  NativeSelectOption,
+  SelectField,
   Switch,
   Textarea,
   Toggle,
@@ -569,52 +568,42 @@ export function BotSettings({
         ) : null}
         <label htmlFor={`${ids}-model`} className={fieldLabelClass}>
           <Trans>Model</Trans>
-          <NativeSelect
-            id={`${ids}-model`}
-            className="mt-2 w-full"
-            value={selectedModelKey}
-            onChange={(event) => {
-              setModelKey(event.target.value);
+          <SelectField id={`${ids}-model`}
+className="mt-2 w-full"
+value={selectedModelKey}
+onValueChange={(selectedValue) => {
+              setModelKey(selectedValue);
               setThinkingLevel("");
-            }}
-          >
-            <NativeSelectOption value="">
+            }} items={[{ value: String(""), label: <>
               {t`Space default`}
               {me?.defaultModel
                 ? ` (${catalogLabel(catalog, me.defaultProvider, me.defaultModel) ?? me.defaultModel})`
                 : ""}
-            </NativeSelectOption>
-            {selectedModelKey &&
-            !connectedOptions.some((option) => option.key === selectedModelKey) ? (
-              <NativeSelectOption value={selectedModelKey}>
+            </> },
+...(selectedModelKey &&
+            !connectedOptions.some((option) => option.key === selectedModelKey) ? [{ value: String(selectedModelKey), label: <>
                 {selectedModel?.modelId ?? selectedModelKey}
-              </NativeSelectOption>
-            ) : null}
-            {connectedOptions.map((option) => (
-              <NativeSelectOption key={option.key} value={option.key}>
+              </> }] : []),
+...(connectedOptions.map((option) => (
+              ({ value: String(option.key), label: <>
                 {option.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+              </> })
+            )))]} />
         </label>
         {thinkingOptions.length ? (
           <label htmlFor={`${ids}-thinking`} className={fieldLabelClass}>
             <Trans>Thinking</Trans>
-            <NativeSelect
-              id={`${ids}-thinking`}
-              className="mt-2 w-full"
-              value={thinkingLevel}
-              onChange={(event) => setThinkingLevel(event.target.value)}
-            >
-              <NativeSelectOption value="">
+            <SelectField id={`${ids}-thinking`}
+className="mt-2 w-full"
+value={thinkingLevel}
+onValueChange={(selectedValue) => setThinkingLevel(selectedValue)} items={[{ value: String(""), label: <>
                 {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
-              </NativeSelectOption>
-              {thinkingOptions.map((level) => (
-                <NativeSelectOption key={level} value={level}>
+              </> },
+...(thinkingOptions.map((level) => (
+                ({ value: String(level), label: <>
                   {thinkingLevelLabel(level)}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+                </> })
+              )))]} />
           </label>
         ) : null}
         {memoryProviderConfigured ? (
@@ -658,19 +647,15 @@ export function BotSettings({
         {voices.length ? (
           <label htmlFor={`${ids}-voice`} className={fieldLabelClass}>
             <Trans>Voice</Trans>
-            <NativeSelect
-              id={`${ids}-voice`}
-              className="mt-2 w-full"
-              value={voiceId}
-              onChange={(event) => setVoiceId(event.target.value)}
-            >
-              <NativeSelectOption value="">{t`Account default`}</NativeSelectOption>
-              {voices.map((voice) => (
-                <NativeSelectOption key={voice.id} value={voice.id}>
+            <SelectField id={`${ids}-voice`}
+className="mt-2 w-full"
+value={voiceId}
+onValueChange={(selectedValue) => setVoiceId(selectedValue)} items={[{ value: String(""), label: <>{t`Account default`}</> },
+...(voices.map((voice) => (
+                ({ value: String(voice.id), label: <>
                   {voice.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+                </> })
+              )))]} />
           </label>
         ) : null}
         <label htmlFor={`${ids}-disabled-tools`} className={fieldLabelClass}>

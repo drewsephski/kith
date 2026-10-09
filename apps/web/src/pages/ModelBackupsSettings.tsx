@@ -7,7 +7,7 @@ import {
   moveBackupChoice,
   sameBackupChoices,
 } from "@rakazo/contracts";
-import { Button, NativeSelect, NativeSelectOption } from "@rakazo/ui-web";
+import { Button, SelectField, } from "@rakazo/ui-web";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rpc, selectedSpaceId } from "../lib/rpc";
 
@@ -334,34 +334,30 @@ export function ModelBackupsSettings({
               <label htmlFor="model-backup-picker">
                 <Trans>Add connected model</Trans>
               </label>
-              <NativeSelect
-                id="model-backup-picker"
-                aria-label={t`Add connected model`}
-                className="mt-1.5 w-full text-foreground"
-                value={addableKey}
-                disabled={
+              <SelectField id="model-backup-picker"
+aria-label={t`Add connected model`}
+className="mt-1.5 w-full text-foreground"
+value={addableKey}
+disabled={
                   !editable ||
                   currentState.draft.length >= MAX_MODEL_BACKUPS ||
                   addableOptions.length === 0
                 }
-                onChange={(event) => {
+onValueChange={(selectedValue) => {
                   if (!editable) return;
                   setState((previous) =>
                     previous.scopeKey === activeScopeKey
-                      ? { ...previous, selectedKey: event.target.value, error: null, notice: null }
+                      ? { ...previous, selectedKey: selectedValue, error: null, notice: null }
                       : previous,
                   );
-                }}
-              >
-                <NativeSelectOption value="">
+                }} items={[{ value: String(""), label: <>
                   <Trans>Select a connected model</Trans>
-                </NativeSelectOption>
-                {addableOptions.map((option) => (
-                  <NativeSelectOption key={backupChoiceKey(option)} value={backupChoiceKey(option)}>
+                </> },
+...(addableOptions.map((option) => (
+                  ({ value: String(backupChoiceKey(option)), label: <>
                     {option.providerName} · {option.label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                  </> })
+                )))]} />
             </div>
             <Button
               type="button"

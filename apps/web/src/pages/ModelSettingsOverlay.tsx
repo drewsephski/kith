@@ -41,9 +41,8 @@ import {
   DialogTitle,
   Input,
   ModelThinkingOptions,
-  NativeSelect,
-  NativeSelectOption,
-} from "@rakazo/ui-web";
+  SelectField,
+  } from "@rakazo/ui-web";
 import { Check, ChevronDown, Copy, X } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -764,30 +763,26 @@ export function ModelSettingsOverlay({
             htmlFor="model-thinking-level"
           >
             <Trans>Thinking</Trans>
-            <NativeSelect
-              id="model-thinking-level"
-              className="mt-2 w-full text-foreground"
-              value={thinkingLevel ?? ""}
-              disabled={busy}
-              onChange={(event) => {
+            <SelectField id="model-thinking-level"
+className="mt-2 w-full text-foreground"
+value={thinkingLevel ?? ""}
+disabled={busy}
+onValueChange={(selectedValue) => {
                 selectionRevisionRef.current += 1;
-                setThinkingLevel((event.target.value || null) as ThinkingLevel | null);
+                setThinkingLevel((selectedValue || null) as ThinkingLevel | null);
                 setNotice(null);
-              }}
-            >
-              <NativeSelectOption value="">
+              }} items={[{ value: String(""), label: <>
                 {i18n._({
                   id: "Default ({0})",
                   message: "Default ({0})",
                   values: { "0": thinkingLevelLabel("medium") },
                 })}
-              </NativeSelectOption>
-              {catalogThinkingLevels.map((level) => (
-                <NativeSelectOption key={level} value={level}>
+              </> },
+...(catalogThinkingLevels.map((level) => (
+                ({ value: String(level), label: <>
                   {thinkingLevelLabel(level)}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+                </> })
+              )))]} />
           </label>
         ) : null}
         {selected.billing && !usingServerCredentials ? (
@@ -1276,28 +1271,24 @@ export function ModelSettingsOverlay({
                       <Trans>Model</Trans>
                     </span>
                     {probeModels.length && probeModels.includes(modelId) ? (
-                      <NativeSelect
-                        className="mt-2 w-full text-foreground"
-                        value={modelId}
-                        onChange={(event) => {
+                      <SelectField className="mt-2 w-full text-foreground"
+value={modelId}
+onValueChange={(selectedValue) => {
                           cancelOAuthAttempt();
                           selectionRevisionRef.current += 1;
                           invalidatePreflight();
-                          stageCompatibleModelId(event.target.value);
+                          stageCompatibleModelId(selectedValue);
                           setError(null);
                           setNotice(null);
                         }}
-                        aria-label={t`Models from server`}
-                      >
-                        {probeModels.map((id) => (
-                          <NativeSelectOption key={id} value={id}>
+aria-label={t`Models from server`} items={[...(probeModels.map((id) => (
+                          ({ value: String(id), label: <>
                             {id}
-                          </NativeSelectOption>
-                        ))}
-                        <NativeSelectOption value="">
+                          </> })
+                        ))),
+{ value: String(""), label: <>
                           <Trans>Other model…</Trans>
-                        </NativeSelectOption>
-                      </NativeSelect>
+                        </> }]} />
                     ) : (
                       <Input
                         value={modelId}

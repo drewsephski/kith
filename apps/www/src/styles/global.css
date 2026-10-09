@@ -301,7 +301,7 @@ button.button--primary:focus-visible {
 
 .button--primary:hover,
 .button--primary:focus-visible {
-  box-shadow: 0 10px 28px rgba(41, 101, 236, 0.22);
+  box-shadow: var(--shadow-soft);
 }
 
 .button--secondary {
