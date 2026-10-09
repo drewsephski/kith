@@ -116,7 +116,7 @@ services:
       SANDBOX_SUPERVISOR_URL: http://supervisor:7091
       SANDBOX_SUPERVISOR_TOKEN: ${SANDBOX_SUPERVISOR_TOKEN:?Set SANDBOX_SUPERVISOR_TOKEN in .env}
       SANDBOX_MAX_COMPUTERS_PER_USER: ${SANDBOX_MAX_COMPUTERS_PER_USER:-0}
-      SANDBOX_IDLE_MS: ${SANDBOX_IDLE_MS:-600000}
+      SANDBOX_IDLE_MS: ${SANDBOX_IDLE_MS:-300000}
     depends_on:
       data-init:
         condition: service_completed_successfully
@@ -137,7 +137,7 @@ services:
       SANDBOX_SUPERVISOR_URL: http://supervisor:7091
       SANDBOX_SUPERVISOR_TOKEN: ${SANDBOX_SUPERVISOR_TOKEN:?Set SANDBOX_SUPERVISOR_TOKEN in .env}
       SANDBOX_MAX_COMPUTERS_PER_USER: ${SANDBOX_MAX_COMPUTERS_PER_USER:-0}
-      SANDBOX_IDLE_MS: ${SANDBOX_IDLE_MS:-600000}
+      SANDBOX_IDLE_MS: ${SANDBOX_IDLE_MS:-300000}
     depends_on:
       data-init:
         condition: service_completed_successfully

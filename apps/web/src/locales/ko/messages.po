@@ -1049,6 +1049,12 @@ msgstr "{0}와의 대화 내용을 비울까요?"
 msgid "Clear conversation"
 msgstr "대화 내용 비우기"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Clear date"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Clear filter {label}"
 msgstr ""
@@ -3840,6 +3846,12 @@ msgstr ""
 msgid "Photo"
 msgstr "사진"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Pick a date"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Pick a model from the catalog."
 msgstr "모델 목록에서 모델을 선택하세요."
@@ -5201,6 +5213,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Thursday"
+msgstr ""
+
+#: src/pages/RoutineEditor.tsx
+msgid "Time"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx

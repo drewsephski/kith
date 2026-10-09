@@ -1,4 +1,5 @@
-import { type CommandResult, Sandbox, TimeoutError } from "@e2b/desktop";
+import type { CommandResult } from "@e2b/desktop";
+import { Sandbox, TimeoutError } from "@e2b/desktop";
 import type {
   AdapterContext,
   CommandRequest,
@@ -16,6 +17,7 @@ import type {
   TerminalRequest,
 } from "@rakazo/adapter-kit";
 import { boundedSandboxCommandTimeoutMs } from "@rakazo/core";
+import { getLogger } from "@rakazo/logging";
 import { sandboxIdleMs } from "./computer-idle.js";
 import { normalizeWorkspacePath, shellQuote, workspacePath } from "./computer-support.js";
 import {
@@ -31,13 +33,19 @@ const E2B_BROWSER_PROFILES = `${E2B_WORKSPACE}/.browser-profiles`;
 export interface E2BSandboxSdk {
   create(options: ReturnType<typeof e2bCreateOptions>): Promise<Sandbox>;
   connect(id: string, options: { apiKey: string; timeoutMs: number }): Promise<Sandbox>;
-  pause(id: string, options: { apiKey: string }): Promise<void>;
+  pause(id: string, options: { apiKey: string }): Promise<undefined | boolean>;
+  kill(id: string, options: { apiKey: string }): Promise<boolean>;
+}
+
+// Give the app-owned checkpoint/idle job time to finish before provider auto-pause.
+export function e2bTimeoutMs(): number {
+  return sandboxIdleMs() + 60_000;
 }
 
 export function e2bCreateOptions(botId: string, apiKey: string) {
   return {
     apiKey,
-    timeoutMs: sandboxIdleMs(),
+    timeoutMs: e2bTimeoutMs(),
     metadata: { botId, rakazo: "computer" },
     resolution: [1280, 800] as [number, number],
     lifecycle: { onTimeout: "pause" as const, autoResume: false },
@@ -84,6 +92,7 @@ export class E2BSandboxProvider implements SandboxProvider {
   });
   private readonly boxes = new Map<string, Sandbox>();
   private readonly connections = new Map<string, Promise<Sandbox>>();
+  private readonly renewals = new Map<string, Promise<boolean>>();
   private readonly lastTouchedAt = new Map<string, number>();
 
   constructor(
@@ -111,25 +120,13 @@ export class E2BSandboxProvider implements SandboxProvider {
     const id = computer.providerRef || computer.id;
     const existing = this.boxes.get(id);
     if (existing) {
-      const lastTouched = this.lastTouchedAt.get(id) ?? 0;
-      if (Date.now() - lastTouched < 60_000) return existing;
-      // A cached handle to a sandbox E2B already killed keeps throwing on every call, and the
-      // process never reconnects. The keepalive is the cheapest place to notice and drop it.
-      const gone = await existing.setTimeout(sandboxIdleMs()).then(
-        () => false,
-        (error: unknown) => isSandboxGoneError(error),
-      );
-      if (!gone) {
-        this.lastTouchedAt.set(id, Date.now());
-        return existing;
-      }
-      if (this.boxes.get(id) === existing) this.forget(id);
+      if (await this.refreshTimeout(id, existing)) return existing;
     }
     const pending = this.connections.get(id);
     if (pending) return pending;
     let connection!: Promise<Sandbox>;
     connection = this.sdk
-      .connect(id, { apiKey: this.apiKey, timeoutMs: sandboxIdleMs() })
+      .connect(id, { apiKey: this.apiKey, timeoutMs: e2bTimeoutMs() })
       .then((connected) => {
         if (this.connections.get(id) !== connection) {
           throw new Error("computer connection stopped during teardown");
@@ -143,6 +140,42 @@ export class E2BSandboxProvider implements SandboxProvider {
       });
     this.connections.set(id, connection);
     return connection;
+  }
+
+  private refreshTimeout(id: string, desktop: Sandbox): Promise<boolean> {
+    if (this.boxes.get(id) !== desktop) return Promise.resolve(false);
+    const pending = this.renewals.get(id);
+    if (pending) return pending;
+    const lastTouched = this.lastTouchedAt.get(id) ?? 0;
+    if (Date.now() - lastTouched < Math.min(60_000, sandboxIdleMs() / 2)) {
+      return Promise.resolve(true);
+    }
+    let renewal!: Promise<boolean>;
+    renewal = desktop
+      .setTimeout(e2bTimeoutMs())
+      .then(
+        () => {
+          if (this.boxes.get(id) !== desktop) {
+            throw new Error("computer connection stopped during teardown");
+          }
+          this.lastTouchedAt.set(id, Date.now());
+          return true;
+        },
+        (error: unknown) => {
+          // Network failures do not prove the sandbox disappeared or the timeout was renewed.
+          if (!isSandboxGoneError(error)) throw error;
+          if (this.boxes.get(id) !== desktop) {
+            throw new Error("computer connection stopped during teardown");
+          }
+          this.forget(id);
+          return false;
+        },
+      )
+      .finally(() => {
+        if (this.renewals.get(id) === renewal) this.renewals.delete(id);
+      });
+    this.renewals.set(id, renewal);
+    return renewal;
   }
 
   async provision(
@@ -204,12 +237,14 @@ export class E2BSandboxProvider implements SandboxProvider {
     const cmd = sandboxCommandArgv(request).map(shellQuote).join(" ");
     const timeoutMs = boundedSandboxCommandTimeoutMs(request.timeoutMs);
     try {
-      const result = await desktop.commands.run(cmd, {
-        cwd: e2bCwd(request.cwd),
-        envs: request.env,
-        signal: context.signal,
-        timeoutMs,
-      });
+      const result = await this.withCommandKeepalive(desktop, () =>
+        desktop.commands.run(cmd, {
+          cwd: e2bCwd(request.cwd),
+          envs: request.env,
+          signal: context.signal,
+          timeoutMs,
+        }),
+      );
       if (result.stdout) yield { type: "stdout", data: result.stdout };
       if (result.stderr) yield { type: "stderr", data: result.stderr };
       yield { type: "exit", code: result.exitCode ?? 0 };
@@ -353,18 +388,8 @@ export class E2BSandboxProvider implements SandboxProvider {
   }
 
   async keepAlive(computer: ComputerRef): Promise<void> {
-    const desktop = await this.box(computer);
-    try {
-      await desktop.setTimeout(sandboxIdleMs());
-    } catch (error) {
-      // Heartbeats refresh lastTouchedAt; if we swallow a gone error here, box() never
-      // reaches its 60s probe and keeps handing back the dead cached handle.
-      if (isSandboxGoneError(error)) {
-        this.forget(desktop.sandboxId);
-        return;
-      }
-    }
-    this.lastTouchedAt.set(desktop.sandboxId, Date.now());
+    // box() coalesces connection and timeout refresh; never renew twice per heartbeat.
+    await this.box(computer);
   }
 
   async releaseScreen(computer: ComputerRef, context: AdapterContext): Promise<void> {
@@ -375,25 +400,46 @@ export class E2BSandboxProvider implements SandboxProvider {
     const id = computer.providerRef || computer.id;
     const desktop = this.boxes.get(id);
     this.forget(id);
-    if (desktop) {
-      await desktop.pause().catch(() => undefined);
-      return;
+    try {
+      if (desktop) await desktop.pause();
+      else await this.sdk.pause(id, { apiKey: this.apiKey });
+    } catch (error) {
+      if (!isSandboxGoneError(error)) throw error;
     }
-    await this.sdk.pause(id, { apiKey: this.apiKey }).catch(() => undefined);
   }
 
   async destroy(computer: ComputerRef, _context: AdapterContext): Promise<void> {
     const id = computer.providerRef || computer.id;
-    const desktop = this.boxes.get(id) ?? (await this.box(computer).catch(() => undefined));
+    const desktop = this.boxes.get(id);
     this.forget(id);
-    // The SDK returns false when the sandbox is already gone; teardown is complete.
-    await desktop?.kill();
+    // Delete directly by id: connecting a paused sandbox would resume billable compute.
+    if (desktop) await desktop.kill();
+    else await this.sdk.kill(id, { apiKey: this.apiKey });
   }
 
   private forget(id: string): void {
     this.boxes.delete(id);
     this.connections.delete(id);
     this.lastTouchedAt.delete(id);
+    this.renewals.delete(id);
+  }
+
+  private async withCommandKeepalive<T>(desktop: Sandbox, run: () => Promise<T>): Promise<T> {
+    // An SDK command can run for longer than idle TTL, including during initial setup.
+    const timer = setInterval(
+      () => {
+        void this.refreshTimeout(desktop.sandboxId, desktop).catch((error) => {
+          getLogger().error("sandbox command keepalive", error);
+        });
+      },
+      Math.min(60_000, sandboxIdleMs() / 2),
+    );
+    timer.unref?.();
+    try {
+      return await run();
+    } finally {
+      clearInterval(timer);
+    }
   }
 
   /** Apply the deployment timeout (SDK default is 60s) and return failed results instead of throwing. */
@@ -404,10 +450,12 @@ export class E2BSandboxProvider implements SandboxProvider {
   ): Promise<CommandResult> {
     try {
       // E2B's outer login shell can fail its logout hook under `set -e`, even after `exit 0`.
-      return await desktop.commands.run(`bash -c ${shellQuote(command)}`, {
-        ...(signal ? { signal } : {}),
-        timeoutMs: boundedSandboxCommandTimeoutMs(undefined),
-      });
+      return await this.withCommandKeepalive(desktop, () =>
+        desktop.commands.run(`bash -c ${shellQuote(command)}`, {
+          ...(signal ? { signal } : {}),
+          timeoutMs: boundedSandboxCommandTimeoutMs(undefined),
+        }),
+      );
     } catch (error) {
       if (error instanceof TimeoutError) {
         return {

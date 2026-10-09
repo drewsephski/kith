@@ -14,8 +14,9 @@ function deferred<T>() {
 const running = { state: "running", controlHolder: "none" } as ComputerStatus;
 const stopped = { state: "stopped", controlHolder: "none" } as ComputerStatus;
 const controlled = { state: "running", controlHolder: "user" } as ComputerStatus;
-function setup() {
+function setup(canPoll?: () => boolean) {
   const options = {
+    canPoll,
     readStatus: vi.fn<() => Promise<ComputerStatus>>().mockResolvedValue(running),
     readScreen: vi
       .fn<(attempts: number) => Promise<string | null>>()
@@ -30,6 +31,40 @@ function setup() {
 
 afterEach(() => vi.useRealTimers());
 describe("computer refresh lifecycle", () => {
+  it("skips status and screen polling while hidden and resumes when visible", async () => {
+    vi.useFakeTimers();
+    let visible = true;
+    const fixture = setup(() => visible);
+    fixture.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fixture.readStatus).toHaveBeenCalledOnce();
+    expect(fixture.readScreen).toHaveBeenCalledOnce();
+    visible = false;
+    await vi.advanceTimersByTimeAsync(SCREEN_URL_RENEW_MS + 4000);
+    expect(fixture.readStatus).toHaveBeenCalledOnce();
+    expect(fixture.readScreen).toHaveBeenCalledOnce();
+    visible = true;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(fixture.readStatus).toHaveBeenCalledTimes(2);
+    expect(fixture.readScreen).toHaveBeenCalledTimes(2);
+    fixture.controller.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("keeps an explicit maintenance action valid when polling becomes hidden", async () => {
+    vi.useFakeTimers();
+    const fixture = setup(() => false);
+    fixture.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    const action = fixture.controller.beginAction();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(action.isActive()).toBe(true);
+    await action.refresh();
+    action.finish();
+    expect(fixture.readStatus).toHaveBeenCalledTimes(2);
+    fixture.controller.dispose();
+  });
+
   it("waits for a slow refresh to finish before scheduling the next poll", async () => {
     vi.useFakeTimers();
     const fixture = setup();

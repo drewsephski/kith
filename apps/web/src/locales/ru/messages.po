@@ -1049,6 +1049,12 @@ msgstr "Очистить диалог {0}?"
 msgid "Clear conversation"
 msgstr "Очистить диалог"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Clear date"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Clear filter {label}"
 msgstr ""
@@ -3840,6 +3846,12 @@ msgstr ""
 msgid "Photo"
 msgstr "Фото"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Pick a date"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Pick a model from the catalog."
 msgstr "Выберите модель из каталога."
@@ -5201,6 +5213,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Thursday"
+msgstr ""
+
+#: src/pages/RoutineEditor.tsx
+msgid "Time"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx

@@ -1196,7 +1196,7 @@ export function ShellPage() {
   }
 
   async function refreshComputerScreen(id: string) {
-    if (!computerVisible.current) return null;
+    if (!computerVisible.current || document.visibilityState !== "visible") return null;
     const request = ++screenRequest.current;
     return loadComputerScreen({
       load: () => rpc.computer.screenUrl({ botId: id }),
@@ -2776,11 +2776,18 @@ export function ShellPage() {
     const heartbeatBotId = computerBot?.id ?? active?.id;
     if ((panel !== "computer" && !computerOpen) || !heartbeatBotId || computer?.state !== "running")
       return;
-    const ping = () =>
-      void rpc.computer.heartbeat({ botId: heartbeatBotId }).catch(() => undefined);
+    const ping = () => {
+      if (document.visibilityState === "visible") {
+        void rpc.computer.heartbeat({ botId: heartbeatBotId }).catch(() => undefined);
+      }
+    };
     ping();
     const timer = window.setInterval(ping, 60_000);
-    return () => window.clearInterval(timer);
+    document.addEventListener("visibilitychange", ping);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", ping);
+    };
   }, [panel, computerOpen, computerBot?.id, active?.id, computer?.state]);
 
   /** Open the computer view, taking control when possible. Resolves false if booting failed. */

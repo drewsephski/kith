@@ -28,6 +28,7 @@ function screenKey(status: ComputerStatus) {
 
 /** One polling lifecycle per mounted computer target. Explicit refreshes supersede older reads. */
 export function createComputerRefresh(options: {
+  canPoll?: () => boolean;
   readStatus: () => Promise<ComputerStatus>;
   readScreen: (attempts: number) => Promise<string | null>;
   onStatus: (status: ComputerStatus) => void;
@@ -69,6 +70,10 @@ export function createComputerRefresh(options: {
 
   async function refresh({ screenAttempts = 1, poll = false } = {}) {
     if (!active) return;
+    if (poll && options.canPoll?.() === false) {
+      schedule();
+      return;
+    }
     invalidate();
     const requestRevision = revision;
     pendingRevision = requestRevision;

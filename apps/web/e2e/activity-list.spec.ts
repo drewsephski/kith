@@ -129,13 +129,17 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await page.getByTestId("activity-reset-filters").click();
   await expect(activityRow(page, "Kith")).toBeVisible();
 
-  await page.getByTestId("activity-date-from").fill("2999-01-01");
+  await page.getByTestId("activity-date-from").click();
+  await page.getByRole("button", { name: /Go to the Next Month/i }).click();
+  await page.locator('[data-slot="calendar"] td:not([data-outside]) button').nth(14).click();
   await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
   await expect(activityRow(page, "Kith")).toHaveCount(0);
   await page.getByTestId("activity-reset-filters").click();
   await expect(activityRow(page, "Kith")).toBeVisible();
 
-  await page.getByTestId("activity-date-to").fill("2000-01-01");
+  await page.getByTestId("activity-date-to").click();
+  await page.getByRole("button", { name: /Go to the Previous Month/i }).click();
+  await page.locator('[data-slot="calendar"] td:not([data-outside]) button').nth(14).click();
   await expect(aside.getByText("No tasks match these filters.")).toBeVisible();
   await expect(activityRow(page, "Kith")).toHaveCount(0);
 });

@@ -15,6 +15,7 @@ export {
 export * from "./components/ui/alert-dialog.js";
 export * from "./components/ui/badge.js";
 export * from "./components/ui/button.js";
+export * from "./components/ui/calendar.js";
 export * from "./components/ui/card.js";
 export * from "./components/ui/checkbox.js";
 export * from "./components/ui/collapsible.js";
@@ -39,6 +40,7 @@ export * from "./components/ui/textarea.js";
 export * from "./components/ui/toggle.js";
 export * from "./components/ui/tooltip.js";
 export { ConnectorIcon } from "./connector-icon.js";
+export { DatePicker } from "./date-picker.js";
 export { GroupAvatar, type GroupAvatarMember, type GroupAvatarProps } from "./group-avatar.js";
 export { KithAvatar } from "./kith-avatar.js";
 export { cn } from "./lib/utils.js";

@@ -26,10 +26,10 @@ describe("sandbox idle", () => {
     vi.unstubAllEnvs();
   });
 
-  it("defaults to ten minutes when SANDBOX_IDLE_MS is unset", () => {
+  it("defaults to five minutes when SANDBOX_IDLE_MS is unset", () => {
     expect(computerIdleSleepEnabled()).toBe(true);
     expect(sandboxIdleMs()).toBe(DEFAULT_SANDBOX_IDLE_MS);
-    expect(DEFAULT_SANDBOX_IDLE_MS).toBe(10 * 60 * 1000);
+    expect(DEFAULT_SANDBOX_IDLE_MS).toBe(5 * 60 * 1000);
   });
 
   it.each(["0", " \t0\n"])("disables idle sleep for %j", async (value) => {
@@ -86,6 +86,41 @@ describe("sandbox idle", () => {
     expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
   });
 
+  it("defers an already-dequeued sleep job after recent viewer activity", async () => {
+    const harness = idleHarness();
+    harness.computer.updatedAt = new Date(Date.now() - 1_000);
+    await sleepComputerIfIdle(harness.deps, harness.computer.id);
+    expect(harness.sandbox.execute).not.toHaveBeenCalled();
+    expect(harness.sandbox.stop).not.toHaveBeenCalled();
+    expect(harness.jobs.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        availableAt: new Date(harness.computer.updatedAt.getTime() + sandboxIdleMs()),
+      }),
+    );
+  });
+
+  it("keeps an active run alive at the idle deadline", async () => {
+    const harness = idleHarness();
+    harness.prisma.run.findFirst.mockResolvedValueOnce({ id: "run" });
+    await sleepComputerIfIdle(harness.deps, harness.computer.id);
+    expect(harness.sandbox.keepAlive).toHaveBeenCalledOnce();
+    expect(harness.sandbox.stop).not.toHaveBeenCalled();
+  });
+
+  it("retries a refused pause without claiming the computer was suspended", async () => {
+    const harness = idleHarness();
+    harness.sandbox.stop.mockRejectedValueOnce(new Error("provider busy"));
+    await expect(sleepComputerIfIdle(harness.deps, harness.computer.id)).rejects.toThrow(
+      "provider busy",
+    );
+    expect(harness.computer.state).toBe("running");
+    expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
+    expect(harness.events.append).not.toHaveBeenCalled();
+    harness.computer.updatedAt = new Date(Date.now() - sandboxIdleMs());
+    await sleepComputerIfIdle(harness.deps, harness.computer.id);
+    expect(harness.computer.state).toBe("suspended");
+  });
+
   it("does not suspend a computer while bot-launched background work is active", async () => {
     const harness = idleHarness({ backgroundWorkProbeCode: 0 });
 
@@ -132,16 +167,19 @@ describe("sandbox idle", () => {
     expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
   });
 
-  it("does not let an abandoned waiting takeover prevent idle suspension", async () => {
-    const harness = idleHarness();
-    harness.prisma.run.findFirst.mockImplementation(async ({ where }) =>
-      where.status.in.includes("waiting_takeover") ? { id: "waiting" } : null,
-    );
+  it.each(["waiting_input", "waiting_takeover"])(
+    "does not keep idle compute running for %s",
+    async (status) => {
+      const harness = idleHarness();
+      harness.prisma.run.findFirst.mockImplementation(async ({ where }) =>
+        where.status.in.includes(status) ? { id: "waiting" } : null,
+      );
 
-    await sleepComputerIfIdle(harness.deps, harness.computer.id);
+      await sleepComputerIfIdle(harness.deps, harness.computer.id);
 
-    expect(harness.sandbox.stop).toHaveBeenCalledOnce();
-  });
+      expect(harness.sandbox.stop).toHaveBeenCalledOnce();
+    },
+  );
 
   it("claims the lease boundary before any checkpoint export", async () => {
     const harness = idleHarness();
@@ -498,7 +536,7 @@ describe("e2b create options", () => {
   it("pauses on timeout instead of killing the sandbox", () => {
     const opts = e2bCreateOptions("bot-1", "e2b_test");
     expect(opts.lifecycle).toEqual({ onTimeout: "pause", autoResume: false });
-    expect(opts.timeoutMs).toBe(sandboxIdleMs());
+    expect(opts.timeoutMs).toBe(sandboxIdleMs() + 60_000);
     expect(opts.metadata.botId).toBe("bot-1");
   });
 });

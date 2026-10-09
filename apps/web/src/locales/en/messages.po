@@ -1049,6 +1049,12 @@ msgstr "Clear {0}’s conversation?"
 msgid "Clear conversation"
 msgstr "Clear conversation"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Clear date"
+msgstr "Clear date"
+
 #: src/pages/ActivityList.tsx
 msgid "Clear filter {label}"
 msgstr "Clear filter {label}"
@@ -3840,6 +3846,12 @@ msgstr "Personal assistant details"
 msgid "Photo"
 msgstr "Photo"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Pick a date"
+msgstr "Pick a date"
+
 #: src/lib/model-connection-preflight.ts
 msgid "Pick a model from the catalog."
 msgstr "Pick a model from the catalog."
@@ -5202,6 +5214,10 @@ msgstr "Thread"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Thursday"
 msgstr "Thursday"
+
+#: src/pages/RoutineEditor.tsx
+msgid "Time"
+msgstr "Time"
 
 #: src/pages/RoutineSchedule.tsx
 msgid "Time of day"

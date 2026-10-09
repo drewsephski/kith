@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { TaskStarterReceipt as Receipt, TaskTodo } from "@rakazo/contracts";
-import { Button, Checkbox, Input, SelectField, Textarea } from "@rakazo/ui-web";
+import { Button, Checkbox, DatePicker, Input, SelectField, Textarea } from "@rakazo/ui-web";
 import { useEffect, useId, useRef, useState } from "react";
 import { newClientId } from "../../lib/client-id";
 import { rpc } from "../../lib/rpc";
@@ -14,7 +14,7 @@ export function TaskStarterReceipt({
   receiptId: string;
   onUpdated?: () => Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const fieldId = useId();
   const [receiptId, setReceiptId] = useState(originalReceiptId);
   const alive = useRef(true);
@@ -342,11 +342,13 @@ export function TaskStarterReceipt({
                           maxLength={2000}
                           disabled={busy}
                         />
-                        <Input
-                          type="date"
+                        <DatePicker
                           aria-label={t`Due date`}
                           value={edit.dueDate ?? ""}
-                          onChange={(event) => update({ dueDate: event.target.value || null })}
+                          onValueChange={(value) => update({ dueDate: value || null })}
+                          placeholder={t`Pick a date`}
+                          clearLabel={t`Clear date`}
+                          locale={i18n.locale}
                           disabled={busy}
                         />
                         <SelectField

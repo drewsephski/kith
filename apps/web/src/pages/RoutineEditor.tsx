@@ -12,6 +12,7 @@ import {
 } from "@rakazo/core";
 import {
   Button,
+  DatePicker,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -244,7 +245,7 @@ export function RoutineEditor({
   onDelete: () => void;
   onEnsureWebhook: () => Promise<void>;
 }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const fieldId = useId();
   const [credentials, setCredentials] = useState<ModelCredential[]>([]);
   const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
@@ -535,11 +536,15 @@ export function RoutineEditor({
           {needsOneShotArm ? (
             <label htmlFor={`${fieldId}-run-at`} className="block text-sm text-muted-foreground">
               <Trans>Run at</Trans>
-              <Input
+              <DatePicker
                 id={`${fieldId}-run-at`}
-                type="datetime-local"
+                withTime
+                timeLabel={t`Time`}
+                placeholder={t`Pick a date`}
+                clearLabel={t`Clear date`}
+                locale={i18n.locale}
                 value={draft.runAtLocal}
-                onChange={(e) => onChange({ ...draft, runAtLocal: e.target.value })}
+                onValueChange={(value) => onChange({ ...draft, runAtLocal: value })}
                 aria-label={t`Run at`}
                 className="mt-2"
               />

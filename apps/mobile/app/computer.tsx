@@ -3,7 +3,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { AppState, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   initialWindowMetrics,
@@ -117,6 +117,7 @@ export default function Computer() {
   const refreshController = useMemo(
     () =>
       createComputerRefresh({
+        canPoll: () => AppState.currentState === "active" && navigation.isFocused(),
         readStatus: () => rpc<ComputerStatus>("computer/status", { botId }),
         readScreen: (attempts) =>
           readScreenUrl(() => rpc<{ url: string | null }>("computer/screenUrl", { botId }), {
@@ -127,7 +128,7 @@ export default function Computer() {
         onReady: () => setReadyBotId(botId ?? null),
         onInitialError: (err) => setError(errorText(err)),
       }),
-    [botId],
+    [botId, navigation],
   );
   const refresh = refreshController.refresh;
   const refreshAfterMaintenance = useCallback(async () => {
@@ -209,11 +210,26 @@ export default function Computer() {
 
   useEffect(() => {
     if (!botId || computer?.state !== "running") return;
-    const ping = () => void rpc("computer/heartbeat", { botId }).catch(() => undefined);
+    const ping = () => {
+      if (AppState.currentState === "active" && navigation.isFocused()) {
+        void rpc("computer/heartbeat", { botId }).catch(() => undefined);
+      }
+    };
     ping();
     const timer = setInterval(ping, COMPUTER_HEARTBEAT_MS);
-    return () => clearInterval(timer);
-  }, [botId, computer?.state]);
+    const wake = () => {
+      if (AppState.currentState !== "active" || !navigation.isFocused()) return;
+      ping();
+      void refresh().catch(() => undefined);
+    };
+    const subscription = AppState.addEventListener("change", wake);
+    const unsubscribeFocus = navigation.addListener("focus", wake);
+    return () => {
+      clearInterval(timer);
+      subscription.remove();
+      unsubscribeFocus();
+    };
+  }, [botId, computer?.state, navigation, refresh]);
 
   /** Open the full window. Only an explicit Take control asks for the lease. */
   async function openComputer({ takeControl }: { takeControl: boolean }) {

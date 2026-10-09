@@ -12,7 +12,7 @@ import { expireComputerControl, hasActiveComputerControl } from "./computer-cont
 import { toComputerRef } from "./computer-lifecycle.js";
 import { checkpointComputerWorkspace } from "./computer-workspace.js";
 
-export const DEFAULT_SANDBOX_IDLE_MS = 10 * 60 * 1000;
+export const DEFAULT_SANDBOX_IDLE_MS = 5 * 60 * 1000;
 const BACKGROUND_WORK_MARKER_PREFIX = "/tmp/rakazo-background-";
 const BACKGROUND_WORK_IDLE_SENTINEL = "rakazo-background-idle";
 
@@ -166,7 +166,7 @@ export const BACKGROUND_WORK_PROBE = [
 
 export function sandboxIdleMs(): number {
   const raw = Number(process.env.SANDBOX_IDLE_MS ?? DEFAULT_SANDBOX_IDLE_MS);
-  return Number.isFinite(raw) && raw >= 30_000 ? raw : DEFAULT_SANDBOX_IDLE_MS;
+  return Number.isSafeInteger(raw) && raw >= 30_000 ? raw : DEFAULT_SANDBOX_IDLE_MS;
 }
 
 export function computerIdleSleepEnabled(): boolean {
@@ -206,11 +206,21 @@ export async function sleepComputerIfIdle(
     if (!computer?.providerRef || computer.state !== "running") return;
   }
 
-  const activeStatuses = hasActiveComputerControl(computer)
-    ? [...ACTIVE_RUN_STATUSES]
-    : ACTIVE_RUN_STATUSES.filter((status) => status !== "waiting_takeover");
+  // A durable waiting-input checkpoint can resume after sleep; it owns no live execution.
+  const activeStatuses = ACTIVE_RUN_STATUSES.filter(
+    (status) =>
+      status !== "waiting_input" &&
+      (status !== "waiting_takeover" || hasActiveComputerControl(computer)),
+  );
   if (await findActiveRun(deps.prisma, computerId, activeStatuses)) {
+    await deps.sandbox.keepAlive?.(toComputerRef(computer));
     scheduleComputerSleep(deps.jobs, computerId);
+    return;
+  }
+
+  const idleAt = computer.updatedAt.getTime() + sandboxIdleMs();
+  if (idleAt > Date.now()) {
+    await deps.jobs.enqueue(computerSleepJob(computerId, new Date(idleAt)));
     return;
   }
 
@@ -319,6 +329,7 @@ export async function sleepComputerIfIdle(
       where: suspensionClaim,
       data: { state: "running" },
     });
+    scheduleComputerSleep(deps.jobs, computerId);
     throw error;
   }
   await deps.prisma.computer.update({

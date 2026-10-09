@@ -3353,6 +3353,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
             if (!runRenewed || !computerRenewed) {
               leaseValid = false;
               runAbortController?.abort();
+            } else if (screenRelease) {
+              // Model thinking and long commands must not outlive the provider timeout.
+              void deps.sandbox.keepAlive?.(screenRelease.computer).catch((error) => {
+                getLogger().error("active computer keepalive", error);
+              });
             }
           })
           .catch(() => {

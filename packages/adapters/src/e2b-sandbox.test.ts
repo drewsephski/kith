@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { Sandbox, SandboxNotFoundError, TimeoutError } from "@e2b/desktop";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldSkipPortableWorkspaceFile } from "./computer-workspace.js";
 import type { E2BSandboxSdk } from "./e2b-sandbox.js";
 import { E2BSandboxProvider, isSandboxGoneError } from "./e2b-sandbox.js";
@@ -139,6 +139,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn().mockRejectedValueOnce(failure).mockResolvedValue({ sandboxId: "existing" }),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
 
@@ -166,6 +167,7 @@ describe("E2B computer backend", () => {
         }),
       ),
       pause: vi.fn(),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
     await expect(
@@ -208,6 +210,7 @@ describe("E2B computer backend", () => {
           create: vi.fn().mockResolvedValue(desktop),
           connect: vi.fn(),
           pause: vi.fn(),
+          kill: vi.fn(async () => true),
         };
         const provider = new E2BSandboxProvider("test-key", sdk);
         const computer = await provider.provision({ botId: "bot", homePath: "/unused" }, context);
@@ -249,6 +252,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
     const computer = {
@@ -278,6 +282,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
     const computer = {
@@ -312,6 +317,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
     const computer = await provider.provision(
@@ -350,6 +356,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     });
     const computer = await provider.provision(
       { botId: "bot-1", homePath: "/unused", providerKind: "e2b" },
@@ -399,6 +406,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     });
     const computer = await provider.provision(
       { botId: "bot-1", homePath: "/unused", providerKind: "e2b" },
@@ -503,6 +511,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
+      kill: vi.fn(async () => true),
     };
     const provider = new E2BSandboxProvider("test-key", sdk);
     const computer = await provider.provision(
@@ -652,6 +661,7 @@ describe("E2B computer backend", () => {
       create: vi.fn(async () => desktop as never),
       connect: vi.fn(),
       pause: vi.fn(),
+      kill: vi.fn(async () => true),
     } as unknown as E2BSandboxSdk);
     const computer = await provider.provision({ botId: "team-home", homePath: "/tmp" }, context);
     const writer = { ...context, botId: "writer" };
@@ -768,61 +778,169 @@ describe("sandbox-gone detection", () => {
     expect(isSandboxGoneError(new Error("fetch failed"))).toBe(false);
   });
 
-  it.each(gone)("drops a cached handle and reconnects after %s", async (error) => {
-    const dead = {
-      sandboxId: "box-1",
-      setTimeout: vi.fn(async () => {
-        throw error;
-      }),
-    } as unknown as Sandbox;
-    const revived = { sandboxId: "box-1", setTimeout: vi.fn(async () => undefined) };
-    const sdk: E2BSandboxSdk = {
-      create: vi.fn(async () => dead),
-      connect: vi.fn(async () => revived as unknown as Sandbox),
-      pause: vi.fn(async () => undefined),
-    };
+  it.each(gone)("reconnects a cached expired handle after %s", async (error) => {
+    const dead = { sandboxId: "box-1", setTimeout: vi.fn().mockRejectedValue(error) };
+    const revived = { sandboxId: "box-1", setTimeout: vi.fn().mockResolvedValue(undefined) };
+    const sdk = {
+      create: vi.fn().mockResolvedValue(dead),
+      connect: vi.fn().mockResolvedValue(revived),
+      pause: vi.fn(),
+      kill: vi.fn(),
+    } as unknown as E2BSandboxSdk;
     const provider = new E2BSandboxProvider("test-key", sdk);
     const ref = await provider.provision({ botId: "bot-1", homePath: "/unused" }, context);
-    expect(ref.providerRef).toBe("box-1");
-
     vi.setSystemTime(Date.now() + 61_000);
     try {
-      await provider.keepAlive?.(ref);
+      await provider.keepAlive(ref);
+      expect(dead.setTimeout).toHaveBeenCalledOnce();
+      expect(sdk.connect).toHaveBeenCalledOnce();
+      expect(revived.setTimeout).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
-    expect(dead.setTimeout).toHaveBeenCalledTimes(1);
-    expect(sdk.connect).toHaveBeenCalledTimes(1);
-  });
-
-  it("forgets a dead handle on keepAlive before the 60s probe threshold", async () => {
-    const dead = {
-      sandboxId: "box-1",
-      setTimeout: vi.fn(async () => {
-        throw new TimeoutError("502: This error is likely due to sandbox timeout.");
-      }),
-    } as unknown as Sandbox;
-    const revived = { sandboxId: "box-1", setTimeout: vi.fn(async () => undefined) };
-    const sdk: E2BSandboxSdk = {
-      create: vi.fn(async () => dead),
-      connect: vi.fn(async () => revived as unknown as Sandbox),
-      pause: vi.fn(async () => undefined),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
-    const ref = await provider.provision({ botId: "bot-1", homePath: "/unused" }, context);
-
-    // Still inside box()'s 60s cache window — keepAlive must not refresh lastTouchedAt
-    // on a gone sandbox, or subsequent heartbeats would keep serving the dead handle.
-    await provider.keepAlive?.(ref);
-    expect(dead.setTimeout).toHaveBeenCalledTimes(1);
-    expect(sdk.connect).not.toHaveBeenCalled();
-
-    await provider.keepAlive?.(ref);
-    expect(sdk.connect).toHaveBeenCalledTimes(1);
-    expect(revived.setTimeout).toHaveBeenCalledTimes(1);
   });
 });
 
 function _unwrapSetupCommand(command: string): string {
   return command.startsWith("bash -c '") ? command.slice(9, -1).replaceAll(`'"'"'`, "'") : command;
 }
+
+describe("E2B resource lifecycle", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  function fixture() {
+    const desktop = {
+      sandboxId: "saved-box",
+      setTimeout: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn().mockResolvedValue(true),
+      kill: vi.fn().mockResolvedValue(true),
+      commands: { run: vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 }) },
+    };
+    const sdk = {
+      create: vi.fn().mockResolvedValue(desktop),
+      connect: vi.fn().mockResolvedValue(desktop),
+      pause: vi.fn().mockResolvedValue(true),
+      kill: vi.fn().mockResolvedValue(true),
+    };
+    const provider = new E2BSandboxProvider("test-key", sdk as unknown as E2BSandboxSdk);
+    const ref = { id: "saved-box", providerRef: "saved-box", botId: "bot", kind: "e2b" as const };
+    return { desktop, sdk, provider, ref };
+  }
+
+  it("coalesces simultaneous heartbeats and renews only once per minute", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    await Promise.all([f.provider.keepAlive(f.ref), f.provider.keepAlive(f.ref)]);
+    expect(f.desktop.setTimeout).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(60_000);
+    await Promise.all([f.provider.keepAlive(f.ref), f.provider.keepAlive(f.ref)]);
+    expect(f.desktop.setTimeout).toHaveBeenCalledOnce();
+    expect(f.desktop.setTimeout).toHaveBeenCalledWith(360_000);
+    await f.provider.keepAlive(f.ref);
+    expect(f.desktop.setTimeout).toHaveBeenCalledOnce();
+  });
+
+  it("does not reconnect after teardown overtakes an in-flight timeout renewal", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    await vi.advanceTimersByTimeAsync(60_000);
+    let finish!: () => void;
+    f.desktop.setTimeout.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const heartbeat = f.provider.keepAlive(f.ref);
+    const rejected = expect(heartbeat).rejects.toThrow("stopped during teardown");
+    await f.provider.stop(f.ref, context);
+    finish();
+    await rejected;
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+    expect(f.desktop.pause).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces renewal failures and retries without replacing the workspace", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    await vi.advanceTimersByTimeAsync(60_000);
+    f.desktop.setTimeout.mockRejectedValueOnce(new Error("network unavailable"));
+    await expect(f.provider.keepAlive(f.ref)).rejects.toThrow("network unavailable");
+    await f.provider.keepAlive(f.ref);
+    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(2);
+    expect(f.sdk.create).toHaveBeenCalledOnce();
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+  });
+
+  it("keeps a long command running at the shortest supported idle timeout and clears its timer", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("SANDBOX_IDLE_MS", "30000");
+    const f = fixture();
+    let finish!: (result: { stdout: string; stderr: string; exitCode: number }) => void;
+    f.desktop.commands.run.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const command = f.provider
+      .execute(f.ref, { argv: ["sleep", "120"], timeoutMs: 180_000 }, context)
+      [Symbol.asyncIterator]();
+    const result = command.next();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(8);
+    expect(f.desktop.setTimeout).toHaveBeenLastCalledWith(90_000);
+    finish({ stdout: "", stderr: "", exitCode: 0 });
+    await expect(result).resolves.toEqual({ done: false, value: { type: "exit", code: 0 } });
+    await command.return?.();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(8);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("pauses and resumes the same sandbox without creating another", async () => {
+    const f = fixture();
+    await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    await f.provider.stop(f.ref, context);
+    expect(f.desktop.pause).toHaveBeenCalledOnce();
+    await expect(
+      f.provider.provision(
+        { botId: "bot", homePath: "/unused", providerRef: f.ref.providerRef, providerKind: "e2b" },
+        context,
+      ),
+    ).resolves.toMatchObject({ providerRef: "saved-box", fresh: false });
+    expect(f.sdk.create).toHaveBeenCalledOnce();
+    expect(f.sdk.connect).toHaveBeenCalledOnce();
+    expect(f.desktop.kill).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("propagates pause failures with a cached handle: %s", async (cached) => {
+    const f = fixture();
+    if (cached) await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    f.desktop.pause.mockRejectedValueOnce(new Error("provider busy"));
+    f.sdk.pause.mockRejectedValueOnce(new Error("provider busy"));
+    await expect(f.provider.stop(f.ref, context)).rejects.toThrow("provider busy");
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+  });
+
+  it("deletes an uncached paused sandbox directly without resuming it", async () => {
+    const f = fixture();
+    await f.provider.destroy(f.ref, context);
+    expect(f.sdk.kill).toHaveBeenCalledWith("saved-box", { apiKey: "test-key" });
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+    expect(f.sdk.create).not.toHaveBeenCalled();
+  });
+
+  it("does not swallow deletion failures for uncached sandboxes", async () => {
+    const f = fixture();
+    f.sdk.kill.mockRejectedValueOnce(new Error("provider unavailable"));
+    await expect(f.provider.destroy(f.ref, context)).rejects.toThrow("provider unavailable");
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+  });
+});

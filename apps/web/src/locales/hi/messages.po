@@ -1049,6 +1049,12 @@ msgstr "{0} की बातचीत साफ़ करें?"
 msgid "Clear conversation"
 msgstr "बातचीत साफ़ करें"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Clear date"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "Clear filter {label}"
 msgstr ""
@@ -3840,6 +3846,12 @@ msgstr ""
 msgid "Photo"
 msgstr "फ़ोटो"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/pages/ActivityList.tsx
+#: src/pages/RoutineEditor.tsx
+msgid "Pick a date"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Pick a model from the catalog."
 msgstr "कैटलॉग से एक मॉडल चुनें।"
@@ -5201,6 +5213,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Thursday"
+msgstr ""
+
+#: src/pages/RoutineEditor.tsx
+msgid "Time"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx

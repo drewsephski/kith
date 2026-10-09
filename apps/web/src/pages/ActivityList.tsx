@@ -8,6 +8,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DatePicker,
   Input,
   Label,
   Select,
@@ -303,15 +304,18 @@ function ActivityFilters({
               <Label htmlFor={fromId} className="text-[12.5px] text-muted-foreground">
                 <Trans>From</Trans>
               </Label>
-              <Input
+              <DatePicker
                 id={fromId}
                 data-testid="activity-date-from"
-                type="date"
+                aria-label={t`From`}
+                placeholder={t`Pick a date`}
+                clearLabel={t`Clear date`}
+                locale={i18n.locale}
                 value={filters.dateRange.from}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   onChange({
                     ...filters,
-                    dateRange: { ...filters.dateRange, from: event.target.value },
+                    dateRange: { ...filters.dateRange, from: value },
                   })
                 }
                 className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
@@ -321,15 +325,18 @@ function ActivityFilters({
               <Label htmlFor={toId} className="text-[12.5px] text-muted-foreground">
                 <Trans>To</Trans>
               </Label>
-              <Input
+              <DatePicker
                 id={toId}
                 data-testid="activity-date-to"
-                type="date"
+                aria-label={t`To`}
+                placeholder={t`Pick a date`}
+                clearLabel={t`Clear date`}
+                locale={i18n.locale}
                 value={filters.dateRange.to}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   onChange({
                     ...filters,
-                    dateRange: { ...filters.dateRange, to: event.target.value },
+                    dateRange: { ...filters.dateRange, to: value },
                   })
                 }
                 className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
