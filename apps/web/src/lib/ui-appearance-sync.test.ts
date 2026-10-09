@@ -16,6 +16,7 @@ const mediaListeners = new Set<() => void>();
 let stopWatching: (() => void) | undefined;
 
 beforeEach(() => {
+  vi.stubGlobal("localStorage", window.localStorage);
   localStorage.clear();
   systemLight = false;
   vi.stubGlobal("matchMedia", () => ({
