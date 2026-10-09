@@ -732,6 +732,10 @@ msgstr ""
 msgid "Back"
 msgstr "返回"
 
+#: src/pages/Artifacts.tsx
+msgid "Back to files"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Back to Kith"
 msgstr ""
@@ -912,10 +916,6 @@ msgstr "已取消"
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "已取消"
-
-#: src/pages/Artifacts.tsx
-msgid "Card view"
-msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1723,6 +1723,10 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not load model settings"
 msgstr "无法加载模型设置"
+
+#: src/pages/Artifacts.tsx
+msgid "Could not load more files."
+msgstr ""
 
 #: src/components/CalendarConnection.tsx
 msgid "Could not load preferences"
@@ -2961,10 +2965,6 @@ msgstr "关联聊天应用"
 msgid "Link SSO"
 msgstr "关联 SSO"
 
-#: src/pages/Artifacts.tsx
-msgid "List view"
-msgstr ""
-
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listen"
 msgstr ""
@@ -3134,10 +3134,6 @@ msgstr "最大"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Max"
-msgstr ""
-
-#: src/pages/Artifacts.tsx
-msgid "Maximize"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -4561,10 +4557,6 @@ msgstr ""
 msgid "Search apps"
 msgstr "搜索应用"
 
-#: src/pages/Artifacts.tsx
-msgid "Search artifacts…"
-msgstr ""
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Search by domain"
 msgstr ""
@@ -4575,6 +4567,14 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Search failed"
+msgstr ""
+
+#: src/pages/Artifacts.tsx
+msgid "Search files"
+msgstr ""
+
+#: src/pages/Artifacts.tsx
+msgid "Search files…"
 msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
@@ -4735,10 +4735,6 @@ msgstr "Shell"
 
 #: src/pages/Shell.tsx
 msgid "Show computer"
-msgstr ""
-
-#: src/pages/Artifacts.tsx
-msgid "Show list"
 msgstr ""
 
 #: src/pages/PluginsOverlay.tsx

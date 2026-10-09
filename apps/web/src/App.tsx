@@ -166,7 +166,7 @@ function SessionApp() {
                   <Outlet />
                   {filesOpen ? (
                     <Suspense fallback={null}>
-                      <Routes>
+                      <Routes location={location}>
                         <Route path="/app/artifacts" element={<ArtifactsPage />} />
                         <Route path="/app/artifacts/:artifactId" element={<ArtifactsPage />} />
                       </Routes>

@@ -732,6 +732,10 @@ msgstr ""
 msgid "Back"
 msgstr "Retour"
 
+#: src/pages/Artifacts.tsx
+msgid "Back to files"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Back to Kith"
 msgstr ""
@@ -912,10 +916,6 @@ msgstr "annulé"
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "Annulé"
-
-#: src/pages/Artifacts.tsx
-msgid "Card view"
-msgstr "Vue en cartes"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1723,6 +1723,10 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not load model settings"
 msgstr "Impossible de charger les paramètres du modèle"
+
+#: src/pages/Artifacts.tsx
+msgid "Could not load more files."
+msgstr ""
 
 #: src/components/CalendarConnection.tsx
 msgid "Could not load preferences"
@@ -2961,10 +2965,6 @@ msgstr "Connecter une application de discussion"
 msgid "Link SSO"
 msgstr "Associer SSO"
 
-#: src/pages/Artifacts.tsx
-msgid "List view"
-msgstr "Vue en liste"
-
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listen"
 msgstr "Écouter"
@@ -3135,10 +3135,6 @@ msgstr "Max"
 #: src/lib/model-catalog.ts
 msgid "Max"
 msgstr ""
-
-#: src/pages/Artifacts.tsx
-msgid "Maximize"
-msgstr "Agrandir"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4561,10 +4557,6 @@ msgstr ""
 msgid "Search apps"
 msgstr "Rechercher des applications"
 
-#: src/pages/Artifacts.tsx
-msgid "Search artifacts…"
-msgstr "Rechercher des artefacts…"
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Search by domain"
 msgstr "Rechercher par domaine"
@@ -4575,6 +4567,14 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Search failed"
+msgstr ""
+
+#: src/pages/Artifacts.tsx
+msgid "Search files"
+msgstr ""
+
+#: src/pages/Artifacts.tsx
+msgid "Search files…"
 msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
@@ -4736,10 +4736,6 @@ msgstr "Shell"
 #: src/pages/Shell.tsx
 msgid "Show computer"
 msgstr "Afficher l'ordinateur"
-
-#: src/pages/Artifacts.tsx
-msgid "Show list"
-msgstr "Afficher la liste"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Show more"

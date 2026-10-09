@@ -732,6 +732,10 @@ msgstr "Awaiting reply"
 msgid "Back"
 msgstr "Back"
 
+#: src/pages/Artifacts.tsx
+msgid "Back to files"
+msgstr "Back to files"
+
 #: src/pages/Shell.tsx
 msgid "Back to Kith"
 msgstr "Back to Kith"
@@ -912,10 +916,6 @@ msgstr "cancelled"
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "Cancelled"
-
-#: src/pages/Artifacts.tsx
-msgid "Card view"
-msgstr "Card view"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1723,6 +1723,10 @@ msgstr "Could not load model providers"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not load model settings"
 msgstr "Could not load model settings"
+
+#: src/pages/Artifacts.tsx
+msgid "Could not load more files."
+msgstr "Could not load more files."
 
 #: src/components/CalendarConnection.tsx
 msgid "Could not load preferences"
@@ -2961,10 +2965,6 @@ msgstr "Link a chat app"
 msgid "Link SSO"
 msgstr "Link SSO"
 
-#: src/pages/Artifacts.tsx
-msgid "List view"
-msgstr "List view"
-
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Listen"
 msgstr "Listen"
@@ -3135,10 +3135,6 @@ msgstr "Max"
 #: src/lib/model-catalog.ts
 msgid "Max"
 msgstr "Max"
-
-#: src/pages/Artifacts.tsx
-msgid "Maximize"
-msgstr "Maximize"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4561,10 +4557,6 @@ msgstr "Search all my Gmail accounts"
 msgid "Search apps"
 msgstr "Search apps"
 
-#: src/pages/Artifacts.tsx
-msgid "Search artifacts…"
-msgstr "Search artifacts…"
-
 #: src/pages/PluginsOverlay.tsx
 msgid "Search by domain"
 msgstr "Search by domain"
@@ -4576,6 +4568,14 @@ msgstr "Search conversations"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Search failed"
 msgstr "Search failed"
+
+#: src/pages/Artifacts.tsx
+msgid "Search files"
+msgstr "Search files"
+
+#: src/pages/Artifacts.tsx
+msgid "Search files…"
+msgstr "Search files…"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
@@ -4736,10 +4736,6 @@ msgstr "Shell"
 #: src/pages/Shell.tsx
 msgid "Show computer"
 msgstr "Show computer"
-
-#: src/pages/Artifacts.tsx
-msgid "Show list"
-msgstr "Show list"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Show more"
