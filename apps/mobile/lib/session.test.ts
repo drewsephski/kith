@@ -245,6 +245,15 @@ describe("mobile session mutation ordering", () => {
     expect(await reading).toEqual({ ok: true, value: "" });
   });
 
+  it("fences a loaded token when clear starts after its storage snapshot resolves", async () => {
+    await saveSessionToken("old-token");
+    const loading = loadSessionToken();
+    await Promise.resolve();
+    const clearing = clearSessionToken();
+    expect(await loading).toBe("");
+    await clearing;
+  });
+
   it("serializes saves in invocation order", async () => {
     const started = barrier();
     const write = barrier();

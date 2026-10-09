@@ -122,8 +122,9 @@ export function currentSessionGeneration() {
 }
 
 export async function loadSessionToken() {
+  const generation = sessionGeneration;
   const snapshot = await snapshotSessionToken();
-  return snapshot.ok ? snapshot.value : "";
+  return generation === sessionGeneration && snapshot.ok ? snapshot.value : "";
 }
 
 export async function saveSessionToken(token: string) {

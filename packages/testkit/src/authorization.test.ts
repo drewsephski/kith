@@ -12,7 +12,6 @@ import {
   releaseSpaceDeletionClaim,
   renewSpaceDeletionClaim,
 } from "@rakazo/db";
-import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { createApp } from "../../../apps/api/src/app.ts";
 import { addScreenProxyCapability, mountScreenTarget } from "../../../apps/api/src/screen-proxy.js";
@@ -536,7 +535,9 @@ describeWithDatabase("API authorization and resource isolation", () => {
       controlLeaseId: row.computer.controlLeaseId,
     };
     const secret = "fake-isolated-screen-secret";
-    const authority = new Hono();
+    // Use the API's Hono constructor without adding a testkit dependency on its framework.
+    const AuthorityApp = handles.app.constructor as new () => AppHandles["app"];
+    const authority = new AuthorityApp();
     mountScreenTarget(authority, handles.prisma, secret);
     const mint = (identity: ScreenCapabilityScope) =>
       new URL(
