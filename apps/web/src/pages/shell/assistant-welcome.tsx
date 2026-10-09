@@ -1,13 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { TaskStarterId } from "@rakazo/contracts";
 import { Button, KithAvatar } from "@rakazo/ui-web";
-import { ArrowUpRight, CalendarDays, Heart, Sun } from "lucide-react";
+import { ArrowUpRight, BarChart3, CalendarDays, Heart, ListTodo, Search } from "lucide-react";
 
 export function AssistantWelcome({
   name,
   onSuggest,
 }: {
   name?: string;
-  onSuggest: (text: string) => void;
+  onSuggest: (text: string, starter?: TaskStarterId) => void;
 }) {
   const { t } = useLingui();
   const firstName = name?.trim().split(/\s+/)[0];
@@ -15,7 +16,30 @@ export function AssistantWelcome({
   const greeting = hour < 12 ? t`Good morning` : hour < 18 ? t`Good afternoon` : t`Good evening`;
   const suggestions = [
     { icon: CalendarDays, title: t`Plan tomorrow`, prompt: t`What's on my schedule tomorrow?` },
-    { icon: Sun, title: t`Prepare for a meeting`, prompt: t`Prepare me for my next meeting.` },
+    {
+      icon: Search,
+      title: t`Search all my Gmail accounts`,
+      prompt: t`Search all my connected Gmail accounts for…`,
+      starter: "gmail_search" as const,
+    },
+    {
+      icon: CalendarDays,
+      title: t`Build a brief for my next meeting`,
+      prompt: t`Prepare me for my next meeting using my calendar, relevant emails, and HubSpot.`,
+      starter: "meeting_brief" as const,
+    },
+    {
+      icon: ListTodo,
+      title: t`Turn my inbox into a to-do list`,
+      prompt: t`Turn emails from the past seven days into a prioritized to-do list, with links to each source.`,
+      starter: "inbox_todos" as const,
+    },
+    {
+      icon: BarChart3,
+      title: t`Pull this week’s numbers into a Sheet`,
+      prompt: t`Pull this week’s GA4 numbers into a Google Sheet.`,
+      starter: "analytics_report" as const,
+    },
     { icon: Heart, title: t`Remember something`, prompt: t`Remember that I prefer ` },
   ];
   return (
@@ -32,15 +56,15 @@ export function AssistantWelcome({
         <Trans>What’s on your mind?</Trans>
       </p>
       <div className="mt-8 flex flex-col gap-1.5">
-        {suggestions.map(({ icon: Icon, title, prompt }) => (
+        {suggestions.map(({ icon: Icon, title, prompt, starter }) => (
           <Button
             key={title}
             variant="ghost"
-            onClick={() => onSuggest(prompt)}
-            className="h-11 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
+            onClick={() => onSuggest(prompt, starter)}
+            className="h-auto min-h-11 w-full justify-start gap-3 whitespace-normal px-3 py-2.5 font-normal text-muted-foreground hover:text-foreground"
           >
             <Icon size={17} strokeWidth={1.7} />
-            <span className="flex-1 text-start">{title}</span>
+            <span className="min-w-0 flex-1 text-start leading-5">{title}</span>
             <ArrowUpRight size={15} />
           </Button>
         ))}

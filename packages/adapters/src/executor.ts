@@ -3152,7 +3152,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
         // The claim locks the row, so this is the model that was committed when it fired.
         const currentModel = await tx.routine.findUnique({
           where: { id: routine.id },
-          select: { modelProvider: true, modelId: true, thinkingLevel: true },
+          select: {
+            modelProvider: true,
+            modelId: true,
+            thinkingLevel: true,
+            taskStarterSpec: true,
+          },
         });
         if (!currentModel) return null;
         const task = await tx.task.create({
@@ -3165,7 +3170,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             status: "queued",
           },
         });
-        return tx.run.create({
+        const run = await tx.run.create({
           data: {
             spaceId: routine.spaceId,
             botId: bot.id,
@@ -3173,11 +3178,27 @@ export function createRunExecutor(deps: ExecutorDeps) {
             taskId: task.id,
             userId: routine.userId,
             status: "queued",
-            trigger: "routine",
+            trigger: currentModel.taskStarterSpec ? "task_starter" : "routine",
             routineId: routine.id,
             ...routineRunModelPin(currentModel),
           },
         });
+        if (currentModel.taskStarterSpec) {
+          const definition = currentModel.taskStarterSpec as {
+            spec: Prisma.InputJsonValue;
+            connections: Prisma.InputJsonValue;
+          };
+          await tx.taskStarterExecution.create({
+            data: {
+              runId: run.id,
+              starter: "analytics_report",
+              action: "scheduled_publish",
+              input: definition.spec,
+              connections: definition.connections,
+            },
+          });
+        }
+        return run;
       });
       if (!claimed) return;
       // Enqueue continuation first so a thread-signal failure cannot strand the run.

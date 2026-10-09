@@ -1,6 +1,15 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { IntegrationCatalogResult, IntegrationSetupState } from "@rakazo/contracts";
-import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@rakazo/ui-web";
+import { ComposioAuthConfigsSchema } from "@rakazo/contracts";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  ConnectorIcon,
+  Input,
+  Textarea,
+} from "@rakazo/ui-web";
 import { Check } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { connectRemoteMcp } from "../../lib/mcp-install";
@@ -33,6 +42,7 @@ export function IntegrationSetup({
   const [selectedChoice, setChoice] = useState<Choice>("composio");
   const choice = serverSetup ? selectedChoice : "direct";
   const [apiKey, setApiKey] = useState("");
+  const [authConfigs, setAuthConfigs] = useState("");
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [serverName, setServerName] = useState("");
@@ -93,7 +103,13 @@ export function IntegrationSetup({
     await run(async () => {
       await rpc.integrationSetup.save(
         choice === "composio"
-          ? { provider: "composio", apiKey }
+          ? {
+              provider: "composio",
+              apiKey,
+              ...(authConfigs.trim()
+                ? { authConfigs: ComposioAuthConfigsSchema.parse(JSON.parse(authConfigs)) }
+                : {}),
+            }
           : {
               provider: "pipedream",
               clientId,
@@ -137,7 +153,8 @@ export function IntegrationSetup({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[32px] font-medium text-foreground">
+      <h1 className="flex items-center gap-3 text-[32px] font-medium text-foreground">
+        {!serverSetup ? <ConnectorIcon name="MCP" size={32} /> : null}
         {serverSetup ? t`Server integrations` : t`Add MCP server`}
       </h1>
       {serverSetup ? (
@@ -160,7 +177,10 @@ export function IntegrationSetup({
                 }}
                 className={`flex min-h-11 w-full items-center justify-between border-b border-border px-3.5 py-2.5 text-left last:border-0 ${choice === id ? "bg-muted" : "hover:bg-accent"}`}
               >
-                <span>{label}</span>
+                <span className="flex items-center gap-2">
+                  {id === "direct" ? <ConnectorIcon name="MCP" size={24} /> : null}
+                  {label}
+                </span>
                 {choice === id ? <Check className="size-4" aria-hidden /> : null}
               </button>
             ))}
@@ -210,6 +230,33 @@ export function IntegrationSetup({
                   autoComplete="new-password"
                 />
               </label>
+              {choice === "composio" ? (
+                <Collapsible>
+                  <CollapsibleTrigger className="text-sm text-muted-foreground">
+                    <Trans>Custom OAuth apps</Trans>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3 space-y-2">
+                    <label htmlFor={`${fieldId}-oauth`} className="block text-sm">
+                      <Trans>Toolkit to auth-config IDs (JSON)</Trans>
+                    </label>
+                    <Textarea
+                      id={`${fieldId}-oauth`}
+                      value={authConfigs}
+                      onChange={(event) => setAuthConfigs(event.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <a
+                      className="text-sm text-muted-foreground underline"
+                      href="https://docs.composio.dev/docs/white-labeling-authentication"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Trans>OAuth app settings</Trans>
+                    </a>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
               <a
                 className="text-sm text-muted-foreground underline"
                 href={

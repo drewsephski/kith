@@ -21,6 +21,8 @@ import type { createRunExecutor } from "./executor.js";
 import { compactHistory } from "./history-compaction.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import { deliverMessagingOutbound, mirrorMessagingOutbound } from "./messaging-delivery.js";
+import { executeTaskStarter } from "./task-starter-runner.js";
+import type { TaskStarterService } from "./task-starter-service.js";
 import { expireTaughtSkillTeaching } from "./teaching-session.js";
 
 export function createBackgroundJobHandlers(deps: {
@@ -39,6 +41,7 @@ export function createBackgroundJobHandlers(deps: {
   messaging?: MessagingSurface;
   cloudAgent?: CloudAgentConnection | null;
   calendar?: CalendarService;
+  taskStarters?: TaskStarterService;
 }): BackgroundJobHandlers {
   const deliverMessaging = async (runId?: string) => {
     if (!deps.messaging) return;
@@ -57,13 +60,17 @@ export function createBackgroundJobHandlers(deps: {
 
   return {
     "run.continue": async (payload) => {
-      const run = deps.calendar
-        ? await deps.prisma.run.findUnique({
-            where: { id: payload.runId },
-            select: { trigger: true },
-          })
-        : null;
-      if (run?.trigger === "calendar") {
+      const run =
+        deps.calendar || deps.taskStarters
+          ? await deps.prisma.run.findUnique({
+              where: { id: payload.runId },
+              select: { trigger: true },
+            })
+          : null;
+      if (run?.trigger === "task_starter") {
+        if (!deps.taskStarters) throw new Error("Task starter worker is not configured");
+        await executeTaskStarter(deps.taskStarters.deps, payload.runId, deps.workerId);
+      } else if (run?.trigger === "calendar") {
         if (!deps.calendar) throw new Error("Calendar worker is not configured");
         await executeCalendarBriefing(
           { ...deps, calendar: deps.calendar, resolveModel: deps.executor.resolveModel },

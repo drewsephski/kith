@@ -42,6 +42,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  ConnectorIcon,
   Dialog,
   DialogClose,
   DialogContent,
@@ -705,6 +706,7 @@ export function ModelSettingsOverlay({
           group.id === provider ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
         }`}
       >
+        <ConnectorIcon name={group.name} brand={group.id} size={32} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] text-foreground">{group.name}</span>
           <span className="mt-0.5 block truncate text-[12px] text-muted-foreground/80">

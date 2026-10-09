@@ -34,6 +34,7 @@ import type {
   MemoryProviderResolver,
   PiOAuthLogins,
   RemoteConnectorDependencies,
+  TaskStarterService,
 } from "@rakazo/adapters";
 import {
   acquireComputerExecutionLease,
@@ -559,6 +560,7 @@ export interface RouterDeps {
   ) => void;
   integrationSettings?: IntegrationProviderSettings;
   calendar?: CalendarService;
+  taskStarters?: TaskStarterService;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
   mcp?: Pick<McpConnector, "checkServer">;
@@ -3118,6 +3120,53 @@ export function createRouter(deps: RouterDeps) {
           ).catch(() => undefined);
         }
         return { ok: true as const };
+      }),
+    },
+    taskStarters: {
+      options: authed.taskStarters.options.handler(async ({ context }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.options(context.actor);
+      }),
+      properties: authed.taskStarters.properties.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.properties(context.actor, input.connectionId);
+      }),
+      start: authed.taskStarters.start.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.start(context.actor, input);
+      }),
+      receipt: authed.taskStarters.receipt.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.receipt(context.actor, input.receiptId);
+      }),
+      publish: authed.taskStarters.publish.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.publish(context.actor, input.receiptId, input.clientNonce);
+      }),
+      saveTodos: authed.taskStarters.saveTodos.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.saveTodos(
+          context.actor,
+          input.receiptId,
+          input.actionIds,
+          input.edits,
+        );
+      }),
+      retry: authed.taskStarters.retry.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.retry(context.actor, input.receiptId);
+      }),
+      chooseMeeting: authed.taskStarters.chooseMeeting.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.chooseMeeting(context.actor, input);
+      }),
+      reconcile: authed.taskStarters.reconcile.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.reconcile(context.actor, input.receiptId);
+      }),
+      schedule: authed.taskStarters.schedule.handler(async ({ context, input }) => {
+        if (!deps.taskStarters) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.taskStarters.schedule(context.actor, input);
       }),
     },
     calendar: {

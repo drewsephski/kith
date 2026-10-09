@@ -4,6 +4,7 @@ import {
   ComposioConnector,
   GoogleCalendarProvider,
   IntegrationProviderSettings,
+  TaskStarterService,
 } from "@rakazo/adapters";
 import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { createWorkerSecretStore } from "./secret-store.js";
@@ -235,7 +236,16 @@ async function main() {
       process.env.API_URL ?? "http://127.0.0.1:3100",
     ).href,
   });
+  const taskStarters = new TaskStarterService({
+    prisma,
+    jobs,
+    events,
+    integrationSettings,
+    runtime,
+    resolveModel: executor.resolveModel,
+  });
   const jobHandlers = createBackgroundJobHandlers({
+    taskStarters,
     calendar,
     executor,
     prisma,

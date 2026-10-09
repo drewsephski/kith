@@ -34,7 +34,11 @@ vi.mock("./integrations-cache", () => ({
 }));
 vi.mock("./last-bot", () => ({ loadLastBotId: async () => "" }));
 vi.mock("./appearance", () => ({ mobileTokens: () => ({ destructive: "red" }) }));
-vi.mock("./native", () => ({ native: {}, useThemedStyles: (factory: () => unknown) => factory() }));
+vi.mock("./native", () => ({
+  native: {},
+  useResolvedAppearance: () => "light",
+  useThemedStyles: (factory: () => unknown) => factory(),
+}));
 vi.mock("./i18n", () => ({
   t: (text: string) => text,
   useI18n: () => ({ t: (text: string) => text }),
@@ -59,6 +63,7 @@ vi.mock("../components/native-action-button", () => ({
   ),
 }));
 vi.mock("react-native-svg", () => ({
+  SvgXml: ({ xml }: { xml: string }) => createElement("svg", { "data-xml": xml }),
   SvgUri: ({ uri, onError }: { uri: string; onError: () => void }) =>
     createElement("svg", { "data-uri": uri, onClick: onError }),
 }));
@@ -532,4 +537,10 @@ it("ignores an old focus identity error after the new focus succeeds", async () 
   expect(container.textContent).not.toContain("Old focus failed");
   expect(container.textContent).not.toContain("Retry");
   expect(container.textContent).toContain("New space appAdd");
+});
+
+it("renders bundled SVGL artwork natively without fetching the catalog logo", async () => {
+  await render(<ConnectorIcon name="Google Calendar" logo="https://example.test/old.svg" />);
+  expect(container.querySelector("svg")?.getAttribute("data-xml")).toContain("<svg");
+  expect(container.querySelector("svg")?.getAttribute("data-uri")).toBeNull();
 });
