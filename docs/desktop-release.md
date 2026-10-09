@@ -53,3 +53,61 @@ git push origin v0.1.1
 
 The workflow refuses tags that do not match the desktop version, are not on
 `main`, or are not newer than the latest published release.
+
+## Fork publishing and update compatibility
+
+The publish target and workflow feed checks are `drewsephski/kith`. The fork had no published
+release assets when checked on 2026-10-09. The marketing download page therefore defaults to
+release status and source builds; it does not advertise signed or notarized installers.
+Check the release asset list again immediately before configuring installer links.
+
+The workflow requires a matching stable tag on `main`, repository release permissions, macOS
+signing/notarization secrets, complete platform artifacts, and successful feed verification.
+Windows is included only when its signing certificate is configured. Publishing runs after
+all selected platforms succeed; update YAML files and installers belong to the same release.
+Do not upload an incomplete feed or reuse a released version/tag.
+
+`RAKAZO_SERVICE_URL` is a **public application HTTPS origin**, supplied through the repository
+Actions variable of the same name. It is validated and bundled as public service configuration.
+A fresh hosted build uses that origin immediately and opens authentication without asking for
+Docker or a pasted address. A missing origin keeps the existing local/remote setup choices.
+The same origin must be used by Web so the account, assistant and conversations are shared.
+Server/model/integration secrets never belong in this variable or in the desktop bundle.
+
+Application identity (`dev.rakazo.desktop`), executable naming, user-data storage, saved setup
+format, per-server session partitions, Quick Ask, and local-stack configuration stay compatible.
+Saved local/remote configuration takes precedence over a newly bundled hosted origin. Switching
+servers remains an explicit setup action. New fork builds check the fork feed; an older installed
+upstream build retains its embedded upstream feed and is **not automatically migrated** by this
+source change. Moving an installation between release channels requires a verified installer
+and compatible signing identity; never weaken Electron update signature checks to force it.
+Test upgrades and retained sessions with a real signed release before general distribution.
+
+## Build from source
+
+Install the repository's supported Node version and pnpm, then:
+
+```sh
+git clone https://github.com/drewsephski/kith.git
+cd kith
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm --filter @rakazo/web build
+pnpm --filter @rakazo/desktop build
+```
+
+For a hosted build, set the verified public application origin before building Desktop:
+
+```sh
+RAKAZO_SERVICE_URL=https://app.example.test pnpm --filter @rakazo/desktop build
+```
+
+Run `pnpm --filter @rakazo/desktop exec electron .` to launch your local build. This opens an
+Electron window; it is an explicit human launch, not routine automated verification. To create
+an unpacked local app, use `pnpm --filter @rakazo/desktop pack:dir`. A source/unpacked build is
+not a signed or notarized installer. Cross-platform distribution requires the workflow and
+signing prerequisites above. Without a hosted origin, use the existing advanced local-stack
+or remote-instance setup, with the documented self-hosting requirements.
+
+Local verification uses desktop unit tests and type checking/build. The Electron Playwright
+suite belongs in CI's virtual display; it must not steal focus during routine work on a Mac.

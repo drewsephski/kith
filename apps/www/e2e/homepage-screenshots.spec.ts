@@ -18,9 +18,12 @@ test("homepage screenshots", async ({ page }, testInfo) => {
   await page.waitForLoadState("load");
   await captureScreenshot(page, testInfo, "01-marketing-homepage");
 
-  await page.locator("[data-get-started-open]").first().click();
-  await page.locator("dialog[data-get-started-dialog]").waitFor({ state: "visible" });
-  await captureScreenshot(page, testInfo, "02-marketing-get-started");
+  await page.goto("/download/");
+  await page.waitForLoadState("load");
+  await captureScreenshot(page, testInfo, "02-marketing-desktop");
+  await page.goto("/");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await captureScreenshot(page, testInfo, "03-marketing-homepage-mobile");
 
   await page.goto("/zh/");
   await page.waitForLoadState("load");

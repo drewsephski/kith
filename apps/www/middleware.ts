@@ -7,11 +7,14 @@ import {
 } from "./src/agent-content.js";
 
 const VARY_HEADER = "Accept, Accept-Encoding";
-const APEX_ORIGIN = "https://rakazo.com";
-const WWW_HOST = "www.rakazo.com";
+import { resolvePublicConfig } from "./public-config.mjs";
+
+const APEX_ORIGIN = resolvePublicConfig(process.env).siteUrl;
+const CANONICAL_HOST = new URL(APEX_ORIGIN).hostname;
+const WWW_HOST = CANONICAL_HOST.startsWith("www.") ? null : `www.${CANONICAL_HOST}`;
 
 export const config = {
-  matcher: ["/((?!api|_astro|.*\\..*).*)", "/sitemap.xml"],
+  matcher: ["/((?!api|rpc|screen|oauth|mcp|_astro|.*\\..*).*)", "/sitemap.xml"],
 };
 
 function permanentRedirect(location: string): Response {
@@ -23,6 +26,7 @@ function permanentRedirect(location: string): Response {
 
 export default function middleware(request: Request): Response {
   const url = new URL(request.url);
+  if (/^\/(api|rpc|screen|oauth|mcp|files)(?:\/|$)/.test(url.pathname)) return next();
 
   if (url.hostname.toLowerCase() === WWW_HOST) {
     const destination = new URL(`${url.pathname}${url.search}`, APEX_ORIGIN);
@@ -30,7 +34,7 @@ export default function middleware(request: Request): Response {
   }
 
   if (url.pathname === "/sitemap.xml") {
-    const destination = new URL(`/sitemap-index.xml${url.search}`, APEX_ORIGIN);
+    const destination = new URL(`/sitemap-index.xml${url.search}`, url.origin);
     return permanentRedirect(destination.toString());
   }
 

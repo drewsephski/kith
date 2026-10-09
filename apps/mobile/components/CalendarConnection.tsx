@@ -17,7 +17,7 @@ type State = {
   managedConnections?: Array<{ id: string; displayName: string }>;
   status: "connected" | "pending" | "disconnected" | "error";
 };
-export function CalendarConnection() {
+export function CalendarConnection({ botId: requestedBotId }: { botId?: string } = {}) {
   const [state, setState] = useState<State | null>(null);
   const [busy, setBusy] = useState(false);
   const attempt = useRef<AbortController | null>(null);
@@ -74,7 +74,7 @@ export function CalendarConnection() {
         ]);
         return;
       }
-      const botId = await loadLastBotId();
+      const botId = requestedBotId ?? (await loadLastBotId());
       assertCurrent();
       if (!botId) {
         Alert.alert("Open your assistant first");

@@ -28,6 +28,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   Input,
+  KithAvatar,
   ModelThinkingOptions,
   Select,
   SelectContent,
@@ -194,8 +195,17 @@ export function OnboardingPage() {
   useEffect(() => {
     let active = true;
     setError(null);
-    void Promise.all([rpc.me(), rpc.models.list().catch(() => [])])
-      .then(([me, models]) => {
+    void rpc
+      .me()
+      .then(async (me) => {
+        if (!active) return;
+        if (!me.needsModel) {
+          setStep("bot");
+          return;
+        }
+        const models = await rpc.models.list().catch(() => {
+          throw new Error(t`Could not load model providers`);
+        });
         if (!active) return;
         if (me.needsModel && !models.length) throw new Error(t`Could not load model providers`);
         setCatalog(models);
@@ -535,7 +545,7 @@ export function OnboardingPage() {
     try {
       const bot = await ensureFirstBot();
       // The main conversation opens on the shared welcome; app choices remain contextual.
-      await rpc.onboarding.start({ botId: bot.id }).catch(() => undefined);
+      await rpc.onboarding.start({ botId: bot.id });
       navigate(`/app/${bot.id}`);
     } catch (err) {
       createStartedRef.current = false;
@@ -551,6 +561,7 @@ export function OnboardingPage() {
   return (
     <div className="min-h-full bg-background px-6 py-12">
       <div className="mx-auto w-full max-w-md">
+        <KithAvatar size={72} className="mb-6" />
         {step === "loading" ? (
           <div role={error ? "alert" : "status"}>
             <p className={error ? "text-sm text-destructive" : "text-muted-foreground"}>

@@ -1,15 +1,19 @@
+import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import { isIndexedPath } from "./src/blog/indexability.ts";
 import { LOCALE_HREFLANG } from "./src/i18n/locales.ts";
+import { resolvePublicConfig } from "./public-config.mjs";
 import { resolveWwwPort } from "./www-port.mjs";
+
+loadRootEnv();
 
 const wwwPort = resolveWwwPort();
 
 export default defineConfig({
-  site: "https://rakazo.com",
+  site: resolvePublicConfig(process.env).siteUrl,
   output: "static",
   i18n: {
     defaultLocale: "en",

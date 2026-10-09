@@ -190,10 +190,6 @@ msgstr "{workingBotName} 正在工作"
 msgid "@{0}"
 msgstr "@{0}"
 
-#: src/pages/shell/message-cards.tsx
-msgid "A bit of everything"
-msgstr "什么都做一点"
-
 #: src/pages/Welcome.tsx
 msgid "A little help with life."
 msgstr ""
@@ -511,6 +507,10 @@ msgstr "此提供方存储的是 API 密钥，不是订阅登录。"
 msgid "Analytics property"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Analytics report"
+msgstr "分析报告"
+
 #: src/components/AskCard.tsx
 msgid "Answer"
 msgstr "回答"
@@ -642,6 +642,10 @@ msgstr ""
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
 msgstr ""
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Assistant name"
+msgstr "助手名称"
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -854,6 +858,7 @@ msgstr ""
 msgid "Calendar account"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Calendar briefing"
 msgstr ""
@@ -909,6 +914,7 @@ msgid "cancelled"
 msgstr "已取消"
 
 #: src/components/AskCard.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "已取消"
@@ -994,6 +1000,10 @@ msgstr ""
 msgid "Checking computer setup…"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Checking your calendar"
+msgstr "正在查看你的日历"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -1020,6 +1030,10 @@ msgstr "设置新密码"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose a property"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Choose a valid time and timezone."
+msgstr "请选择有效的时间和时区。"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
@@ -1189,6 +1203,7 @@ msgstr "命令变量"
 msgid "Complete"
 msgstr "完成"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
 msgstr ""
@@ -1248,6 +1263,10 @@ msgstr "确认删除"
 #: src/pages/Auth.tsx
 msgid "Confirm password"
 msgstr "确认密码"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Confirm routine"
+msgstr "确认例行任务"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
@@ -1830,6 +1849,10 @@ msgstr "无法连接到模型服务器。"
 msgid "Could not reach the server"
 msgstr "无法连接服务器"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Could not refresh tasks. Retry"
+msgstr "无法刷新任务。重试"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not remove"
 msgstr "无法移除"
@@ -1948,9 +1971,17 @@ msgstr ""
 msgid "Could not save this choice"
 msgstr "无法保存此选择"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Could not save this choice. Try again."
+msgstr "无法保存此选择。请重试。"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Could not schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Could not schedule task. Try again."
+msgstr "无法安排任务。请重试。"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
@@ -2150,10 +2181,6 @@ msgstr "天"
 msgid "Day of week"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Day-to-day work"
-msgstr "日常工作"
-
 #: src/pages/RoutineSchedule.tsx
 msgid "days"
 msgstr "天"
@@ -2172,7 +2199,7 @@ msgstr "默认"
 #. placeholder {0}: thinkingLevelLabel("medium")
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Default ({0})"
-msgstr ""
+msgstr "默认（{0}）"
 
 #. placeholder {0}: thinkingLevelLabel("medium")
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
@@ -2424,9 +2451,17 @@ msgstr "邮箱"
 msgid "Email and CRM context (optional)"
 msgstr ""
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Email and follow-ups"
+msgstr "邮件和跟进"
+
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
 msgstr "该邮箱不允许注册"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Email search"
+msgstr "邮件搜索"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2488,6 +2523,7 @@ msgstr "每"
 msgid "every {intervalAmountSelect} {intervalUnitSelect}"
 msgstr "每 {intervalAmountSelect} {intervalUnitSelect}"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every day"
@@ -2498,6 +2534,7 @@ msgstr "每天"
 msgid "Every hour"
 msgstr "每小时"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every Monday"
 msgstr "每周一"
@@ -2551,12 +2588,13 @@ msgstr "极高"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Extra high"
-msgstr ""
+msgstr "极高"
 
 #: src/components/CloudAgentCard.tsx
 msgid "failed"
 msgstr "失败"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
 msgstr "失败"
@@ -2642,6 +2680,10 @@ msgstr "正在完成 MCP 连接…"
 msgid "Flag unexpected actions"
 msgstr "标记异常操作"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "For you"
+msgstr "为你准备"
+
 #: src/components/CalendarConnection.tsx
 #: src/pages/KnowledgeSection.tsx
 msgid "Forget"
@@ -2654,6 +2696,10 @@ msgstr "忘记密码？"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr "免费"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Frequency"
+msgstr "频率"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Friday"
@@ -2765,6 +2811,10 @@ msgstr "请求头值"
 msgid "Hear a sample"
 msgstr "试听"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Help me plan my day. Ask me what I need to get done."
+msgstr "帮我规划一天。问问我需要完成什么。"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "你好，这是我朗读回复时的声音。"
@@ -2790,7 +2840,7 @@ msgstr "高"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
-msgstr ""
+msgstr "高"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "High priority"
@@ -2842,9 +2892,9 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Inbox & email"
-msgstr "收件箱和邮件"
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Inbox to-do list"
+msgstr "收件箱待办清单"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
@@ -2913,6 +2963,10 @@ msgstr "跳转到回复的消息：{excerpt}"
 #: src/pages/ActivityList.tsx
 msgid "just now"
 msgstr "刚刚"
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Just start chatting"
+msgstr "直接开始聊天"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
@@ -3014,6 +3068,10 @@ msgstr "自动加载网络图片"
 msgid "Loading activity…"
 msgstr "正在加载动态…"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Loading briefing…"
+msgstr "正在加载简报…"
+
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Loading connections…"
 msgstr ""
@@ -3088,7 +3146,7 @@ msgstr "低"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Low"
-msgstr ""
+msgstr "低"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Low priority"
@@ -3101,6 +3159,10 @@ msgstr ""
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "请确认这台电脑上没有仍在运行的任务。"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Make this a routine"
+msgstr "设为例行任务"
 
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -3118,6 +3180,10 @@ msgstr "管理 MCP 服务器"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Manage messaging settings"
 msgstr "管理消息设置"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Manage routine"
+msgstr "管理例行任务"
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Manage the Space semantic memory provider."
@@ -3147,7 +3213,7 @@ msgstr "最大"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Max"
-msgstr ""
+msgstr "最大"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3180,7 +3246,11 @@ msgstr "中"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Medium"
-msgstr ""
+msgstr "中"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting brief"
+msgstr "会议简报"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Meeting selected"
@@ -3269,7 +3339,7 @@ msgstr "最低"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Minimal"
-msgstr ""
+msgstr "最低"
 
 #: src/pages/WindowChrome.tsx
 msgid "Minimize"
@@ -3358,6 +3428,10 @@ msgstr ""
 msgid "More options"
 msgstr "更多选项"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "More tasks"
+msgstr "更多任务"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
 msgstr "将 {full} 下移"
@@ -3400,10 +3474,15 @@ msgstr "给这个群组命名"
 msgid "Name this routine"
 msgstr "给这个例行任务命名"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Name your assistant"
+msgstr "为助手命名"
+
 #: src/pages/ActivityList.tsx
 msgid "Needs assistance"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr ""
@@ -3451,6 +3530,10 @@ msgstr "新建工作区"
 msgid "New spreadsheet"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Next run"
+msgstr "下次运行"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
 msgstr "还没有 Agent 连接。"
@@ -3494,6 +3577,10 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "No events found in the checked window."
+msgstr "检查的时间段内未找到活动。"
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
@@ -3773,6 +3860,10 @@ msgstr "自然"
 msgid "Organization API key"
 msgstr "组织 API 密钥"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Organize my day"
+msgstr "安排我的一天"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "原消息不可用"
@@ -3872,8 +3963,8 @@ msgid "Pin"
 msgstr "置顶"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Plan tomorrow"
-msgstr ""
+msgid "Plan my day"
+msgstr "规划我的一天"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
@@ -3898,6 +3989,14 @@ msgstr ""
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preparing your briefing"
+msgstr "正在准备你的简报"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Preparing your result"
+msgstr "正在准备结果"
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3963,13 +4062,14 @@ msgid "Pull request"
 msgstr "拉取请求"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Pull this week’s GA4 numbers into a Google Sheet."
-msgstr ""
+msgid "Pull this week’s numbers into a Google Sheet using my connected GA4 and Google Sheets accounts."
+msgstr "使用我连接的 GA4 和 Google 表格账户，将本周数据汇总到一份 Google 表格中。"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Pull this week’s numbers into a Sheet"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Queued"
 msgstr ""
@@ -3993,6 +4093,10 @@ msgstr "朗读回复"
 #: src/components/CalendarConnection.tsx
 msgid "Read-only access. Your briefing starts when you connect."
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Read-only preparation. It won’t send email or change your accounts."
+msgstr "只读准备工作。不会发送邮件或修改你的账户。"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4233,6 +4337,10 @@ msgstr "重新打开"
 msgid "Repeat this report"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Repeats the approved spreadsheet update using the same sources and destination."
+msgstr "使用相同来源和目标重复已批准的表格更新。"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "替换 API 密钥"
@@ -4274,9 +4382,9 @@ msgstr ""
 msgid "Report time"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Research & writing"
-msgstr "调研和写作"
+#: src/pages/shell/assistant-focus.tsx
+msgid "Research and projects"
+msgstr "研究和项目"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4452,6 +4560,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/assistant-focus.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4539,6 +4648,10 @@ msgstr "回答是或否，或一句话说明。"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Scheduled."
+msgstr "已安排。"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Scheduled. Manage it in Routines."
@@ -5226,6 +5339,7 @@ msgstr ""
 msgid "Thursday"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 msgid "Time"
 msgstr ""
@@ -5236,6 +5350,7 @@ msgstr "时间"
 
 #: src/components/CalendarConnection.tsx
 #: src/components/CalendarReceipt.tsx
+#: src/components/task-starters/RepeatTask.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -5312,6 +5427,7 @@ msgid "Turn emails from the past seven days into a prioritized to-do list, with 
 msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr ""
 
@@ -5493,6 +5609,10 @@ msgstr "值会加密保存，之后不再显示。"
 msgid "Verified calendar data"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Verified sources"
+msgstr "已核实的来源"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "校验并添加"
@@ -5565,13 +5685,18 @@ msgstr ""
 msgid "What about its memories?"
 msgstr "它的记忆怎么处理？"
 
-#: src/pages/shell/message-cards.tsx
-msgid "What do you want me on first?"
-msgstr "你想让我先做什么？"
+#: src/pages/shell/focus-next-action.tsx
+msgid "What are you working on?"
+msgstr "你正在做什么？"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "What result will you demonstrate?"
 msgstr "你要示范什么结果？"
+
+#: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "What should I help you with first?"
+msgstr "我应该先帮你做什么？"
 
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
@@ -5590,10 +5715,7 @@ msgid "What to return"
 msgstr "返回什么"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "What's on my schedule tomorrow?"
-msgstr ""
-
-#: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "What’s on your mind?"
 msgstr ""
 
@@ -5617,8 +5739,8 @@ msgstr "何时使用"
 msgid "Where should bots run?"
 msgstr "Bot 应在哪里运行？"
 
-#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

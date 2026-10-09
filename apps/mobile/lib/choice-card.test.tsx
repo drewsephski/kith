@@ -73,6 +73,10 @@ vi.mock("../components/native-symbol", () => ({
   NativeSymbol: () => null,
 }));
 
+vi.mock("../components/CalendarConnection", () => ({ CalendarConnection: () => null }));
+vi.mock("../components/task-starters/setup", () => ({ TaskStarterSetup: () => null }));
+vi.mock("../components/native-action-button", () => ({ NativeActionButton: () => null }));
+
 import { ChoiceCard } from "../components/ChoiceCard";
 
 type ChoiceBlock = Extract<MessageBlock, { kind: "choice" }>;
@@ -81,8 +85,8 @@ const choice: ChoiceBlock = {
   kind: "choice",
   question: "What do you want me on first?",
   options: [
-    { id: "day", letter: "A", label: "Day-to-day work" },
-    { id: "inbox", letter: "B", label: "Inbox & email" },
+    { id: "day", letter: "A", label: "Organize my day" },
+    { id: "inbox", letter: "B", label: "Email and follow-ups" },
   ],
 };
 
@@ -128,16 +132,16 @@ describe("ChoiceCard", () => {
     const view = render();
 
     await act(async () => {
-      button(view, "Inbox & email").click();
+      button(view, "Email and follow-ups").click();
       await Promise.resolve();
     });
 
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("onboarding/choose", { botId: "bot-1", optionId: "inbox" });
-    expect(view.textContent).toContain("Inbox & email");
-    expect(view.textContent).not.toContain("Day-to-day work");
-    expect(button(view, "Inbox & email").disabled).toBe(true);
-    expect(button(view, "Inbox & email").getAttribute("aria-selected")).toBe("true");
+    expect(view.textContent).toContain("Email and follow-ups");
+    expect(view.textContent).not.toContain("Organize my day");
+    expect(button(view, "Email and follow-ups").disabled).toBe(true);
+    expect(button(view, "Email and follow-ups").getAttribute("aria-selected")).toBe("true");
     expect(view.querySelector("[data-testid='choice-card-dismiss']")).toBeNull();
   });
 
@@ -167,8 +171,8 @@ describe("ChoiceCard", () => {
     const view = render();
 
     await act(async () => {
-      button(view, "Day-to-day work").click();
-      button(view, "Inbox & email").click();
+      button(view, "Organize my day").click();
+      button(view, "Email and follow-ups").click();
     });
 
     expect(rpc).toHaveBeenCalledTimes(1);
@@ -176,12 +180,12 @@ describe("ChoiceCard", () => {
       botId: "bot-1",
       optionId: "day",
     });
-    expect(button(view, "Day-to-day work").disabled).toBe(true);
-    expect(button(view, "Inbox & email").disabled).toBe(true);
+    expect(button(view, "Organize my day").disabled).toBe(true);
+    expect(button(view, "Email and follow-ups").disabled).toBe(true);
     expect(button(view, "Dismiss").disabled).toBe(true);
-    expect(view.textContent).toContain("Inbox & email");
+    expect(view.textContent).toContain("Email and follow-ups");
 
-    button(view, "Inbox & email").click();
+    button(view, "Email and follow-ups").click();
     expect(rpc).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -189,8 +193,8 @@ describe("ChoiceCard", () => {
       await Promise.resolve();
     });
 
-    expect(view.textContent).toContain("Day-to-day work");
-    expect(view.textContent).not.toContain("Inbox & email");
+    expect(view.textContent).toContain("Organize my day");
+    expect(view.textContent).not.toContain("Email and follow-ups");
   });
 
   it("reports a failed request and leaves the card unanswered", async () => {
@@ -198,18 +202,18 @@ describe("ChoiceCard", () => {
     const view = render();
 
     await act(async () => {
-      button(view, "Inbox & email").click();
+      button(view, "Email and follow-ups").click();
       await Promise.resolve();
     });
 
     expect(alert).toHaveBeenCalledWith("Could not complete action", "Network down");
-    expect(button(view, "Day-to-day work").disabled).toBe(false);
-    expect(button(view, "Inbox & email").disabled).toBe(false);
+    expect(button(view, "Organize my day").disabled).toBe(false);
+    expect(button(view, "Email and follow-ups").disabled).toBe(false);
     expect(view.querySelector("[data-testid='choice-card-dismiss']")).not.toBeNull();
 
     rpc.mockResolvedValueOnce({});
     await act(async () => {
-      button(view, "Inbox & email").click();
+      button(view, "Email and follow-ups").click();
       await Promise.resolve();
     });
 
@@ -217,7 +221,7 @@ describe("ChoiceCard", () => {
       botId: "bot-1",
       optionId: "inbox",
     });
-    expect(view.textContent).not.toContain("Day-to-day work");
+    expect(view.textContent).not.toContain("Organize my day");
   });
 
   it("lets a later server answer replace the option chosen locally", async () => {
@@ -225,15 +229,15 @@ describe("ChoiceCard", () => {
     const view = render();
 
     await act(async () => {
-      button(view, "Day-to-day work").click();
+      button(view, "Organize my day").click();
       await Promise.resolve();
     });
-    expect(view.textContent).not.toContain("Inbox & email");
+    expect(view.textContent).not.toContain("Email and follow-ups");
 
     render({ ...choice, answerId: "inbox" });
 
-    expect(view.textContent).toContain("Inbox & email");
-    expect(view.textContent).not.toContain("Day-to-day work");
+    expect(view.textContent).toContain("Email and follow-ups");
+    expect(view.textContent).not.toContain("Organize my day");
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 });

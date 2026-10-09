@@ -127,6 +127,7 @@ function SessionApp() {
     <div className="h-full" data-rakazo-app-state="ready">
       <Suspense fallback={<div className="h-full bg-background" />}>
         <Routes location={filesOpen ? filesBackground : location}>
+          <Route path="/start" element={<Navigate to={user ? "/app" : "/sign-up"} replace />} />
           <Route path="/" element={user ? <Navigate to="/app" replace /> : <WelcomePage />} />
           <Route
             path="/sign-in"

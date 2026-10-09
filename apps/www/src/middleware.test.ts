@@ -5,7 +5,7 @@ import middleware, { config } from "../middleware";
 describe("marketing site middleware", () => {
   it("negotiates Markdown on the canonical page URL", async () => {
     const response = middleware(
-      new Request("https://rakazo.com/", {
+      new Request("http://localhost:4321/", {
         headers: { accept: "text/markdown,text/html;q=0.8" },
       }),
     );
@@ -22,7 +22,7 @@ describe("marketing site middleware", () => {
     for (const path of ["/de/", "/ko/", "/zh/", "/de"]) {
       for (const accept of [null, "*/*", "text/markdown"]) {
         const headers = accept ? { accept } : undefined;
-        const response = middleware(new Request(`https://rakazo.com${path}`, { headers }));
+        const response = middleware(new Request(`http://localhost:4321${path}`, { headers }));
 
         expect(response.status, `${path} ${accept ?? "(no accept)"}`).toBe(200);
         expect(response.headers.get("content-type")).not.toBe(
@@ -35,7 +35,7 @@ describe("marketing site middleware", () => {
 
   it("lets unknown URLs fall through to the HTML not-found page", () => {
     const response = middleware(
-      new Request("https://rakazo.com/does-not-exist", {
+      new Request("http://localhost:4321/does-not-exist", {
         headers: { accept: "*/*" },
       }),
     );
@@ -48,7 +48,7 @@ describe("marketing site middleware", () => {
 
   it("returns 406 for representations the site does not provide", async () => {
     const response = middleware(
-      new Request("https://rakazo.com/", {
+      new Request("http://localhost:4321/", {
         headers: { accept: "application/json" },
       }),
     );
@@ -62,7 +62,7 @@ describe("marketing site middleware", () => {
 
   it("continues browser requests with negotiation-safe response headers", () => {
     const response = middleware(
-      new Request("https://rakazo.com/", {
+      new Request("http://localhost:4321/", {
         headers: { accept: "text/html" },
       }),
     );
@@ -74,19 +74,19 @@ describe("marketing site middleware", () => {
 
   it("redirects www to the apex host", () => {
     const response = middleware(
-      new Request("https://www.rakazo.com/de/?utm=site", { method: "HEAD" }),
+      new Request("http://www.localhost:4321/de/?utm=site", { method: "HEAD" }),
     );
 
     expect(response.status).toBe(301);
-    expect(response.headers.get("location")).toBe("https://rakazo.com/de/?utm=site");
+    expect(response.headers.get("location")).toBe("http://localhost:4321/de/?utm=site");
   });
 
   it("redirects /sitemap.xml to the sitemap index", () => {
-    const response = middleware(new Request("https://rakazo.com/sitemap.xml"));
+    const response = middleware(new Request("http://localhost:4321/sitemap.xml"));
 
     expect(response.status).toBe(301);
     expect(response.headers.get("location")).toBe(
-      "https://rakazo.com/sitemap-index.xml",
+      "http://localhost:4321/sitemap-index.xml",
     );
     expect(config.matcher).toContain("/sitemap.xml");
   });
@@ -104,23 +104,7 @@ describe("marketing site middleware", () => {
     };
 
     expect(hosting.redirects).toEqual([
-      expect.objectContaining({
-        source: "/",
-        destination: "https://rakazo.com/",
-        statusCode: 301,
-        has: [{ type: "host", value: { eq: "www.rakazo.com" } }],
-      }),
-      expect.objectContaining({
-        source: "/:path*",
-        destination: "https://rakazo.com/:path*",
-        statusCode: 301,
-        has: [{ type: "host", value: { eq: "www.rakazo.com" } }],
-      }),
-      expect.objectContaining({
-        source: "/sitemap.xml",
-        destination: "/sitemap-index.xml",
-        statusCode: 301,
-      }),
+      expect.objectContaining({ source: "/sitemap.xml", destination: "/sitemap-index.xml", statusCode: 301 }),
     ]);
   });
 });

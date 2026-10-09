@@ -206,3 +206,71 @@ restoring both stores and importing the same encryption/signing configuration.
 References: [Fly app configuration](https://fly.io/docs/reference/configuration/),
 [Vercel external rewrites](https://vercel.com/docs/routing/rewrites), and
 [Vercel Build Output API](https://vercel.com/docs/build-output-api/configuration).
+
+## Marketing → application handoff
+
+Deploy `apps/www` (Astro) and `apps/web` (Vite) as **separate Vercel projects**. The main
+marketing origin serves `/` as the Astro homepage. The application origin serves `/start`,
+`/sign-up`, `/sign-in`, `/onboarding`, and `/app` and keeps the existing backend proxies.
+No production Kith domain is assumed by the repository.
+
+Set these **public, non-secret** environment variables on the marketing project before building:
+
+```dotenv
+PUBLIC_SITE_URL=https://www.example.test
+PUBLIC_APP_URL=https://app.example.test
+```
+
+Both must be distinct HTTPS origins: no path, credentials, query, fragment, private IP, or
+internal hostname. Deployment builds fail when either is missing or invalid. Local builds
+may use loopback HTTP origins; without configuration they are unindexed and Web leads to
+an honest setup-status page. Environment loading follows the shared root `.env` convention;
+only the explicit public configuration is emitted into marketing links and metadata.
+The configured marketing origin drives Astro's canonical URLs, sitemap, robots and social
+metadata. A `www` alias redirects only when the configured canonical origin is the apex.
+Configure any additional aliases in the hosting project's domain settings.
+
+The Web CTA goes directly to `PUBLIC_APP_URL/start`. That route ignores arbitrary `next`
+values, sends signed-out visitors to signup, and resumes signed-in visitors through the existing
+assistant/onboarding gate. Sign in uses the same application origin. The marketing middleware
+excludes API, RPC, OAuth, MCP, files and screen routes; it does not proxy application traffic.
+**Do not attach the application hostname to the marketing project.**
+
+Optional installer links are configured separately:
+
+```dotenv
+PUBLIC_DESKTOP_MAC_URL=https://github.com/example/project/releases/download/v1.0.0/Kith.dmg
+PUBLIC_DESKTOP_WINDOWS_URL=https://github.com/example/project/releases/download/v1.0.0/Kith.exe
+PUBLIC_DESKTOP_LINUX_URL=https://github.com/example/project/releases/download/v1.0.0/Kith.AppImage
+```
+
+Leave each unset until the exact asset exists and its signing/support details have been checked.
+These URLs must be credential-free public HTTPS paths, without query strings or fragments.
+An unset platform offers release status and the source-build guide. It never guesses an installer.
+The public GitHub and release links refer to `drewsephski/kith`; upstream image installers and
+historical comparisons are explicitly separate from fork releases.
+
+### Domain and OAuth checklist for the operator
+
+1. Provision the application Vercel project, Fly backend, persistent volume and PostgreSQL,
+   following the sections above. Keep `API_PROXY_TARGET` and the auth handoff secret server-side.
+2. Attach the chosen application hostname and update Fly's `WEB_ORIGIN` and `BETTER_AUTH_URL`
+   to **that application origin**. Keep the screen gateway on its separately configured origin.
+3. Keep Better Auth callbacks under the app's `/api/auth/*`, direct Calendar's displayed
+   `/api/calendar/oauth/callback`, integration completion at `/integrations/callback`, SSO at
+   `/sso/callback`, and MCP's existing callback route. Use the exact redirect URI shown by
+   each provider/settings surface; retain provider-specific callback paths. Never substitute
+   the marketing origin. Register the application origin/redirects in OAuth provider consoles
+   and managed integration settings, and complete scope verification/provider review as required.
+4. Configure a working deployment model through the existing model connection/defaults and
+   optional integration adapters. Verify a real model response before advertising immediate chat.
+   OAuth consent and AI data-sharing consent remain necessary for private-source synthesis.
+5. Deploy the marketing project with the two public origins above, then attach the chosen main
+   domain/DNS. The landing page can be built without moving application or backend routes.
+6. Supply the service operator's privacy, terms, support and retention policies before public
+   service activation. The repository's legal pages do not claim the upstream operator runs Kith.
+7. Build Desktop with `RAKAZO_SERVICE_URL` equal to the application origin, publish verified
+   installers/update feeds, and only then populate the marketing download variables.
+
+DNS, provider consoles, hosted credentials, signing and release publication require operator
+action. No deployment or public service availability follows from a successful local build.

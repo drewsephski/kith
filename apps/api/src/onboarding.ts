@@ -1,6 +1,10 @@
 import type { ConnectorRegistry } from "@rakazo/adapters";
 import type { Actor, MessageBlock } from "@rakazo/contracts";
-import { featuredConnectorProvidersMatch } from "@rakazo/core";
+import {
+  ASSISTANT_FOCUS_OPTIONS,
+  ASSISTANT_FOCUS_QUESTION,
+  featuredConnectorProvidersMatch,
+} from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
@@ -20,79 +24,6 @@ type OnboardingDeps = {
   events: ThreadEvents;
   connectors: ConnectorRegistry;
 };
-
-type FocusOption = {
-  id: string;
-  letter: string;
-  label: string;
-  summary: string;
-  apps: string[];
-};
-
-const FOCUS_OPTIONS: FocusOption[] = [
-  {
-    id: "day",
-    letter: "A",
-    label: "Day-to-day work",
-    summary: "Slack, calendar, and email",
-    apps: ["slack", "gmail", "googlecalendar"],
-  },
-  {
-    id: "inbox",
-    letter: "B",
-    label: "Inbox & email",
-    summary: "email and calendar",
-    apps: ["gmail", "googlecalendar", "slack"],
-  },
-  {
-    id: "research",
-    letter: "C",
-    label: "Research & writing",
-    summary: "the web, notes, and docs",
-    apps: ["hackernews", "notion", "googledocs"],
-  },
-  {
-    id: "everything",
-    letter: "D",
-    label: "A bit of everything",
-    summary: "Slack, calendar, and email",
-    apps: ["slack", "gmail", "googlecalendar"],
-  },
-];
-
-const APP_DESCRIPTIONS: Record<string, string> = {
-  slack: "Search, read, and send messages.",
-  gmail: "Search, read, draft, and send email.",
-  googlecalendar: "Search events and schedule meetings.",
-  notion: "Search and edit pages and databases.",
-  googledocs: "Draft and edit documents.",
-  hackernews: "Search stories and discussions.",
-};
-
-async function post(
-  deps: OnboardingDeps,
-  target: { spaceId: string; botId: string; threadId: string },
-  blocks: MessageBlock[],
-): Promise<string> {
-  const committed = await deps.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const message = await createThreadMessageInTransaction(tx, {
-      threadId: target.threadId,
-      role: "bot",
-      botId: target.botId,
-      blocks,
-    });
-    const event = await appendEventInTransaction(tx, {
-      spaceId: target.spaceId,
-      threadId: target.threadId,
-      botId: target.botId,
-      type: "thread.message.created",
-      payload: { messageId: message.id, role: "bot", blocks },
-    });
-    return { message, event };
-  });
-  await deps.events.notify(target.threadId, committed.event.seq);
-  return committed.message.id;
-}
 
 /** Sentinel answerId for a focus card the user dismissed without choosing. */
 export const FOCUS_DISMISSED_ANSWER_ID = "_dismissed";
@@ -128,8 +59,8 @@ export async function promptFocus(
   const blocks: MessageBlock[] = [
     {
       kind: "choice",
-      question: "What do you want me on first?",
-      options: FOCUS_OPTIONS.map(({ id, letter, label }) => ({ id, letter, label })),
+      question: ASSISTANT_FOCUS_QUESTION,
+      options: ASSISTANT_FOCUS_OPTIONS.map(({ id, letter, label }) => ({ id, letter, label })),
     },
   ];
   // Check + insert + event in one transaction so concurrent promptFocus calls
@@ -147,6 +78,7 @@ export async function promptFocus(
     const message = await createThreadMessageInTransaction(tx, {
       threadId: target.threadId,
       role: "bot",
+      botId: target.botId,
       blocks,
     });
     const event = await appendEventInTransaction(tx, {
@@ -204,12 +136,47 @@ export async function chooseFocus(
   botId: string,
   optionId: string,
 ): Promise<void> {
-  const option = FOCUS_OPTIONS.find((entry) => entry.id === optionId);
+  const option = ASSISTANT_FOCUS_OPTIONS.find((entry) => entry.id === optionId);
   if (!option) throw new IsolationError();
   const { bot, thread } = await requireBotThread(deps, actor, botId);
   const target = { spaceId: actor.spaceId, botId: bot.id, threadId: thread.id };
-
-  const claimed = await deps.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  // Resolve optional integration metadata before claiming the choice. Durable
+  // answer and follow-up commit together, so a lost response is safe to retry.
+  const catalog =
+    option.id === "inbox"
+      ? (
+          await Promise.all(
+            deps.connectors.managedProviders().map((provider) =>
+              provider
+                .catalog({
+                  operationId: "onboarding.choose",
+                  traceId: "onboarding.choose",
+                  spaceId: actor.spaceId,
+                  userId: actor.userId,
+                  botId: bot.id,
+                  signal: AbortSignal.timeout(15_000),
+                })
+                .catch(() => []),
+            ),
+          )
+        ).flat()
+      : [];
+  const gmail = catalog.find((item) => featuredConnectorProvidersMatch(item.slug, "gmail"));
+  const followUp: MessageBlock[] =
+    option.id === "inbox" && gmail
+      ? [
+          {
+            kind: "app_connect",
+            connectorId: gmail.connectorId ?? "composio",
+            provider: gmail.slug,
+            name: gmail.name,
+            description: "",
+            logo: gmail.logo ?? null,
+            status: gmail.connected ? "connected" : "pending",
+          },
+        ]
+      : [];
+  const committed = await deps.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$executeRaw`SELECT id FROM threads WHERE id = ${thread.id} FOR UPDATE`;
     const recent = await tx.message.findMany({
       where: { threadId: thread.id },
@@ -223,84 +190,25 @@ export async function chooseFocus(
       block.kind === "choice" ? { ...block, answerId: option.id } : block,
     );
     await tx.message.update({ where: { id: pending.id }, data: { blocks } });
-    const event = await appendEventInTransaction(tx, {
-      spaceId: target.spaceId,
-      threadId: target.threadId,
-      botId: target.botId,
+    const updated = await appendEventInTransaction(tx, {
+      ...target,
       type: "thread.message.updated",
       payload: { messageId: pending.id, role: "bot", blocks },
     });
-    return { messageId: pending.id, blocks, event };
+    if (!followUp.length) return updated;
+    const message = await createThreadMessageInTransaction(tx, {
+      threadId: thread.id,
+      role: "bot",
+      botId: bot.id,
+      blocks: followUp,
+    });
+    return appendEventInTransaction(tx, {
+      ...target,
+      type: "thread.message.created",
+      payload: { messageId: message.id, role: "bot", blocks: followUp },
+    });
   });
-  if (!claimed) return;
-  await deps.events.notify(target.threadId, claimed.event.seq);
-
-  // Keep the name and title the user chose when creating the bot; the focus
-  // step only suggests apps, it must not rename the bot.
-  await post(deps, target, [
-    {
-      kind: "text",
-      text: `Got it. ${capitalize(option.summary)}. I’ll see what’s already connected so I don’t make you set something up twice.`,
-    },
-  ]);
-
-  const providers = deps.connectors.managedProviders();
-  const catalog = (
-    await Promise.all(
-      providers.map((provider) =>
-        provider
-          .catalog({
-            operationId: "onboarding.choose",
-            traceId: "onboarding.choose",
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            botId: bot.id,
-            signal: AbortSignal.timeout(15_000),
-          })
-          .catch(() => []),
-      ),
-    )
-  ).flat();
-  const cards: MessageBlock[] = option.apps.flatMap((slug) => {
-    const entry = catalog.find(
-      (item) =>
-        item.slug.toLowerCase() === slug.toLowerCase() ||
-        featuredConnectorProvidersMatch(item.slug, slug),
-    );
-    if (!entry) return [];
-    return [
-      {
-        kind: "app_connect" as const,
-        connectorId: entry.connectorId ?? "composio",
-        provider: entry.slug,
-        name: entry.name,
-        description: APP_DESCRIPTIONS[slug] ?? "",
-        logo: entry.logo ?? null,
-        status: entry.connected ? ("connected" as const) : ("pending" as const),
-      },
-    ];
-  });
-  if (!cards.length) {
-    await post(deps, target, [{ kind: "text", text: "What would you like to work on first?" }]);
-    return;
-  }
-  const cardNames = cards
-    .map((card) => (card.kind === "app_connect" ? card.name : ""))
-    .filter(Boolean);
-  const named = `${cardNames.slice(0, -1).join(", ")}${cardNames.length > 1 ? ", and " : ""}${cardNames.at(-1)}`;
-  await post(deps, target, [
-    {
-      kind: "text",
-      text: `${named} are a good place to start. Connect them here and I’ll use what you already have.`,
-    },
-  ]);
-  await post(deps, target, cards);
-  await post(deps, target, [
-    {
-      kind: "text",
-      text: `Hit those ${cards.length === 1 ? "one" : cards.length === 2 ? "two" : "three"} and I’ll start pulling the picture.`,
-    },
-  ]);
+  if (committed) await deps.events.notify(thread.id, committed.seq);
 }
 
 export async function markAppConnected(
@@ -379,8 +287,4 @@ export async function markAppConnected(
     );
     await updateBlocks(deps, target, message.id, next);
   }
-}
-
-function capitalize(value: string): string {
-  return value.length > 0 ? (value[0] ?? "").toUpperCase() + value.slice(1) : value;
 }

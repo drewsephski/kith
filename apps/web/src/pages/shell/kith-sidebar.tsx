@@ -197,7 +197,9 @@ export function KithSidebar({
           >
             <KithAvatar size={36} />
             <span className="min-w-0 text-start">
-              <span className="block text-sm font-medium">Kith</span>
+              <span className="block truncate text-sm font-medium">
+                {bots.find((bot) => bot.id === assistantId)?.name || "Kith"}
+              </span>
               <span className="block text-xs font-normal text-muted-foreground">
                 <Trans>Your assistant</Trans>
               </span>
@@ -216,7 +218,7 @@ export function KithSidebar({
             variant="ghost"
             className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
             onClick={onNewThread}
-            disabled={creating}
+            disabled={creating || !assistantId}
           >
             <Plus size={16} />
             {creating ? <Trans>Opening…</Trans> : <Trans>New conversation</Trans>}

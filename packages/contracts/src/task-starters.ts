@@ -219,6 +219,15 @@ export const TaskStarterReceiptSchema = z.object({
   error: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  repeat: z
+    .object({
+      timezone: CalendarTimezone,
+      name: z.string(),
+      sources: z.array(z.string()),
+      writes: z.boolean(),
+    })
+    .nullable()
+    .optional(),
 });
 export type TaskStarterReceipt = z.infer<typeof TaskStarterReceiptSchema>;
 export const TaskStarterOptionsSchema = z.object({

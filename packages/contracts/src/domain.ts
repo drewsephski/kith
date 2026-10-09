@@ -926,6 +926,7 @@ export const RunSchema = z.object({
     "cloud_agent",
     "created",
     "calendar",
+    "task_starter",
   ]),
   routineId: Id.nullable(),
   modelProvider: z.string().nullable(),

@@ -23,8 +23,8 @@ export const PUBLISHED_IMAGES_SERVER = `bash install-images.sh --prepare-only
 # Edit .env, then:
 bash install-images.sh`;
 
-export const SOURCE_CHECKOUT = `git clone https://github.com/elie222/rakazo.git
-cd rakazo
+export const SOURCE_CHECKOUT = `git clone ${GITHUB_URL}.git
+cd kith
 cp .env.example .env`;
 
 export const SOURCE_DEV = `docker compose --env-file .env \\

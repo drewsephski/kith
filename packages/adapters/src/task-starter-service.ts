@@ -14,7 +14,7 @@ import {
   TaskStarterResultSchema,
   TaskStarterSpecSchema,
 } from "@rakazo/contracts";
-import { nextCronDateAcrossStrict, taskStarterApp } from "@rakazo/core";
+import { nextCronDateAcrossStrict, taskStarterApp, taskStarterRepeatPlan } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
@@ -259,6 +259,21 @@ export class TaskStarterService {
             select: { id: true },
           }),
         ));
+    const result =
+      row.run.status === "completed" && row.result
+        ? TaskStarterResultSchema.parse(row.result)
+        : null;
+    const repeatable = result && (result.kind !== "analytics_report" || result.report.published);
+    const repeat = repeatable
+      ? {
+          timezone: TaskStarterSpecSchema.parse(row.input).timezone,
+          name: taskStarterRepeatPlan(TaskStarterSpecSchema.parse(row.input), result).name,
+          sources: StarterConnectionsSchema.parse(row.connections).map(
+            (connection) => connection.displayName,
+          ),
+          writes: result.kind === "analytics_report",
+        }
+      : null;
     return TaskStarterReceiptSchema.parse({
       id: row.id,
       runId: row.runId,
@@ -269,13 +284,11 @@ export class TaskStarterService {
           : row.run.status === "leased"
             ? "running"
             : row.run.status,
-      result:
-        row.run.status === "completed" && row.result
-          ? TaskStarterResultSchema.parse(row.result)
-          : null,
+      result,
       error: row.run.error,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
+      repeat,
     });
   }
   private async enqueue(runId: string) {
@@ -720,12 +733,7 @@ export class TaskStarterService {
       });
       if (!row?.result) throw new IsolationError();
       const result = TaskStarterResultSchema.parse(row.result);
-      if (
-        result.kind !== "analytics_report" ||
-        !result.report.published ||
-        !result.report.spreadsheetId
-      )
-        throw new Error("Publish the report before scheduling it");
+      const plan = taskStarterRepeatPlan(TaskStarterSpecSchema.parse(row.input), result);
       await tx.$queryRaw`SELECT id FROM threads WHERE id = ${row.run.threadId} FOR UPDATE`;
       const connections = StarterConnectionsSchema.parse(row.connections);
       await assertStarterConnections(tx, actor, connections);
@@ -741,10 +749,8 @@ export class TaskStarterService {
       });
       if (existing) return existing;
       const spec = TaskStarterSpecSchema.parse({
-        ...TaskStarterSpecSchema.parse(row.input),
-        spreadsheetId: result.report.spreadsheetId,
-        reportRange: result.report.range,
-        timezone: result.report.timezone,
+        ...plan.spec,
+        ...(plan.action === "read" ? { timezone: input.timezone } : {}),
       });
       return tx.routine.create({
         data: {
@@ -752,8 +758,8 @@ export class TaskStarterService {
           userId: actor.userId,
           botId: row.run.botId,
           threadId: row.run.threadId,
-          name: "GA4 report",
-          prompt: "Update the approved GA4 report in Google Sheets",
+          name: plan.name,
+          prompt: plan.prompt,
           crons: [input.cron],
           timezone: input.timezone,
           active: true,

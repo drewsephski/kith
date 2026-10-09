@@ -190,10 +190,6 @@ msgstr "{workingBotName} काम कर रहा है"
 msgid "@{0}"
 msgstr "@{0}"
 
-#: src/pages/shell/message-cards.tsx
-msgid "A bit of everything"
-msgstr ""
-
 #: src/pages/Welcome.tsx
 msgid "A little help with life."
 msgstr ""
@@ -511,6 +507,10 @@ msgstr "इस प्रोवाइडर के लिए API कुंजी 
 msgid "Analytics property"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Analytics report"
+msgstr "विश्लेषण रिपोर्ट"
+
 #: src/components/AskCard.tsx
 msgid "Answer"
 msgstr "उत्तर"
@@ -642,6 +642,10 @@ msgstr ""
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
 msgstr ""
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Assistant name"
+msgstr "सहायक का नाम"
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -854,6 +858,7 @@ msgstr ""
 msgid "Calendar account"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Calendar briefing"
 msgstr ""
@@ -909,6 +914,7 @@ msgid "cancelled"
 msgstr "रद्द"
 
 #: src/components/AskCard.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "रद्द किया गया"
@@ -994,6 +1000,10 @@ msgstr ""
 msgid "Checking computer setup…"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Checking your calendar"
+msgstr "आपका कैलेंडर देख रहा हूँ"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -1020,6 +1030,10 @@ msgstr "नया पासवर्ड चुनें"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose a property"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Choose a valid time and timezone."
+msgstr "मान्य समय और समय क्षेत्र चुनें।"
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
@@ -1189,6 +1203,7 @@ msgstr "कमांड वेरिएबल"
 msgid "Complete"
 msgstr "पूर्ण"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
 msgstr ""
@@ -1248,6 +1263,10 @@ msgstr "डिलीट की पुष्टि करें"
 #: src/pages/Auth.tsx
 msgid "Confirm password"
 msgstr "पासवर्ड की पुष्टि करें"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Confirm routine"
+msgstr "रूटीन की पुष्टि करें"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
@@ -1830,6 +1849,10 @@ msgstr "मॉडल सर्वर तक नहीं पहुँच सक�
 msgid "Could not reach the server"
 msgstr "सर्वर से संपर्क नहीं हो सका"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Could not refresh tasks. Retry"
+msgstr "कार्य ताज़ा नहीं हुए। फिर प्रयास करें"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not remove"
 msgstr "हटाया नहीं जा सका"
@@ -1948,9 +1971,17 @@ msgstr ""
 msgid "Could not save this choice"
 msgstr "यह विकल्प सहेजा नहीं जा सका"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Could not save this choice. Try again."
+msgstr "चुनाव सहेजा नहीं गया। फिर प्रयास करें।"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Could not schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Could not schedule task. Try again."
+msgstr "कार्य निर्धारित नहीं हुआ। फिर प्रयास करें।"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
@@ -2150,10 +2181,6 @@ msgstr "दिन"
 msgid "Day of week"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Day-to-day work"
-msgstr ""
-
 #: src/pages/RoutineSchedule.tsx
 msgid "days"
 msgstr "दिन"
@@ -2172,7 +2199,7 @@ msgstr "डिफ़ॉल्ट"
 #. placeholder {0}: thinkingLevelLabel("medium")
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Default ({0})"
-msgstr ""
+msgstr "डिफ़ॉल्ट ({0})"
 
 #. placeholder {0}: thinkingLevelLabel("medium")
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
@@ -2424,9 +2451,17 @@ msgstr "ईमेल"
 msgid "Email and CRM context (optional)"
 msgstr ""
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Email and follow-ups"
+msgstr "ईमेल और फ़ॉलो-अप"
+
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
 msgstr "इस ईमेल को पंजीकरण की अनुमति नहीं है"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Email search"
+msgstr "ईमेल खोज"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2488,6 +2523,7 @@ msgstr "हर"
 msgid "every {intervalAmountSelect} {intervalUnitSelect}"
 msgstr "हर {intervalAmountSelect} {intervalUnitSelect}"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every day"
@@ -2498,6 +2534,7 @@ msgstr "हर दिन"
 msgid "Every hour"
 msgstr "हर घंटे"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every Monday"
 msgstr "हर सोमवार"
@@ -2551,12 +2588,13 @@ msgstr "अतिरिक्त उच्च"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Extra high"
-msgstr ""
+msgstr "अतिरिक्त उच्च"
 
 #: src/components/CloudAgentCard.tsx
 msgid "failed"
 msgstr "असफल"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
 msgstr "विफल"
@@ -2642,6 +2680,10 @@ msgstr "MCP कनेक्शन पूरा हो रहा है…"
 msgid "Flag unexpected actions"
 msgstr ""
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "For you"
+msgstr "आपके लिए"
+
 #: src/components/CalendarConnection.tsx
 #: src/pages/KnowledgeSection.tsx
 msgid "Forget"
@@ -2654,6 +2696,10 @@ msgstr "पासवर्ड भूल गए?"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Frequency"
+msgstr "आवृत्ति"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Friday"
@@ -2765,6 +2811,10 @@ msgstr "हेडर मान"
 msgid "Hear a sample"
 msgstr "एक नमूना सुनें"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Help me plan my day. Ask me what I need to get done."
+msgstr "मेरा दिन व्यवस्थित करने में मदद करें। पूछें कि मुझे क्या करना है।"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "नमस्ते, उत्तर पढ़कर सुनाते समय मेरी आवाज़ ऐसी होगी।"
@@ -2790,7 +2840,7 @@ msgstr "उच्च"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
-msgstr ""
+msgstr "उच्च"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "High priority"
@@ -2842,9 +2892,9 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Inbox & email"
-msgstr ""
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Inbox to-do list"
+msgstr "इनबॉक्स कार्य सूची"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
@@ -2913,6 +2963,10 @@ msgstr "उत्तर दिए गए संदेश पर जाएँ: {e
 #: src/pages/ActivityList.tsx
 msgid "just now"
 msgstr "अभी-अभी"
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Just start chatting"
+msgstr "बस बातचीत शुरू करें"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
@@ -3014,6 +3068,10 @@ msgstr "वेब छवियाँ अपने-आप लोड करें"
 msgid "Loading activity…"
 msgstr "गतिविधि लोड हो रही है…"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Loading briefing…"
+msgstr "सारांश लोड हो रहा है…"
+
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Loading connections…"
 msgstr ""
@@ -3088,7 +3146,7 @@ msgstr "निम्न"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Low"
-msgstr ""
+msgstr "निम्न"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Low priority"
@@ -3101,6 +3159,10 @@ msgstr ""
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "सुनिश्चित करें कि इस कंप्यूटर पर कुछ भी चल नहीं रहा है।"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Make this a routine"
+msgstr "इसे रूटीन बनाएँ"
 
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -3118,6 +3180,10 @@ msgstr "MCP सर्वर प्रबंधित करें"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Manage messaging settings"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Manage routine"
+msgstr "रूटीन प्रबंधित करें"
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Manage the Space semantic memory provider."
@@ -3147,7 +3213,7 @@ msgstr "अधिकतम"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Max"
-msgstr ""
+msgstr "अधिकतम"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3180,7 +3246,11 @@ msgstr "मध्यम"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Medium"
-msgstr ""
+msgstr "मध्यम"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting brief"
+msgstr "बैठक का सारांश"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Meeting selected"
@@ -3269,7 +3339,7 @@ msgstr "न्यूनतम"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Minimal"
-msgstr ""
+msgstr "न्यूनतम"
 
 #: src/pages/WindowChrome.tsx
 msgid "Minimize"
@@ -3358,6 +3428,10 @@ msgstr ""
 msgid "More options"
 msgstr "और विकल्प"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "More tasks"
+msgstr "और कार्य"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
 msgstr "{full} को नीचे ले जाएँ"
@@ -3400,10 +3474,15 @@ msgstr "इस समूह को नाम दें"
 msgid "Name this routine"
 msgstr ""
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Name your assistant"
+msgstr "अपने सहायक का नाम रखें"
+
 #: src/pages/ActivityList.tsx
 msgid "Needs assistance"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr ""
@@ -3451,6 +3530,10 @@ msgstr ""
 msgid "New spreadsheet"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Next run"
+msgstr "अगला कार्य"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
 msgstr ""
@@ -3494,6 +3577,10 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "No events found in the checked window."
+msgstr "जाँची गई अवधि में कोई कार्यक्रम नहीं मिला।"
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
@@ -3773,6 +3860,10 @@ msgstr ""
 msgid "Organization API key"
 msgstr "संगठन API कुंजी"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Organize my day"
+msgstr "मेरा दिन व्यवस्थित करें"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "मूल संदेश उपलब्ध नहीं है"
@@ -3872,8 +3963,8 @@ msgid "Pin"
 msgstr "पिन करें"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Plan tomorrow"
-msgstr ""
+msgid "Plan my day"
+msgstr "मेरे दिन की योजना बनाएँ"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
@@ -3898,6 +3989,14 @@ msgstr ""
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preparing your briefing"
+msgstr "आपका सारांश तैयार कर रहा हूँ"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Preparing your result"
+msgstr "आपका परिणाम तैयार कर रहा हूँ"
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3963,13 +4062,14 @@ msgid "Pull request"
 msgstr "पुल अनुरोध"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Pull this week’s GA4 numbers into a Google Sheet."
-msgstr ""
+msgid "Pull this week’s numbers into a Google Sheet using my connected GA4 and Google Sheets accounts."
+msgstr "मेरे जुड़े हुए GA4 और Google Sheets खातों से इस सप्ताह के आँकड़े एक Google शीट में डालें।"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Pull this week’s numbers into a Sheet"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Queued"
 msgstr ""
@@ -3993,6 +4093,10 @@ msgstr "उत्तर पढ़कर सुनाएं"
 #: src/components/CalendarConnection.tsx
 msgid "Read-only access. Your briefing starts when you connect."
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Read-only preparation. It won’t send email or change your accounts."
+msgstr "केवल पढ़ने की तैयारी। ईमेल नहीं भेजेगा और खाते नहीं बदलेगा।"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4233,6 +4337,10 @@ msgstr "पुनः खोलें"
 msgid "Repeat this report"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Repeats the approved spreadsheet update using the same sources and destination."
+msgstr "उसी स्रोत और गंतव्य से स्वीकृत स्प्रेडशीट अपडेट दोहराता है।"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "API कुंजी बदलें"
@@ -4274,9 +4382,9 @@ msgstr ""
 msgid "Report time"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Research & writing"
-msgstr ""
+#: src/pages/shell/assistant-focus.tsx
+msgid "Research and projects"
+msgstr "शोध और परियोजनाएँ"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4452,6 +4560,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/assistant-focus.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4539,6 +4648,10 @@ msgstr "हां या ना कहें, या एक वाक्य म�
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Scheduled."
+msgstr "निर्धारित।"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Scheduled. Manage it in Routines."
@@ -5226,6 +5339,7 @@ msgstr ""
 msgid "Thursday"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 msgid "Time"
 msgstr ""
@@ -5236,6 +5350,7 @@ msgstr "दिन का समय"
 
 #: src/components/CalendarConnection.tsx
 #: src/components/CalendarReceipt.tsx
+#: src/components/task-starters/RepeatTask.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -5312,6 +5427,7 @@ msgid "Turn emails from the past seven days into a prioritized to-do list, with 
 msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr ""
 
@@ -5493,6 +5609,10 @@ msgstr "मान एन्क्रिप्ट किए जाते है�
 msgid "Verified calendar data"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Verified sources"
+msgstr "सत्यापित स्रोत"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "पुष्टि करके जोड़ें"
@@ -5565,13 +5685,18 @@ msgstr ""
 msgid "What about its memories?"
 msgstr "इसकी मेमोरी का क्या करें?"
 
-#: src/pages/shell/message-cards.tsx
-msgid "What do you want me on first?"
-msgstr ""
+#: src/pages/shell/focus-next-action.tsx
+msgid "What are you working on?"
+msgstr "आप किस पर काम कर रहे हैं?"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "What result will you demonstrate?"
 msgstr "आप कौन-सा परिणाम दिखाकर बताएंगे?"
+
+#: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "What should I help you with first?"
+msgstr "पहले किस काम में मदद करूँ?"
 
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
@@ -5590,10 +5715,7 @@ msgid "What to return"
 msgstr "क्या लौटाना है"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "What's on my schedule tomorrow?"
-msgstr ""
-
-#: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "What’s on your mind?"
 msgstr ""
 
@@ -5617,8 +5739,8 @@ msgstr "कब उपयोग करें"
 msgid "Where should bots run?"
 msgstr "बॉट कहां चलने चाहिए?"
 
-#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

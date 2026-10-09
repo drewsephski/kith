@@ -1,6 +1,6 @@
 import type { TaskStarterReceipt } from "@rakazo/contracts";
 import { CalendarTimezone } from "@rakazo/contracts";
-import { TASK_STARTERS } from "@rakazo/core";
+import { nextCronDateAcrossStrict, TASK_STARTERS } from "@rakazo/core";
 import { useEffect, useRef, useState } from "react";
 import { AppState, Linking, View } from "react-native";
 import { rpc } from "../../lib/api";
@@ -8,7 +8,7 @@ import { t } from "../../lib/i18n";
 import { useThreadReadOnly } from "../../lib/thread-read-only";
 import { errorText } from "../../lib/user-error";
 import { NativeActionButton } from "../native-action-button";
-import { TaskField, TaskSheet, TaskText } from "./controls";
+import { TaskField, TaskPicker, TaskSheet, TaskText } from "./controls";
 import { captureTaskScope } from "./scope";
 import { TaskTodoReview } from "./todo-review";
 
@@ -135,7 +135,7 @@ export function TaskReceiptDetails({
         setShowSchedule(false);
       }
     } catch (reason) {
-      if (current()) setError(errorText(reason, t("Could not schedule report")));
+      if (current()) setError(errorText(reason, t("Could not schedule task. Try again.")));
     } finally {
       locked.current = false;
       if (current()) setBusy(false);
@@ -143,6 +143,10 @@ export function TaskReceiptDetails({
   }
 
   const result = receipt?.result;
+  const nextRun =
+    showSchedule && CalendarTimezone.safeParse(timezone).success
+      ? nextCronDateAcrossStrict([cron], new Date(), timezone)
+      : null;
   return (
     <TaskSheet
       title={t(
@@ -337,6 +341,63 @@ export function TaskReceiptDetails({
                 </>
               ) : null}
             </>
+          ) : null}
+          {receipt?.status === "completed" &&
+          receipt.repeat &&
+          result.kind !== "analytics_report" &&
+          !readOnly ? (
+            <View style={{ gap: 12 }}>
+              {routineId ? (
+                <TaskText>{t("Scheduled.")}</TaskText>
+              ) : (
+                <NativeActionButton
+                  label={t("Make this a routine")}
+                  fill={false}
+                  prominence="secondary"
+                  disabled={busy}
+                  onPress={() => {
+                    setTimezone(receipt.repeat!.timezone);
+                    setCron("0 9 * * *");
+                    setShowSchedule(!showSchedule);
+                  }}
+                />
+              )}
+              {showSchedule && !routineId ? (
+                <>
+                  <TaskText>{receipt.repeat.sources.join(" · ")}</TaskText>
+                  <TaskPicker
+                    label={t("Frequency")}
+                    value={cron}
+                    onChange={setCron}
+                    disabled={busy}
+                    choices={[
+                      { id: "0 9 * * *", label: `${t("Every day")} · 09:00` },
+                      { id: "0 9 * * 1", label: `${t("Every Monday")} · 09:00` },
+                    ]}
+                  />
+                  <TaskField
+                    label={t("Timezone")}
+                    value={timezone}
+                    onChange={setTimezone}
+                    disabled={busy}
+                  />
+                  {nextRun ? (
+                    <TaskText>
+                      {t("Next run")}: {nextRun.toLocaleString(undefined, { timeZone: timezone })}
+                    </TaskText>
+                  ) : null}
+                  <TaskText>
+                    {t("Read-only preparation. It won’t send email or change your accounts.")}
+                  </TaskText>
+                  <NativeActionButton
+                    label={t("Confirm routine")}
+                    busy={busy}
+                    disabled={!nextRun}
+                    onPress={() => void schedule()}
+                  />
+                </>
+              ) : null}
+            </View>
           ) : null}
           {result.sources.length ? (
             <View style={{ gap: 8 }}>

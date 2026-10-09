@@ -38,24 +38,24 @@ function fixture(catalog: unknown[]) {
 }
 describe("onboarding connection suggestions", () => {
   it("does not invent authorization cards when no connector has an app catalog", async () => {
-    const { deps, actor } = fixture([]);
+    const { deps, actor, tx } = fixture([]);
     await chooseFocus(deps, actor, "bot", "day");
     expect(posted.flatMap((message) => message.blocks)).not.toContainEqual(
       expect.objectContaining({ kind: "app_connect" }),
     );
-    expect(posted.length).toBeGreaterThan(0);
+    expect(tx.message.update).toHaveBeenCalledOnce();
   });
   it("uses the available connector and omits unavailable apps", async () => {
     const { deps, actor } = fixture([
-      { connectorId: "pipedream", slug: "slack", name: "Slack", connected: false, logo: null },
+      { connectorId: "pipedream", slug: "gmail", name: "Gmail", connected: false, logo: null },
     ]);
-    await chooseFocus(deps, actor, "bot", "day");
+    await chooseFocus(deps, actor, "bot", "inbox");
     expect(
       posted
         .flatMap((message) => message.blocks)
         .filter((block) => (block as { kind: string }).kind === "app_connect"),
     ).toEqual([
-      expect.objectContaining({ connectorId: "pipedream", provider: "slack", name: "Slack" }),
+      expect.objectContaining({ connectorId: "pipedream", provider: "gmail", name: "Gmail" }),
     ]);
   });
 });

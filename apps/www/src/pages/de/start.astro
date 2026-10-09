@@ -1,0 +1,6 @@
+---
+import PlatformPage from "../../components/PlatformPage.astro";
+import { APP_URL } from "../../site";
+if (APP_URL) return Astro.redirect(`${APP_URL}/start`, 302);
+---
+<PlatformPage locale="de" platform="web" />

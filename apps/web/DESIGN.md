@@ -1,6 +1,6 @@
 ---
 name: Kith
-description: "Neutral gray, blue accents, and a quiet personal companion."
+description: "Neutral surfaces, ink controls, and a quiet blue companion."
 colors:
   "background": "#FAFAFB"
   "foreground": "#24262B"
@@ -8,7 +8,7 @@ colors:
   "card-foreground": "#24262B"
   "popover": "#FFFFFF"
   "popover-foreground": "#24262B"
-  "primary": "#245FC5"
+  "primary": "#24262B"
   "primary-foreground": "#FFFFFF"
   "secondary": "#F1F2F4"
   "secondary-foreground": "#24262B"
@@ -22,13 +22,13 @@ colors:
   "destructive-foreground": "#FFFFFF"
   "border": "#DFE2E7"
   "input": "#E9EBEF"
-  "ring": "#245FC5"
+  "ring": "#24262B"
   "sidebar": "#F0F1F3"
   "sidebar-foreground": "#24262B"
   "sidebar-border": "#DFE2E7"
-  "sidebar-accent": "#DFE9FB"
-  "sidebar-accent-foreground": "#1E4FAD"
-  "link": "#245FC5"
+  "sidebar-accent": "#E9EBEF"
+  "sidebar-accent-foreground": "#24262B"
+  "link": "#24262B"
   "success": "#207F37"
   "warning": "#946018"
   "overlay": "rgba(20, 20, 22, 0.45)"
@@ -38,8 +38,8 @@ colors:
   "dark-card-foreground": "#ECECEE"
   "dark-popover": "#141518"
   "dark-popover-foreground": "#ECECEE"
-  "dark-primary": "#78A7FA"
-  "dark-primary-foreground": "#101828"
+  "dark-primary": "#ECECEE"
+  "dark-primary-foreground": "#0B0C0E"
   "dark-secondary": "#18191E"
   "dark-secondary-foreground": "#ECECEE"
   "dark-chat-user": "#22242B"
@@ -52,13 +52,13 @@ colors:
   "dark-destructive-foreground": "#FFFFFF"
   "dark-border": "#1E2026"
   "dark-input": "#18191E"
-  "dark-ring": "#78A7FA"
+  "dark-ring": "#ECECEE"
   "dark-sidebar": "#111215"
   "dark-sidebar-foreground": "#ECECEE"
   "dark-sidebar-border": "#1C1D22"
-  "dark-sidebar-accent": "#1D2C46"
-  "dark-sidebar-accent-foreground": "#A8C7FF"
-  "dark-link": "#A8C7FF"
+  "dark-sidebar-accent": "#1A1B20"
+  "dark-sidebar-accent-foreground": "#ECECEE"
+  "dark-link": "#ECECEE"
   "dark-success": "#4ECB71"
   "dark-warning": "#E9C46A"
   "dark-overlay": "rgba(4, 4, 5, 0.72)"
@@ -165,20 +165,20 @@ components:
 
 ## Overview
 
-**Creative North Star: "Neutral gray, blue accents, quiet companion"**
+**Creative North Star: "Neutral surfaces, ink, quiet companion"**
 
-Neutral gray surfaces and a quiet companion give Kith a friendly, low-chrome setting. Open space and readable conversation carry the experience. Blue connects the companion to selected navigation, focus rings, links, and primary actions.
+Neutral gray surfaces and a quiet companion give Kith a friendly, low-chrome setting. Open space and readable conversation carry the experience. Ink defines primary actions, links, focus rings, and neutral navigation selection. Blue belongs to the original companion artwork.
 
-The shared web UI also runs inside Electron. Density stays compact in navigation and contextual lists while the conversation has room to breathe. Details appear in contextual panels; the persistent composer and conversation remain the visual anchor. Native setup shares the semantic palette but keeps its own window controls and form geometry.
+The shared web UI also runs inside Electron. The saved assistant name appears in the sidebar, header, and composer, defaulting to Kith; personalization keeps the original companion artwork and existing text hierarchy. Density stays compact in navigation and contextual lists while the conversation has room to breathe. Details appear in contextual panels; the persistent composer and conversation remain the visual anchor. Native setup shares the semantic palette but keeps its own window controls and form geometry.
 
 **Key Characteristics:**
 
-- Neutral gray surfaces with restrained blue actions and selection.
+- Neutral surfaces with ink actions and selection.
 - Compact controls around a spacious conversation.
 - Small original companion artwork.
 - Contextual detail and restrained, reduced-motion-aware transitions.
 
-This record describes the built web/Electron surfaces, shared primitives, and native setup renderer. Sources are `src/styles.css`, `src/pages/Shell.tsx`, `src/pages/shell/kith-sidebar.tsx`, `src/pages/shell/assistant-welcome.tsx`, `src/pages/ActivityList.tsx`, `src/pages/PersonalMemoryPanel.tsx`, `../../packages/ui-tokens/src/index.ts`, `../../packages/ui-web/src/`, and `../desktop/src/setup.css`. Responsive web and browser-rendered setup captures support the source scan; they do not establish physical native-device behavior.
+This record describes the built web/Electron surfaces, shared primitives, and native setup renderer. Sources are `src/styles.css`, `src/pages/Shell.tsx`, `src/pages/shell/kith-sidebar.tsx`, `src/pages/shell/assistant-welcome.tsx`, `src/pages/shell/assistant-focus.tsx`, `src/pages/shell/assistant-for-you.tsx`, `src/components/CalendarReceipt.tsx`, `src/components/task-starters/TaskStarterReceipt.tsx`, `src/pages/ActivityList.tsx`, `src/pages/PersonalMemoryPanel.tsx`, `../../packages/ui-tokens/src/index.ts`, `../../packages/ui-web/src/components/ui/`, and `../desktop/src/setup.css`. Current consumer evidence is in `.impeccable/review/` (onboarding, returning work, Calendar receipt, and memory captures). Marketing captures use configured placeholder origins; product captures use isolated fixtures. This record does not establish production availability or physical native-device behavior.
 
 ## Colors
 
@@ -186,7 +186,7 @@ A neutral gray light palette pairs with a cool near-black dark palette. Frontmat
 
 ### Primary
 
-- **Blue / light blue:** `primary` and `primary-foreground` define filled actions, including the composer send control. Dark mode pairs a lighter blue action with dark text.
+- **Ink / pale ink:** `primary` and `primary-foreground` define filled actions, including the composer send control. The functional pair reverses in dark mode to keep controls legible.
 
 ### Neutral
 
@@ -197,7 +197,7 @@ A neutral gray light palette pairs with a cool near-black dark palette. Frontmat
 - **Sidebar paper / dark sidebar:** `sidebar` and its foreground pair set the navigation region; `sidebar-accent` supplies its selected row.
 - **Conversation paper / dark bubble:** `chat-user` and its foreground pair distinguish user messages.
 - **Hover wash:** `accent` and its foreground pair identify interaction states.
-- **Focus and links:** `ring` and `link` remain semantic and appearance-aware. The retained dark palette uses blue for these functional roles; the build is not strictly hue-free.
+- **Focus and links:** `ring` and `link` remain semantic and appearance-aware. Both themes keep these functional roles monochrome.
 - **Scrim:** `overlay` dims content behind temporary navigation and floating surfaces.
 
 ### Status
@@ -206,11 +206,11 @@ A neutral gray light palette pairs with a cool near-black dark palette. Frontmat
 - **Success green:** completed or healthy states.
 - **Warning amber:** input or attention required.
 
-The blue companion is a raster identity asset. Semantic blue accents complement it without sampling colors at runtime. Other bots retain the existing shared identity-color array.
+The blue companion is a raster identity asset. It supplies identity without recoloring functional controls or sampling colors at runtime. Other bots retain the existing shared identity-color array.
 
 ### Named Rules
 
-**The Restrained Accent Rule.** Use semantic blue for primary actions, selected navigation, tabs, links, and focus. Keep ordinary surfaces and inactive controls neutral. Success, warning, and destructive communicate meaningful status.
+**The Ink Controls Rule.** Use semantic primary for actions, neutral tones for navigation, and success, warning, or destructive only for meaningful status. Identity color belongs to avatars.
 
 ## Typography
 
@@ -233,7 +233,7 @@ The greeting currently uses a responsive system title (30px, rising to 36px at t
 
 ## Layout
 
-The full-height shell has a collapsible navigation rail (260px) and a flexible main region with a fixed-height header (64px). Transcript messages are centered at a maximum width of 760px; the welcome surface uses a narrower 576px reading width. The composer wrapper caps at 840px including horizontal padding, aligning its usable width to the transcript on desktop. Transcript padding moves from 20px to 40px horizontally at the medium breakpoint; message spacing uses 20px.
+The full-height shell has a collapsible navigation rail (260px) and a flexible main region with a fixed-height header (64px). Transcript messages are centered at a maximum width of 1120px; the welcome surface uses a narrower 576px reading width. The composer shares the transcript measure and adds the same responsive horizontal inset. Transcript padding moves from 20px to 40px horizontally at the medium breakpoint; message spacing uses 24px, tightening to 8px for continuations.
 
 Contextual details use a card-colored trailing panel with an initial width (384px), minimum width (320px), and an available-width cap that preserves a conversation region (320px). The desktop panel supports pointer and keyboard resizing. Below the medium breakpoint (768px), navigation becomes an overlay limited to 260px, and the detail panel overlays the main region up to 384px; it restores trigger focus and traps keyboard focus while open. The small breakpoint (640px) adjusts greeting and shared dialog layout.
 
@@ -265,7 +265,7 @@ User message bubbles retain the same 20px silhouette as the larger rounded forms
 
 Compact, neutral, and quietly responsive. The shared default is 32px high with 10px horizontal padding, 14px medium text, and 12px corners. Size variants cover 24px, 28px, and 36px controls; signature navigation and suggestions increase row height for scanning.
 
-Primary uses the primary pair; outline uses background and a semantic border; secondary uses the secondary pair. Ghost starts transparent and gains a muted hover wash. Destructive uses a translucent destructive fill and destructive text. Link remains transparent with an underline on hover. Focus adds a ring-colored border and a 3px half-opacity ring; disabled controls reduce opacity and stop interaction. Ordinary pressed buttons shift down 1px; popup triggers are exempt.
+Primary uses the primary pair; outline uses background and a semantic border; secondary uses the secondary pair. Ghost starts transparent and gains a muted hover wash. Destructive uses a translucent destructive fill and destructive text. Link remains transparent with an underline on hover. Focus adds a ring-colored border and a 3px half-opacity ring; disabled controls reduce opacity and stop interaction. Expanded popup triggers use the same semantic hover wash.
 
 ### Chips
 
@@ -281,17 +281,25 @@ Shared text inputs have a 32px height, 12px corners, input-colored stroke, and 4
 
 ### Navigation
 
-The sidebar uses compact ghost rows with 16px SVG icons, regular sentence-case labels, and muted foreground. Selected conversations and groups use a blue sidebar-accent fill, stronger label weight, and `aria-current`. Detail controls use `aria-pressed`. Settings navigation and advanced conversation rows share the same selection motion. The assistant row is taller (56px), carrying a decorative 36px companion and two lines of identity. Search/new-conversation rows use 40px height; the lower detail controls use 36px. Active and recent sections appear only when populated. Mobile navigation uses the same content in an overlay. Hidden navigation is inert, and closing mobile Settings returns focus to the visible navigation trigger.
+The sidebar uses compact ghost rows with 16px SVG icons, regular sentence-case labels, and muted foreground. Selected conversations and groups use a neutral sidebar-accent fill, stronger label weight, and `aria-current`. Detail controls use `aria-pressed`. Settings navigation and advanced conversation rows share the same selection motion. The assistant row is taller (56px), carrying a decorative 36px companion and two lines of identity. Search/new-conversation rows use 40px height; the lower detail controls use 36px. Active and recent sections appear only when populated. Mobile navigation uses the same content in an overlay. Hidden navigation is inert, and closing mobile Settings returns focus to the visible navigation trigger.
 
 ### Conversation and contextual detail
 
-Assistant prose sits directly on the canvas; user prose sits in a right-aligned chat-user bubble. The composer is a bordered card-colored rounded surface with growing multiline input, circular accessory controls, and a blue send control. Suggestions are ghost rows with a 44px minimum height and wrapping labels; the larger decorative companion introduces the empty conversation without an animated character loop.
+Assistant prose sits directly on the canvas; user prose sits in a right-aligned chat-user bubble. The composer is a bordered card-colored rounded surface with growing multiline input, circular accessory controls, and an ink send control. Suggestions are ghost rows with a 44px minimum height and wrapping labels; the larger decorative companion introduces the empty conversation without an animated character loop.
 
 Tasks use hoverable rounded rows with a small status dot, title, relative time, preview, and human-readable status. Advanced task filters live in a disclosure. Personal memory uses divided expandable rows, a medium title, a muted two-line preview, and editing actions revealed on expansion. These are reusable list patterns, not decorative dashboards.
 
 Navigation and tab indicators use one scoped Framer Motion layoutId per group, with a 180ms ease-out slide. Reduced motion renders the indicator immediately without a layout animation. Avatar Studio, knowledge, MCP transport, and terminal tabs reuse the shared Base UI Tabs primitive and preserve keyboard navigation.
 
 Motion communicates interaction and state: panel width uses a 200ms ease-out transition; shared avatar state transitions use 180ms; native progress width uses 400ms ease-out. The original Kith raster is static. The web reduced-motion override reduces animation/transition duration to 0.01ms, limits repetitions, and disables smooth scrolling; native progress disables its transition.
+
+### Focus, returning work, and receipts
+
+Focus choices reuse outline buttons with wrapping, left-aligned labels and a 48px minimum height. They form two columns from the small breakpoint and one below it. Optional assistant naming stays in a disclosure rather than becoming persistent form chrome. Its saved value supplies the sidebar identity, header title, and composer label, with Kith as the default.
+
+Returning work uses a divided, compact region with ghost rows, status dots and human-readable status. Its reading width is 768px; up to three persisted items appear, with the third hidden below the small breakpoint. Labels truncate within the flexible row while status remains visible. Empty work leaves no placeholder dashboard.
+
+Inline receipts are card-colored, bordered rounded surfaces with modest title and status text, verified source labels, and a contextual details control. Calendar receipts use a 576px maximum width and 16px padding. Larger source records, saved outcomes, and optional repeats stay in disclosures or a scrollable dialog. Source evidence and AI suggestions remain visibly distinguishable; errors use destructive text and explicit retry controls.
 
 ## Do's and Don'ts
 
@@ -306,7 +314,7 @@ Motion communicates interaction and state: panel width uses a 200ms ease-out tra
 
 ### Don't:
 
-- **Don't** spread blue onto ordinary surfaces or inactive controls.
+- **Don't** recolor ordinary controls with the companion's blue identity.
 - **Don't** turn secondary details into permanent explanatory chrome.
 - **Don't** replace semantic colors with fixed light-theme or dark-theme colors.
 - **Don't** reproduce proprietary reference artwork or branding.
