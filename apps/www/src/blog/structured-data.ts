@@ -31,7 +31,7 @@ export function blogPostStructuredData(input: {
           url: `${SITE_URL}/`,
           logo: {
             "@type": "ImageObject",
-            url: `${SITE_URL}/brand/rakazo-mark.svg`,
+            url: `${SITE_URL}/icon-512.png`,
           },
         },
         image: [input.image],

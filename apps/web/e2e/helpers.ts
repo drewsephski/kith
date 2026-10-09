@@ -136,6 +136,7 @@ export async function openUserSettings(
   const directSettings = page
     .getByTestId("kith-navigation")
     .getByRole("button", { name: "Settings", exact: true });
+  await expect(directSettings.or(page.getByTestId("user-menu-trigger")).first()).toBeVisible();
   if (await directSettings.isVisible()) await directSettings.click();
   else {
     await page.getByTestId("user-menu-trigger").click();

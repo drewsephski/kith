@@ -4,8 +4,69 @@ Thanks for helping improve Rakazo. Keep changes focused and testable.
 
 ## Run locally
 
-Follow the [source checkout setup](README.md#local-development-source-checkout) for prerequisites,
-required secrets, and startup commands.
+You need Node.js 22.22.2 or newer in the 22.x line, Node.js 24.x, or Node.js 26+;
+pnpm 9; and Docker. Node.js 23.x and 25.x are not supported.
+
+```bash
+git clone https://github.com/elie222/rakazo.git
+cd rakazo
+cp .env.example .env
+```
+
+Set `POSTGRES_PASSWORD` (for example `openssl rand -hex 16`), then put the same value in
+`DATABASE_URL`. Set `BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`, and `SCREEN_PROXY_SECRET` to
+independent long random values. Docker sandboxes also need a dedicated
+`SANDBOX_SUPERVISOR_TOKEN`. You can also set `OPENROUTER_API_KEY`, or connect a supported
+model provider during onboarding.
+
+For host-side development with Docker Desktop, set `SANDBOX_CONTROL_VIA_LOOPBACK=true`
+in `.env`. The supervisor discovers Docker Desktop's user socket automatically;
+`DOCKER_HOST` or `DOCKER_SOCKET` can override it for another Docker runtime.
+
+Managed app catalogs are optional. Set `COMPOSIO_API_KEY` for Composio, or the
+`PIPEDREAM_CLIENT_ID`, `PIPEDREAM_CLIENT_SECRET`, and `PIPEDREAM_PROJECT_ID` trio for Pipedream
+Connect. Users can add an HTTPS MCP server, Treg endpoint, or OpenAPI JSON document from
+**Integrations** without enabling either managed catalog. Connector credentials are encrypted on the
+server and are never returned by the API.
+
+Treg is usage-metered. Self-hosters supply their own Treg token; operators embedding Treg in a
+hosted product should review [Treg's integration terms](https://treg.to/integrate.md), which require
+a written agreement for hosted resale.
+
+```bash
+docker compose --env-file .env \
+  -f infra/compose/docker-compose.yml \
+  -f infra/compose/docker-compose.postgres-host.yml \
+  up postgres -d
+pnpm install
+pnpm db:generate
+pnpm db:migrate
+pnpm sandbox:build
+pnpm dev
+```
+
+Postgres stays network-internal in the default Compose file (same as published images). The
+`postgres-host` overlay publishes loopback `127.0.0.1:5433` for host-side `pnpm` and DB tools.
+If that port is occupied, change `POSTGRES_HOST_PORT` and the port in `DATABASE_URL` in `.env`.
+Without the overlay, open a shell with
+`docker compose --env-file .env -f infra/compose/docker-compose.yml exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'`.
+Use a URI-safe `POSTGRES_PASSWORD` (`openssl rand -hex 16`). An existing `pgdata` volume keeps the
+user, password, and database from first init, so keep those values in `.env`, or change them in
+place with `ALTER ROLE` / rename. Recreate the volume only after a backup (or when the data is
+disposable); `docker compose down -v` deletes all Postgres state.
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account, connect a model, and create
+your first bot.
+
+For deployment, provider selection, backups, and upgrades, see the
+[self-hosting guide](./docs/self-host.md).
+
+To use CreateOS, set `SANDBOX_PROVIDER=createos` and `CREATEOS_SANDBOX_API_KEY`.
+Optional `CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_SHAPE`, and
+`CREATEOS_SANDBOX_ROOTFS` default to `https://api.sb.createos.sh`, `s-2vcpu-2gb`,
+and `desktop:1`.
+
+For a setup without Docker, follow the [host deployment guide](./docs/host-deployment.md).
 
 ## Checks before you open a PR
 
