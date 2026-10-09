@@ -5,7 +5,7 @@ import { transparentColor } from "./color.js";
 describe("transparentColor", () => {
   it("keeps the hue of six-digit backgrounds", () => {
     expect(transparentColor(darkTokens.background)).toBe("rgba(11, 12, 14, 0)");
-    expect(transparentColor(lightTokens.background)).toBe("rgba(251, 250, 247, 0)");
+    expect(transparentColor(lightTokens.background)).toBe("rgba(250, 250, 251, 0)");
   });
 
   it("reads rgba palette colors and drops their alpha", () => {

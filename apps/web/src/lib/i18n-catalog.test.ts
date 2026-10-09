@@ -255,34 +255,38 @@ describe("lingui catalogs", () => {
     expect(i18n._({ id: "Cancel", message: "Cancel" })).toBe("Cancelar");
   });
 
-  it("ships Simplified Chinese translations for the Chief onboarding focus card", () => {
+  it("ships Simplified Chinese translations for the Kith onboarding focus card", () => {
     const catalog = readFileSync(
       fileURLToPath(new URL("../locales/zh-CN/messages.po", import.meta.url)),
       "utf8",
     );
 
-    expect(catalog).toContain('msgid "What do you want me on first?"\nmsgstr "你想让我先做什么？"');
-    expect(catalog).toContain('msgid "Day-to-day work"\nmsgstr "日常工作"');
-    expect(catalog).toContain('msgid "Inbox & email"\nmsgstr "收件箱和邮件"');
-    expect(catalog).toContain('msgid "Research & writing"\nmsgstr "调研和写作"');
-    expect(catalog).toContain('msgid "A bit of everything"\nmsgstr "什么都做一点"');
+    expect(catalog).toContain(
+      'msgid "What should I help you with first?"\nmsgstr "我应该先帮你做什么？"',
+    );
+    expect(catalog).toContain('msgid "Organize my day"\nmsgstr "安排我的一天"');
+    expect(catalog).toContain('msgid "Email and follow-ups"\nmsgstr "邮件和跟进"');
+    expect(catalog).toContain('msgid "Research and projects"\nmsgstr "研究和项目"');
+    expect(catalog).toContain('msgid "Just start chatting"\nmsgstr "直接开始聊天"');
 
     i18n.load("zh-CN", {
-      "What do you want me on first?": "你想让我先做什么？",
-      "Day-to-day work": "日常工作",
-      "Inbox & email": "收件箱和邮件",
-      "Research & writing": "调研和写作",
-      "A bit of everything": "什么都做一点",
+      "What should I help you with first?": "我应该先帮你做什么？",
+      "Organize my day": "安排我的一天",
+      "Email and follow-ups": "邮件和跟进",
+      "Research and projects": "研究和项目",
+      "Just start chatting": "直接开始聊天",
     });
     i18n.activate("zh-CN");
     expect(
       i18n._({
-        id: "What do you want me on first?",
-        message: "What do you want me on first?",
+        id: "What should I help you with first?",
+        message: "What should I help you with first?",
       }),
-    ).toBe("你想让我先做什么？");
-    expect(i18n._({ id: "Day-to-day work", message: "Day-to-day work" })).toBe("日常工作");
-    expect(i18n._({ id: "Inbox & email", message: "Inbox & email" })).toBe("收件箱和邮件");
+    ).toBe("我应该先帮你做什么？");
+    expect(i18n._({ id: "Organize my day", message: "Organize my day" })).toBe("安排我的一天");
+    expect(i18n._({ id: "Email and follow-ups", message: "Email and follow-ups" })).toBe(
+      "邮件和跟进",
+    );
   });
 
   it("ships the Russian runtime catalog with translated chrome and Russian plurals", () => {

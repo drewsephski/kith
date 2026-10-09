@@ -1,4 +1,5 @@
 import type { MessageBlock } from "@rakazo/contracts";
+import { isAssistantFocusQuestion } from "@rakazo/core";
 import { useRef, useState } from "react";
 import type { ViewProps } from "react-native";
 import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -12,7 +13,10 @@ import {
 import { native, useMobileTokens } from "../lib/native";
 import { useThreadReadOnly } from "../lib/thread-read-only";
 import { errorText } from "../lib/user-error";
+import { CalendarConnection } from "./CalendarConnection";
+import { NativeActionButton } from "./native-action-button";
 import { NativeSymbol } from "./native-symbol";
+import { TaskStarterSetup } from "./task-starters/setup";
 
 const styles = StyleSheet.create({
   card: {
@@ -64,12 +68,20 @@ export function ChoiceCard({
   const readOnly = useThreadReadOnly();
   const tokens = useMobileTokens();
   const { width: windowWidth } = useWindowDimensions();
+  const [starterOpen, setStarterOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // Set in the handler, so a second tap cannot pass before the buttons re-render disabled.
   const pending = useRef(false);
   // Shows the outcome before the thread stream delivers the updated block.
   const [localAnswerId, setLocalAnswerId] = useState<string>();
   const answerId = block.answerId ?? localAnswerId;
+  const focus = isAssistantFocusQuestion(block.question);
+  const labels: Record<string, string> = {
+    day: t("Organize my day"),
+    inbox: t("Email and follow-ups"),
+    research: t("Research and projects"),
+    everything: t("Just start chatting"),
+  };
   if (answerId === DISMISSED_CHOICE_ANSWER_ID) return null;
 
   // Dismissing records the server's dismissed answer id, so both outcomes share this path.
@@ -112,7 +124,7 @@ export function ChoiceCard({
             onAccessibilityAction={onAccessibilityAction}
             style={[styles.question, { color: tokens.foreground }]}
           >
-            {block.question}
+            {focus ? t("What should I help you with first?") : block.question}
           </Text>
           {block.subtitle ? (
             <Text style={[styles.subtitle, { color: tokens.mutedForeground }]}>
@@ -142,7 +154,7 @@ export function ChoiceCard({
             <Pressable
               key={option.id}
               accessibilityRole="button"
-              accessibilityLabel={option.label}
+              accessibilityLabel={focus ? (labels[option.id] ?? option.label) : option.label}
               accessibilityState={{ disabled: readOnly || busy || chosen, selected: chosen }}
               disabled={readOnly || busy || chosen}
               onPress={() => void submit(option.id)}
@@ -165,7 +177,7 @@ export function ChoiceCard({
                   { color: chosen ? tokens.mutedForeground : tokens.foreground },
                 ]}
               >
-                {option.label}
+                {focus ? (labels[option.id] ?? option.label) : option.label}
               </Text>
               {chosen ? (
                 <NativeSymbol
@@ -179,6 +191,24 @@ export function ChoiceCard({
           );
         })}
       </View>
+      {!readOnly && isAssistantFocusQuestion(block.question) && answerId === "day" ? (
+        <CalendarConnection botId={botId} />
+      ) : null}
+      {!readOnly && isAssistantFocusQuestion(block.question) && answerId === "inbox" ? (
+        <NativeActionButton
+          label={t("Turn my inbox into a to-do list")}
+          onPress={() => setStarterOpen(true)}
+        />
+      ) : null}
+      {starterOpen ? (
+        <TaskStarterSetup
+          starterId="inbox_todos"
+          prompt={t("Turn my inbox into a to-do list")}
+          botId={botId}
+          onClose={() => setStarterOpen(false)}
+          onStarted={() => setStarterOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageBlock } from "@rakazo/contracts";
+import { isAssistantFocusQuestion } from "@rakazo/core";
 import {
   Button,
   ConnectorIcon,
@@ -8,7 +9,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@rakazo/ui-web";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BuiCard, SuccessPop } from "../../components/ai/primitives";
 import type { AppAuthorization } from "../../lib/app-connect";
@@ -19,6 +20,8 @@ import { connectMcpOauth } from "../../lib/mcp-connect";
 import { rpc } from "../../lib/rpc";
 import { useArtifactImage } from "../../lib/use-artifact-image";
 import { errorText } from "../../lib/user-error";
+import { focusLabel } from "./assistant-focus";
+import { FocusNextAction } from "./focus-next-action";
 
 export function ChoiceCard({
   botId,
@@ -33,9 +36,12 @@ export function ChoiceCard({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locallyDismissed, setLocallyDismissed] = useState(false);
+  const choosing = useRef(false);
   const dismissed = locallyDismissed || block.answerId === "_dismissed";
 
   async function choose(optionId: string) {
+    if (choosing.current || block.answerId) return;
+    choosing.current = true;
     setPending(true);
     setError(null);
     try {
@@ -43,6 +49,8 @@ export function ChoiceCard({
       await onBotChanged();
     } catch (err) {
       setError(errorText(err, t`Could not save this choice`));
+    } finally {
+      choosing.current = false;
       setPending(false);
     }
   }
@@ -107,12 +115,19 @@ export function ChoiceCard({
                   />
                 </span>
                 {block.answerId === option.id ? (
-                  <span className="mt-0.5 text-foreground/75">✓</span>
+                  <Check size={16} className="mt-0.5 text-muted-foreground" aria-hidden="true" />
                 ) : null}
               </button>
             ))}
         </div>
-        {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+        {block.answerId && isAssistantFocusQuestion(block.question) ? (
+          <FocusNextAction botId={botId} focus={block.answerId} onChanged={onBotChanged} />
+        ) : null}
+        {error ? (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -120,8 +135,8 @@ export function ChoiceCard({
 
 /** First-run Chief focus card: API stores English; UI locale catalogs translate it. */
 function OnboardingFocusQuestion({ question }: { question: string }) {
-  if (question === "What do you want me on first?") {
-    return <Trans>What do you want me on first?</Trans>;
+  if (isAssistantFocusQuestion(question)) {
+    return <Trans>What should I help you with first?</Trans>;
   }
   return question;
 }
@@ -135,19 +150,7 @@ function OnboardingFocusOptionLabel({
   label: string;
   question: string;
 }) {
-  if (question !== "What do you want me on first?") return label;
-  switch (id) {
-    case "day":
-      return <Trans>Day-to-day work</Trans>;
-    case "inbox":
-      return <Trans>Inbox & email</Trans>;
-    case "research":
-      return <Trans>Research & writing</Trans>;
-    case "everything":
-      return <Trans>A bit of everything</Trans>;
-    default:
-      return label;
-  }
+  return isAssistantFocusQuestion(question) ? focusLabel(id) : label;
 }
 
 export function AppConnectCard({

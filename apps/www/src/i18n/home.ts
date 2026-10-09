@@ -1,6 +1,7 @@
 import { DEMO_ROSTER, type RosterBot } from "../demo";
 import { SITE_DESCRIPTION } from "../site";
 import { CLAUDE_CHATGPT_SUBSCRIPTION_FAQ } from "../subscription-faq";
+import { getJourneyCopy } from "./journey";
 import type { Locale } from "./locales";
 
 export type HomeCopy = {
@@ -278,7 +279,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     title: "Kith | Your personal AI assistant",
     description: SITE_DESCRIPTION,
     ogImageAlt:
-      "Kith. AI teammates you actually own. Your keys, your model, your machine.",
+      "Kith, your personal AI assistant.",
     availableLanguage: "English",
     skipToContent: "Skip to content",
     starFallback: "Star",
@@ -431,11 +432,11 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     },
   },
   de: {
-    title: "Kith | Open-Source-Alternative zu Grok Bot",
+    title: "Kith | Dein persönlicher KI-Assistent",
     description:
-      "Kith ist eine Open-Source-Alternative zu Grok Bot für persistente KI-Teamkollegen, die echte Arbeit erledigen. Deine Keys, dein Modell, deine Maschine.",
+      "Kith ist dein persönlicher KI-Assistent. Er merkt sich, was wichtig ist, erledigt Aufgaben und zeigt dir, was passiert ist.",
     ogImageAlt:
-      "Kith. KI-Teamkollegen, die dir wirklich gehören. Deine Keys, dein Modell, deine Maschine.",
+      "Kith, dein persönlicher KI-Assistent.",
     availableLanguage: "German",
     skipToContent: "Zum Inhalt springen",
     starFallback: "Star",
@@ -592,10 +593,10 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     },
   },
   ko: {
-    title: "Kith | 오픈소스 Grok Bot 대안",
+    title: "Kith | 개인 AI 비서",
     description:
-      "Rakazo는 실제 업무를 수행하는 지속형 AI 팀원을 위한 오픈소스 Grok Bot 대안입니다. 키, 모델, 머신, 모두 당신 것.",
-    ogImageAlt: "Kith. 진짜로 내 것인 AI 팀원. 키, 모델, 머신, 모두 당신 것.",
+      "Kith는 개인 AI 비서입니다. 중요한 것을 기억하고, 일을 처리하고, 무엇을 했는지 보여줍니다.",
+    ogImageAlt: "개인 AI 비서 Kith.",
     availableLanguage: "Korean",
     skipToContent: "본문으로 건너뛰기",
     starFallback: "Star",
@@ -752,10 +753,10 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     },
   },
   zh: {
-    title: "Kith | 开源 Grok Bot 替代品",
+    title: "Kith | 你的个人 AI 助手",
     description:
-      "Kith 是一个开源 Grok Bot 替代品，用于运行真正干活的持久化 AI 队友。密钥、模型、机器，都归你所有。",
-    ogImageAlt: "Kith：真正属于你的 AI 队友。密钥、模型、机器，都归你所有。",
+      "Kith 是你的个人 AI 助手。它记住重要的事，完成工作，并让你了解发生了什么。",
+    ogImageAlt: "Kith，你的个人 AI 助手。",
     availableLanguage: "Chinese",
     skipToContent: "跳到主要内容",
     starFallback: "加星",
@@ -914,5 +915,10 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
 };
 
 export function getHomeCopy(locale: Locale): HomeCopy {
-  return HOME_COPY[locale];
+  const existing = HOME_COPY[locale];
+  const journey = getJourneyCopy(locale);
+  return { ...existing, description: journey.lead, ogImageAlt: journey.lead,
+    hero: { ...existing.hero, heading: journey.heading.replace("\n", " "), lead: journey.lead },
+    faq: { ...existing.faq, items: journey.faq },
+  };
 }

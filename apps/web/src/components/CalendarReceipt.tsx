@@ -14,36 +14,83 @@ import {
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { rpc } from "../lib/rpc";
+import { TaskReceiptHeader } from "./TaskReceiptHeader";
 
 export function CalendarReceipt({ receiptId }: { receiptId: string }) {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!open) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const load = async () => {
       try {
         const next = await rpc.calendar.receipt({ receiptId });
         if (!cancelled) {
           setReceipt(next);
           setError(null);
+          if (["queued", "leased", "running"].includes(next.status))
+            timer = setTimeout(() => void load(), 3000);
         }
       } catch {
         if (!cancelled) setError(t`Could not load receipt`);
       }
     };
     void load();
-    const timer = window.setInterval(() => void load(), 3000);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      clearTimeout(timer);
     };
-  }, [open, receiptId, t]);
+  }, [open, receiptId, refresh, t]);
   return (
-    <>
+    <section
+      className="my-2 w-full max-w-xl space-y-3 rounded-xl border border-border bg-card p-4 text-sm"
+      data-testid="calendar-receipt"
+    >
+      {receipt ? (
+        <TaskReceiptHeader
+          title={t`Calendar briefing`}
+          status={receipt.status}
+          timestamp={receipt.completedAt ?? receipt.createdAt}
+          workingLabel={receipt.snapshot ? t`Preparing your briefing` : t`Checking your calendar`}
+        />
+      ) : (
+        <p role="status" className="text-muted-foreground">
+          <Trans>Loading briefing…</Trans>
+        </p>
+      )}
+      {receipt?.status === "completed" && receipt.snapshot ? (
+        <div>
+          <p className="text-xs text-muted-foreground">
+            <Trans>Verified sources</Trans>:{" "}
+            {receipt.snapshot.sources.map((source) => source.name).join(" · ")}
+          </p>
+          {receipt.snapshot.events.length ? (
+            <ul className="mt-3 space-y-2">
+              {receipt.snapshot.events.slice(0, 3).map((event) => (
+                <li key={`${event.calendarId}:${event.id}`} className="flex gap-3">
+                  <span className="shrink-0 text-muted-foreground">
+                    {calendarTime(event, receipt.timezone)}
+                  </span>
+                  <span className="min-w-0 break-words">{event.title}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2">
+              <Trans>No events found in the checked window.</Trans>
+            </p>
+          )}
+        </div>
+      ) : null}
+      {error && !open ? (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      ) : null}
       <Button
         variant="ghost"
         size="sm"
@@ -106,6 +153,7 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
                     try {
                       await rpc.calendar.retry({ receiptId });
                       setReceipt(await rpc.calendar.receipt({ receiptId }));
+                      setRefresh((value) => value + 1);
                     } catch {
                       setError(t`Could not retry. Check your Calendar connection.`);
                     } finally {
@@ -139,7 +187,7 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
                   </p>
                   <ul className="space-y-2">
                     {receipt.snapshot.events.map((event) => (
-                      <li key={event.id}>
+                      <li key={`${event.calendarId}:${event.id}`}>
                         <span className="text-muted-foreground">
                           {calendarTime(event, receipt.timezone)}
                         </span>{" "}
@@ -190,6 +238,6 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
           ) : null}
         </DialogContent>
       </Dialog>
-    </>
+    </section>
   );
 }

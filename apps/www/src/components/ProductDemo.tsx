@@ -290,9 +290,9 @@ function OnboardThread({
 
 export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
   const text: DemoTranslator = (source, values) => demoText(locale, source, values);
-  const [bots, setBots] = useState<LiveBot[]>(() => cloneBots(getDemoBots(locale)));
+  const [bots, setBots] = useState<LiveBot[]>(() => cloneBots(getDemoBots(locale).map((bot) => bot.id === "inbox" ? { ...bot, name: "Kith" } : bot)));
   const [activeId, setActiveId] = useState("inbox");
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>("computer");
@@ -705,7 +705,7 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
                   className={`product-demo__bot-row${isActive ? " is-active" : ""}`}
                   onClick={() => selectBot(bot.id)}
                 >
-                  <LandingBotAvatar color={bot.color} size={38} />
+                  <LandingBotAvatar companion={bot.id === "inbox"} color={bot.color} size={38} />
                   <span className="product-demo__bot-copy">
                     <span className="product-demo__bot-meta">
                       <span className="product-demo__bot-name">{bot.name}</span>
@@ -757,7 +757,7 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
                 </svg>
               </button>
               <button type="button" className="product-demo__name-btn" onClick={openSettings}>
-                <LandingBotAvatar color={active.color} size={28} />
+                <LandingBotAvatar companion={active.id === "inbox"} color={active.color} size={28} />
                 <span className="product-demo__active-name">{active.name}</span>
               </button>
             </div>
@@ -942,7 +942,7 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
             {panelMode === "settings" ? (
               <div className="product-demo__settings">
                 <div className="product-demo__settings-avatar">
-                  <LandingBotAvatar color={active.color} size={72} />
+                  <LandingBotAvatar companion={active.id === "inbox"} color={active.color} size={72} />
                 </div>
                 <label className="product-demo__field">
                   {text("Name")}
@@ -1193,7 +1193,7 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
               <div className="product-demo__takeover">
                 <div className="product-demo__takeover-bar">
                   <div className="product-demo__takeover-who">
-                    <LandingBotAvatar color={active.color} size={32} />
+                    <LandingBotAvatar companion={active.id === "inbox"} color={active.color} size={32} />
                     <span>{text("{name}’s computer", { name: active.name })}</span>
                     <span className="product-demo__takeover-pill">
                       {text("You have control")}

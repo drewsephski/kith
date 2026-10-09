@@ -278,6 +278,7 @@ import {
 } from "./RoutineEditor";
 import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
+import { AssistantForYou } from "./shell/assistant-for-you";
 import { AssistantWelcome } from "./shell/assistant-welcome";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
@@ -2519,6 +2520,15 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
     setSettingsOpen(true);
   }
 
+  function commitCreatedBot(bot: Bot) {
+    // Requests begun before creation must not replace the new conversation or
+    // redirect to a fallback based on a navigation list that predates it.
+    botsRefreshApplied.current = ++botsRefreshEpoch.current;
+    setBots((current) =>
+      current.some((item) => item.id === bot.id) ? current : [bot, ...current],
+    );
+  }
+
   async function createBot(input: {
     name: string;
     title: string;
@@ -2531,9 +2541,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
       notifyOnFinish: true,
       computerMode: input.computerMode,
     });
-    setBots((current) =>
-      current.some((item) => item.id === bot.id) ? current : [bot, ...current],
-    );
+    commitCreatedBot(bot);
     navigate(`/app/${bot.id}`);
     setPanel(null);
     // Register cancellation before awaiting start so leaving the bot during
@@ -2899,7 +2907,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
     showComputerRecoveryHint;
 
   const isMainConversation = !inGroup && active?.id === assistantId;
-  const displayName = isMainConversation ? "Kith" : active?.name;
+  const displayName = active?.name;
   const conversationKey = `${userId}:${bootstrapMe?.spaceId}:${inGroup ? `group:${groupId}` : `bot:${active?.id}`}`;
   const userName = session.data?.user.name ?? t`You`;
   async function newConversation() {
@@ -2916,7 +2924,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
         notifyOnFinish: true,
         parentBotId: assistantId,
       });
-      setBots((current) => [...current, bot]);
+      commitCreatedBot(bot);
       navigate(`/app/${bot.id}`);
       setPanel(null);
     } catch (cause) {
@@ -3893,6 +3901,16 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
             />
           </div>
         </div>
+        {isMainConversation && shellReady && !quickAskMode ? (
+          <AssistantForYou
+            key={`${userId}:${bootstrapMe?.spaceId}`}
+            revision={activeSnapshot?.messages.at(-1)?.id}
+            onOpenRun={(run) => {
+              if (run.groupId) navigate(`/app/g/${run.groupId}`);
+              else navigate(`/app/${run.botId}`);
+            }}
+          />
+        ) : null}
         {!active && !activeGroup && initialBotsLoaded ? (
           <div className="grid flex-1 place-items-center">
             <Button onClick={() => setPanel("create")}>
@@ -3910,6 +3928,13 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                 !inGroup ? (
                   <AssistantWelcome
                     name={session.data?.user.name}
+                    botId={active?.id}
+                    assistantName={active?.name}
+                    firstRun={isMainConversation}
+                    onChanged={async () => {
+                      await refreshBots();
+                      await refreshActiveThread();
+                    }}
                     onSuggest={(text, starter) =>
                       setSuggestedDraft({
                         text,
@@ -5380,14 +5405,17 @@ export const Transcript = memo(function Transcript({
       window.removeEventListener("blur", onWindowBlur);
     };
   }, [evaluateSelection]);
+  const showingWelcome = Boolean(welcome);
   const snapToEnd = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
     following.current = true;
     autoScrolling.current = false;
     setAtEnd(true);
-    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
-  }, [scrollRef]);
+    // Empty welcome content starts at the top even when persisted work reduces
+    // the viewport. Only an actual conversation follows its latest message.
+    element.scrollTo({ top: showingWelcome ? 0 : element.scrollHeight, behavior: "auto" });
+  }, [scrollRef, showingWelcome]);
 
   const jumpToLatest = useCallback(() => {
     const element = scrollRef.current;
@@ -5537,7 +5565,7 @@ export const Transcript = memo(function Transcript({
             event.currentTarget.scrollTop,
           );
           lastScrollTop.current = event.currentTarget.scrollTop;
-          const nearEnd = transcriptIsNearEnd(event.currentTarget);
+          const nearEnd = showingWelcome || transcriptIsNearEnd(event.currentTarget);
           setAtEnd(nearEnd);
           // A jump scroll owns the viewport until its animation settles; its
           // own near-end crossings must not re-arm tail-following.

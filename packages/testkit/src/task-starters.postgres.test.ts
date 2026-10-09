@@ -23,6 +23,7 @@ import {
   Prisma,
 } from "@rakazo/db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { chooseFocus, promptFocus } from "../../../apps/api/src/onboarding.js";
 import { executeTaskStarter } from "../../adapters/src/task-starter-runner.js";
 import { TaskStarterService } from "../../adapters/src/task-starter-service.js";
 import { MarkdownMemoryStore } from "../../memory/src/index.js";
@@ -401,6 +402,84 @@ describe.skipIf(!enabled)("task starters through durable PostgreSQL authority", 
       expect.anything(),
     );
     expect(f.platform.writeSheet).not.toHaveBeenCalled();
+  });
+
+  it("commits one personalized choice and one account suggestion across concurrent tabs and a lost response", async () => {
+    const f = await fixture();
+    const deps = {
+      prisma: f.prisma,
+      events: f.events,
+      connectors: {
+        managedProviders: () => [
+          {
+            catalog: async () => [
+              {
+                connectorId: "composio",
+                slug: "gmail",
+                name: "Gmail",
+                connected: true,
+                logo: null,
+              },
+            ],
+          },
+        ],
+      } as never,
+    };
+    await Promise.all([promptFocus(deps, f.actor, f.bot.id), promptFocus(deps, f.actor, f.bot.id)]);
+    const notify = vi
+      .spyOn(f.events, "notify")
+      .mockRejectedValueOnce(new Error("Lost response after commit"));
+    await expect(chooseFocus(deps, f.actor, f.bot.id, "inbox")).rejects.toThrow("Lost response");
+    notify.mockRestore();
+    await Promise.all([
+      chooseFocus(deps, f.actor, f.bot.id, "inbox"),
+      chooseFocus(deps, f.actor, f.bot.id, "day"),
+    ]);
+    const messages = await f.prisma.message.findMany({
+      where: { threadId: f.thread.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(messages).toHaveLength(2);
+    expect(messages[0]?.blocks).toEqual([
+      expect.objectContaining({ kind: "choice", answerId: "inbox" }),
+    ]);
+    expect(messages[1]?.blocks).toEqual([
+      expect.objectContaining({ kind: "app_connect", provider: "gmail", status: "connected" }),
+    ]);
+    expect(await f.prisma.run.count({ where: { botId: f.bot.id } })).toBe(0);
+  });
+
+  it("repeats a confirmed read-only preparation through the worker once and rechecks revoked sources", async () => {
+    const f = await fixture();
+    const receipt = await f.finish(
+      await f.start({ starter: "inbox_todos", gmailConnectionIds: [f.personal.id] }),
+    );
+    expect(receipt.repeat).toMatchObject({ writes: false, timezone: "UTC" });
+    expect(await f.prisma.routine.count({ where: { botId: f.bot.id } })).toBe(0);
+    const input = { receiptId: receipt.id, cron: "0 9 * * *", timezone: "America/Chicago" };
+    const [saved, duplicate] = await Promise.all([
+      f.service.schedule(f.actor, input),
+      f.service.schedule(f.actor, input),
+    ]);
+    expect(saved.routineId).toBe(duplicate.routineId);
+    const due = new Date(Date.now() - 1000);
+    await f.prisma.routine.update({ where: { id: saved.routineId }, data: { nextRunAt: due } });
+    await Promise.all([
+      f.executor.wakeRoutine(saved.routineId, due.toISOString()),
+      f.executor.wakeRoutine(saved.routineId, due.toISOString()),
+    ]);
+    const execution = await f.prisma.taskStarterExecution.findFirstOrThrow({
+      where: { run: { routineId: saved.routineId } },
+    });
+    expect(execution).toMatchObject({ starter: "inbox_todos", action: "read" });
+    expect(await f.prisma.run.count({ where: { routineId: saved.routineId } })).toBe(1);
+    expect((await f.finish(execution)).status).toBe("completed");
+    expect(f.platform.writeSheet).not.toHaveBeenCalled();
+    await f.prisma.connection.update({ where: { id: f.personal.id }, data: { status: "revoked" } });
+    await expect(f.service.schedule(f.actor, input)).rejects.toThrow();
+    await expect(
+      f.service.receipt({ ...f.actor, userId: randomUUID() }, receipt.id),
+    ).rejects.toThrow();
   });
 
   async function publishedFixture(f: Awaited<ReturnType<typeof fixture>>) {

@@ -190,10 +190,6 @@ msgstr "{workingBotName} çalışıyor"
 msgid "@{0}"
 msgstr "@{0}"
 
-#: src/pages/shell/message-cards.tsx
-msgid "A bit of everything"
-msgstr ""
-
 #: src/pages/Welcome.tsx
 msgid "A little help with life."
 msgstr ""
@@ -511,6 +507,10 @@ msgstr "Bu sağlayıcı için abonelik girişi değil, bir API anahtarı saklan�
 msgid "Analytics property"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Analytics report"
+msgstr "Analiz raporu"
+
 #: src/components/AskCard.tsx
 msgid "Answer"
 msgstr "Yanıtla"
@@ -642,6 +642,10 @@ msgstr ""
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
 msgstr ""
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Assistant name"
+msgstr "Asistan adı"
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -854,6 +858,7 @@ msgstr ""
 msgid "Calendar account"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Calendar briefing"
 msgstr ""
@@ -909,6 +914,7 @@ msgid "cancelled"
 msgstr "iptal edildi"
 
 #: src/components/AskCard.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "İptal edildi"
@@ -994,6 +1000,10 @@ msgstr ""
 msgid "Checking computer setup…"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Checking your calendar"
+msgstr "Takviminiz kontrol ediliyor"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -1020,6 +1030,10 @@ msgstr "Yeni bir parola seçin"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose a property"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Choose a valid time and timezone."
+msgstr "Geçerli bir saat ve saat dilimi seçin."
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
@@ -1189,6 +1203,7 @@ msgstr "Komut değişkeni"
 msgid "Complete"
 msgstr "Tamamlandı"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
 msgstr ""
@@ -1248,6 +1263,10 @@ msgstr "Silmeyi onayla"
 #: src/pages/Auth.tsx
 msgid "Confirm password"
 msgstr "Parolayı doğrulayın"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Confirm routine"
+msgstr "Rutini onayla"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
@@ -1830,6 +1849,10 @@ msgstr "Model sunucusuna ulaşılamadı."
 msgid "Could not reach the server"
 msgstr "Sunucuya ulaşılamadı"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Could not refresh tasks. Retry"
+msgstr "Görevler yenilenemedi. Tekrar dene"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not remove"
 msgstr "Kaldırılamadı"
@@ -1948,9 +1971,17 @@ msgstr ""
 msgid "Could not save this choice"
 msgstr "Bu seçim kaydedilemedi"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Could not save this choice. Try again."
+msgstr "Seçim kaydedilemedi. Tekrar deneyin."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Could not schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Could not schedule task. Try again."
+msgstr "Görev zamanlanamadı. Tekrar deneyin."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
@@ -2150,10 +2181,6 @@ msgstr "gün"
 msgid "Day of week"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Day-to-day work"
-msgstr ""
-
 #: src/pages/RoutineSchedule.tsx
 msgid "days"
 msgstr "gün"
@@ -2172,7 +2199,7 @@ msgstr "Varsayılan"
 #. placeholder {0}: thinkingLevelLabel("medium")
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Default ({0})"
-msgstr ""
+msgstr "Varsayılan ({0})"
 
 #. placeholder {0}: thinkingLevelLabel("medium")
 #. placeholder {0}: thinkingLevelLabel(defaultThinkingLevel)
@@ -2424,9 +2451,17 @@ msgstr "E-posta"
 msgid "Email and CRM context (optional)"
 msgstr ""
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Email and follow-ups"
+msgstr "E-posta ve takip"
+
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
 msgstr "Bu e-posta adresinin kaydolmasına izin verilmiyor"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Email search"
+msgstr "E-posta araması"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2488,6 +2523,7 @@ msgstr "Her"
 msgid "every {intervalAmountSelect} {intervalUnitSelect}"
 msgstr "her {intervalAmountSelect} {intervalUnitSelect}"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every day"
@@ -2498,6 +2534,7 @@ msgstr "Her gün"
 msgid "Every hour"
 msgstr "Her saat"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every Monday"
 msgstr "Her pazartesi"
@@ -2551,12 +2588,13 @@ msgstr "Çok yüksek"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Extra high"
-msgstr ""
+msgstr "Çok yüksek"
 
 #: src/components/CloudAgentCard.tsx
 msgid "failed"
 msgstr "başarısız"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
 msgstr "Başarısız"
@@ -2642,6 +2680,10 @@ msgstr "MCP bağlantısı tamamlanıyor…"
 msgid "Flag unexpected actions"
 msgstr ""
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "For you"
+msgstr "Sizin için"
+
 #: src/components/CalendarConnection.tsx
 #: src/pages/KnowledgeSection.tsx
 msgid "Forget"
@@ -2654,6 +2696,10 @@ msgstr "Parolanızı mı unuttunuz?"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Frequency"
+msgstr "Sıklık"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Friday"
@@ -2765,6 +2811,10 @@ msgstr "Üstbilgi değeri"
 msgid "Hear a sample"
 msgstr "Örnek dinle"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Help me plan my day. Ask me what I need to get done."
+msgstr "Günümü planlamama yardım et. Yapmam gerekenleri sor."
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "Merhaba, yanıtları sesli okuduğumda böyle duyulacağım."
@@ -2790,7 +2840,7 @@ msgstr "Yüksek"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
-msgstr ""
+msgstr "Yüksek"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "High priority"
@@ -2842,9 +2892,9 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Inbox & email"
-msgstr ""
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Inbox to-do list"
+msgstr "Gelen kutusu görev listesi"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
@@ -2913,6 +2963,10 @@ msgstr "Yanıtlanan mesaja git: {excerpt}"
 #: src/pages/ActivityList.tsx
 msgid "just now"
 msgstr "az önce"
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Just start chatting"
+msgstr "Sohbete başla"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
@@ -3014,6 +3068,10 @@ msgstr "Web görsellerini otomatik yükle"
 msgid "Loading activity…"
 msgstr "Etkinlik yükleniyor…"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Loading briefing…"
+msgstr "Özet yükleniyor…"
+
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Loading connections…"
 msgstr ""
@@ -3088,7 +3146,7 @@ msgstr "Düşük"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Low"
-msgstr ""
+msgstr "Düşük"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Low priority"
@@ -3101,6 +3159,10 @@ msgstr ""
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
 msgstr "Bu bilgisayarda hâlâ çalışan bir şey olmadığından emin ol."
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Make this a routine"
+msgstr "Bunu rutin yap"
 
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -3118,6 +3180,10 @@ msgstr "MCP sunucularını yönet"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Manage messaging settings"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Manage routine"
+msgstr "Rutini yönet"
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Manage the Space semantic memory provider."
@@ -3147,7 +3213,7 @@ msgstr "Maksimum"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Max"
-msgstr ""
+msgstr "Maksimum"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -3180,7 +3246,11 @@ msgstr "Orta"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Medium"
-msgstr ""
+msgstr "Orta"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting brief"
+msgstr "Toplantı özeti"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Meeting selected"
@@ -3269,7 +3339,7 @@ msgstr "Minimal"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Minimal"
-msgstr ""
+msgstr "Minimal"
 
 #: src/pages/WindowChrome.tsx
 msgid "Minimize"
@@ -3358,6 +3428,10 @@ msgstr ""
 msgid "More options"
 msgstr "Diğer seçenekler"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "More tasks"
+msgstr "Diğer görevler"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
 msgstr "{full} modelini aşağı taşı"
@@ -3400,10 +3474,15 @@ msgstr "Gruba bir ad ver"
 msgid "Name this routine"
 msgstr ""
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Name your assistant"
+msgstr "Asistanınıza ad verin"
+
 #: src/pages/ActivityList.tsx
 msgid "Needs assistance"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr ""
@@ -3451,6 +3530,10 @@ msgstr ""
 msgid "New spreadsheet"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Next run"
+msgstr "Sonraki çalıştırma"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
 msgstr ""
@@ -3494,6 +3577,10 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "No events found in the checked window."
+msgstr "Kontrol edilen dönemde etkinlik bulunamadı."
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
@@ -3773,6 +3860,10 @@ msgstr ""
 msgid "Organization API key"
 msgstr "Kuruluş API anahtarı"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Organize my day"
+msgstr "Günümü düzenle"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "Orijinal mesaj kullanılamıyor"
@@ -3872,8 +3963,8 @@ msgid "Pin"
 msgstr "Sabitle"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Plan tomorrow"
-msgstr ""
+msgid "Plan my day"
+msgstr "Günümü planla"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
@@ -3898,6 +3989,14 @@ msgstr ""
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preparing your briefing"
+msgstr "Özetiniz hazırlanıyor"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Preparing your result"
+msgstr "Sonucunuz hazırlanıyor"
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3963,13 +4062,14 @@ msgid "Pull request"
 msgstr "Çekme isteği"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Pull this week’s GA4 numbers into a Google Sheet."
-msgstr ""
+msgid "Pull this week’s numbers into a Google Sheet using my connected GA4 and Google Sheets accounts."
+msgstr "Bağlı GA4 ve Google E-Tablolar hesaplarımdaki bu haftanın verilerini bir Google e-tablosuna aktar."
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Pull this week’s numbers into a Sheet"
 msgstr ""
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Queued"
 msgstr ""
@@ -3993,6 +4093,10 @@ msgstr "Yanıtları sesli oku"
 #: src/components/CalendarConnection.tsx
 msgid "Read-only access. Your briefing starts when you connect."
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Read-only preparation. It won’t send email or change your accounts."
+msgstr "Salt okunur hazırlık. E-posta göndermez veya hesaplarınızı değiştirmez."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4233,6 +4337,10 @@ msgstr "Yeniden aç"
 msgid "Repeat this report"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Repeats the approved spreadsheet update using the same sources and destination."
+msgstr "Onaylanan tablo güncellemesini aynı kaynaklar ve hedefle tekrarlar."
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "API anahtarını değiştir"
@@ -4274,9 +4382,9 @@ msgstr ""
 msgid "Report time"
 msgstr ""
 
-#: src/pages/shell/message-cards.tsx
-msgid "Research & writing"
-msgstr ""
+#: src/pages/shell/assistant-focus.tsx
+msgid "Research and projects"
+msgstr "Araştırma ve projeler"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4452,6 +4560,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/assistant-focus.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4539,6 +4648,10 @@ msgstr "Evet ya da hayır de veya bir cümleyle yanıtla."
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Schedule report"
 msgstr ""
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Scheduled."
+msgstr "Zamanlandı."
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Scheduled. Manage it in Routines."
@@ -5226,6 +5339,7 @@ msgstr ""
 msgid "Thursday"
 msgstr ""
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 msgid "Time"
 msgstr ""
@@ -5236,6 +5350,7 @@ msgstr "Günün saati"
 
 #: src/components/CalendarConnection.tsx
 #: src/components/CalendarReceipt.tsx
+#: src/components/task-starters/RepeatTask.tsx
 msgid "Timezone"
 msgstr ""
 
@@ -5312,6 +5427,7 @@ msgid "Turn emails from the past seven days into a prioritized to-do list, with 
 msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr ""
 
@@ -5493,6 +5609,10 @@ msgstr "Değerler şifrelenir ve bir daha gösterilmez."
 msgid "Verified calendar data"
 msgstr ""
 
+#: src/components/CalendarReceipt.tsx
+msgid "Verified sources"
+msgstr "Doğrulanmış kaynaklar"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Doğrula ve ekle"
@@ -5565,13 +5685,18 @@ msgstr ""
 msgid "What about its memories?"
 msgstr "Hafızası ne olsun?"
 
-#: src/pages/shell/message-cards.tsx
-msgid "What do you want me on first?"
-msgstr ""
+#: src/pages/shell/focus-next-action.tsx
+msgid "What are you working on?"
+msgstr "Ne üzerinde çalışıyorsunuz?"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "What result will you demonstrate?"
 msgstr "Hangi sonucu göstereceksin?"
+
+#: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "What should I help you with first?"
+msgstr "Önce neye yardım edeyim?"
 
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
@@ -5590,10 +5715,7 @@ msgid "What to return"
 msgstr "Ne döndürülecek"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "What's on my schedule tomorrow?"
-msgstr ""
-
-#: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "What’s on your mind?"
 msgstr ""
 
@@ -5617,8 +5739,8 @@ msgstr "Ne zaman kullanılır"
 msgid "Where should bots run?"
 msgstr "Botlar nerede çalışsın?"
 
-#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

@@ -1,10 +1,10 @@
 ---
 import Button from "./Button.astro";
 import Footer from "./Footer.astro";
-import GetStartedDialog from "./GetStartedDialog.astro";
+import { getJourneyCopy } from "../i18n/journey";
 import Header from "./Header.astro";
 import { ProductDemo } from "./ProductDemo";
-import RosterBotAvatar from "./RosterBotAvatar.astro";
+
 import { getHomeCopy } from "../i18n/home";
 import {
   DEFAULT_LOCALE,
@@ -19,9 +19,8 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { homeStructuredData } from "../structured-data";
 import {
   GITHUB_URL,
-  OPENCLAW_ALTERNATIVE_PATH,
   SELF_HOST_GUIDE_PATH,
-  SETUP_PROMPT_URL,
+  APP_URL,
   SITE_URL,
 } from "../site";
 
@@ -30,6 +29,9 @@ const locale: Locale = isLocale(Astro.currentLocale)
   : DEFAULT_LOCALE;
 
 const copy = getHomeCopy(locale);
+const journey = getJourneyCopy(locale);
+const WEB_START_URL = APP_URL ? `${APP_URL}/start` : locale === "en" ? "/start/" : `/${locale}/start/`;
+const DESKTOP_URL = locale === "en" ? "/download/" : `/${locale}/download/`;
 const enCopy = getHomeCopy(DEFAULT_LOCALE);
 const availableLanguages = LOCALES.map((supportedLocale) =>
   getHomeCopy(supportedLocale).availableLanguage
@@ -37,18 +39,17 @@ const availableLanguages = LOCALES.map((supportedLocale) =>
 const homeHref = localeHomePath(locale);
 const stars = await fetchGithubStars();
 const starsLabel = stars === null ? copy.starFallback : formatStarCount(stars);
-const setupAgentPrompt = `Set up Kith for me. Follow the setup prompt at ${SETUP_PROMPT_URL}`;
 const pageUrl = `${SITE_URL}${homeHref === "/" ? "/" : homeHref}`;
 
 const structuredData = homeStructuredData({
   pageUrl,
   title: copy.title,
-  description: copy.description,
+  description: journey.lead,
   siteDescription: enCopy.description,
   inLanguage: LOCALE_HTML_LANG[locale],
   defaultInLanguage: LOCALE_HTML_LANG[DEFAULT_LOCALE],
   availableLanguages,
-  faq: copy.faq.items,
+  faq: journey.faq,
 });
 ---
 
@@ -65,181 +66,52 @@ const structuredData = homeStructuredData({
     <Header locale={locale} copy={copy.nav} starsLabel={starsLabel} homeHref={homeHref} />
 
     <main id="main">
-      <GetStartedDialog copy={copy.getStartedDialog} waitlist={copy.waitlist} />
-
-      <section class="hero">
-        <a class="hero__pill" href="#selfhost">
-          <span class="hero__badge">{copy.hero.badge}</span>
-          <span>{copy.hero.pill}</span>
-        </a>
-        <h1>{copy.hero.heading}</h1>
-        <p class="lead">
-          {copy.hero.lead}
-        </p>
+      <section class="hero journey-hero" id="get-started">
+        <img class="journey-companion" src="/brand/kith-companion.webp" width="96" height="96" alt="" fetchpriority="high" />
+        <h1>{journey.heading.split("\n").map((line) => <span>{line}</span>)}</h1>
+        <p class="lead">{journey.lead}</p>
         <div class="hero__actions">
-          <button class="button button--primary" type="button" data-get-started-open>
-            {copy.hero.getStarted}
-          </button>
-          <Button href={GITHUB_URL} variant="secondary" external>{copy.hero.viewOnGithub}</Button>
-        </div>
-        <div class="hero__agent-setup">
-          <button
-            class="setup-copy"
-            type="button"
-            data-setup-copy={setupAgentPrompt}
-            data-setup-label={copy.hero.setupWithAgent}
-            data-setup-copied={copy.hero.copiedForAgent}
-            data-setup-failed={copy.hero.copyFailed}
-          >
-            <span class="setup-copy__prefix" aria-hidden="true">$</span>
-            <span class="setup-copy__label">{copy.hero.setupWithAgent}</span>
-            <svg class="setup-copy__icon" viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="8" y="8" width="12" height="12" rx="2"></rect>
-              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
-            </svg>
-          </button>
+          <Button href={WEB_START_URL}>{journey.web}</Button>
+          <Button href={DESKTOP_URL} variant="secondary">{journey.desktop}</Button>
         </div>
       </section>
 
-      <section id="demo">
-        <ProductDemo locale={locale} client:load />
+      <section id="demo" aria-label={copy.nav.product}>
+        <p class="journey-demo-label">{journey.demo}</p>
+        <ProductDemo locale={locale} client:visible />
       </section>
 
-      <section id="selfhost" class="section">
-        <div class="section-intro">
-          <div class="eyebrow">{copy.selfHost.eyebrow}</div>
-          <h2 class="section-heading">{copy.selfHost.heading}</h2>
-          <p class="section-copy">
-            {copy.selfHost.copy}
-          </p>
-        </div>
+      <section id="product" class="section journey-benefits" aria-label={copy.nav.product}>
+        {journey.benefits.map((benefit) => (
+          <article><h2>{benefit.title}</h2><p>{benefit.body}</p></article>
+        ))}
+      </section>
+
+      <section id="how-it-works" class="section journey-how">
+        <h2 class="section-heading">{journey.how}</h2>
+        <ol>{journey.steps.map((step) => <li><h3>{step.title}</h3><p>{step.body}</p></li>)}</ol>
+      </section>
+
+      <section id="selfhost" class="section journey-open">
+        <div><h2 class="section-heading">{journey.openTitle}</h2><p class="section-copy">{journey.openBody}</p></div>
         <div class="selfhost-cta">
-          <button class="button button--primary" type="button" data-get-started-open>
-            {copy.hero.getStarted}
-          </button>
-          <Button href={GITHUB_URL} variant="secondary" external>{copy.hero.viewOnGithub}</Button>
           <Button href={SELF_HOST_GUIDE_PATH} variant="secondary">{copy.openSource.readTheDocs}</Button>
-        </div>
-        <div class="card-grid-3">
-          {
-            copy.selfHost.features.map((feature) => (
-              <article class="feature-card">
-                <h3>{feature.title}</h3>
-                <p>{feature.body}</p>
-              </article>
-            ))
-          }
+          <Button href={GITHUB_URL} variant="secondary" external>{copy.hero.viewOnGithub}</Button>
         </div>
       </section>
 
       <section id="faq" class="section" aria-labelledby="faq-heading">
-        <div class="section-intro">
-          <h2 id="faq-heading" class="section-heading">{copy.faq.heading}</h2>
-        </div>
-        <div class="home-faq">
-          {
-            copy.faq.items.map((item) => (
-              <article>
-                <h3>{item.question}</h3>
-                <p>{item.answer}</p>
-              </article>
-            ))
-          }
-        </div>
+        <h2 id="faq-heading" class="section-heading">{copy.faq.heading}</h2>
+        <div class="journey-faq">{journey.faq.map((item) => (
+          <details><summary>{item.question}</summary><p>{item.answer}</p></details>
+        ))}</div>
       </section>
 
-      <section id="roster" class="section">
-        <div class="section-intro">
-          <div class="eyebrow">{copy.roster.eyebrow}</div>
-          <h2 class="section-heading">{copy.roster.heading}</h2>
-          <p class="section-copy">
-            {copy.roster.copy}
-          </p>
-        </div>
-        <div class="card-grid-4">
-          {
-            copy.roster.bots.map((bot) => (
-              <article class="roster-card">
-                <RosterBotAvatar color={bot.color} name={bot.name} />
-                <h3>{bot.name}</h3>
-                <p>{bot.desc}</p>
-              </article>
-            ))
-          }
-        </div>
-      </section>
-
-      <section id="open-source" class="section">
-        <div class="section-intro">
-          <div class="eyebrow">{copy.openSource.eyebrow}</div>
-          <h2 class="section-heading">{copy.openSource.heading}</h2>
-          <p class="section-copy">
-            {copy.openSource.copy}
-          </p>
-        </div>
-        <div class="comparison-grid">
-          <article class="comparison-card">
-            <h3>{copy.openSource.selfHostTitle}</h3>
-            <p class="comparison-meta">{copy.openSource.selfHostMeta}</p>
-            <div class="comparison-list">
-              {copy.openSource.selfHostItems.map((item) => <div>{item}</div>)}
-            </div>
-            <div class="comparison-actions">
-              <Button href={GITHUB_URL} size="sm" external>{copy.openSource.starOnGithub}</Button>
-              <Button href={SELF_HOST_GUIDE_PATH} variant="secondary" size="sm">
-                {copy.openSource.readTheDocs}
-              </Button>
-              <Button href={OPENCLAW_ALTERNATIVE_PATH} variant="secondary" size="sm">
-                {copy.footer.links.openClaw}
-              </Button>
-            </div>
-          </article>
-          <article class="comparison-card comparison-card--muted">
-            <div class="comparison-kicker">
-              <h3>{copy.openSource.cloudTitle}</h3>
-              <span class="comparison-badge">{copy.openSource.cloudBadge}</span>
-            </div>
-            <p class="comparison-meta">{copy.openSource.cloudMeta}</p>
-            <div class="comparison-list comparison-list--muted">
-              {copy.openSource.cloudItems.map((item) => <div>{item}</div>)}
-            </div>
-            <div class="comparison-actions">
-              <button class="button button--primary button--small" type="button" data-get-started-open>
-                {copy.openSource.getStarted}
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="stats-band">
-        <div>
-          <h2>{copy.cta.heading}</h2>
-          <p>{copy.cta.copy}</p>
-          <div class="cta-actions">
-            <button class="button button--primary" type="button" data-get-started-open>
-              {copy.cta.getStarted}
-            </button>
-            <Button href={GITHUB_URL} variant="secondary" external>{copy.cta.viewOnGithub}</Button>
-          </div>
-        </div>
-        <div class="stats-grid">
-          {
-            copy.cta.stats.map((stat) => (
-              <div>
-                <div class="stat-value">
-                  {stat.value === "stars"
-                    ? starsLabel
-                    : stat.value === "license"
-                      ? "Apache-2.0"
-                      : stat.value === "openSource"
-                        ? copy.cta.openSourceValue
-                        : copy.cta.selfHostValue}
-                </div>
-                <div class="stat-label">{stat.label}</div>
-              </div>
-            ))
-          }
+      <section class="section journey-close">
+        <h2 class="section-heading">{journey.close}</h2>
+        <div class="hero__actions">
+          <Button href={WEB_START_URL}>{journey.web}</Button>
+          <Button href={DESKTOP_URL} variant="secondary">{journey.desktop}</Button>
         </div>
       </section>
     </main>
@@ -254,26 +126,3 @@ const structuredData = homeStructuredData({
     />
   </div>
 </BaseLayout>
-
-<script>
-  const setupCopy = document.querySelector<HTMLButtonElement>("[data-setup-copy]");
-  const setupCopyLabel = setupCopy?.querySelector<HTMLElement>(".setup-copy__label");
-
-  setupCopy?.addEventListener("click", async () => {
-    const prompt = setupCopy.dataset.setupCopy;
-    const idleLabel = setupCopy.dataset.setupLabel;
-    const copiedLabel = setupCopy.dataset.setupCopied;
-    const failedLabel = setupCopy.dataset.setupFailed;
-    if (!prompt || !setupCopyLabel || !idleLabel || !copiedLabel || !failedLabel) return;
-
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setupCopyLabel.textContent = copiedLabel;
-      window.setTimeout(() => {
-        setupCopyLabel.textContent = idleLabel;
-      }, 2400);
-    } catch {
-      setupCopyLabel.textContent = failedLabel;
-    }
-  });
-</script>

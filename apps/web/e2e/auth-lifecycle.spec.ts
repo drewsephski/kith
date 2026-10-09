@@ -108,7 +108,8 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   const protectedBotPath = new URL(page.url()).pathname;
   await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
 
-  await page.getByRole("button", { name: new RegExp(userName, "i") }).click();
+  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
+  await page.getByTestId("user-menu-trigger").click();
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
@@ -133,7 +134,7 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await expect(page.getByRole("heading", { name: "Sign in to Kith" })).toBeVisible();
   await page.goto("/");
   await expect(page.locator('[data-rakazo-surface="welcome"]')).toBeVisible();
-  await expect(page.getByText(/Your team of always-on agents/)).toBeVisible();
+  await expect(page.getByText("A little help with life.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: /Sign up/ }).click();
   await expect(page).toHaveURL(/\/sign-up$/);
   await expect(page.getByRole("heading", { name: "Create your Kith" })).toBeVisible();
@@ -172,7 +173,7 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   await expect(composer).toHaveAttribute("name", "chat-message");
   await expect(composer).toHaveAttribute("autocomplete", "off");
   await expect(composer).toHaveAttribute("aria-label", "Message Kith");
-  await expect(page.getByRole("button", { name: new RegExp(userName, "i") })).toBeVisible();
+  await expect(page.getByTestId("main-conversation")).toBeVisible();
 
   await composer.fill("line one");
   const heightBeforeNewline = await composer.evaluate((el) => el.getBoundingClientRect().height);
@@ -213,6 +214,7 @@ test("changes and recovers an email password", async ({ page }, testInfo) => {
   await completeOnboarding(page);
   await page.waitForURL(/\/app\/[^/]+$/);
 
+  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
@@ -247,7 +249,7 @@ test("changes and recovers an email password", async ({ page }, testInfo) => {
   await captureScreenshot(page, testInfo, "41-password-changed");
   await settings.getByRole("button", { name: "Close user settings" }).click();
 
-  await page.getByRole("button", { name: new RegExp(userName, "i") }).click();
+  await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Log out" }).click();
   await expect(page.getByRole("link", { name: "Forgot password?" })).toBeVisible();
   await page.getByRole("link", { name: "Forgot password?" }).click();
@@ -305,6 +307,7 @@ test("password-off account settings hide password changes and retain password de
       },
     }),
   );
+  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");

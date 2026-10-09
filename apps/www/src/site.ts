@@ -1,18 +1,25 @@
 export const SITE_NAME = "Kith";
-export const SITE_URL = "https://rakazo.com";
-export const SITE_DESCRIPTION =
-  "A personal assistant that remembers your life, gets work done, and shows exactly what happened. Open source, with your data and your choice of model.";
+import { resolvePublicConfig } from "../public-config.mjs";
 
-export const GITHUB_URL = "https://github.com/elie222/rakazo";
-export const GITHUB_API_REPO = "https://api.github.com/repos/elie222/rakazo";
-export const DOCS_URL = "https://github.com/elie222/rakazo/blob/main/docs/self-host.md";
+const config = resolvePublicConfig({ ...process.env, ...import.meta.env });
+export const SITE_URL = config.siteUrl;
+export const SITE_INDEXED = config.indexed;
+export const APP_URL = config.appUrl;
+export const WEB_START_URL = APP_URL ? `${APP_URL}/start` : "/start/";
+export const SIGN_IN_URL = APP_URL ? `${APP_URL}/sign-in` : "/start/";
+export const DESKTOP_URL = "/download/";
+export const DESKTOP_DOWNLOADS = config.downloads;
+export const SITE_DESCRIPTION =
+  "Your personal AI assistant. It remembers what matters, gets work done, and shows you what happened.";
+
+export const GITHUB_URL = "https://github.com/drewsephski/kith";
+export const GITHUB_API_REPO = "https://api.github.com/repos/drewsephski/kith";
+export const DOCS_URL = "https://github.com/drewsephski/kith/blob/main/docs/self-host.md";
 export const SELF_HOST_SECRETS_URL =
-  "https://github.com/elie222/rakazo/blob/main/docs/self-host-secrets.md";
+  "https://github.com/drewsephski/kith/blob/main/docs/self-host-secrets.md";
 export const SELF_HOST_RESTRICTED_URL =
-  "https://github.com/elie222/rakazo/blob/main/docs/self-host-restricted-network.md";
-export const SETUP_PROMPT_URL = "https://github.com/elie222/rakazo/blob/main/SETUP_PROMPT.md";
+  "https://github.com/drewsephski/kith/blob/main/docs/self-host-restricted-network.md";
+export const SETUP_PROMPT_URL = "https://github.com/drewsephski/kith/blob/main/SETUP_PROMPT.md";
 export const SELF_HOST_GUIDE_PATH = "/self-hosted-ai-agent/";
 export const OPENCLAW_ALTERNATIVE_PATH = "/openclaw-alternative/";
-export const CHANGELOG_URL = "https://github.com/elie222/rakazo/releases";
-export const INBOX_ZERO_URL =
-  "https://www.getinboxzero.com/?utm_source=rakazo&utm_medium=website&utm_campaign=footer";
+export const CHANGELOG_URL = "https://github.com/drewsephski/kith/releases";

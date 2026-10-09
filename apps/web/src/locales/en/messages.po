@@ -190,10 +190,6 @@ msgstr "{workingBotName} is working"
 msgid "@{0}"
 msgstr "@{0}"
 
-#: src/pages/shell/message-cards.tsx
-msgid "A bit of everything"
-msgstr "A bit of everything"
-
 #: src/pages/Welcome.tsx
 msgid "A little help with life."
 msgstr "A little help with life."
@@ -511,6 +507,10 @@ msgstr "An API key is stored for this provider, not a subscription sign-in."
 msgid "Analytics property"
 msgstr "Analytics property"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Analytics report"
+msgstr "Analytics report"
+
 #: src/components/AskCard.tsx
 msgid "Answer"
 msgstr "Answer"
@@ -642,6 +642,10 @@ msgstr "Ask the server owner to set up Google Calendar."
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Assistant"
 msgstr "Assistant"
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Assistant name"
+msgstr "Assistant name"
 
 #. placeholder {0}: preset.time
 #: src/pages/RoutineSchedule.tsx
@@ -854,6 +858,7 @@ msgstr "Calendar"
 msgid "Calendar account"
 msgstr "Calendar account"
 
+#: src/components/CalendarReceipt.tsx
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Calendar briefing"
 msgstr "Calendar briefing"
@@ -909,6 +914,7 @@ msgid "cancelled"
 msgstr "cancelled"
 
 #: src/components/AskCard.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "Cancelled"
@@ -994,6 +1000,10 @@ msgstr "Check your selections."
 msgid "Checking computer setup…"
 msgstr "Checking computer setup…"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Checking your calendar"
+msgstr "Checking your calendar"
+
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -1020,6 +1030,10 @@ msgstr "Choose a new password"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose a property"
 msgstr "Choose a property"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Choose a valid time and timezone."
+msgstr "Choose a valid time and timezone."
 
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
@@ -1189,6 +1203,7 @@ msgstr "Command variable"
 msgid "Complete"
 msgstr "Complete"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
 msgstr "Completed"
@@ -1248,6 +1263,10 @@ msgstr "Confirm delete"
 #: src/pages/Auth.tsx
 msgid "Confirm password"
 msgstr "Confirm password"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Confirm routine"
+msgstr "Confirm routine"
 
 #: src/lib/model-connection-preflight.ts
 msgid "Confirm the URL is reachable from this browser session, then test again."
@@ -1830,6 +1849,10 @@ msgstr "Could not reach the model server."
 msgid "Could not reach the server"
 msgstr "Could not reach the server"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Could not refresh tasks. Retry"
+msgstr "Could not refresh tasks. Retry"
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not remove"
 msgstr "Could not remove"
@@ -1948,9 +1971,17 @@ msgstr "Could not save the credential"
 msgid "Could not save this choice"
 msgstr "Could not save this choice"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Could not save this choice. Try again."
+msgstr "Could not save this choice. Try again."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Could not schedule report"
 msgstr "Could not schedule report"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Could not schedule task. Try again."
+msgstr "Could not schedule task. Try again."
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
@@ -2149,10 +2180,6 @@ msgstr "day"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Day of week"
 msgstr "Day of week"
-
-#: src/pages/shell/message-cards.tsx
-msgid "Day-to-day work"
-msgstr "Day-to-day work"
 
 #: src/pages/RoutineSchedule.tsx
 msgid "days"
@@ -2424,9 +2451,17 @@ msgstr "Email"
 msgid "Email and CRM context (optional)"
 msgstr "Email and CRM context (optional)"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Email and follow-ups"
+msgstr "Email and follow-ups"
+
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
 msgstr "Email is not allowed to register"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Email search"
+msgstr "Email search"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2488,6 +2523,7 @@ msgstr "Every"
 msgid "every {intervalAmountSelect} {intervalUnitSelect}"
 msgstr "every {intervalAmountSelect} {intervalUnitSelect}"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every day"
@@ -2498,6 +2534,7 @@ msgstr "Every day"
 msgid "Every hour"
 msgstr "Every hour"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineSchedule.tsx
 msgid "Every Monday"
 msgstr "Every Monday"
@@ -2557,6 +2594,7 @@ msgstr "Extra high"
 msgid "failed"
 msgstr "failed"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
 msgstr "Failed"
@@ -2642,6 +2680,10 @@ msgstr "Finishing MCP connection…"
 msgid "Flag unexpected actions"
 msgstr "Flag unexpected actions"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "For you"
+msgstr "For you"
+
 #: src/components/CalendarConnection.tsx
 #: src/pages/KnowledgeSection.tsx
 msgid "Forget"
@@ -2654,6 +2696,10 @@ msgstr "Forgot password?"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr "Free"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Frequency"
+msgstr "Frequency"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Friday"
@@ -2765,6 +2811,10 @@ msgstr "Header value"
 msgid "Hear a sample"
 msgstr "Hear a sample"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Help me plan my day. Ask me what I need to get done."
+msgstr "Help me plan my day. Ask me what I need to get done."
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hi, this is how I'll sound when I read replies out loud."
 msgstr "Hi, this is how I'll sound when I read replies out loud."
@@ -2842,9 +2892,9 @@ msgstr "In progress"
 msgid "Inactive"
 msgstr "Inactive"
 
-#: src/pages/shell/message-cards.tsx
-msgid "Inbox & email"
-msgstr "Inbox & email"
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Inbox to-do list"
+msgstr "Inbox to-do list"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Inherit default"
@@ -2913,6 +2963,10 @@ msgstr "Jump to replied message: {excerpt}"
 #: src/pages/ActivityList.tsx
 msgid "just now"
 msgstr "just now"
+
+#: src/pages/shell/assistant-focus.tsx
+msgid "Just start chatting"
+msgstr "Just start chatting"
 
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
@@ -3014,6 +3068,10 @@ msgstr "Load web images automatically"
 msgid "Loading activity…"
 msgstr "Loading activity…"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Loading briefing…"
+msgstr "Loading briefing…"
+
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Loading connections…"
 msgstr "Loading connections…"
@@ -3102,6 +3160,10 @@ msgstr "Lowercase letters, numbers, hyphens and underscores, starting with a let
 msgid "Make sure nothing is still running on this computer."
 msgstr "Make sure nothing is still running on this computer."
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Make this a routine"
+msgstr "Make this a routine"
+
 #: src/pages/BillingSettingsPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Manage"
@@ -3118,6 +3180,10 @@ msgstr "Manage MCP servers"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Manage messaging settings"
 msgstr "Manage messaging settings"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Manage routine"
+msgstr "Manage routine"
 
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Manage the Space semantic memory provider."
@@ -3181,6 +3247,10 @@ msgstr "Medium"
 #: src/lib/model-catalog.ts
 msgid "Medium"
 msgstr "Medium"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting brief"
+msgstr "Meeting brief"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Meeting selected"
@@ -3358,6 +3428,10 @@ msgstr "More computer actions"
 msgid "More options"
 msgstr "More options"
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "More tasks"
+msgstr "More tasks"
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Move {full} down"
 msgstr "Move {full} down"
@@ -3400,10 +3474,15 @@ msgstr "Name this group"
 msgid "Name this routine"
 msgstr "Name this routine"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Name your assistant"
+msgstr "Name your assistant"
+
 #: src/pages/ActivityList.tsx
 msgid "Needs assistance"
 msgstr "Needs assistance"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr "Needs attention"
@@ -3451,6 +3530,10 @@ msgstr "New space"
 msgid "New spreadsheet"
 msgstr "New spreadsheet"
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Next run"
+msgstr "Next run"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
 msgstr "No agent connections yet."
@@ -3494,6 +3577,10 @@ msgstr "No conversations"
 #: src/pages/shell/bot-credentials.tsx
 msgid "No credentials saved for this bot."
 msgstr "No credentials saved for this bot."
+
+#: src/components/CalendarReceipt.tsx
+msgid "No events found in the checked window."
+msgstr "No events found in the checked window."
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
@@ -3773,6 +3860,10 @@ msgstr "Organic"
 msgid "Organization API key"
 msgstr "Organization API key"
 
+#: src/pages/shell/assistant-focus.tsx
+msgid "Organize my day"
+msgstr "Organize my day"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "Original message unavailable"
@@ -3872,8 +3963,8 @@ msgid "Pin"
 msgstr "Pin"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Plan tomorrow"
-msgstr "Plan tomorrow"
+msgid "Plan my day"
+msgstr "Plan my day"
 
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
@@ -3898,6 +3989,14 @@ msgstr "Preferences"
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
+
+#: src/components/CalendarReceipt.tsx
+msgid "Preparing your briefing"
+msgstr "Preparing your briefing"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Preparing your result"
+msgstr "Preparing your result"
 
 #. placeholder {0}: props.name
 #: src/components/ArtifactFileCard.tsx
@@ -3963,13 +4062,14 @@ msgid "Pull request"
 msgstr "Pull request"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Pull this week’s GA4 numbers into a Google Sheet."
-msgstr "Pull this week’s GA4 numbers into a Google Sheet."
+msgid "Pull this week’s numbers into a Google Sheet using my connected GA4 and Google Sheets accounts."
+msgstr "Pull this week’s numbers into a Google Sheet using my connected GA4 and Google Sheets accounts."
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Pull this week’s numbers into a Sheet"
 msgstr "Pull this week’s numbers into a Sheet"
 
+#: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Queued"
 msgstr "Queued"
@@ -3993,6 +4093,10 @@ msgstr "Read replies aloud"
 #: src/components/CalendarConnection.tsx
 msgid "Read-only access. Your briefing starts when you connect."
 msgstr "Read-only access. Your briefing starts when you connect."
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Read-only preparation. It won’t send email or change your accounts."
+msgstr "Read-only preparation. It won’t send email or change your accounts."
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -4233,6 +4337,10 @@ msgstr "Reopen"
 msgid "Repeat this report"
 msgstr "Repeat this report"
 
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Repeats the approved spreadsheet update using the same sources and destination."
+msgstr "Repeats the approved spreadsheet update using the same sources and destination."
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "Replace API key"
@@ -4274,9 +4382,9 @@ msgstr "Report period"
 msgid "Report time"
 msgstr "Report time"
 
-#: src/pages/shell/message-cards.tsx
-msgid "Research & writing"
-msgstr "Research & writing"
+#: src/pages/shell/assistant-focus.tsx
+msgid "Research and projects"
+msgstr "Research and projects"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4452,6 +4560,7 @@ msgstr "Saturday"
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
+#: src/pages/shell/assistant-focus.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -4539,6 +4648,10 @@ msgstr "Say yes or no, or answer in a sentence."
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Schedule report"
 msgstr "Schedule report"
+
+#: src/components/task-starters/RepeatTask.tsx
+msgid "Scheduled."
+msgstr "Scheduled."
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Scheduled. Manage it in Routines."
@@ -5226,6 +5339,7 @@ msgstr "Thread"
 msgid "Thursday"
 msgstr "Thursday"
 
+#: src/components/task-starters/RepeatTask.tsx
 #: src/pages/RoutineEditor.tsx
 msgid "Time"
 msgstr "Time"
@@ -5236,6 +5350,7 @@ msgstr "Time of day"
 
 #: src/components/CalendarConnection.tsx
 #: src/components/CalendarReceipt.tsx
+#: src/components/task-starters/RepeatTask.tsx
 msgid "Timezone"
 msgstr "Timezone"
 
@@ -5312,6 +5427,7 @@ msgid "Turn emails from the past seven days into a prioritized to-do list, with 
 msgstr "Turn emails from the past seven days into a prioritized to-do list, with links to each source."
 
 #: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr "Turn my inbox into a to-do list"
 
@@ -5493,6 +5609,10 @@ msgstr "Values are encrypted and never shown again."
 msgid "Verified calendar data"
 msgstr "Verified calendar data"
 
+#: src/components/CalendarReceipt.tsx
+msgid "Verified sources"
+msgstr "Verified sources"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Verify and add"
@@ -5565,13 +5685,18 @@ msgstr "Weekly"
 msgid "What about its memories?"
 msgstr "What about its memories?"
 
-#: src/pages/shell/message-cards.tsx
-msgid "What do you want me on first?"
-msgstr "What do you want me on first?"
+#: src/pages/shell/focus-next-action.tsx
+msgid "What are you working on?"
+msgstr "What are you working on?"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "What result will you demonstrate?"
 msgstr "What result will you demonstrate?"
+
+#: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/message-cards.tsx
+msgid "What should I help you with first?"
+msgstr "What should I help you with first?"
 
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
@@ -5590,10 +5715,7 @@ msgid "What to return"
 msgstr "What to return"
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "What's on my schedule tomorrow?"
-msgstr "What's on my schedule tomorrow?"
-
-#: src/pages/shell/assistant-welcome.tsx
+#: src/pages/shell/focus-next-action.tsx
 msgid "What’s on your mind?"
 msgstr "What’s on your mind?"
 
@@ -5617,8 +5739,8 @@ msgstr "When to use"
 msgid "Where should bots run?"
 msgstr "Where should bots run?"
 
-#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
+#: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx

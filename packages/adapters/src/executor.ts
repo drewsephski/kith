@@ -50,6 +50,7 @@ import {
   HistorySearchInputSchema,
   isAttachmentImageMimeType,
   OPENAI_COMPATIBLE_PROVIDER_ID,
+  TaskStarterSpecSchema,
 } from "@rakazo/contracts";
 import {
   type ActionApprovalRule,
@@ -3194,11 +3195,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             spec: Prisma.InputJsonValue;
             connections: Prisma.InputJsonValue;
           };
+          const spec = TaskStarterSpecSchema.parse(definition.spec);
           await tx.taskStarterExecution.create({
             data: {
               runId: run.id,
-              starter: "analytics_report",
-              action: "scheduled_publish",
+              starter: spec.starter,
+              action: spec.starter === "analytics_report" ? "scheduled_publish" : "read",
               input: definition.spec,
               connections: definition.connections,
             },

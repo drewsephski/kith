@@ -4,6 +4,25 @@ import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from 
 test("new conversations offer editable task starters and align navigation with the header", async ({
   page,
 }, testInfo) => {
+  await page.route("**/rpc/taskStarters/options", (route) =>
+    route.fulfill({
+      json: {
+        json: {
+          configured: true,
+          connections: [
+            {
+              id: "gmail-fixture",
+              connectorId: "composio",
+              app: "gmail",
+              name: "Work",
+              identity: null,
+              status: "connected",
+            },
+          ],
+        },
+      },
+    }),
+  );
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signup(page, `kith-starters-${Date.now()}@example.test`, "password12", "Alex");
@@ -13,11 +32,14 @@ test("new conversations offer editable task starters and align navigation with t
   const composer = page.locator('textarea[name="chat-message"]');
   const welcome = page.getByTestId("assistant-welcome");
   await expect(welcome).toBeVisible();
-  await navigation.getByRole("button", { name: "New conversation", exact: true }).click();
+  await navigation
+    .getByRole("navigation", { name: "Assistant", exact: true })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
   await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
   const conversation = activeBotId(page);
   await expect(welcome).toBeVisible();
-  await expect(welcome.getByRole("button")).toHaveCount(6);
+  await expect(welcome.getByRole("button")).toHaveCount(4);
   await expect(composer).toHaveValue("");
   const sidebarTop = await navigation.evaluate((element) => element.getBoundingClientRect().top);
   const shellTop = await page
@@ -45,14 +67,17 @@ test("new conversations offer editable task starters and align navigation with t
   await expect(page).toHaveURL(new RegExp(`/app/${conversation}$`));
   await expect(composer).toHaveValue("Search all my connected Gmail accounts for…");
   await expect(page.getByRole("button", { name: "Remove task starter" })).toBeVisible();
-  await welcome.getByRole("button", { name: "Plan tomorrow", exact: true }).click();
+  await welcome.getByRole("button", { name: "Plan my day", exact: true }).click();
   await expect(page.getByRole("button", { name: "Remove task starter" })).toHaveCount(0);
   await composer.press("Enter");
   await expect(welcome).toHaveCount(0);
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-  await navigation.getByRole("button", { name: "New conversation", exact: true }).click();
+  await navigation
+    .getByRole("navigation", { name: "Assistant", exact: true })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
   await expect(welcome).toBeVisible();
   await expect(composer).toHaveValue("");
   await welcome.getByRole("button", { name: "Turn my inbox into a to-do list" }).click();
@@ -86,8 +111,8 @@ test("Kith preserves its main conversation, drafts, and inspectable personal mem
   );
   await captureScreenshot(page, testInfo, "kith-desktop");
 
-  await page.getByRole("button", { name: "Plan tomorrow", exact: true }).click();
-  await expect(composer).toHaveValue("What's on my schedule tomorrow?");
+  await composer.fill("Help me plan my day. Ask me what I need to get done.");
+  await expect(composer).toHaveValue("Help me plan my day. Ask me what I need to get done.");
   await expect(composer).toBeFocused();
   await page.getByRole("button", { name: "New conversation", exact: true }).click();
   await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
@@ -95,7 +120,7 @@ test("Kith preserves its main conversation, drafts, and inspectable personal mem
   await expect(composer).toHaveValue("");
   await composer.fill("Review the outline");
   await page.getByTestId("main-conversation").click();
-  await expect(composer).toHaveValue("What's on my schedule tomorrow?");
+  await expect(composer).toHaveValue("Help me plan my day. Ask me what I need to get done.");
   await page
     .getByRole("region", { name: "Recent conversations", exact: true })
     .getByRole("button", { name: "New conversation", exact: true })

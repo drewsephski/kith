@@ -6,6 +6,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { newClientId } from "../../lib/client-id";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
+import { TaskReceiptHeader } from "../TaskReceiptHeader";
+import { RepeatTask } from "./RepeatTask";
 
 export function TaskStarterReceipt({
   receiptId: originalReceiptId,
@@ -120,6 +122,22 @@ export function TaskStarterReceipt({
       data-testid="task-starter-receipt"
       className="my-2 w-full max-w-xl space-y-4 rounded-xl border border-border bg-card p-4 text-sm"
     >
+      {receipt ? (
+        <TaskReceiptHeader
+          title={
+            receipt.starter === "gmail_search"
+              ? t`Email search`
+              : receipt.starter === "inbox_todos"
+                ? t`Inbox to-do list`
+                : receipt.starter === "meeting_brief"
+                  ? t`Meeting brief`
+                  : t`Analytics report`
+          }
+          status={receipt.status}
+          timestamp={receipt.updatedAt}
+          workingLabel={t`Preparing your result`}
+        />
+      ) : null}
       {error ? (
         <p role="alert" className="text-destructive">
           {error}
@@ -129,11 +147,6 @@ export function TaskStarterReceipt({
         <Button variant="outline" size="sm" onClick={() => setRefresh((value) => value + 1)}>
           <Trans>Load task</Trans>
         </Button>
-      ) : null}
-      {receipt?.status === "queued" || receipt?.status === "running" ? (
-        <p role="status" className="text-muted-foreground">
-          <Trans>Working…</Trans>
-        </p>
       ) : null}
       {receipt?.status === "cancelled" ? (
         <p>
@@ -530,6 +543,9 @@ export function TaskStarterReceipt({
             </>
           ) : null}
         </>
+      ) : null}
+      {receipt?.repeat && receipt.starter !== "analytics_report" ? (
+        <RepeatTask key={receipt.id} receipt={receipt} />
       ) : null}
       {sources.length ? (
         <details>

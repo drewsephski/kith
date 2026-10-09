@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T22:37:09.529535+00:00",
+  "title": "Design System: Kith marketing",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Background",
+        "tonalRamp": [
+          "oklch(15% 0.0013 286.4)",
+          "oklch(26% 0.0013 286.4)",
+          "oklch(38% 0.0013 286.4)",
+          "oklch(49% 0.0013 286.4)",
+          "oklch(61% 0.0013 286.4)",
+          "oklch(72% 0.0013 286.4)",
+          "oklch(84% 0.0013 286.4)",
+          "oklch(95% 0.0013 286.4)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0097 268.3)",
+          "oklch(26% 0.0097 268.3)",
+          "oklch(38% 0.0097 268.3)",
+          "oklch(49% 0.0097 268.3)",
+          "oklch(61% 0.0097 268.3)",
+          "oklch(72% 0.0097 268.3)",
+          "oklch(84% 0.0097 268.3)",
+          "oklch(95% 0.0097 268.3)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.9)",
+          "oklch(26% 0.0000 89.9)",
+          "oklch(38% 0.0000 89.9)",
+          "oklch(49% 0.0000 89.9)",
+          "oklch(61% 0.0000 89.9)",
+          "oklch(72% 0.0000 89.9)",
+          "oklch(84% 0.0000 89.9)",
+          "oklch(95% 0.0000 89.9)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "tonalRamp": [
+          "oklch(15% 0.0097 268.3)",
+          "oklch(26% 0.0097 268.3)",
+          "oklch(38% 0.0097 268.3)",
+          "oklch(49% 0.0097 268.3)",
+          "oklch(61% 0.0097 268.3)",
+          "oklch(72% 0.0097 268.3)",
+          "oklch(84% 0.0097 268.3)",
+          "oklch(95% 0.0097 268.3)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "neutral",
+        "displayName": "Primary foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.9)",
+          "oklch(26% 0.0000 89.9)",
+          "oklch(38% 0.0000 89.9)",
+          "oklch(49% 0.0000 89.9)",
+          "oklch(61% 0.0000 89.9)",
+          "oklch(72% 0.0000 89.9)",
+          "oklch(84% 0.0000 89.9)",
+          "oklch(95% 0.0000 89.9)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0029 264.5)",
+          "oklch(26% 0.0029 264.5)",
+          "oklch(38% 0.0029 264.5)",
+          "oklch(49% 0.0029 264.5)",
+          "oklch(61% 0.0029 264.5)",
+          "oklch(72% 0.0029 264.5)",
+          "oklch(84% 0.0029 264.5)",
+          "oklch(95% 0.0029 264.5)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Muted foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0165 268.4)",
+          "oklch(26% 0.0165 268.4)",
+          "oklch(38% 0.0165 268.4)",
+          "oklch(49% 0.0165 268.4)",
+          "oklch(61% 0.0165 268.4)",
+          "oklch(72% 0.0165 268.4)",
+          "oklch(84% 0.0165 268.4)",
+          "oklch(95% 0.0165 268.4)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0058 264.5)",
+          "oklch(26% 0.0058 264.5)",
+          "oklch(38% 0.0058 264.5)",
+          "oklch(49% 0.0058 264.5)",
+          "oklch(61% 0.0058 264.5)",
+          "oklch(72% 0.0058 264.5)",
+          "oklch(84% 0.0058 264.5)",
+          "oklch(95% 0.0058 264.5)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "tonalRamp": [
+          "oklch(15% 0.0075 260.7)",
+          "oklch(26% 0.0075 260.7)",
+          "oklch(38% 0.0075 260.7)",
+          "oklch(49% 0.0075 260.7)",
+          "oklch(61% 0.0075 260.7)",
+          "oklch(72% 0.0075 260.7)",
+          "oklch(84% 0.0075 260.7)",
+          "oklch(95% 0.0075 260.7)"
+        ]
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Ring",
+        "tonalRamp": [
+          "oklch(15% 0.0097 268.3)",
+          "oklch(26% 0.0097 268.3)",
+          "oklch(38% 0.0097 268.3)",
+          "oklch(49% 0.0097 268.3)",
+          "oklch(61% 0.0097 268.3)",
+          "oklch(72% 0.0097 268.3)",
+          "oklch(84% 0.0097 268.3)",
+          "oklch(95% 0.0097 268.3)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Medium editorial heading",
+        "purpose": "Hero and section hierarchy."
+      },
+      "body": {
+        "displayName": "Regular reading text",
+        "purpose": "Supporting paragraphs and FAQ answers."
+      },
+      "label": {
+        "displayName": "Compact labels",
+        "purpose": "Supporting links and metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "soft",
+        "value": "0 2px 16px rgba(0, 0, 0, 0.03)",
+        "purpose": "Repeated platform actions and existing cards."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "180ms ease",
+        "purpose": "Existing control states; reduced motion suppresses transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-gutters",
+        "value": "720px"
+      },
+      {
+        "name": "journey-stack",
+        "value": "767px"
+      },
+      {
+        "name": "navigation-menu",
+        "value": "860px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Platform Link",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Existing platform anchor; destination and availability are supplied by the page.",
+      "html": "<a class=\"ds-button-primary\" href=\"#\">Try Web</a>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:14px;border:1px solid transparent;font-family:Geist,ui-sans-serif,system-ui,sans-serif;font-size:16px;font-weight:500;cursor:pointer;text-decoration:none;transition:background 180ms ease,border-color 180ms ease,box-shadow 180ms ease;background:var(--primary);color:var(--primary-foreground);box-shadow:var(--shadow-soft)}.ds-button-primary:hover{box-shadow:var(--shadow-soft)}.ds-button-primary:focus-visible{outline:2px solid var(--ring);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Secondary Platform Link",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Existing platform anchor; destination and availability are supplied by the page.",
+      "html": "<a class=\"ds-button-secondary\" href=\"#\">Download Desktop</a>",
+      "css": ".ds-button-secondary{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:14px;border:1px solid transparent;font-family:Geist,ui-sans-serif,system-ui,sans-serif;font-size:16px;font-weight:500;cursor:pointer;text-decoration:none;transition:background 180ms ease,border-color 180ms ease,box-shadow 180ms ease;background:var(--card);color:#525252;border-color:var(--border);box-shadow:var(--shadow-soft)}.ds-button-secondary:hover{background:#fafafa;border-color:var(--border)}.ds-button-secondary:focus-visible{outline:2px solid var(--ring);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "description": "Compact public navigation.",
+      "html": "<nav aria-label=\"Main\"><a class=\"ds-nav\" href=\"#\">Product</a></nav>",
+      "css": ".ds-nav{font-family:Geist,ui-sans-serif,system-ui,sans-serif;font-size:14.5px;color:#525252;text-decoration:none;transition:color 160ms ease}.ds-nav:hover{color:var(--foreground)}.ds-nav:focus-visible{outline:2px solid var(--ring);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Feature Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Existing marketing card primitive; the consumer benefits remain open columns.",
+      "html": "<article class=\"ds-card\"><h3>Personal assistant</h3><p>Useful work, through conversation.</p></article>",
+      "css": ".ds-card{background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:20px;padding:26px;box-shadow:var(--shadow-soft);font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-card h3{margin:0;font-family:Aeonik,Geist,sans-serif;font-size:20px;font-weight:500;letter-spacing:-.02em}.ds-card p{margin:10px 0 0;font-size:15px;line-height:1.6}"
+    },
+    {
+      "name": "FAQ Disclosure",
+      "kind": "custom",
+      "refersTo": "faq",
+      "description": "Native details and summary.",
+      "html": "<details class=\"ds-faq\"><summary>Can I use my own connections?</summary><p>Connections are optional.</p></details>",
+      "css": ".ds-faq{padding:22px 0;border-bottom:1px solid var(--border);font-family:Geist,ui-sans-serif,system-ui,sans-serif;color:var(--foreground)}.ds-faq summary{cursor:pointer;font-size:18px;font-weight:500}.ds-faq summary:focus-visible{outline:2px solid var(--ring);outline-offset:3px}.ds-faq p{margin:16px 0 0;color:var(--muted-foreground);font-size:16px;line-height:1.7}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Neutral surfaces, ink, quiet companion",
+    "overview": "The original blue companion gives the site its friendly identity. Neutral surfaces, ink platform links, generous space, and modest prose connect the marketing site to the conversation product. Aeonik headings distinguish the public site while Geist carries reading and controls.\n\nThis record describes the shipped Astro site, especially its consumer homepage and platform pages. Sources are `src/styles/global.css`, `src/components/HomePage.astro`, `src/components/Button.astro`, `src/components/Header.astro`, `src/layouts/BaseLayout.astro`, and `../../packages/ui-tokens/src/index.ts`. Desktop and narrow marketing captures and the release-status fallback are recorded in `../web/.impeccable/review/`; their configured placeholder origins do not verify production domains or installers.",
+    "keyCharacteristics": [
+      "Neutral surfaces and ink functional controls.",
+      "Original blue companion, reused without alteration.",
+      "Medium editorial headings and regular reading text.",
+      "Open sections, fine dividers, and native disclosures."
+    ],
+    "rules": [
+      {
+        "name": "The Ink Controls Rule",
+        "body": "Keep functional controls monochrome. Blue belongs to the companion and bot identity artwork.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Labels Rule",
+        "body": "Use sentence case and modest weight for controls and supporting labels. Keep reading text at regular weight.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tonal Depth Rule",
+        "body": "Use open space, surface tone, and fine borders for persistent sections. Reserve stronger depth for floating menus and the existing demo frame.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do inherit semantic colors from the shared token source.",
+      "Do reuse original companion assets and the existing platform-link component.",
+      "Do preserve wrapping labels, readable narrow layouts, and visible keyboard focus.",
+      "Do keep reduced motion and native disclosure behavior.",
+      "Do make unavailable platform actions an honest contextual state."
+    ],
+    "donts": [
+      "Don't recolor functional controls with the companion's blue identity.",
+      "Don't wrap every section in cards or turn supporting prose into persistent status chrome.",
+      "Don't imply that illustrative demo data proves connected accounts or executed work.",
+      "Don't treat legacy fixed colors, glyph icons, or eyebrow treatments as new system patterns."
+    ]
+  }
+}

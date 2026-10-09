@@ -73,6 +73,12 @@ test("task starters preserve editable intent and require explicit accounts", asy
     createdAt: "2026-10-09T18:00:00Z",
     updatedAt: "2026-10-09T18:00:01Z",
     error: null,
+    repeat: {
+      timezone: "America/Chicago",
+      name: "Email search",
+      sources: ["Personal", "Work"],
+      writes: false,
+    },
     result: {
       kind: "gmail_search",
       sources: [],
@@ -122,6 +128,12 @@ test("task starters preserve editable intent and require explicit accounts", asy
   );
   await signup(page, `task-starters-${Date.now()}@example.test`, "password12", "Alex");
   await completeOnboarding(page);
+  const primary = activeBotId(page);
+  await page
+    .getByRole("navigation", { name: "Assistant", exact: true })
+    .getByRole("button", { name: "New conversation", exact: true })
+    .click();
+  await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   const composer = page.locator('textarea[name="chat-message"]');
   const welcome = page.getByTestId("assistant-welcome");
@@ -133,6 +145,7 @@ test("task starters preserve editable intent and require explicit accounts", asy
     "Turn my inbox into a to-do list",
     "Pull this week’s numbers into a Sheet",
   ];
+  await welcome.getByText("More tasks", { exact: true }).click();
   for (const title of starters) {
     await welcome.getByRole("button", { name: title, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -201,6 +214,29 @@ test("task starters preserve editable intent and require explicit accounts", asy
   await expect(result.getByText("Work · 0 · Complete", { exact: true })).toBeVisible();
   expect(starts).toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  let scheduled = 0;
+  await page.route("**/rpc/taskStarters/schedule", (route) => {
+    scheduled += 1;
+    expect(route.request().postDataJSON().json).toMatchObject({
+      receiptId: "search-receipt",
+      cron: "0 8 * * *",
+      timezone: "America/Chicago",
+    });
+    return route.fulfill({ json: { json: { routineId: "fixture-routine" } } });
+  });
+  await result.getByRole("button", { name: "Make this a routine", exact: true }).click();
+  await expect(
+    result.getByText("Read-only preparation. It won’t send email or change your accounts."),
+  ).toBeVisible();
+  await result.getByLabel("Time", { exact: true }).fill("08:00");
+  expect(scheduled).toBe(0);
+  await captureScreenshot(page, testInfo, "task-routine-confirmation-narrow");
+  await result.getByRole("button", { name: "Confirm routine", exact: true }).click();
+  await expect(result.getByRole("link", { name: "Manage routine", exact: true })).toHaveAttribute(
+    "href",
+    /routine=fixture-routine/,
+  );
+  expect(scheduled).toBe(1);
   await captureScreenshot(page, testInfo, "task-gmail-result-narrow");
 });
 

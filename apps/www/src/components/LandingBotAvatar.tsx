@@ -10,14 +10,16 @@ const AVATAR_BY_COLOR: Record<string, string> = {
 
 export function LandingBotAvatar({
   color,
+  companion = false,
   size = 38,
   className,
 }: {
   color: string;
+  companion?: boolean;
   size?: number;
   className?: string;
 }) {
-  const src = AVATAR_BY_COLOR[color.toLowerCase()] ?? "/avatars/bot-avatar-coordinator.svg";
+  const src = companion ? "/brand/kith-companion.webp" : AVATAR_BY_COLOR[color.toLowerCase()] ?? "/avatars/bot-avatar-coordinator.svg";
 
   return (
     <img

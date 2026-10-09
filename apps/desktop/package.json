@@ -80,8 +80,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "elie222",
-        "repo": "rakazo"
+        "owner": "drewsephski",
+        "repo": "kith"
       }
     ]
   }
