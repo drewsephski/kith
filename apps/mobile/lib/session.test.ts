@@ -231,11 +231,12 @@ describe("mobile session mutation ordering", () => {
     },
   );
 
-  it("discards a read captured before clear", async () => {
+  it.each([false, true])("discards a read completed after clear (fails=%s)", async (fails) => {
     await saveSessionToken("old-token");
     const read = barrier();
     vi.mocked(SecureStore.getItemAsync).mockImplementationOnce(async () => {
       await read.promise;
+      if (fails) throw new Error("locked");
       return "old-token";
     });
     const reading = snapshotSessionToken();
