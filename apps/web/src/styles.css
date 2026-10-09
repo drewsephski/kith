@@ -55,26 +55,31 @@ body,
 
 /* Kith keeps the conversation readable at large desktop window sizes. */
 .kith-transcript > [data-message-id],
-.kith-transcript > [data-testid="time-separator"],
-.kith-transcript > [data-testid="assistant-welcome"] {
+.kith-transcript > [data-testid="time-separator"] {
   width: 100%;
   max-width: 760px;
   margin-inline: auto;
 }
+.kith-transcript > [data-testid="assistant-welcome"] {
+  max-width: 576px;
+}
+textarea[name="chat-message"]:focus-visible {
+  outline: none;
+}
 ::selection {
-  background: var(--chat-user);
-  color: var(--foreground);
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
 }
 textarea,
 input {
-  caret-color: var(--foreground);
+  caret-color: var(--primary);
 }
 button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
 :focus-visible {
-  outline-color: var(--ring);
+  outline: 2px solid var(--ring);
   outline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {

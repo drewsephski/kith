@@ -24,6 +24,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  ConnectorIcon,
   Dialog,
   DialogClose,
   DialogContent,
@@ -510,19 +511,7 @@ export function PluginsOverlay({
   ) {
     const connected = itemConnected(item);
     const tileTestId = opts?.tileTestId !== false && connected;
-    const icon = logo ? (
-      <img
-        src={logo}
-        alt=""
-        loading="lazy"
-        decoding="async"
-        className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
-      />
-    ) : (
-      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-        {label[0]}
-      </div>
-    );
+    const icon = <ConnectorIcon name={label} brand={item.slug} logo={logo} />;
     const title = (
       <div className="min-w-0 flex-1 text-start">
         <div className="truncate text-[15px] font-medium text-foreground">{label}</div>
@@ -575,19 +564,7 @@ export function PluginsOverlay({
             >
               <ChevronLeft />
             </Button>
-            {item.logo ? (
-              <img
-                src={item.logo}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-9 w-9 shrink-0 rounded-xl bg-accent object-contain"
-              />
-            ) : (
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-                {item.name[0]}
-              </div>
-            )}
+            <ConnectorIcon name={item.name} brand={item.slug} logo={item.logo} />
             <div className="truncate text-[17px] font-medium text-foreground">{item.name}</div>
           </div>
           <Button
@@ -871,9 +848,7 @@ export function PluginsOverlay({
                               disabled ? "opacity-70" : ""
                             }`}
                           >
-                            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent text-sm font-semibold text-foreground">
-                              {tile.label[0]}
-                            </div>
+                            <ConnectorIcon name={tile.label} brand={tile.id} />
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-[15px] font-medium text-foreground">
                                 {tile.label}
@@ -1250,9 +1225,17 @@ export function PluginsOverlay({
                           key={source.id}
                           className="flex items-center gap-4 rounded-xl px-3 py-2.5"
                         >
-                          <div className="grid h-[42px] w-[42px] place-items-center rounded-xl bg-accent font-semibold uppercase text-foreground">
-                            {source.kind === "mcp" ? "M" : source.kind === "graphql" ? "G" : "A"}
-                          </div>
+                          <ConnectorIcon
+                            name={source.name}
+                            fallbackName={
+                              source.kind === "mcp"
+                                ? "MCP"
+                                : source.kind === "graphql"
+                                  ? "GraphQL"
+                                  : undefined
+                            }
+                            size={42}
+                          />
                           <div className="min-w-0 flex-1">
                             <div className="text-[15.5px] font-medium text-foreground">
                               {source.name}

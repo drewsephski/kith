@@ -15,6 +15,7 @@ import {
   pauseRunForInput,
   pauseRunForTakeover,
   sendUserMessage,
+  TaskConnectionChangedError,
 } from "./events.js";
 import { RunHistoryWriteError } from "./messages.js";
 
@@ -61,6 +62,56 @@ function event(seq: number) {
 }
 
 describe("finalizeRun", () => {
+  it.each(["revoked", "replaced", "missing owner"])(
+    "rejects task completion after an account is %s before writing history",
+    async (reason) => {
+      const write = vi.fn();
+      const connection = vi.fn(async () => null);
+      const tx = {
+        $queryRaw: vi.fn(async () => []),
+        run: {
+          findUnique: vi.fn(async () => (reason === "missing owner" ? null : { userId: "owner" })),
+          updateMany: write,
+        },
+        connection: { findFirst: connection },
+        message: { create: write },
+        event: { create: write },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (operation: (client: typeof tx) => unknown) => operation(tx)),
+      };
+      await expect(
+        finalizeRun(prisma as unknown as PrismaClient, {
+          spaceId: "space",
+          threadId: "thread",
+          botId: "bot",
+          runId: "run",
+          taskId: "task",
+          attemptId: "attempt",
+          leaseOwner: "worker",
+          leaseFence: 1,
+          outcome: "completed",
+          blocks: [],
+          taskConnections: [
+            { id: "account", providerRef: "original-provider-account", connectorId: "composio" },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(TaskConnectionChangedError);
+      expect(write).not.toHaveBeenCalled();
+      if (reason !== "missing owner")
+        expect(connection).toHaveBeenCalledWith({
+          where: {
+            id: "account",
+            spaceId: "space",
+            userId: "owner",
+            status: "connected",
+            providerRef: "original-provider-account",
+            connectorId: "composio",
+          },
+        });
+    },
+  );
+
   it("stamps the final steps block with wall-clock run duration", () => {
     const blocks = [
       { kind: "steps" as const, steps: [{ label: "Read file", count: 1 }] },

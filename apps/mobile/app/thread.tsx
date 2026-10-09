@@ -8,6 +8,7 @@ import type {
   MessageBlock,
   MessageReaction,
   Routine,
+  TaskStarterId,
 } from "@rakazo/contracts";
 import { canReactToThreadMessage, MESSAGE_REACTIONS } from "@rakazo/contracts";
 import type { ComposerMention, SlashActionId, ThreadItem } from "@rakazo/core";
@@ -109,6 +110,9 @@ import { ReplyDismissButton } from "../components/reply-dismiss-button";
 import { ReplyLine } from "../components/reply-line";
 import { SelectTextSheet } from "../components/select-text-sheet";
 import { trailingHeaderOptions } from "../components/sheet-header";
+import { TaskReceiptDetails, TaskStarterReceiptCard } from "../components/task-starters/receipt";
+import { TaskStarterSetup } from "../components/task-starters/setup";
+import { TaskStarterSuggestions } from "../components/task-starters/suggestions";
 import { TimeSeparator } from "../components/time-separator";
 import { VoiceChatCard } from "../components/VoiceChatCard";
 import { WorkingIndicator } from "../components/WorkingIndicator";
@@ -506,6 +510,9 @@ function Thread() {
   }, [streamResponses]);
   const activeThreadId = useRef<string | undefined>(undefined);
   const [draft, setDraft] = useState("");
+  const [taskStarterId, setTaskStarterId] = useState<TaskStarterId | null>(null);
+  const [taskSetup, setTaskSetup] = useState<{ id: TaskStarterId; prompt: string } | null>(null);
+  const [openedTaskReceipt, setOpenedTaskReceipt] = useState<string | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [agentSkills, setAgentSkills] = useState<AgentSkillCatalogEntry[]>([]);
@@ -1442,6 +1449,9 @@ function Thread() {
 
   useEffect(() => {
     setPendingAttachments((current) => attachmentsForThread(current, threadKey));
+    setTaskStarterId(null);
+    setTaskSetup(null);
+    setOpenedTaskReceipt(null);
     setDraft("");
     setMentionQuery(null);
     setSlashQuery(null);
@@ -1456,6 +1466,7 @@ function Thread() {
 
   function updateDraft(value: string) {
     setDraft(value);
+    if (!value.trim()) setTaskStarterId(null);
     const match = /(?:^|\s)@([\w-]*)$/.exec(value);
     setMentionQuery(match ? (match[1] ?? "") : null);
     const slashMatch = selectedSkill === null ? /^\/([^\n]*)$/.exec(value) : null;
@@ -1522,6 +1533,19 @@ function Thread() {
     const initialBotTarget = botId;
     const initialGroupTarget = groupId;
     if ((!initialBotTarget && !initialGroupTarget) || sending) return;
+    if (taskStarterId && initialBotTarget && !initialGroupTarget) {
+      if (
+        selectedSkill ||
+        selectedMentions.length ||
+        activePendingAttachments.length ||
+        replyTarget
+      ) {
+        setError(t("Remove attachments, mentions, and replies to start this task."));
+        return;
+      }
+      setTaskSetup({ id: taskStarterId, prompt: draft.trim() });
+      return;
+    }
     const originThreadKey = initialGroupTarget ?? initialBotTarget;
     const submitted = composerSnapshot;
     const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
@@ -2357,6 +2381,30 @@ function Thread() {
           {runError}
         </Text>
       ) : null}
+      {taskSetup && botId && !inGroup && !readOnly ? (
+        <TaskStarterSetup
+          key={`${threadKey}-${taskSetup.id}`}
+          starterId={taskSetup.id}
+          prompt={taskSetup.prompt}
+          botId={botId}
+          onClose={() => setTaskSetup(null)}
+          onStarted={(receipt) => {
+            if (draft.trim() === taskSetup.prompt) setDraft("");
+            setTaskStarterId(null);
+            setTaskSetup(null);
+            setOpenedTaskReceipt(receipt.id);
+            void refresh().catch((reason) =>
+              setError(errorText(reason, t("Could not refresh thread"))),
+            );
+          }}
+        />
+      ) : null}
+      {openedTaskReceipt ? (
+        <TaskReceiptDetails
+          receiptId={openedTaskReceipt}
+          onClose={() => setOpenedTaskReceipt(null)}
+        />
+      ) : null}
       {/* The floor keeps a tall suggestion list from sliding under the transparent header. */}
       <View style={{ flex: 1, minHeight: headerHeight, position: "relative" }}>
         {showPinnedPage ? (
@@ -2483,6 +2531,20 @@ function Thread() {
             }
           />
         )}
+        {snap && !visibleMessages.length && !inGroup && !readOnly ? (
+          <ScrollView
+            style={{ position: "absolute", top: headerHeight + 16, bottom: 0, left: 0, right: 0 }}
+            contentContainerStyle={{ paddingVertical: 12 }}
+            keyboardShouldPersistTaps="handled"
+          >
+            <TaskStarterSuggestions
+              onSelect={(starter) => {
+                setTaskStarterId(starter.id);
+                updateDraft(starter.prompt);
+              }}
+            />
+          </ScrollView>
+        ) : null}
         {showPinnedPage || threadScrollState.detached ? (
           <Pressable
             accessibilityRole="button"
@@ -3968,6 +4030,8 @@ const MessageBubble = memo(function MessageBubble({
       {message.blocks.map((block) =>
         block.kind === "calendar_receipt" ? (
           <CalendarReceipt key={block.receiptId} receiptId={block.receiptId} />
+        ) : block.kind === "task_starter_receipt" ? (
+          <TaskStarterReceiptCard key={block.receiptId} receiptId={block.receiptId} />
         ) : null,
       )}
       {choiceBlocks.map((block, index) => (

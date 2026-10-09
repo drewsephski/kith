@@ -110,6 +110,42 @@ function pressEnter(textarea: HTMLTextAreaElement) {
 }
 
 describe("Composer", () => {
+  it("preserves a task starter through edits, thread switches, and cancelled setup", async () => {
+    const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>().mockResolvedValue(false);
+    const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
+    const textarea = renderComposer(send, {
+      draftKey: "main",
+      drafts,
+      suggestedDraft: { text: "Search my Gmail", nonce: 1, starter: "gmail_search" },
+    });
+    type(textarea, "Find the launch plan in Gmail");
+    rerenderComposer({ draftKey: "task", suggestedDraft: undefined });
+    rerenderComposer({ draftKey: "main" });
+    const restored = container?.querySelector("textarea");
+    if (!restored) throw new Error("composer textarea not found");
+    expect(restored.value).toBe("Find the launch plan in Gmail");
+    pressEnter(restored);
+    await act(async () => {});
+    expect(send).toHaveBeenCalledWith(
+      "Find the launch plan in Gmail",
+      [],
+      expect.any(String),
+      "gmail_search",
+      "main",
+    );
+    expect(restored.value).toBe("Find the launch plan in Gmail");
+    expect(drafts.get("main")?.starter).toBe("gmail_search");
+    const remove = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove task starter"]',
+    );
+    if (!remove) throw new Error("remove task starter button not found");
+    act(() => remove.click());
+    pressEnter(restored);
+    await act(async () => {});
+    expect(send.mock.calls[1]).toEqual(["Find the launch plan in Gmail", [], expect.any(String)]);
+    expect(drafts.get("main")?.starter).toBeUndefined();
+  });
+
   it("keeps separate drafts when conversations switch", () => {
     const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
     const textarea = renderComposer(vi.fn(), { draftKey: "main", drafts });

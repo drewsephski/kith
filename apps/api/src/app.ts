@@ -69,6 +69,7 @@ import {
   StripeBillingProvider,
   sandboxProviderOptionsFromEnv,
   stripeBillingConfigFromEnv,
+  TaskStarterService,
   toTeamChatInbound,
   withSecretPersistence,
 } from "@rakazo/adapters";
@@ -498,7 +499,16 @@ export async function createApp(
     memory,
     redirectUri: new URL("/api/calendar/oauth/callback", env.apiUrl).href,
   });
+  const taskStarters = new TaskStarterService({
+    prisma,
+    jobs,
+    events,
+    integrationSettings,
+    runtime,
+    resolveModel: executor.resolveModel,
+  });
   const jobHandlers = createBackgroundJobHandlers({
+    taskStarters,
     calendar,
     executor,
     prisma,
@@ -531,6 +541,7 @@ export async function createApp(
   reconciler?.start();
 
   const router = createRouter({
+    taskStarters,
     calendar,
     cloudAgent,
     codexCatalog,

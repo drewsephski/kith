@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./css": "./src/tokens.css"
+    "./css": "./src/tokens.css",
+    "./brand-logos": "./src/brand-logos.ts"
   },
   "scripts": {
     "check": "tsc --noEmit -p tsconfig.json",

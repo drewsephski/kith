@@ -1,7 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageBlock } from "@rakazo/contracts";
 import { abortableDelay } from "@rakazo/core";
-import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
+import {
+  Button,
+  ConnectorIcon,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BuiCard, SuccessPop } from "../../components/ai/primitives";
@@ -206,17 +213,7 @@ export function AppConnectCard({
       className="w-[min(420px,80%)] px-4 py-3.5"
     >
       <div className="flex items-center gap-3.5">
-        {block.logo ? (
-          <img
-            src={block.logo}
-            alt=""
-            className="h-10 w-10 rounded-[10px] bg-white object-contain p-1"
-          />
-        ) : (
-          <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-muted text-[15px] text-foreground">
-            {block.name.slice(0, 1).toUpperCase()}
-          </span>
-        )}
+        <ConnectorIcon name={block.name} brand={block.provider} logo={block.logo} size={40} />
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-medium text-foreground">{block.name}</span>
           <span className="block truncate text-[13px] text-muted-foreground">
@@ -407,9 +404,7 @@ export function McpApprovalCard({
   return (
     <BuiCard data-testid="mcp-approval-card" className="max-w-[74%] p-4">
       <div className="flex items-center gap-2">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted text-xs text-foreground">
-          M
-        </span>
+        <ConnectorIcon name={name} fallbackName="MCP" size={28} />
         <span className="text-[14.5px] font-medium text-foreground">
           <Trans>Connect MCP server “{name}”</Trans>
         </span>

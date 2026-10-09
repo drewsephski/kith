@@ -2,6 +2,7 @@ import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import {
   BotAvatar,
+  Button,
   DEFAULT_GROK_BOT_COLOR,
   Dialog,
   DialogContent,
@@ -13,6 +14,10 @@ import {
   GROK_BOT_COLORS,
   GrokShapePreview,
   parseBotAvatar,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@rakazo/ui-web";
 import { Check, Pencil, Upload, X } from "lucide-react";
 import { type ClipboardEvent, type DragEvent, useRef, useState } from "react";
@@ -142,59 +147,41 @@ export function AvatarStudioPopover({
             <DialogDescription className="sr-only">
               <Trans>Choose a bot shape, color, or upload an image</Trans>
             </DialogDescription>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setOpen(false)}
-              className="flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label={t`Close`}
             >
               <X size={16} />
-            </button>
+            </Button>
           </DialogHeader>
 
           <div className="flex flex-col items-center justify-center py-2">
             <BotAvatar color={value} identity={identity} size={78} status={status} />
           </div>
 
-          <div className="flex items-center justify-between border-b border-border pb-1">
-            <div className="flex items-center rounded-full bg-muted p-1 text-xs">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value)}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <TabsList aria-label={t`Avatar`}>
+                <TabsTrigger value="bot">
+                  <Trans>Bot</Trans>
+                </TabsTrigger>
+                <TabsTrigger value="upload">
+                  <Trans>Upload</Trans>
+                </TabsTrigger>
+              </TabsList>
+
               <button
                 type="button"
-                onClick={() => setActiveTab("bot")}
-                aria-pressed={activeTab === "bot"}
-                className={`rounded-full px-3 py-1 font-medium transition-colors ${
-                  activeTab === "bot"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                onClick={restoreDefaultAvatar}
+                className="px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Trans>Bot</Trans>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("upload")}
-                aria-pressed={activeTab === "upload"}
-                className={`rounded-full px-3 py-1 font-medium transition-colors ${
-                  activeTab === "upload"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Trans>Upload</Trans>
+                <Trans>Reset</Trans>
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={restoreDefaultAvatar}
-              className="px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Trans>Reset</Trans>
-            </button>
-          </div>
-
-          {activeTab === "bot" ? (
-            <div className="space-y-4 pt-1" data-testid="avatar-studio-bot-tab">
+            <TabsContent value="bot" className="space-y-4 pt-1" data-testid="avatar-studio-bot-tab">
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
@@ -253,46 +240,47 @@ export function AvatarStudioPopover({
                   })}
                 </div>
               </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              aria-label={t`Image upload area`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onPaste={handlePaste}
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex w-full flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors ${
-                dragOver
-                  ? "border-primary bg-primary/10"
-                  : "border-border bg-muted hover:border-foreground/30"
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) processImageFile(file);
+            </TabsContent>
+            <TabsContent value="upload">
+              <button
+                type="button"
+                aria-label={t`Image upload area`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOver(true);
                 }}
-              />
-              <div className="mb-2 grid size-10 place-items-center rounded-full bg-secondary text-muted-foreground">
-                <Upload size={18} strokeWidth={1.8} />
-              </div>
-              <p className="text-[12.5px] font-medium text-muted-foreground">
-                <Trans>Drag, drop, or paste an image</Trans>
-              </p>
-              <span className="mt-3 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
-                <Trans>Choose file</Trans>
-              </span>
-            </button>
-          )}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                onPaste={handlePaste}
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex w-full flex-col items-center justify-center rounded-xl border border-dashed p-6 text-center transition-colors ${
+                  dragOver
+                    ? "border-primary bg-primary/10"
+                    : "border-border bg-muted hover:border-foreground/30"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) processImageFile(file);
+                  }}
+                />
+                <div className="mb-2 grid size-10 place-items-center rounded-full bg-secondary text-muted-foreground">
+                  <Upload size={18} strokeWidth={1.8} />
+                </div>
+                <p className="text-[12.5px] font-medium text-muted-foreground">
+                  <Trans>Drag, drop, or paste an image</Trans>
+                </p>
+                <span className="mt-3 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
+                  <Trans>Choose file</Trans>
+                </span>
+              </button>
+            </TabsContent>
+          </Tabs>
 
           <DialogFooter className="border-border sm:justify-end">
             <button

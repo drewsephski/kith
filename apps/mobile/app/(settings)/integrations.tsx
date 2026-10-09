@@ -656,7 +656,7 @@ export default function Integrations() {
     const connected = itemConnected(item);
     const body = (
       <>
-        <ConnectorIcon logo={item.logo} name={label} size={LOGO_SIZE} />
+        <ConnectorIcon logo={item.logo} brand={item.slug} name={label} size={LOGO_SIZE} />
         <View style={styles.grow}>
           <Text numberOfLines={1} style={styles.title}>
             {label}
@@ -704,7 +704,7 @@ export default function Integrations() {
             >
               <Text style={styles.link}>{t("Back")}</Text>
             </Pressable>
-            <ConnectorIcon logo={item.logo} name={item.name} size={LOGO_SIZE} />
+            <ConnectorIcon logo={item.logo} brand={item.slug} name={item.name} size={LOGO_SIZE} />
             <Text numberOfLines={1} style={styles.detailTitle}>
               {item.name}
             </Text>
@@ -1064,6 +1064,17 @@ export default function Integrations() {
                 ) : null}
                 {sources.map((source) => (
                   <View key={source.id} style={styles.row}>
+                    <ConnectorIcon
+                      name={source.name}
+                      fallbackName={
+                        source.kind === "mcp"
+                          ? "MCP"
+                          : source.kind === "graphql"
+                            ? "GraphQL"
+                            : undefined
+                      }
+                      size={LOGO_SIZE}
+                    />
                     <View style={styles.grow}>
                       <Text style={styles.title}>{source.name}</Text>
                       <Text numberOfLines={1} style={styles.secondary}>

@@ -585,3 +585,14 @@
     transition: none;
   }
 }
+
+/* SVGL variants follow the explicit app theme, including Electron. */
+.brand-logo-dark {
+  display: none;
+}
+[data-theme="dark"] .brand-logo-light {
+  display: none;
+}
+[data-theme="dark"] .brand-logo-dark {
+  display: block;
+}

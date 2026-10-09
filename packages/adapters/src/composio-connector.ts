@@ -9,6 +9,8 @@ import type {
   ConnectorProvider,
   ConnectorTool,
   ManagedConnectorProvider,
+  TaskConnection,
+  TaskPlatform,
 } from "@rakazo/adapter-kit";
 import { CalendarAccessError } from "@rakazo/adapter-kit";
 import { getLogger } from "@rakazo/logging";
@@ -17,8 +19,10 @@ import {
   mergeCatalogWithConnected,
   type ToolkitDirectoryEntry,
 } from "./composio-catalog-cache.js";
+import { ComposioTaskPlatform, composioTaskActionData } from "./composio-task-platform.js";
 import { DestinationEmulator } from "./destination-emulator.js";
 import { GoogleCalendarReader } from "./google-calendar.js";
+import { TaskPlatformRejectedError, validateTaskProxyRequest } from "./task-platform.js";
 import { isVitestRuntime } from "./test-runtime.js";
 
 type ComposioSession = Awaited<ReturnType<Composio["create"]>>;
@@ -305,7 +309,10 @@ export function planLiveConnectionSync(
 }
 
 export class ComposioConnector implements ComposioProvider {
-  constructor(private readonly apiKey?: string) {}
+  constructor(
+    private readonly apiKey?: string,
+    private readonly options: { authConfigs?: Record<string, string> } = {},
+  ) {}
   private client: Composio | undefined;
   private readonly catalogSessions = new Map<string, string>();
   private readonly executeSessions = new Map<string, { sessionId: string; key: string }>();
@@ -317,6 +324,65 @@ export class ComposioConnector implements ComposioProvider {
       adapterVersion: "0.1.0",
       capabilities: { discover: true, oauth: true, secretsBrokered: true },
     };
+  }
+
+  taskPlatform(): TaskPlatform {
+    const verified = new Set<string>();
+    const verify = async (connection: TaskConnection, context: AdapterContext) => {
+      context.signal.throwIfAborted();
+      if (connection.connectorId !== "composio")
+        throw new TaskPlatformRejectedError("Integration provider does not match this account");
+      const key = `${context.spaceId}:${context.userId}:${connection.provider}:${connection.providerRef}`;
+      if (verified.has(key)) return;
+      const ids = await this.listConnectedAccountIds(context.userId, connection.provider, {
+        signal: context.signal,
+      });
+      if (!ids.includes(connection.providerRef))
+        throw new TaskPlatformRejectedError("Reconnect this account before starting the task");
+      verified.add(key);
+    };
+    return new ComposioTaskPlatform(
+      async (request, context) => {
+        validateTaskProxyRequest(request);
+        await verify(request.connection, context);
+        const response = await this.sdk()
+          .tools.proxyExecute(
+            {
+              connectedAccountId: request.connection.providerRef,
+              endpoint: request.url,
+              method: request.method,
+              ...(request.body ? { body: request.body } : {}),
+            },
+            { signal: context.signal },
+          )
+          .catch(() => {
+            context.signal.throwIfAborted();
+            throw new Error("The managed integration request could not be completed");
+          });
+        return { status: response.status, data: response.data, headers: response.headers };
+      },
+      async (action, connection, context) => {
+        await verify(connection, context);
+        const result = await this.sdk()
+          .tools.execute(
+            action.tool,
+            {
+              arguments: action.args,
+              connectedAccountId: connection.providerRef,
+              userId: context.userId,
+              version: action.version,
+            },
+            { signal: context.signal },
+          )
+          .catch(() => {
+            context.signal.throwIfAborted();
+            throw new Error("The managed integration action could not be completed");
+          });
+        if (!result.successful || result.error)
+          throw new Error("The managed integration action failed; verify account permissions");
+        return composioTaskActionData(result.data);
+      },
+    );
   }
 
   async sessionFor(userId: string): Promise<ComposioSession> {
@@ -331,6 +397,7 @@ export class ComposioConnector implements ComposioProvider {
     }
     const session = await composio.create(userId, {
       manageConnections: false,
+      ...(this.options.authConfigs ? { authConfigs: this.options.authConfigs } : {}),
       sandbox: { enable: false },
     });
     this.catalogSessions.set(userId, session.sessionId);
@@ -385,6 +452,7 @@ export class ComposioConnector implements ComposioProvider {
     const needsMultiAccount = Object.values(connectedAccounts).some((ids) => ids.length >= 2);
     const session = await composio.create(userId, {
       manageConnections: false,
+      ...(this.options.authConfigs ? { authConfigs: this.options.authConfigs } : {}),
       sandbox: { enable: false },
       toolkits: canonicalToolkits,
       ...(Object.keys(connectedAccounts).length > 0 ? { connectedAccounts } : {}),

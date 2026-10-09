@@ -170,6 +170,40 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["connections/begin", connectionInput("Unauthenticated")],
       ["connections/complete", { connectionId: "missing-connection" }],
       ["connections/revoke", { connectionId: "missing-connection" }],
+      ["taskStarters/options"],
+      ["taskStarters/properties", { connectionId: "missing-connection" }],
+      [
+        "taskStarters/start",
+        {
+          botId: "missing-bot",
+          clientNonce: "test-task",
+          prompt: "Find invoices",
+          spec: {
+            starter: "gmail_search",
+            query: "invoices",
+            gmailConnectionIds: ["missing-connection"],
+            timezone: "UTC",
+          },
+        },
+      ],
+      ["taskStarters/receipt", { receiptId: "missing-receipt" }],
+      ["taskStarters/publish", { receiptId: "missing-receipt", clientNonce: "test-publish" }],
+      ["taskStarters/saveTodos", { receiptId: "missing-receipt", actionIds: ["missing-action"] }],
+      ["taskStarters/retry", { receiptId: "missing-receipt" }],
+      ["taskStarters/reconcile", { receiptId: "missing-receipt" }],
+      [
+        "taskStarters/chooseMeeting",
+        {
+          receiptId: "missing-receipt",
+          meetingId: "missing-meeting",
+          connectionId: "missing-connection",
+          clientNonce: "test-choice",
+        },
+      ],
+      [
+        "taskStarters/schedule",
+        { receiptId: "missing-receipt", cron: "0 9 * * 1", timezone: "UTC" },
+      ],
       ["approvalRules/list"],
       [
         "approvalRules/set",

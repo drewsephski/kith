@@ -96,6 +96,13 @@ import { McpHeadersSchema } from "./mcp.js";
 import { MessageReactionSchema } from "./reactions.js";
 import { RoutineHistorySchema, RoutineRunCursorSchema, RunsListOutputSchema } from "./runs.js";
 import { SearchQueryOutputSchema } from "./search.js";
+import {
+  TaskAnalyticsPropertySchema,
+  TaskStarterOptionsSchema,
+  TaskStarterReceiptSchema,
+  TaskStarterStartSchema,
+  TaskTodoSchema,
+} from "./task-starters.js";
 
 const botId = z.object({ botId: Id });
 const groupId = z.object({ groupId: Id });
@@ -456,6 +463,54 @@ export const appContract = {
       .output(z.array(ComputerCommandSchema.extend({ createdAt: z.string() }))),
     screenUrl: oc.input(botId).output(z.object({ url: z.string().nullable() })),
     heartbeat: oc.input(botId).output(z.object({ ok: z.literal(true) })),
+  },
+  taskStarters: {
+    options: oc.output(TaskStarterOptionsSchema),
+    properties: oc
+      .input(z.object({ connectionId: Id }))
+      .output(z.array(TaskAnalyticsPropertySchema)),
+    start: oc.input(TaskStarterStartSchema).output(TaskStarterReceiptSchema),
+    receipt: oc.input(z.object({ receiptId: Id })).output(TaskStarterReceiptSchema),
+    publish: oc
+      .input(z.object({ receiptId: Id, clientNonce: z.string().min(1).max(100) }))
+      .output(TaskStarterReceiptSchema),
+    saveTodos: oc
+      .input(
+        z.object({
+          receiptId: Id,
+          actionIds: z.array(Id).min(1).max(50),
+          edits: z
+            .array(
+              TaskTodoSchema.pick({
+                id: true,
+                title: true,
+                notes: true,
+                dueDate: true,
+                priority: true,
+              }),
+            )
+            .max(50)
+            .default([]),
+        }),
+      )
+      .output(TaskStarterReceiptSchema),
+    retry: oc.input(z.object({ receiptId: Id })).output(TaskStarterReceiptSchema),
+    reconcile: oc.input(z.object({ receiptId: Id })).output(TaskStarterReceiptSchema),
+    chooseMeeting: oc
+      .input(
+        z.object({
+          receiptId: Id,
+          meetingId: Id,
+          connectionId: Id,
+          clientNonce: z.string().min(1).max(100),
+        }),
+      )
+      .output(TaskStarterReceiptSchema),
+    schedule: oc
+      .input(
+        z.object({ receiptId: Id, cron: z.string().min(1).max(100), timezone: CalendarTimezone }),
+      )
+      .output(z.object({ routineId: Id })),
   },
   calendar: {
     status: oc.output(

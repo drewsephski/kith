@@ -177,7 +177,6 @@ try {
     "-strip",
     "apps/www/public/og-image.png",
   );
-  copy("apps/www/public/og-image.png", "docs/readme-hero.png");
 
   const provenance = JSON.stringify(
     {

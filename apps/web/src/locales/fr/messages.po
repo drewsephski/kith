@@ -250,6 +250,14 @@ msgstr "Comptes"
 msgid "Action confirmations"
 msgstr "Confirmations d'action"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Action notes"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Action title"
+msgstr ""
+
 #. placeholder {0}: bot.name
 #. placeholder {0}: group.spaceName
 #. placeholder {0}: sectionMenu.section.name
@@ -273,6 +281,10 @@ msgstr "Modèle actif"
 
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Active threads"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Active users"
 msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
@@ -462,6 +474,10 @@ msgstr "Autoriser les actions e-mail sans demander"
 msgid "Allow once"
 msgstr "Autoriser une fois"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Allow pop-ups to connect this account."
+msgstr ""
+
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Allow purchase actions without asking"
 msgstr "Autoriser les actions d'achat sans demander"
@@ -493,6 +509,10 @@ msgstr "Toujours autorisé"
 #: src/lib/model-connection-preflight.ts
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "Une clé API est enregistrée pour ce fournisseur, et non une connexion par abonnement."
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Analytics property"
+msgstr ""
 
 #: src/components/AskCard.tsx
 msgid "Answer"
@@ -655,6 +675,10 @@ msgstr "Échec de l'authentification."
 msgid "Authorization code or callback URL"
 msgstr "Code d'autorisation ou URL de rappel"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Authorization is still pending. Check the connection and try again."
+msgstr ""
+
 #: src/pages/shell/message-cards.tsx
 msgid "Authorization timed out. Please try again."
 msgstr "L'autorisation a expiré. Veuillez réessayer."
@@ -684,12 +708,20 @@ msgid "Available to this bot's shell commands as {commandVariable}"
 msgstr "Disponible pour les commandes shell de ce bot sous le nom {commandVariable}"
 
 #: src/pages/shell/avatar-studio-popover.tsx
+msgid "Avatar"
+msgstr ""
+
+#: src/pages/shell/avatar-studio-popover.tsx
 msgid "Avatar Studio"
 msgstr "Studio d'avatars"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Avatars"
 msgstr "Avatars"
+
+#: src/pages/ActivityList.tsx
+msgid "Awaiting reply"
+msgstr ""
 
 #: src/components/computer/FilesApp.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -803,6 +835,10 @@ msgstr "Parcourir les serveurs MCP"
 msgid "Browser"
 msgstr ""
 
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Build a brief for my next meeting"
+msgstr ""
+
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
 msgstr "Intégré"
@@ -823,6 +859,7 @@ msgstr "Impossible d'atteindre le serveur."
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/markdown-link-prompt.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/pages/Artifacts.tsx
 #: src/pages/KnowledgeSection.tsx
@@ -910,6 +947,10 @@ msgstr "Rechercher des mises à jour"
 msgid "Check in."
 msgstr "Faites un point."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Check outcome"
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Check the API key or sign-in, then test again."
 msgstr "Vérifiez la clé API ou la connexion, puis testez à nouveau."
@@ -921,6 +962,10 @@ msgstr "Vérifiez l'URL du serveur et le réseau, puis testez à nouveau."
 #: src/pages/Auth.tsx
 msgid "Check your email"
 msgstr "Vérifiez votre e-mail"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Check your selections."
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Checking computer setup…"
@@ -949,9 +994,17 @@ msgstr "Choisissez un bot…"
 msgid "Choose a new password"
 msgstr "Choisissez un nouveau mot de passe"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Choose a property"
+msgstr ""
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Choose file"
 msgstr "Choisir un fichier"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Choose task sources"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Choose which connected model Kith uses."
@@ -1098,6 +1151,7 @@ msgstr "Commande"
 msgid "Command variable"
 msgstr "Variable de commande"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ScratchpadSection.tsx
 msgid "Complete"
 msgstr "Terminé"
@@ -1144,6 +1198,10 @@ msgstr "Les ordinateurs sont désactivés. Définissez SANDBOX_PROVIDER=docker a
 msgid "Configure a plugin catalog on the server to connect apps."
 msgstr "Configurez un catalogue de plugins sur le serveur pour connecter des applications."
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Configure integrations"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Configured by deployment"
 msgstr "Configuré par le déploiement"
@@ -1172,6 +1230,11 @@ msgstr "Confirmez que l'URL est accessible depuis cette session du navigateur, p
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Connect"
 msgstr "Connecter"
+
+#. placeholder {0}: appNames[app]
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Connect {0}"
+msgstr ""
 
 #: src/pages/Onboarding.tsx
 msgid "Connect a model"
@@ -1373,6 +1436,10 @@ msgstr "Impossible de terminer OAuth"
 msgid "Could not complete the update. Try again."
 msgstr "Impossible de terminer la mise à jour. Réessayez."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not complete this action"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not connect"
@@ -1382,6 +1449,10 @@ msgstr "Impossible de se connecter"
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "Could not connect {0}"
 msgstr "Impossible de se connecter à {0}"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not connect account"
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Could not connect this provider"
@@ -1510,6 +1581,10 @@ msgstr "Impossible de charger"
 msgid "Could not load activity"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not load analytics properties"
+msgstr ""
+
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Could not load approval rules"
 msgstr "Impossible de charger les règles d'approbation"
@@ -1536,6 +1611,10 @@ msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
 msgid "Could not load commands"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not load connections"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -1588,6 +1667,10 @@ msgstr "Impossible de charger les options de connexion"
 msgid "Could not load skill"
 msgstr "Impossible de charger la compétence"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not load task"
+msgstr ""
+
 #: src/pages/Artifacts.tsx
 msgid "Could not load this artifact."
 msgstr "Impossible de charger cet artefact."
@@ -1632,6 +1715,10 @@ msgstr "Impossible d'ouvrir le terminal"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Could not play a test clip"
 msgstr "Impossible de lire un extrait de test"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not prepare this meeting"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Could not reach the model server."
@@ -1754,6 +1841,10 @@ msgstr ""
 msgid "Could not save this choice"
 msgstr "Impossible d'enregistrer ce choix"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Could not schedule report"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Could not search catalog"
 msgstr "Impossible de rechercher dans le catalogue"
@@ -1769,6 +1860,10 @@ msgstr "Impossible d'envoyer cela"
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
 msgstr "Impossible de démarrer OAuth"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Could not start task"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Could not start teaching"
@@ -1919,6 +2014,10 @@ msgstr "Mot de passe actuel"
 msgid "Custom header"
 msgstr ""
 
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Custom OAuth apps"
+msgstr ""
+
 #: src/pages/shell/dialogs.tsx
 msgid "Customer support"
 msgstr "Support client"
@@ -1926,6 +2025,10 @@ msgstr "Support client"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Customize bot avatar"
 msgstr "Personnaliser l'avatar du bot"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Daily"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Dark"
@@ -1935,6 +2038,10 @@ msgstr "Sombre"
 #: src/pages/RoutineSchedule.tsx
 msgid "day"
 msgstr "jour"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Day of week"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Day-to-day work"
@@ -2173,6 +2280,10 @@ msgstr "Compétence en brouillon"
 msgid "Drag, drop, or paste an image"
 msgstr "Glissez, déposez ou collez une image"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Due date"
+msgstr ""
+
 #: src/pages/BotContextMenu.tsx
 msgid "Duplicate"
 msgstr "Dupliquer"
@@ -2186,6 +2297,10 @@ msgstr "ex. Agent Hivenet, Préventes, bot de feuilles de temps"
 msgid "Edit {0}"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Edit action"
+msgstr ""
+
 #: src/components/AskCard.tsx
 msgid "Edit first"
 msgstr "Modifier d'abord"
@@ -2197,6 +2312,10 @@ msgstr "Modifier le profil"
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "E-mail"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Email and CRM context (optional)"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
@@ -2217,6 +2336,10 @@ msgstr "Répondre quand... Ignorer..."
 #: src/lib/user-error.ts
 msgid "Enter a password"
 msgstr "Saisissez un mot de passe"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Enter a spreadsheet ID."
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Enter a username and password"
@@ -2285,6 +2408,10 @@ msgstr "Chaque semaine"
 #: src/pages/PluginsOverlay.tsx
 msgid "Executor token"
 msgstr "Jeton de l'exécuteur"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Existing spreadsheet"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Expand"
@@ -2358,6 +2485,7 @@ msgstr ""
 msgid "Filter by date"
 msgstr "Filtrer par date"
 
+#: src/pages/ActivityList.tsx
 #: src/pages/Artifacts.tsx
 msgid "Filters"
 msgstr "Filtres"
@@ -2415,6 +2543,10 @@ msgstr "Mot de passe oublié ?"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Free"
 msgstr "Gratuit"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Friday"
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "From"
@@ -2541,6 +2673,7 @@ msgstr ""
 msgid "Hide transcript"
 msgstr "Masquer la transcription"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "High"
@@ -2549,6 +2682,10 @@ msgstr "Élevé"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "High"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "High priority"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
@@ -2677,6 +2814,10 @@ msgstr "Conserver les mémoires"
 msgid "key"
 msgstr "clé"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Key events"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
@@ -2693,6 +2834,10 @@ msgstr "Connaissances"
 msgid "Language"
 msgstr "Langue"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Last week"
+msgstr ""
+
 #: src/components/DesktopUpdates.tsx
 msgid "Later"
 msgstr "Plus tard"
@@ -2708,6 +2853,10 @@ msgstr "Quitter"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
 msgstr "Clair"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Limited results"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Linear issue"
@@ -2733,6 +2882,10 @@ msgstr "Écouter"
 msgid "Listening"
 msgstr "Écoute"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Load connections"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Load earlier messages"
 msgstr "Charger les messages précédents"
@@ -2744,6 +2897,10 @@ msgstr "Charger plus"
 #: src/pages/RoutineRunHistory.tsx
 msgid "Load older runs"
 msgstr "Charger les exécutions précédentes"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Load task"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Load web images automatically"
@@ -2810,6 +2967,11 @@ msgstr "Paramètres du serveur local"
 msgid "Log out"
 msgstr "Se déconnecter"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Look back in days"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Low"
@@ -2818,6 +2980,10 @@ msgstr "Faible"
 #. js-lingui-explicit-id
 #: src/lib/model-catalog.ts
 msgid "Low"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Low priority"
 msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
@@ -2910,6 +3076,10 @@ msgstr "Moyen"
 msgid "Medium"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Meeting selected"
+msgstr ""
+
 #: src/pages/GroupPanel.tsx
 msgid "Members ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})"
 msgstr "Membres ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})"
@@ -2975,6 +3145,10 @@ msgstr "A contacté {peer}"
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Messaging"
 msgstr "Messagerie"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Metrics"
+msgstr ""
 
 #: src/lib/call-session.ts
 msgid "Microphone failed"
@@ -3053,6 +3227,10 @@ msgstr "Modèles du serveur"
 msgid "Models list OK. {modelCount, plural, one {# model} other {# models}} available. Chat was not tested."
 msgstr "Liste des modèles correcte. {modelCount, plural, one {# modèle disponible} other {# modèles disponibles}}. La conversation n'a pas été testée."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Monday"
+msgstr ""
+
 #: src/lib/billing.ts
 msgid "month"
 msgstr ""
@@ -3116,6 +3294,10 @@ msgid "Name this routine"
 msgstr "Nommez cette routine"
 
 #: src/pages/ActivityList.tsx
+msgid "Needs assistance"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
 msgid "Needs attention"
 msgstr ""
 
@@ -3157,6 +3339,10 @@ msgstr "Nouvelle compétence"
 #: src/pages/shell/dialogs.tsx
 msgid "New space"
 msgstr "Nouvel espace"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "New spreadsheet"
+msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No agent connections yet."
@@ -3255,10 +3441,6 @@ msgstr "Aucun serveur MCP distant trouvé"
 msgid "No results"
 msgstr "Aucun résultat"
 
-#: src/pages/ActivityList.tsx
-msgid "No runs match these filters."
-msgstr ""
-
 #: src/pages/RoutineRunHistory.tsx
 msgid "No runs yet"
 msgstr "Aucune exécution pour le moment"
@@ -3266,6 +3448,10 @@ msgstr "Aucune exécution pour le moment"
 #: src/pages/KnowledgeSection.tsx
 msgid "No skills yet"
 msgstr "Aucune compétence pour le moment"
+
+#: src/pages/ActivityList.tsx
+msgid "No tasks match these filters."
+msgstr ""
 
 #: src/pages/ActivityList.tsx
 msgid "No tasks yet. Ask Kith to get something done."
@@ -3286,6 +3472,14 @@ msgstr "Aucun déclencheur"
 #: src/pages/ScratchpadSection.tsx
 msgid "None yet"
 msgstr "Aucun pour le moment"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Normal"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Normal priority"
+msgstr ""
 
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Not connected"
@@ -3323,6 +3517,10 @@ msgstr "Maintenant"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Now using {0}."
 msgstr "Utilise maintenant {0}."
+
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "OAuth app settings"
+msgstr ""
 
 #: src/pages/McpOAuthCallback.tsx
 msgid "OAuth authorization was cancelled."
@@ -3413,6 +3611,10 @@ msgstr "Ouvrir la navigation"
 msgid "Open shell"
 msgstr "Ouvrir le shell"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Open spreadsheet"
+msgstr ""
+
 #: src/pages/ScratchpadSection.tsx
 msgid "Open work"
 msgstr "Travaux en cours"
@@ -3472,6 +3674,10 @@ msgstr "Message d’origine indisponible"
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
 msgstr "Autre modèle…"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Page views"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "PagerDuty incident"
@@ -3577,11 +3783,7 @@ msgid "Preferences"
 msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
-msgid "Prepare for a meeting"
-msgstr ""
-
-#: src/pages/shell/assistant-welcome.tsx
-msgid "Prepare me for my next meeting."
+msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
 
 #. placeholder {0}: props.name
@@ -3592,6 +3794,14 @@ msgstr "Aperçu de {0}"
 #: src/pages/Artifacts.tsx
 msgid "Preview isn't available for this file type — download it to view it."
 msgstr "L'aperçu n'est pas disponible pour ce type de fichier — téléchargez-le pour le consulter."
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Preview report"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Priority"
+msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Private"
@@ -3623,9 +3833,33 @@ msgstr "Fournisseur"
 msgid "Providers"
 msgstr "Fournisseurs"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Provisional data"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Publish to Sheet"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Publishing replaces this report’s range in the selected spreadsheet."
+msgstr ""
+
 #: src/components/CloudAgentCard.tsx
 msgid "Pull request"
 msgstr "Demande de fusion"
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Pull this week’s GA4 numbers into a Google Sheet."
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Pull this week’s numbers into a Sheet"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
+msgid "Queued"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Quote"
@@ -3796,6 +4030,10 @@ msgstr "Supprimer {full}"
 msgid "Remove {secretName}? This bot will no longer be able to use it."
 msgstr ""
 
+#: src/pages/Shell.tsx
+msgid "Remove attachments and mentions before starting this task."
+msgstr ""
+
 #: src/pages/RoutineEditor.tsx
 msgid "Remove Git event"
 msgstr "Retirer l'événement Git"
@@ -3817,6 +4055,10 @@ msgstr "Retirer la planification"
 #: src/pages/Shell.tsx
 msgid "Remove skill {0}"
 msgstr "Retirer la compétence {0}"
+
+#: src/pages/Shell.tsx
+msgid "Remove task starter"
+msgstr ""
 
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
@@ -3853,6 +4095,10 @@ msgstr ""
 msgid "Reopen"
 msgstr "Rouvrir"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Repeat this report"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Replace API key"
 msgstr "Remplacer la clé API"
@@ -3876,6 +4122,22 @@ msgstr ""
 #. placeholder {0}: replyNameRef.current
 #: src/pages/Shell.tsx
 msgid "Replying to {0}"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Report destination"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Report frequency"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Report period"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Report time"
 msgstr ""
 
 #: src/pages/shell/message-cards.tsx
@@ -3955,6 +4217,10 @@ msgstr "Réessayer maintenant"
 msgid "Retry screen"
 msgstr "Réessayer l'écran"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Retry task"
+msgstr ""
+
 #: src/pages/McpOAuthCallback.tsx
 msgid "Return to Kith"
 msgstr "Retour à Kith"
@@ -3963,6 +4229,10 @@ msgstr "Retour à Kith"
 #: src/pages/KnowledgeSection.tsx
 msgid "rev {0}"
 msgstr "rév. {0}"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Revenue"
+msgstr ""
 
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
@@ -4031,6 +4301,10 @@ msgstr "Exécution en cours…"
 msgid "Runs when this bot receives a verified message from this provider."
 msgstr "S'exécute lorsque ce bot reçoit un message vérifié de ce fournisseur."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Saturday"
+msgstr ""
+
 #: src/components/AskCard.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
@@ -4068,11 +4342,16 @@ msgstr ""
 msgid "Save preferences"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Save selected to-dos"
+msgstr ""
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "Save the workspace and install current software."
 msgstr "Enregistrer l’espace de travail et installer les logiciels actuels."
 
 #: src/components/AskCard.tsx
+#: src/components/task-starters/TaskStarterReceipt.tsx
 #: src/components/teach/SkillDraftCard.tsx
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Saved"
@@ -4117,6 +4396,14 @@ msgstr "Enregistrement en cours…"
 msgid "Say yes or no, or answer in a sentence."
 msgstr "Dites oui ou non, ou répondez en une phrase."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Schedule report"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Scheduled. Manage it in Routines."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/Shell.tsx
@@ -4128,6 +4415,14 @@ msgstr "Rechercher"
 
 #: src/pages/ActivityList.tsx
 msgid "Search activity"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Search all my connected Gmail accounts for…"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Search all my Gmail accounts"
 msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
@@ -4147,6 +4442,10 @@ msgstr "Rechercher par domaine"
 msgid "Search conversations"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Search failed"
+msgstr ""
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Search integrations.sh"
 msgstr "Rechercher sur integrations.sh"
@@ -4164,7 +4463,11 @@ msgid "Search providers"
 msgstr "Rechercher des fournisseurs"
 
 #: src/pages/ActivityList.tsx
-msgid "Search runs"
+msgid "Search tasks"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Search topic"
 msgstr ""
 
 #. placeholder {0}: filters.query.trim()
@@ -4233,6 +4536,10 @@ msgstr "Nom du serveur"
 #: src/pages/Onboarding.tsx
 msgid "Server URL"
 msgstr "URL du serveur"
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Sessions"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Set up Kith"
@@ -4391,6 +4698,10 @@ msgstr "Un problème est survenu. Réessayez."
 msgid "Source records"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Sources"
+msgstr ""
+
 #: src/pages/ModelBackupsSettings.tsx
 msgid "Space changed. Reopen Models to load its backup list."
 msgstr "L’espace a changé. Rouvrez Modèles pour charger sa liste de secours."
@@ -4427,6 +4738,10 @@ msgstr "Lire cette réponse à voix haute"
 msgid "Speech model"
 msgstr "Modèle de parole"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Spreadsheet ID"
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "SSO is temporarily unavailable. Try again."
 msgstr "SSO est temporairement indisponible. Réessayez."
@@ -4439,12 +4754,20 @@ msgstr ""
 msgid "Start recording"
 msgstr "Démarrer l'enregistrement"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "Start task"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Start with what you’d like to do."
 msgstr ""
 
 #: src/components/CalendarReceipt.tsx
 msgid "Started"
+msgstr ""
+
+#: src/pages/ActivityList.tsx
+msgid "Starting"
 msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
@@ -4509,6 +4832,14 @@ msgstr ""
 msgid "Subscription required"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Suggested talking points"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Sunday"
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Supports images"
@@ -4530,6 +4861,18 @@ msgstr "Basculement en cours…"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "System"
 msgstr "Système"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Task cancelled"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Task result"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Task starter"
+msgstr ""
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4604,6 +4947,10 @@ msgstr "Le fournisseur limite le débit des requêtes."
 msgid "The selected memory provider is not available in this build."
 msgstr "Le fournisseur de mémoire sélectionné n'est pas disponible dans cette version."
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
+msgstr ""
+
 #: src/pages/shell/bot-credentials.tsx
 msgid "These saved settings can't be read. Remove it and add it again."
 msgstr ""
@@ -4617,6 +4964,10 @@ msgstr "Réflexion"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Thinking: {activeThinkingLabel}"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "This app is unavailable from the configured integration provider."
 msgstr ""
 
 #: src/pages/Shell.tsx
@@ -4700,8 +5051,16 @@ msgstr "Cette connexion par abonnement n'est pas encore disponible dans Kith. Ut
 msgid "This week"
 msgstr "Cette semaine"
 
+#: src/components/task-starters/TaskStarterSetup.tsx
+msgid "This week to date"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Thread"
+msgstr ""
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Thursday"
 msgstr ""
 
 #: src/pages/RoutineSchedule.tsx
@@ -4739,6 +5098,10 @@ msgstr "Aujourd'hui"
 msgid "Tool sources"
 msgstr "Sources d'outils"
 
+#: src/components/integrations/IntegrationSetup.tsx
+msgid "Toolkit to auth-config IDs (JSON)"
+msgstr ""
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Tools"
 msgstr "Outils"
@@ -4771,6 +5134,18 @@ msgstr "Réessayer"
 #: src/lib/model-connection-preflight.ts
 msgid "Try the test again."
 msgstr "Relancez le test."
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Tuesday"
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Turn emails from the past seven days into a prioritized to-do list, with links to each source."
+msgstr ""
+
+#: src/pages/shell/assistant-welcome.tsx
+msgid "Turn my inbox into a to-do list"
+msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
@@ -4820,6 +5195,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Unsupported file type: {0}"
 msgstr "Type de fichier non pris en charge : {0}"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Untitled email"
+msgstr ""
 
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -4997,6 +5376,10 @@ msgstr "Webhook"
 msgid "Website login"
 msgstr ""
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Wednesday"
+msgstr ""
+
 #: src/lib/billing.ts
 msgid "week"
 msgstr ""
@@ -5005,6 +5388,10 @@ msgstr ""
 #: src/pages/RoutineSchedule.tsx
 msgid "Weekdays"
 msgstr "Jours ouvrés"
+
+#: src/components/task-starters/TaskStarterReceipt.tsx
+msgid "Weekly"
+msgstr ""
 
 #: src/pages/shell/dialogs.tsx
 msgid "What about its memories?"
@@ -5058,6 +5445,8 @@ msgstr "Quand utiliser"
 msgid "Where should bots run?"
 msgstr "Où les bots doivent-ils s'exécuter ?"
 
+#: src/components/task-starters/TaskStarterReceipt.tsx
+#: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/ToolActivityDisclosure.tsx
 #: src/lib/roster-status.ts
 #: src/pages/Auth.tsx
