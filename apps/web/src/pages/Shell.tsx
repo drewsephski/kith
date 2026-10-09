@@ -3877,18 +3877,6 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                 <Monitor size={18} strokeWidth={1.6} aria-hidden="true" />
               </Button>
             ) : null}
-            {isMainConversation && assistantId && !quickAskMode ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:inline-flex"
-                onClick={() => setPanel(panel === "connections" ? null : "connections")}
-                aria-pressed={panel === "connections"}
-              >
-                <Puzzle size={16} />
-                <Trans>Connections</Trans>
-              </Button>
-            ) : null}
             {quickAskMode ? (
               <Button
                 variant="ghost"
@@ -3898,15 +3886,6 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                 <Trans>Open Kith</Trans>
               </Button>
             ) : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={() => setPanel(panel === "activity" ? null : "activity")}
-              aria-pressed={panel === "activity"}
-            >
-              <Trans>Tasks</Trans>
-            </Button>
             <ConversationMenu
               inGroup={inGroup}
               showConnections={Boolean(isMainConversation && assistantId && !quickAskMode)}
