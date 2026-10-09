@@ -26,6 +26,11 @@
         <fieldset hidden>
           <legend class="sr-only">Instance</legend>
 
+          <label class="choice" for="mode-hosted">
+            <input id="mode-hosted" type="radio" name="mode" value="hosted" />
+            <span class="choice-title">Kith</span>
+          </label>
+
           <label class="choice" for="mode-new">
             <input id="mode-new" type="radio" name="mode" value="new" checked />
             <span class="choice-title">This computer</span>
@@ -96,6 +101,7 @@
           <button id="continue" class="button button-primary" type="submit">Get started</button>
         </div>
         <button id="change-mode" class="mode-link" type="button">Connect to a server</button>
+        <button id="use-hosted" class="mode-link" type="button" hidden>Use Kith</button>
       </form>
     </main>
 

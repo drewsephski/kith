@@ -1,24 +1,25 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
+import { hostedServiceOrigin } from "./lib/service-url.cjs";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
+  const serviceUrl = process.env.RAKAZO_SERVICE_URL;
+  const apiUrl = serviceUrl ?? process.env.EXPO_PUBLIC_API_URL;
+  let hostedOrigin: string | undefined;
+  if (serviceUrl) hostedOrigin = hostedServiceOrigin(serviceUrl);
   if (process.env.EAS_BUILD_PROFILE === "production") {
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
     if (!apiUrl) {
       throw new Error(
-        "EXPO_PUBLIC_API_URL must be set in the EAS production environment before building for the App Store.",
+        "RAKAZO_SERVICE_URL must be set in the EAS production environment before building for the App Store (EXPO_PUBLIC_API_URL is also supported).",
       );
     }
-
-    let parsed: URL;
-    try {
-      parsed = new URL(apiUrl);
-    } catch {
-      throw new Error("EXPO_PUBLIC_API_URL must be a valid URL.");
-    }
-    if (parsed.protocol !== "https:") {
-      throw new Error("EXPO_PUBLIC_API_URL must use HTTPS for production builds.");
-    }
+    hostedOrigin = hostedServiceOrigin(apiUrl);
   }
 
-  return config as ExpoConfig;
+  return {
+    ...config,
+    extra: {
+      ...config.extra,
+      ...(hostedOrigin ? { rakazoServiceUrl: hostedOrigin } : {}),
+    },
+  } as ExpoConfig;
 };

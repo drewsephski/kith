@@ -1,6 +1,7 @@
 import type {
   Connection,
   ConnectionCatalogItem,
+  IntegrationSetupState,
   TaskAnalyticsProperty,
   TaskStarterId,
   TaskStarterOptions,
@@ -15,9 +16,10 @@ import {
   waitForAppConnection,
 } from "@rakazo/core";
 import { useEffect, useRef, useState } from "react";
-import { Linking, View } from "react-native";
+import { View } from "react-native";
 import { rpc } from "../../lib/api";
 import { t } from "../../lib/i18n";
+import { openIntegrationAuthorization } from "../../lib/integration-authorization";
 import { errorText } from "../../lib/user-error";
 import { NativeActionButton } from "../native-action-button";
 import { TaskField, TaskPicker, TaskSheet, TaskText, TaskToggle } from "./controls";
@@ -62,6 +64,7 @@ export function TaskStarterSetup({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [options, setOptions] = useState<TaskStarterOptions | null>(null);
+  const [canConfigure, setCanConfigure] = useState(false);
   const [properties, setProperties] = useState<TaskAnalyticsProperty[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [spec, setSpec] = useState<TaskStarterSpec>(() => ({
@@ -100,7 +103,16 @@ export function TaskStarterSetup({
       {},
       { signal: controller.current.signal },
     );
-    if (current()) setOptions(next);
+    if (!current()) return next;
+    setOptions(next);
+    if (!next.configured) {
+      const setup = await rpc<IntegrationSetupState>(
+        "integrationSetup/get",
+        {},
+        { signal: controller.current.signal },
+      );
+      if (current()) setCanConfigure(setup.canConfigure);
+    }
     return next;
   }
 
@@ -136,7 +148,7 @@ export function TaskStarterSetup({
   }, [spec.analyticsConnectionId]);
 
   async function finishConnection(connectionId: string, authorizationUrl: string | null = null) {
-    if (authorizationUrl) await Linking.openURL(authorizationUrl);
+    if (authorizationUrl) await openIntegrationAuthorization(authorizationUrl);
     const connection = await waitForAppConnection(
       () => {
         if (!current()) throw new Error("The active workspace changed");
@@ -184,9 +196,7 @@ export function TaskStarterSetup({
         { signal: controller.current.signal },
       );
       if (!current()) return;
-      const item = catalog.find(
-        (entry) => entry.connectorId === "composio" && taskStarterApp(entry.slug) === app,
-      );
+      const item = catalog.find((entry) => taskStarterApp(entry.slug) === app);
       if (!item)
         throw new Error(
           t("{name} is unavailable. Check integrations in Settings.", { name: APP_NAMES[app] }),
@@ -308,7 +318,11 @@ export function TaskStarterSetup({
           }
         />
       ) : !options.configured ? (
-        <TaskText>{t("Configure integrations in Settings to connect accounts.")}</TaskText>
+        <TaskText>
+          {canConfigure
+            ? t("Configure integrations in Settings to connect accounts.")
+            : t("Ask the server owner to configure this provider.")}
+        </TaskText>
       ) : null}
       {starterId === "gmail_search" ? (
         <TaskField

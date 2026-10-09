@@ -99,7 +99,9 @@ try {
     "-strip",
     "apps/mobile/assets/notification-icon.png",
   );
-  convert(master, "-resize", "48x48", "-strip", "apps/mobile/assets/favicon.png");
+  const browserIcon = path.join(temporary, "browser-icon.png");
+  foreground(1000, browserIcon);
+  convert(browserIcon, "-resize", "48x48", "-strip", "apps/mobile/assets/favicon.png");
   convert(
     master,
     "-define",
@@ -148,13 +150,13 @@ try {
     for (const [name, size] of [
       ["favicon-16x16", 16],
       ["favicon-32x32", 32],
-      ["apple-touch-icon", 180],
       ["icon-192", 192],
       ["icon-512", 512],
     ] as const) {
-      convert(master, "-resize", `${size}x${size}`, "-strip", `${publicDir}/${name}.png`);
+      convert(browserIcon, "-resize", `${size}x${size}`, "-strip", `${publicDir}/${name}.png`);
     }
-    convert(master, "-define", "icon:auto-resize=48,32,16", `${publicDir}/favicon.ico`);
+    convert(master, "-resize", "180x180", "-strip", `${publicDir}/apple-touch-icon.png`);
+    convert(browserIcon, "-define", "icon:auto-resize=48,32,16", `${publicDir}/favicon.ico`);
   }
   copy(`${assets}/kith-companion.webp`, "apps/www/public/brand/kith-companion.webp");
   svgMark("apps/www/public/favicon-32x32.png", "apps/www/public/favicon.svg");

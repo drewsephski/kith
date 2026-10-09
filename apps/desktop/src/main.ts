@@ -53,10 +53,12 @@ import {
   managedLocalOpenUrl,
   maySendDesktopStackToken,
   normalizeServerUrl,
+  parseServiceConfig,
   parseSetupInput,
   probeFailureMessage,
   readProbeJson,
   resolveStartupTarget,
+  SERVICE_CONFIG_FILE_NAME,
   safeExternalUrl,
   servesBundledRenderer,
   sessionPartitionForServerUrl,
@@ -88,6 +90,7 @@ let currentSetup: DesktopSetup | null = null;
 let currentTargetUrl: string | null = null;
 let setupError: string | null = null;
 let setupSaveInProgress = false;
+let serviceUrl: string | null = null;
 const appOpener = createAppOpener(openAppOnce);
 /** Prior app window kept until setup is persisted (or the switch is abandoned). */
 let pendingPreviousWindow: BrowserWindow | null = null;
@@ -1022,9 +1025,18 @@ app.whenReady().then(async () => {
     },
   });
   currentSetup = await readSetup(userDataDir);
+  try {
+    serviceUrl = parseServiceConfig(
+      await readFile(path.join(import.meta.dirname, SERVICE_CONFIG_FILE_NAME), "utf8"),
+    );
+  } catch (error) {
+    // Unconfigured development builds retain the local/self-hosted setup flow.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   const target = resolveStartupTarget({
     envUrl: process.env.RAKAZO_WEB_URL,
     saved: currentSetup,
+    serviceUrl,
     forceSetup: process.env.RAKAZO_FORCE_SETUP === "1",
   });
   if (process.env.RAKAZO_PERFORMANCE_CLEAR_CACHE === "1") {
@@ -1175,6 +1187,7 @@ app.whenReady().then(async () => {
     if (!fromSetupWindow(event)) return null;
     return {
       defaultLocalUrl: localStack.webUrl(),
+      serviceUrl: serviceUrl ?? undefined,
       saved: currentSetup,
       error: setupError ?? undefined,
     };
@@ -1338,6 +1351,16 @@ app.whenReady().then(async () => {
       } else {
         showSetupWindow(`Could not reconnect to the saved server. ${reachability.error}`);
       }
+    }
+  } else if (target.source === "service") {
+    const reachability = await probeServer(target.url);
+    if (reachability.ok) {
+      if (await appOpener.open(target.url)) {
+        commitPendingAppSwitch();
+        destroySetupWindow();
+      }
+    } else {
+      showSetupWindow(`Could not connect to Kith. ${reachability.error}`);
     }
   } else {
     if (await appOpener.open(target.url)) {

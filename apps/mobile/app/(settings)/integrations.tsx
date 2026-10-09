@@ -16,7 +16,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,6 +32,7 @@ import { Chevron } from "../../components/row-accessories";
 import { rpc } from "../../lib/api";
 import { mobileTokens } from "../../lib/appearance";
 import { useI18n } from "../../lib/i18n";
+import { openIntegrationAuthorization } from "../../lib/integration-authorization";
 import type { IntegrationsCacheScope, IntegrationsSnapshot } from "../../lib/integrations-cache";
 import {
   integrationsCacheScope,
@@ -394,7 +394,7 @@ export default function Integrations() {
         },
       );
       if (!isCurrent() || controller.signal.aborted) return;
-      if (started.authorizationUrl) await Linking.openURL(started.authorizationUrl);
+      if (started.authorizationUrl) await openIntegrationAuthorization(started.authorizationUrl);
       const row = await waitForAppConnection(
         () => {
           if (!isCurrent()) throw new Error("Account changed");

@@ -7,6 +7,26 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("accepts a separate HTTPS computer gateway without changing the web origin", () => {
+    expect(
+      loadEnv({ ...base, SCREEN_PROXY_ORIGIN: " https://gateway.example.test/ " }),
+    ).toMatchObject({
+      screenProxyOrigin: "https://gateway.example.test",
+      webOrigin: "http://127.0.0.1:5173",
+    });
+    expect(loadEnv(base).screenProxyOrigin).toBeUndefined();
+  });
+
+  it.each([
+    "http://gateway.example.test",
+    "https://user:secret@gateway.example.test",
+    "https://gateway.example.test/path",
+    "https://gateway.example.test/?key=secret",
+    "https://gateway.example.test/#secret",
+  ])("rejects an unsafe computer gateway origin: %s", (origin) => {
+    expect(() => loadEnv({ ...base, SCREEN_PROXY_ORIGIN: origin })).toThrow("SCREEN_PROXY_ORIGIN");
+  });
+
   it("routes persistent database sessions through the shared direct endpoint", () => {
     const direct = "postgres://example:fake@direct.example.test/rakazo";
     expect(loadEnv({ ...base, DATABASE_DIRECT_URL: direct })).toMatchObject({

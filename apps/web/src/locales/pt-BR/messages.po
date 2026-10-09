@@ -5493,3 +5493,11 @@ msgstr "Seu endereço de e-mail"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "O seu nome"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Return to the app to finish connecting."
+msgstr "Volte ao app para concluir a conexão."
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Close tab"
+msgstr "Fechar aba"

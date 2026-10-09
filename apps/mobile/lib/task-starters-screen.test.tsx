@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   space: "space-one",
   generation: 1,
 }));
+vi.mock("./integration-authorization", () => ({ openIntegrationAuthorization: state.openURL }));
 vi.mock("./i18n", () => ({
   t: (message: string, values: Record<string, unknown> = {}) =>
     message.replace(/\{(\w+)\}/g, (match, key: string) => String(values[key] ?? match)),

@@ -6,7 +6,9 @@ import {
   managedLocalOpenUrl,
   maySendDesktopStackToken,
   normalizeServerUrl,
+  normalizeServiceUrl,
   PROBE_RESPONSE_LIMIT_BYTES,
+  parseServiceConfig,
   parseSetupInput,
   parseStoredSetup,
   probeFailureMessage,
@@ -138,6 +140,30 @@ describe("startup target", () => {
     expect(resolveStartupTarget({})).toEqual({ kind: "setup" });
   });
 
+  it("opens the configured hosted service on a first launch", () => {
+    expect(resolveStartupTarget({ serviceUrl: "https://service.example.com/" })).toEqual({
+      kind: "app",
+      url: "https://service.example.com",
+      source: "service",
+    });
+  });
+
+  it("preserves explicit, saved, and forced setup choices ahead of the release default", () => {
+    const serviceUrl = "https://service.example.com";
+    expect(resolveStartupTarget({ serviceUrl, saved })).toMatchObject({ source: "saved" });
+    expect(resolveStartupTarget({ serviceUrl, saved, envUrl: DEFAULT_LOCAL_WEB_URL })).toEqual({
+      kind: "app",
+      url: DEFAULT_LOCAL_WEB_URL,
+      source: "env",
+    });
+    expect(resolveStartupTarget({ serviceUrl, saved, forceSetup: true })).toEqual({
+      kind: "setup",
+    });
+    expect(resolveStartupTarget({ serviceUrl: "http://service.example.com" })).toEqual({
+      kind: "setup",
+    });
+  });
+
   it("opens the saved instance on later launches", () => {
     expect(resolveStartupTarget({ saved })).toEqual({
       kind: "app",
@@ -173,6 +199,42 @@ describe("startup target", () => {
       }),
     ).toEqual({ kind: "setup" });
   });
+});
+
+describe("public release service configuration", () => {
+  it("accepts and canonicalizes a public HTTPS DNS origin", () => {
+    expect(normalizeServiceUrl(" https://Service.example.com/ ")).toBe(
+      "https://service.example.com",
+    );
+    expect(parseServiceConfig('{"serviceUrl":"https://service.example.com"}')).toBe(
+      "https://service.example.com",
+    );
+  });
+
+  it.each([
+    "http://service.example.com",
+    "https://user:secret@service.example.com",
+    "https://service.example.com/app",
+    "https://service.example.com?token=private",
+    "https://service.example.com#private",
+    "https://localhost",
+    "https://service.localhost",
+    "https://service.local",
+    "https://service.internal",
+    "https://127.0.0.1",
+    "https://169.254.169.254",
+    "https://[::1]",
+    "https://service",
+    "service.example.com",
+  ])("rejects credentials, routes, and non-public defaults (%s)", (value) => {
+    expect(normalizeServiceUrl(value)).toBeNull();
+    expect(parseServiceConfig(JSON.stringify({ serviceUrl: value }))).toBeNull();
+  });
+
+  it.each(["{}", "null", "[]", "not json", '{"serviceUrl":null}', '{"serviceUrl":42}'])(
+    "keeps setup available when the release configuration is absent or malformed (%s)",
+    (raw) => expect(parseServiceConfig(raw)).toBeNull(),
+  );
 });
 
 describe("bundled renderer eligibility", () => {

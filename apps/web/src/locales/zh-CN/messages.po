@@ -5493,3 +5493,11 @@ msgstr "你的邮箱"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "你的名字"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Return to the app to finish connecting."
+msgstr "返回应用以完成连接。"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Close tab"
+msgstr "关闭标签页"

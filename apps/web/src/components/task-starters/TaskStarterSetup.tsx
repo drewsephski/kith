@@ -1,12 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   ConnectionCatalogItem,
+  IntegrationSetupState,
   TaskAnalyticsProperty,
   TaskStarterId,
   TaskStarterOptions,
 } from "@rakazo/contracts";
 import { TaskStarterSpecSchema } from "@rakazo/contracts";
-import { taskStarterApp, taskStarterSearchQuery, waitForAppConnection } from "@rakazo/core";
+import { taskStarterApp, taskStarterSearchQuery } from "@rakazo/core";
 import {
   Button,
   Checkbox,
@@ -17,6 +18,8 @@ import {
   SelectField,
 } from "@rakazo/ui-web";
 import { useEffect, useId, useRef, useState } from "react";
+import type { AppAuthorization } from "../../lib/app-connect";
+import { checkAppAccount, connectAppAccount } from "../../lib/app-connect";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 import { IntegrationSetup } from "../integrations/IntegrationSetup";
@@ -46,6 +49,8 @@ export function TaskStarterSetup({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [setup, setSetup] = useState(false);
+  const [setupState, setSetupState] = useState<IntegrationSetupState | null>(null);
+  const [authorization, setAuthorization] = useState<AppAuthorization | null>(null);
   const [query, setQuery] = useState(() =>
     draft.starter === "gmail_search" ? taskStarterSearchQuery(draft.prompt) : "",
   );
@@ -64,13 +69,15 @@ export function TaskStarterSetup({
   const controller = useRef<AbortController | null>(null);
   const alive = useRef(true);
   const refresh = async () => {
-    const [next, items] = await Promise.all([
+    const [next, items, integrationSetup] = await Promise.all([
       rpc.taskStarters.options(),
       rpc.connections.catalog({}),
+      rpc.integrationSetup.get(),
     ]);
     if (alive.current) {
       setOptions(next);
       setCatalog(items);
+      setSetupState(integrationSetup);
     }
   };
   useEffect(() => {
@@ -111,37 +118,47 @@ export function TaskStarterSetup({
     controller.current?.abort();
     const attempt = new AbortController();
     controller.current = attempt;
-    // Reserve the window in the user gesture so browsers do not block the OAuth redirect.
-    const popup = window.open("about:blank", "rakazo-task-connect", "popup,width=560,height=720");
-    if (popup) popup.opener = null;
     setBusy(true);
     setError(null);
+    setAuthorization(null);
     try {
-      const next = await rpc.connections.begin({
-        connectorId: item.connectorId,
-        provider: item.slug,
-        displayName: item.name,
+      const connection = await connectAppAccount(item, {
+        signal: attempt.signal,
+        onAuthorization: (next) => {
+          if (!attempt.signal.aborted && alive.current) setAuthorization(next);
+        },
       });
-      if (attempt.signal.aborted) {
-        popup?.close();
-        return;
-      }
-      if (next.authorizationUrl) {
-        if (!popup) throw new Error(t`Allow pop-ups to connect this account.`);
-        popup.location.href = next.authorizationUrl;
-      } else popup?.close();
-      const connection = await waitForAppConnection(
-        () => rpc.connections.complete({ connectionId: next.connectionId }),
-        { signal: attempt.signal },
-      );
       if (connection.status === "connected") {
-        popup?.close();
+        setAuthorization(null);
         await refresh();
         return;
       }
       throw new Error(t`Authorization is still pending. Check the connection and try again.`);
     } catch (cause) {
-      if (!attempt.signal.aborted) setError(errorText(cause, t`Could not connect account`));
+      if (!attempt.signal.aborted && alive.current)
+        setError(errorText(cause, t`Could not connect account`));
+    } finally {
+      if (controller.current === attempt) controller.current = null;
+      if (!attempt.signal.aborted && alive.current) setBusy(false);
+    }
+  }
+  async function checkConnection() {
+    if (!authorization) return;
+    controller.current?.abort();
+    const attempt = new AbortController();
+    controller.current = attempt;
+    setBusy(true);
+    setError(null);
+    try {
+      const connection = await checkAppAccount(authorization, attempt.signal);
+      if (attempt.signal.aborted || !alive.current) return;
+      if (connection.status !== "connected")
+        throw new Error(t`Authorization is still pending. Check the connection and try again.`);
+      setAuthorization(null);
+      await refresh();
+    } catch (cause) {
+      if (!attempt.signal.aborted && alive.current)
+        setError(errorText(cause, t`Could not connect account`));
     } finally {
       if (controller.current === attempt) controller.current = null;
       if (!attempt.signal.aborted && alive.current) setBusy(false);
@@ -274,7 +291,7 @@ export function TaskStarterSetup({
             <Trans>Load connections</Trans>
           </Button>
         ) : null}
-        {options && !options.configured ? (
+        {options && !options.configured && setupState?.canConfigure ? (
           <>
             <Button variant="outline" onClick={() => setSetup((value) => !value)}>
               <Trans>Configure integrations</Trans>
@@ -283,6 +300,7 @@ export function TaskStarterSetup({
               <IntegrationSetup
                 serverSetup
                 managedOnly
+                initialState={setupState}
                 onDone={() => {
                   setSetup(false);
                   void refresh().catch((cause: unknown) => setError(errorText(cause)));
@@ -290,6 +308,40 @@ export function TaskStarterSetup({
               />
             ) : null}
           </>
+        ) : null}
+        {options && !options.configured && setupState && !setupState.canConfigure ? (
+          <p className="text-muted-foreground">
+            <Trans>Ask the server owner to enable app connections.</Trans>
+          </p>
+        ) : null}
+        {authorization ? (
+          <div role="status" className="flex flex-wrap items-center gap-3">
+            <a
+              className="text-sm underline"
+              href={authorization.authorizationUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Trans>Continue in browser</Trans>
+            </a>
+            {!busy ? (
+              <Button variant="outline" size="sm" onClick={() => void checkConnection()}>
+                <Trans>Check connection</Trans>
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  controller.current?.abort();
+                  controller.current = null;
+                  setBusy(false);
+                }}
+              >
+                <Trans>Stop waiting</Trans>
+              </Button>
+            )}
+          </div>
         ) : null}
         {draft.starter === "gmail_search" ? (
           <label htmlFor={`${fieldId}-query`} className="space-y-2">

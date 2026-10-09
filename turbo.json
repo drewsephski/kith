@@ -21,6 +21,9 @@
         "DATABASE_URL",
         "ENCRYPTION_KEY",
         "GIT_SHA",
+        "RAKAZO_SERVICE_URL",
+        "EXPO_PUBLIC_API_URL",
+        "API_PROXY_TARGET",
         "PUBLIC_POSTHOG_HOST",
         "PUBLIC_POSTHOG_KEY"
       ],

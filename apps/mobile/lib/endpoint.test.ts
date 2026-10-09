@@ -13,7 +13,12 @@ import {
   usesCustomApiBase,
 } from "./endpoint.js";
 
+const constants = vi.hoisted(() => ({ expoConfig: { extra: {} as Record<string, unknown> } }));
+vi.mock("expo-constants", () => ({ default: constants }));
+
 afterEach(() => {
+  constants.expoConfig.extra = {};
+  vi.unstubAllEnvs();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -46,15 +51,21 @@ describe("normalizeApiBase", () => {
     expect(normalizeApiBase("http://")).toMatchObject({ ok: false });
   });
 
-  it("strips credentials from the stored origin", () => {
-    expect(normalizeApiBase("https://user:pass@app.example.com/rpc")).toEqual({
-      ok: true,
-      url: "https://app.example.com",
-    });
+  it("rejects credential-bearing server URLs", () => {
+    expect(normalizeApiBase("https://user:pass@app.example.com/rpc")).toMatchObject({ ok: false });
   });
 });
 
 describe("display and warnings", () => {
+  it("uses the hosted release origin before the legacy endpoint", async () => {
+    constants.expoConfig.extra = { rakazoServiceUrl: "https://service.example.test/" };
+    vi.stubEnv("EXPO_PUBLIC_API_URL", "https://legacy.example.test");
+    vi.resetModules();
+    const endpoint = await import("./endpoint.js");
+    expect(endpoint.defaultApiBase()).toBe("https://service.example.test");
+    expect(endpoint.usesCustomApiBase("https://service.example.test")).toBe(false);
+  });
+
   it("falls back to loopback when the compile-time endpoint is invalid", async () => {
     vi.stubEnv("EXPO_PUBLIC_API_URL", "ftp://files.example.com");
     vi.resetModules();

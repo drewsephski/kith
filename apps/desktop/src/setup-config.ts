@@ -7,12 +7,51 @@ export const DEFAULT_LOCAL_WEB_URL = "http://127.0.0.1:45173";
 export const PROBE_RESPONSE_LIMIT_BYTES = 64 * 1024;
 
 export const SETUP_FILE_NAME = "setup.json";
+export const SERVICE_CONFIG_FILE_NAME = "service-config.json";
 
 export type StartupTarget =
-  | { kind: "app"; url: string; source: "env" | "saved" }
+  | { kind: "app"; url: string; source: "env" | "saved" | "service" }
   | { kind: "setup" };
 
 const SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//;
+
+/** Release defaults must identify a public HTTPS DNS origin, never a credential or route. */
+export function normalizeServiceUrl(input: string): string | null {
+  try {
+    const url = new URL(input.trim());
+    const hostname = unbracketedHost(url.hostname);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.pathname !== "/" ||
+      url.search !== "" ||
+      url.hash !== "" ||
+      isIP(hostname) !== 0 ||
+      !hostname.includes(".") ||
+      hostname.endsWith(".") ||
+      isLocalNetworkHost(hostname) ||
+      hostname.endsWith(".internal")
+    ) {
+      return null;
+    }
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+/** The public build artifact contains only the release service origin. */
+export function parseServiceConfig(raw: string): string | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== "object" || value === null) return null;
+    const serviceUrl = (value as Record<string, unknown>).serviceUrl;
+    return typeof serviceUrl === "string" ? normalizeServiceUrl(serviceUrl) : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Accepts what a person would actually type ("localhost:5173", "rakazo.example.com")
@@ -108,6 +147,7 @@ export function serializeSetup(setup: DesktopSetup): string {
 export function resolveStartupTarget(input: {
   envUrl?: string;
   saved?: DesktopSetup | null;
+  serviceUrl?: string | null;
   forceSetup?: boolean;
 }): StartupTarget {
   if (input.forceSetup === true) return { kind: "setup" };
@@ -119,6 +159,8 @@ export function resolveStartupTarget(input: {
     const saved = parseSetupInput(input.saved);
     if (saved !== null) return { kind: "app", url: saved.serverUrl, source: "saved" };
   }
+  const serviceUrl = input.serviceUrl ? normalizeServiceUrl(input.serviceUrl) : null;
+  if (serviceUrl !== null) return { kind: "app", url: serviceUrl, source: "service" };
   return { kind: "setup" };
 }
 

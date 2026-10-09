@@ -83,6 +83,8 @@ export interface DesktopSetup {
 
 export interface DesktopSetupState {
   defaultLocalUrl: string;
+  /** Public hosted service packaged into the release, when configured. */
+  serviceUrl?: string;
   saved: DesktopSetup | null;
   /** Present when a saved or newly selected server could not be reopened. */
   error?: string;

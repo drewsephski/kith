@@ -1,3 +1,5 @@
+vi.mock("expo-constants", () => ({ default: { expoConfig: { extra: {} } } }));
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("expo-modules-core", () => ({ requireNativeModule: vi.fn() }));

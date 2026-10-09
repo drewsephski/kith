@@ -27,6 +27,7 @@ import {
   showSessionUnavailable,
 } from "./lib/session-gate";
 import { completeSsoCallback, SSO_CALLBACK_PATH } from "./lib/sso-flow";
+import { IntegrationCallbackPage } from "./pages/IntegrationCallback";
 import { IntegrationSetupPage } from "./pages/IntegrationSetup";
 import { LocalSettingsPage } from "./pages/LocalSettings";
 import { McpOAuthCallbackPage } from "./pages/McpOAuthCallback";
@@ -72,6 +73,8 @@ export function App() {
         <ErrorBoundary fallback={<AppFailed />}>
           {window.location.pathname === SSO_CALLBACK_PATH ? (
             <SsoCallbackPage />
+          ) : window.location.pathname === "/integrations/callback" ? (
+            <IntegrationCallbackPage />
           ) : window.location.pathname === LOCAL_SETTINGS_PAGE ? (
             <LocalSettingsPage />
           ) : (

@@ -19,6 +19,7 @@
   const continueButton = document.getElementById("continue");
   const quitButton = document.getElementById("quit");
   const changeModeButton = document.getElementById("change-mode");
+  const useHostedButton = document.getElementById("use-hosted");
   const setupDescription = document.getElementById("setup-description");
 
   const STACK_POLL_MS = 1000;
@@ -50,6 +51,7 @@
   const PULL_SCALE_BYTES = 1.2e9;
 
   let defaultLocalUrl = "";
+  let serviceUrl = null;
   let stackPolling = false;
   let lastStack = null;
   let lastProgress = 0;
@@ -78,18 +80,21 @@
   /** A save in flight cannot be cancelled, so the choice it commits must not change under it. */
   function lockMode(locked) {
     changeModeButton.disabled = locked;
+    useHostedButton.disabled = locked;
     for (const input of form.querySelectorAll('input[name="mode"]')) input.disabled = locked;
   }
 
   function syncPanels() {
     const mode = selectedMode();
     panelNew.hidden = mode !== "new";
-    panelExisting.hidden = mode === "new";
-    checkButton.hidden = mode === "new";
-    changeModeButton.textContent = mode === "new" ? "Connect to a server" : "Use this computer";
+    panelExisting.hidden = mode !== "existing";
+    checkButton.hidden = mode !== "existing";
+    useHostedButton.hidden = serviceUrl === null || mode === "hosted";
+    changeModeButton.textContent =
+      mode === "existing" ? "Use this computer" : "Connect to a server";
     setupDescription.textContent =
-      mode === "new" ? "Your personal assistant, right here." : "Connect to your Kith server.";
-    continueButton.textContent = mode === "new" ? "Get started" : "Continue";
+      mode === "existing" ? "Connect to your Kith server." : "Your personal assistant, right here.";
+    continueButton.textContent = mode === "existing" ? "Continue" : "Get started";
     setStatus("");
   }
 
@@ -295,7 +300,7 @@
   });
 
   changeModeButton.addEventListener("click", () => {
-    const nextMode = selectedMode() === "new" ? "existing" : "new";
+    const nextMode = selectedMode() === "existing" ? "new" : "existing";
     document.getElementById(`mode-${nextMode}`).checked = true;
     syncPanels();
     setBusy(false);
@@ -304,6 +309,13 @@
       renderStack(lastStack);
       if (!TERMINAL_PHASES.has(lastStack.phase)) void followStack();
     }
+  });
+
+  useHostedButton.addEventListener("click", () => {
+    document.getElementById("mode-hosted").checked = true;
+    syncPanels();
+    setBusy(false);
+    continueButton.focus();
   });
 
   checkButton.addEventListener("click", () => {
@@ -332,6 +344,7 @@
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (selectedMode() === "new") void runStack();
+    else if (selectedMode() === "hosted" && serviceUrl !== null) void save("existing", serviceUrl);
     else void save("existing", serverUrl.value);
   });
 
@@ -360,10 +373,13 @@
       const state = await bridge.state();
       if (state === null) throw new Error("Setup is not active");
       defaultLocalUrl = state.defaultLocalUrl;
+      serviceUrl = state.serviceUrl ?? null;
       if (state.saved !== null) {
         const modeInput = document.querySelector(`input[name="mode"][value="${state.saved.mode}"]`);
         if (modeInput !== null) modeInput.checked = true;
         if (state.saved.mode === "existing") serverUrl.value = state.saved.serverUrl;
+      } else if (serviceUrl !== null) {
+        document.getElementById("mode-hosted").checked = true;
       }
       // A relaunch with the stack down starts it before this window opens; show that
       // attempt instead of the saved mode, and follow it while it is still running.

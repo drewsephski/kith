@@ -1,3 +1,4 @@
+vi.mock("expo-constants", () => ({ default: { expoConfig: { extra: {} } } }));
 vi.mock("./ai-consent", () => ({ promptAiConsent: vi.fn() }));
 
 import { withLiveStreamingProgress } from "@rakazo/core";

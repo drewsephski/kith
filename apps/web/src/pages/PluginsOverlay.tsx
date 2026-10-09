@@ -13,7 +13,6 @@ import {
   CONNECTION_CATALOG_PAGE_SIZE,
   filterConnectionCatalogItems,
   humanizeToolName,
-  waitForAppConnection,
 } from "@rakazo/core";
 import {
   Button,
@@ -37,10 +36,10 @@ import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
 import type { AppAuthorization } from "../lib/app-connect";
-import { connectAppAccount } from "../lib/app-connect";
+import { checkAppAccount, connectAppAccount } from "../lib/app-connect";
 import { connectRemoteMcp } from "../lib/mcp-install";
 import { optionalCatalogFeedProbe } from "../lib/optional-catalog-feed";
-import { rpc, selectedSpaceId } from "../lib/rpc";
+import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 
 type SourceKind = "treg" | "executor" | "mcp" | "api" | "graphql";
@@ -274,23 +273,13 @@ export function PluginsOverlay({
 
   async function resumeConnection() {
     if (!authorization) return;
-    const spaceId = selectedSpaceId();
     connectionAttempt.current?.abort();
     const controller = new AbortController();
     connectionAttempt.current = controller;
     setPending("resume");
     setCatalogError(null);
     try {
-      const row = await waitForAppConnection(
-        () => {
-          if (selectedSpaceId() !== spaceId) throw new Error(t`Account changed; connect again.`);
-          return rpc.connections.complete(
-            { connectionId: authorization.connectionId },
-            { context: { spaceId } },
-          );
-        },
-        { signal: controller.signal },
-      );
+      const row = await checkAppAccount(authorization, controller.signal);
       if (row.status === "connected") setAuthorization(null);
       else if (row.status !== "pending") throw new Error(t`Could not connect. Try again.`);
       await refresh();

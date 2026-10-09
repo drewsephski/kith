@@ -583,6 +583,7 @@ export interface RouterDeps {
     webOrigin: string;
     privacyPolicyUrl?: string;
     screenProxySecret: string;
+    screenProxyOrigin?: string;
     sandboxProvider: string;
     gitSha?: string;
     updaterUrl?: string;
@@ -3044,7 +3045,7 @@ export function createRouter(deps: RouterDeps) {
           url: addScreenProxyCapability(
             withViewOnly(session.url, false),
             deps.env.screenProxySecret,
-            deps.env.webOrigin,
+            deps.env.screenProxyOrigin ?? deps.env.webOrigin,
             {
               botId: bot.id,
               computerId: computer.id,
@@ -3093,13 +3094,18 @@ export function createRouter(deps: RouterDeps) {
           !(hasActiveComputerControl(bot.computer) && bot.computer.controlBotId === bot.id),
         );
         return {
-          url: addScreenProxyCapability(viewUrl, deps.env.screenProxySecret, deps.env.webOrigin, {
-            botId: bot.id,
-            computerId: computer.id,
-            botGeneration: bot.screenGeneration,
-            computerGeneration: computer.screenGeneration,
-            controlLeaseId: computer.controlLeaseId,
-          }),
+          url: addScreenProxyCapability(
+            viewUrl,
+            deps.env.screenProxySecret,
+            deps.env.screenProxyOrigin ?? deps.env.webOrigin,
+            {
+              botId: bot.id,
+              computerId: computer.id,
+              botGeneration: bot.screenGeneration,
+              computerGeneration: computer.screenGeneration,
+              controlLeaseId: computer.controlLeaseId,
+            },
+          ),
         };
       }),
       heartbeat: authed.computer.heartbeat.handler(async ({ context, input }) => {
@@ -4579,7 +4585,10 @@ export function createRouter(deps: RouterDeps) {
         });
         try {
           const auth = await connector.begin(
-            { provider: input.provider, redirectUrl: `${deps.env.webOrigin}/app` },
+            {
+              provider: input.provider,
+              redirectUrl: `${deps.env.webOrigin}/integrations/callback`,
+            },
             connectionContext(context.actor, "connections.begin", context.signal),
           );
           // Re-take the provider lock and only advance still-pending rows so a

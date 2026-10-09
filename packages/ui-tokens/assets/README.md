@@ -12,7 +12,8 @@ Platform exports:
 - Desktop `icon-macos.png`: development Dock export with transparent outer margins. Packaged macOS builds compile the shared Icon Composer source and generate a legacy ICNS fallback.
 - Mobile `icon.png`: unmasked 1024px native master. Android supplies its own mask.
 - Mobile `adaptive-icon.png`: centered transparent character foreground, with the semantic background exported separately. Notification and themed icons use its alpha silhouette.
-- Web favicons, install icons, and touch icon: resized native master exports.
+- Web favicons and install icons: transparent character exports with a larger foreground.
+- Apple touch icon: resized opaque native master export.
 
 Keep the character's face, silhouette, and lighting consistent. Run `pnpm generate:brand` after replacing the source to refresh all platform exports, the marketing logo, and social image together. The generator uses the shared light background token. It requires ImageMagick; this is a design maintenance step, not a runtime dependency.
 

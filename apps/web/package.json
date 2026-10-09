@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "cross-env NODE_ENV=production vite build",
+    "build:vercel": "node scripts/vercel-build.mjs",
     "preview": "vite preview",
     "start": "vite preview",
     "check": "tsc --noEmit -p tsconfig.json",

@@ -38,6 +38,8 @@ export interface AppEnv {
   sandboxSupervisorUrl: string;
   sandboxSupervisorToken: string | undefined;
   screenProxySecret: string;
+  /** Optional persistent gateway origin when the frontend is hosted separately. */
+  screenProxyOrigin?: string;
   sandboxProvider: string;
   cloudAgentProvider: string;
   cloudAgentSpaceId: string | undefined;
@@ -177,6 +179,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     sandboxSupervisorToken:
       sandboxProvider === "docker" ? resolveSupervisorToken(source) : undefined,
     screenProxySecret: resolveScreenProxySecret(source),
+    screenProxyOrigin: resolveScreenProxyOrigin(source.SCREEN_PROXY_ORIGIN),
     sandboxProvider,
     cloudAgentProvider,
     cloudAgentSpaceId: optional(source.CLOUD_AGENT_SPACE_ID),
@@ -241,6 +244,26 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     updaterToken,
     imageTag: optional(source.RAKAZO_IMAGE_TAG),
   };
+}
+
+function resolveScreenProxyOrigin(value: string | undefined): string | undefined {
+  const configured = value?.trim();
+  if (!configured) return undefined;
+  try {
+    const url = new URL(configured);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      throw new Error();
+    return url.origin;
+  } catch {
+    throw new Error("SCREEN_PROXY_ORIGIN must be an HTTPS origin without credentials or a path");
+  }
 }
 
 function optional(value: string | undefined): string | undefined {

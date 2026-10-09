@@ -845,4 +845,11 @@ export const ZH_MESSAGES: Record<string, string> = {
   "{count} results": "{count} 条结果",
   "{name} account": "{name} 账户",
   "{name} is unavailable. Check integrations in Settings.": "{name} 不可用。请检查设置中的集成。",
+  "App connections": "应用连接",
+  "Ask the server owner to configure an app provider.": "请联系服务器所有者配置应用连接服务。",
+  "Check connection": "检查连接",
+  "Connect MCP servers in the web app.": "请在网页应用中连接 MCP 服务器。",
+  "Finish connecting in the browser, then check again.": "请在浏览器中完成连接后再检查。",
+  "Set up app connections": "设置应用连接",
+  "Stop waiting": "停止等待",
 };

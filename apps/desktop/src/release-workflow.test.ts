@@ -10,6 +10,11 @@ const workflow = readFileSync(
 const expression = (inner: string) => `\${{ ${inner} }}`;
 
 describe("desktop release workflow", () => {
+  it("embeds only the configured public service origin for hosted distributions", () => {
+    expect(workflow).toContain(`RAKAZO_SERVICE_URL: ${expression("vars.RAKAZO_SERVICE_URL")}`);
+    expect(workflow).not.toContain("COMPOSIO_API_KEY");
+  });
+
   it("cannot execute contributor pull-request code with release credentials", () => {
     expect(workflow).not.toMatch(/^\s*pull_request:/m);
     expect(workflow).toContain("permissions:\n  contents: read");

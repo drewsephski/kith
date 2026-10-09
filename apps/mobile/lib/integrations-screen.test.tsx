@@ -24,6 +24,9 @@ vi.mock("expo-router", () => ({
     }, [callback, state.focused]);
   },
 }));
+vi.mock("./integration-authorization", () => ({
+  openIntegrationAuthorization: vi.fn(async () => undefined),
+}));
 vi.mock("./api", () => ({ rpc: state.rpc }));
 vi.mock("./integrations-cache", () => ({
   integrationsCacheScope: state.scope,

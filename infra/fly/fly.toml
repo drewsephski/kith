@@ -1,0 +1,51 @@
+# Supply the globally unique Kith app name with `fly deploy --app ...`.
+# Run from the repository root so the monorepo is the Docker build context.
+primary_region = "ord"
+kill_signal = "SIGTERM"
+kill_timeout = "60s"
+
+[build]
+  dockerfile = "infra/fly/Dockerfile"
+
+[deploy]
+  strategy = "rolling"
+
+[env]
+  NODE_ENV = "production"
+  DATA_DIR = "/data"
+  API_HOST = "127.0.0.1"
+  API_PORT = "3100"
+  API_URL = "http://127.0.0.1:3100"
+  API_PROXY_TARGET = "http://127.0.0.1:3100"
+  WEB_PORT = "5173"
+  SANDBOX_PROVIDER = "none"
+
+[[mounts]]
+  source = "kith_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 5173
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 100
+    hard_limit = 200
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "60s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"
+
+[[restart]]
+  policy = "always"

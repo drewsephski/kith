@@ -1043,6 +1043,10 @@ describe("connections.begin", () => {
         metadata: {},
       },
     });
+    expect(begin).toHaveBeenCalledWith(
+      { provider: "gmail", redirectUrl: "http://127.0.0.1:5173/integrations/callback" },
+      expect.objectContaining({ userId: actor.userId, spaceId: actor.spaceId }),
+    );
     await expect(response.json()).resolves.toMatchObject({
       json: { connectionId: "conn-old" },
     });

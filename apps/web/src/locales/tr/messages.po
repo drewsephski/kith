@@ -5493,3 +5493,11 @@ msgstr "E-posta adresin"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Adın"
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Return to the app to finish connecting."
+msgstr "Bağlantıyı tamamlamak için uygulamaya dönün."
+
+#: src/pages/IntegrationCallback.tsx
+msgid "Close tab"
+msgstr "Sekmeyi kapat"

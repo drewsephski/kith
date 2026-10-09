@@ -873,4 +873,13 @@ export const RU_MESSAGES: Record<string, string> = {
   "{name} account": "Аккаунт {name}",
   "{name} is unavailable. Check integrations in Settings.":
     "{name} недоступен. Проверьте интеграции в настройках.",
+  "App connections": "Подключения приложений",
+  "Ask the server owner to configure an app provider.":
+    "Попросите владельца сервера настроить поставщика подключений.",
+  "Check connection": "Проверить подключение",
+  "Connect MCP servers in the web app.": "Подключайте MCP-серверы в веб-приложении.",
+  "Finish connecting in the browser, then check again.":
+    "Завершите подключение в браузере и проверьте снова.",
+  "Set up app connections": "Настроить подключения",
+  "Stop waiting": "Остановить ожидание",
 };

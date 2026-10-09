@@ -868,4 +868,13 @@ export const DE_MESSAGES: Record<string, string> = {
   "{name} account": "{name}-Konto",
   "{name} is unavailable. Check integrations in Settings.":
     "{name} ist nicht verfügbar. Prüfe die Integrationen in den Einstellungen.",
+  "App connections": "App-Verbindungen",
+  "Ask the server owner to configure an app provider.":
+    "Bitte den Serverbetreiber, einen App-Anbieter einzurichten.",
+  "Check connection": "Verbindung prüfen",
+  "Connect MCP servers in the web app.": "Verbinde MCP-Server in der Web-App.",
+  "Finish connecting in the browser, then check again.":
+    "Schließe die Verbindung im Browser ab und prüfe sie erneut.",
+  "Set up app connections": "App-Verbindungen einrichten",
+  "Stop waiting": "Warten beenden",
 };

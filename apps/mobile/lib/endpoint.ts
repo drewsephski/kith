@@ -1,5 +1,7 @@
 import { readBoundedJsonResponse } from "@rakazo/core";
+import Constants from "expo-constants";
 import { t } from "./i18n";
+import { hostedServiceOrigin } from "./service-url.cjs";
 
 const LOCAL_API = "http://127.0.0.1:3100";
 const DEFAULT_API = process.env.EXPO_PUBLIC_API_URL ?? LOCAL_API;
@@ -10,6 +12,8 @@ export type EndpointResult = { ok: true; url: string } | { ok: false; error: str
 type HealthResponse = { json?: { ok?: boolean }; error?: { message?: string } };
 
 export function defaultApiBase() {
+  const serviceUrl: unknown = Constants.expoConfig?.extra?.rakazoServiceUrl;
+  if (typeof serviceUrl === "string") return hostedServiceOrigin(serviceUrl);
   return originOnly(DEFAULT_API) ?? LOCAL_API;
 }
 
@@ -27,6 +31,8 @@ export function normalizeApiBase(input: string): EndpointResult {
     return { ok: false, error: t("Use an http or https URL") };
   }
   if (!parsed.hostname) return { ok: false, error: t("That URL is missing a host") };
+  if (parsed.username || parsed.password)
+    return { ok: false, error: t("That doesn’t look like a URL") };
   if (parsed.protocol === "http:" && !isLanOrLocalHost(parsed.hostname)) {
     return { ok: false, error: "Public servers need https://" };
   }

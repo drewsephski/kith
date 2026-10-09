@@ -22,4 +22,8 @@ PRODUCT_PLAN.md
 playwright-report
 test-results
 verify-report
+test-report
+.agents
+.codex
+**/.vercel
 *.log
