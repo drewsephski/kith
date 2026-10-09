@@ -45,6 +45,9 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
       body: JSON.stringify({ json: [{ ...server, hasSecret, oauthStatus }] }),
     });
   });
+  await page
+    .context()
+    .route("**/rpc/mcp/servers/check", (route) => route.fulfill({ json: { json: { ok: true } } }));
   await page.context().route("**/rpc/mcp/assignments/all", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ json: [] }) });
   });
@@ -83,7 +86,8 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     });
   });
 
-  await page.getByText("Integrations", { exact: true }).click();
+  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "More connections", exact: true }).click();
   await page
     .getByTestId("integrations-advanced")
     .locator('[data-slot="collapsible-trigger"]')

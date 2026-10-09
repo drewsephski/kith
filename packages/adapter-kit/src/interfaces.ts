@@ -1,3 +1,4 @@
+import type { CalendarReader } from "./calendar.js";
 import type {
   AdapterContext,
   AdapterDescriptor,
@@ -201,6 +202,8 @@ export interface ConnectionAuthProvider {
 export interface ManagedConnectorProvider
   extends ConnectorProvider,
     Omit<ConnectionAuthProvider, "describe"> {
+  /** Optional deterministic read-only Calendar access through a managed account. */
+  calendarReader?(providerRef: string, context: AdapterContext): CalendarReader;
   catalog(context: AdapterContext, query?: string): Promise<ConnectorCatalogItem[]>;
   listConnectedExternalIds(context: AdapterContext): Promise<string[]>;
   connectionReady(context: AdapterContext, externalId: string): Promise<boolean>;

@@ -1,15 +1,18 @@
 import type {
   AdapterContext,
   ConnectorCall,
+  ManagedCalendarProvider,
   ManagedConnectorProvider,
   SecretStore,
 } from "@rakazo/adapter-kit";
+import { CalendarAccessError } from "@rakazo/adapter-kit";
 import {
   type IntegrationProviderConfig,
   IntegrationProviderConfigSchema,
   type IntegrationProviderId,
   IntegrationProviderIdSchema,
 } from "@rakazo/contracts";
+import { matchFeaturedConnectorId } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { ComposioConnector } from "./composio-connector.js";
 import { credentialDigest } from "./credential-digest.js";
@@ -110,6 +113,25 @@ export class IntegrationProviderSettings {
     // The store may have expired or invalidated this ref while persistence waited.
     // Re-resolve through it before retaining any provider credentials.
     this.cache.delete(config.provider);
+  }
+
+  calendarProvider(): ManagedCalendarProvider {
+    return {
+      configured: async () => {
+        for (const id of IntegrationProviderIdSchema.options) {
+          if ((await this.resolve(id))?.calendarReader) return id;
+        }
+        return null;
+      },
+      reader: async (connection, context) => {
+        const id = IntegrationProviderIdSchema.safeParse(connection.connectorId);
+        if (!id.success || matchFeaturedConnectorId(connection.provider) !== "google-calendar")
+          throw new CalendarAccessError();
+        const provider = await this.resolve(id.data);
+        if (!provider?.calendarReader) throw new CalendarAccessError();
+        return provider.calendarReader(connection.providerRef, context);
+      },
+    };
   }
 
   providers(): ManagedConnectorProvider[] {

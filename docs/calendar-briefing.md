@@ -2,7 +2,15 @@
 
 The Calendar action in an assistant's desktop/web conversation connects Google Calendar and automatically starts a read-only briefing for tomorrow. Mobile exposes the same connection in Integrations and renders the saved briefing in the conversation. OAuth client configuration is available in the desktop/web connection dialog; mobile directs the server owner there for setup.
 
-## Setup
+## Managed app setup
+
+The shortest path is **Server integrations → Composio**: the deployment owner saves one API key, then members connect Google Calendar or Gmail from **Integrations** using browser consent. Composio is optional; direct MCP and the Google OAuth setup below remain available without it. Credentials stay in the existing encrypted provider settings.
+
+The Calendar action reuses a connected Google Calendar app account, or starts its managed sign-in. Multiple accounts can be selected. The API verifies calendar and event access before atomically attaching the account and queueing a briefing. The Composio adapter reads the standard Google Calendar API through its authenticated GET proxy; Google tokens are not exported to Rakazo. API and worker resolve the same provider configuration. Live use requires the account's Calendar read scopes and Composio proxy permission; offline fixtures do not verify those grants.
+
+Revoking the app account prevents retrieval, retries and publication of saved briefing outcomes. **Disconnect briefing** removes this local Calendar attachment while leaving the app account available for other tools. Remove the account in Integrations to disconnect it everywhere. Direct Google OAuth disconnect still revokes the direct grant as described below.
+
+## Direct Google OAuth setup
 
 1. Apply migrations with `pnpm db:migrate`, regenerate the client with `pnpm db:generate`, and restart the API and worker.
 2. Enable [Google Calendar API](https://developers.google.com/workspace/calendar/api/quickstart/js) in a Google Cloud project. Configure its OAuth consent screen and create a **Web application** OAuth client.
@@ -11,7 +19,7 @@ The Calendar action in an assistant's desktop/web conversation connects Google C
 5. Allow these two scopes on the consent screen: `calendar.calendarlist.readonly` and `calendar.events.readonly`. [Testing-mode Google applications](https://developers.google.com/identity/protocols/oauth2#expiration) require approved test users and may have refresh tokens that expire after seven days. Production distribution requires the applicable Google verification process.
 6. Connect from the assistant conversation. An existing model connection and its AI data-sharing consent enable personalized preparation suggestions. Without a usable model or consent, the actual schedule and conflicts are still saved, with suggestions explicitly marked unavailable.
 
-This does not depend on Composio or Pipedream and does not create calendar write tools. Existing generic integrations remain available; the dedicated Calendar action provides the guaranteed read-only briefing workflow.
+The direct setup does not depend on Composio or Pipedream and does not create calendar write tools. Existing generic integrations remain available; the dedicated Calendar action provides the guaranteed read-only briefing workflow.
 
 ## Execution and evidence
 

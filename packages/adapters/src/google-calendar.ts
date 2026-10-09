@@ -1,4 +1,10 @@
-import type { AdapterContext, CalendarProvider, CalendarTokens } from "@rakazo/adapter-kit";
+import type {
+  AdapterContext,
+  CalendarProvider,
+  CalendarReader,
+  CalendarTokens,
+  CalendarWindow,
+} from "@rakazo/adapter-kit";
 import { CalendarAccessError } from "@rakazo/adapter-kit";
 import type { CalendarEvent, CalendarOAuthConfig, CalendarSource } from "@rakazo/contracts";
 import { readBoundedResponseBytes } from "@rakazo/core";
@@ -169,9 +175,28 @@ export class GoogleCalendarProvider implements CalendarProvider {
     if (!response.ok && response.status !== 400)
       throw new Error("Could not revoke Calendar access; try again");
   }
+  reader(tokens: CalendarTokens): CalendarReader {
+    return new GoogleCalendarReader((url, context) =>
+      this.json(url.href, { headers: { Authorization: `Bearer ${tokens.accessToken}` } }, context),
+    );
+  }
+  sources(tokens: CalendarTokens, context: AdapterContext) {
+    return this.reader(tokens).sources(context);
+  }
+  events(
+    tokens: CalendarTokens,
+    input: CalendarWindow & { sources: CalendarSource[] },
+    context: AdapterContext,
+  ) {
+    return this.reader(tokens).events(input, context);
+  }
+}
+
+/** Both direct and managed access use the same complete, bounded Google reads. */
+export class GoogleCalendarReader implements CalendarReader {
+  constructor(private readonly request: (url: URL, context: AdapterContext) => Promise<unknown>) {}
   private async pages<T>(
     path: string,
-    tokens: CalendarTokens,
     context: AdapterContext,
     schema: z.ZodType<{ items: T[]; nextPageToken?: string }>,
     params: Record<string, string> = {},
@@ -184,21 +209,15 @@ export class GoogleCalendarProvider implements CalendarProvider {
         ...params,
         ...(pageToken ? { pageToken } : {}),
       }).toString();
-      const result = schema.parse(
-        await this.json(
-          url.href,
-          { headers: { Authorization: `Bearer ${tokens.accessToken}` } },
-          context,
-        ),
-      );
+      const result = schema.parse(await this.request(url, context));
       items.push(...result.items);
       if (!result.nextPageToken) return items;
       pageToken = result.nextPageToken;
     }
     throw new Error("Calendar result limit exceeded; no complete briefing was saved");
   }
-  async sources(tokens: CalendarTokens, context: AdapterContext): Promise<CalendarSource[]> {
-    const rows = await this.pages("users/me/calendarList", tokens, context, SourcePage, {
+  async sources(context: AdapterContext): Promise<CalendarSource[]> {
+    const rows = await this.pages("users/me/calendarList", context, SourcePage, {
       maxResults: "250",
     });
     const sources = rows
@@ -211,23 +230,12 @@ export class GoogleCalendarProvider implements CalendarProvider {
     if (sources.length > 50) throw new Error("Too many calendars for a complete briefing");
     return sources;
   }
-  async events(
-    tokens: CalendarTokens,
-    input: {
-      sources: CalendarSource[];
-      date: string;
-      timezone: string;
-      timeMin: string;
-      timeMax: string;
-    },
-    context: AdapterContext,
-  ) {
+  async events(input: CalendarWindow & { sources: CalendarSource[] }, context: AdapterContext) {
     const events: CalendarEvent[] = [];
     const seen = new Set<string>();
     for (const source of input.sources) {
       const rows = await this.pages(
         `calendars/${encodeURIComponent(source.id)}/events`,
-        tokens,
         context,
         EventPage,
         {

@@ -31,7 +31,7 @@ test("setup exposes all integration choices and saves only the selected provider
   for (const name of ["Direct MCP", "Composio", "Pipedream", "Executor"]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByLabel("API key", { exact: true })).toBeHidden();
+  await expect(page.getByLabel("API key", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "integration-setup-options");
   await page.getByRole("button", { name: "Pipedream", exact: true }).click();
   await expect(page.getByLabel("Client ID", { exact: true })).toBeVisible();
@@ -67,6 +67,9 @@ test("direct MCP connects a catalog result without asking for a URL and assigns 
     }),
   );
   let serverId = "";
+  await page.route("**/rpc/mcp/servers/check", (route) =>
+    route.fulfill({ json: { json: { ok: true } } }),
+  );
   await page.route("**/rpc/capabilities/catalogSearch", (route) =>
     route.fulfill({
       json: {
@@ -100,14 +103,15 @@ test("direct MCP connects a catalog result without asking for a URL and assigns 
   await completeOnboarding(page);
   const botId = new URL(page.url()).pathname.split("/").at(-1);
   await page.goto("/integrations/setup");
+  await page.getByRole("button", { name: "Direct MCP", exact: true }).click();
   await page.getByRole("textbox", { name: "Search apps", exact: true }).fill("Notion");
   await page.getByRole("button", { name: "Search integrations.sh", exact: true }).click();
   await expect(page.getByText("Notion", { exact: true })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Server URL" })).toBeHidden();
+  await expect(page.getByRole("textbox", { name: "Server URL" })).toBeVisible();
   const assigned = page.waitForResponse(
     (response) => response.url().includes("/rpc/mcp/assignments/approve") && response.ok(),
   );
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByRole("button", { name: "Connect", exact: true }).last().click();
   const response = await assigned;
   expect(response.request().postDataJSON().json).toEqual({ botId, serverId });
   await expect(page.getByRole("button", { name: "Connected", exact: true })).toBeVisible();
@@ -156,6 +160,9 @@ test("Executor reconnect saves a replacement token before authorization", async 
     if (!response.ok) throw new Error(`Server creation failed: ${response.status}`);
     return (await response.json()).json;
   });
+  await page.route("**/rpc/mcp/servers/check", (route) =>
+    route.fulfill({ json: { json: { ok: true } } }),
+  );
   let saved = false;
   await page.route("**/rpc/mcp/servers/update", async (route) => {
     expect(route.request().postDataJSON()).toEqual({
@@ -239,7 +246,6 @@ test("configured server owners manage providers from settings", async ({ page },
   await signup(page, `configured-owner-${Date.now()}@rakazo.test`, "password12", "Server Owner");
   await expect(page.getByRole("heading", { name: "Server integrations" })).toBeHidden();
   await completeOnboarding(page);
-  await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
   const link = settings.getByRole("link", { name: "Server integrations", exact: true });
@@ -250,4 +256,114 @@ test("configured server owners manage providers from settings", async ({ page },
   await page.getByRole("button", { name: "Composio", exact: true }).click();
   await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "server-integrations-configured");
+});
+
+test("custom MCP verifies before granting access and resumes a saved server after failure", async ({
+  page,
+}, testInfo) => {
+  await signup(page, `mcp-verify-${Date.now()}@rakazo.test`, "password12", "MCP Verification");
+  await completeOnboarding(page);
+  const calls: string[] = [];
+  let verified = false;
+  await page.route("**/rpc/mcp/servers/create", async (route) => {
+    calls.push("create");
+    await route.fulfill({ response: await route.fetch() });
+  });
+  await page.route("**/rpc/mcp/oauth/begin", (route) =>
+    route.fulfill({ json: { json: { status: "authorization_not_requested" } } }),
+  );
+  await page.route("**/rpc/mcp/servers/check", (route) => {
+    calls.push("check");
+    return verified
+      ? route.fulfill({ json: { json: { ok: true } } })
+      : route.fulfill({ status: 400, json: { message: "Server unavailable" } });
+  });
+  await page.route("**/rpc/mcp/assignments/approve", async (route) => {
+    calls.push("approve");
+    expect(verified).toBe(true);
+    await route.fulfill({ response: await route.fetch() });
+  });
+  await page.goto("/integrations/setup?mode=mcp&endpoint=https%3A%2F%2Fmcp.example.test%2Fmcp");
+  await expect(page.getByRole("textbox", { name: "Server URL", exact: true })).toHaveValue(
+    "https://mcp.example.test/mcp",
+  );
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  expect(calls).toEqual(["create", "check"]);
+  verified = true;
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Connected", exact: true })).toBeVisible();
+  expect(calls).toEqual(["create", "check", "check", "approve"]);
+  await captureScreenshot(page, testInfo, "mcp-url-connected");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByRole("textbox", { name: "Server URL", exact: true })).toBeVisible();
+  await captureScreenshot(page, testInfo, "mcp-url-connected-narrow");
+});
+
+test("blocked popups expose a browser link and checking resumes the same app sign-in", async ({
+  page,
+}, testInfo) => {
+  await signup(page, `app-popup-${Date.now()}@rakazo.test`, "password12", "App Connection");
+  await completeOnboarding(page);
+  let begins = 0;
+  let connected = false;
+  const account = () => ({
+    id: "pending-gmail",
+    connectorId: "composio",
+    provider: "gmail",
+    displayName: "Gmail",
+    status: connected ? "connected" : "pending",
+    capabilities: [],
+    createdAt: "2026-10-09T18:00:00Z",
+  });
+  await page.route("**/rpc/connections/catalog", (route) =>
+    route.fulfill({
+      json: {
+        json: [
+          {
+            connectorId: "composio",
+            slug: "gmail",
+            name: "Gmail",
+            logo: null,
+            connected,
+            noAuth: false,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route("**/rpc/connections/list", (route) =>
+    route.fulfill({ json: { json: begins ? [account()] : [] } }),
+  );
+  await page.route("**/rpc/connections/begin", (route) => {
+    begins += 1;
+    return route.fulfill({
+      json: {
+        json: {
+          connectionId: "pending-gmail",
+          authorizationUrl: "https://auth.example.test/google",
+        },
+      },
+    });
+  });
+  await page.route("**/rpc/connections/complete", (route) =>
+    route.fulfill({ json: { json: account() } }),
+  );
+  await page.evaluate(() => {
+    window.open = () => null;
+  });
+  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "More connections", exact: true }).click();
+  await page.getByRole("button", { name: "Connect Gmail", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Continue in browser", exact: true }),
+  ).toHaveAttribute("href", "https://auth.example.test/google");
+  await page.getByRole("button", { name: "Stop waiting", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Check connection", exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await captureScreenshot(page, testInfo, "app-browser-fallback-narrow");
+  connected = true;
+  await page.getByRole("button", { name: "Check connection", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Continue in browser", exact: true })).toBeHidden();
+  expect(begins).toBe(1);
 });

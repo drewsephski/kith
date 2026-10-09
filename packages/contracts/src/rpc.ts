@@ -92,6 +92,7 @@ import {
   IntegrationProviderConfigSchema,
   IntegrationSetupStateSchema,
 } from "./integration-settings.js";
+import { McpHeadersSchema } from "./mcp.js";
 import { MessageReactionSchema } from "./reactions.js";
 import { RoutineHistorySchema, RoutineRunCursorSchema, RunsListOutputSchema } from "./runs.js";
 import { SearchQueryOutputSchema } from "./search.js";
@@ -462,10 +463,17 @@ export const appContract = {
         configured: z.boolean(),
         redirectUri: z.string(),
         canConfigure: z.boolean(),
+        directConfigured: z.boolean().default(false),
+        managedConnectorId: z.string().nullable().default(null),
+        managedConnectionId: Id.nullable().default(null),
+        managedConnections: z.array(z.object({ id: Id, displayName: z.string() })).default([]),
         connectionId: Id.nullable(),
         status: z.enum(["disconnected", "pending", "connected", "error"]),
       }),
     ),
+    connectAccount: oc
+      .input(z.object({ connectionId: Id, botId: Id, timezone: CalendarTimezone }))
+      .output(z.object({ ok: z.literal(true) })),
     configure: oc.input(CalendarOAuthConfigSchema).output(z.object({ ok: z.literal(true) })),
     begin: oc
       .input(z.object({ botId: Id, timezone: CalendarTimezone }))
@@ -672,12 +680,22 @@ export const appContract = {
   mcp: {
     servers: {
       list: oc.output(z.array(McpServerSchema)),
+      check: oc.input(z.object({ serverId: Id })).output(z.object({ ok: z.literal(true) })),
       create: oc.input(McpServerConfigInput).output(McpServerSchema),
       update: oc
         .input(
           z.union([
             z.object({ id: Id, config: McpServerConfigInput }),
-            z.object({ id: Id, secret: z.string().min(1).max(16384) }),
+            z
+              .object({
+                id: Id,
+                secret: z.string().min(1).max(16384).optional(),
+                headers: McpHeadersSchema.optional(),
+              })
+              .refine(
+                (input) => input.secret !== undefined || input.headers !== undefined,
+                "Provide credentials",
+              ),
           ]),
         )
         .output(McpServerSchema),

@@ -13,6 +13,8 @@ import {
   isApprovalAskBlock,
   isConversationalRun,
   isSecretAskBlock,
+  managedConnectionId,
+  managedProviderRef,
   messagingChannelId,
   resolveAskChoice,
   sanitizeJsonValue,
@@ -1125,6 +1127,20 @@ async function finalizeRunOnce(
         },
       });
       if (!connection) throw new CalendarConnectionChangedError();
+      const sourceId = managedConnectionId(connection.metadata);
+      if (sourceId) {
+        await tx.$queryRaw`SELECT id FROM connections WHERE id = ${sourceId} FOR UPDATE`;
+        const source = await tx.connection.findFirst({
+          where: {
+            id: sourceId,
+            spaceId: input.spaceId,
+            userId: connection.userId,
+            status: "connected",
+            providerRef: managedProviderRef(connection.metadata),
+          },
+        });
+        if (!source) throw new CalendarConnectionChangedError();
+      }
     }
     let writableRun: { startedAt: Date | null } | undefined;
     try {

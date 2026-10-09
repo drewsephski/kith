@@ -2,9 +2,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { IntegrationCatalogResult, IntegrationSetupState } from "@rakazo/contracts";
 import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@rakazo/ui-web";
 import { Check } from "lucide-react";
-import { useEffect, useId, useState } from "react";
-import { newClientId } from "../../lib/client-id";
-import { connectMcpOauth } from "../../lib/mcp-connect";
+import { useEffect, useId, useRef, useState } from "react";
+import { connectRemoteMcp } from "../../lib/mcp-install";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
 
@@ -15,6 +14,7 @@ export function IntegrationSetup({
   serverSetup = false,
   managedOnly = false,
   initialState,
+  initialEndpoint = "",
   botId,
   onServerConnected,
 }: {
@@ -23,23 +23,28 @@ export function IntegrationSetup({
   /** Local host settings can configure providers, but cannot access account MCP servers. */
   managedOnly?: boolean;
   initialState?: IntegrationSetupState | null;
+  initialEndpoint?: string;
   botId?: string;
   onServerConnected?: (id: string) => void;
 }) {
   const { t } = useLingui();
   const fieldId = useId();
   const [state, setState] = useState<IntegrationSetupState | null>(initialState ?? null);
-  const [selectedChoice, setChoice] = useState<Choice>(managedOnly ? "composio" : "direct");
+  const [selectedChoice, setChoice] = useState<Choice>("composio");
   const choice = serverSetup ? selectedChoice : "direct";
   const [apiKey, setApiKey] = useState("");
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
-  const [endpoint, setEndpoint] = useState("");
+  const [serverName, setServerName] = useState("");
+  const [endpoint, setEndpoint] = useState(initialEndpoint);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<IntegrationCatalogResult[]>([]);
   const [searched, setSearched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
+  const connectionAttempt = useRef<AbortController | null>(null);
+  useEffect(() => () => connectionAttempt.current?.abort(), []);
   const [connected, setConnected] = useState<string[]>([]);
   const choices: { id: Choice; label: string }[] = [
     { id: "direct", label: t`Direct MCP` },
@@ -105,22 +110,24 @@ export function IntegrationSetup({
 
   async function connect(name: string, url: string) {
     await run(async () => {
-      const existing = (await rpc.mcp.servers.list()).find((server) => server.endpoint === url);
-      const server =
-        existing ??
-        (await rpc.mcp.servers.create({
-          slug: `integration-${newClientId().slice(0, 8)}`,
-          name,
-          transport: "streamable_http",
-          endpoint: url,
-          ...(apiKey.trim() ? { secret: apiKey.trim() } : {}),
-        }));
-      if (existing && apiKey.trim()) {
-        await rpc.mcp.servers.update({ id: existing.id, secret: apiKey.trim() });
+      connectionAttempt.current?.abort();
+      const controller = new AbortController();
+      connectionAttempt.current = controller;
+      const server = await connectRemoteMcp({
+        endpoint: url,
+        name,
+        secret: apiKey,
+        botId,
+        signal: controller.signal,
+        onAuthorization: setAuthorizationUrl,
+      });
+      if (!server) {
+        if (!controller.signal.aborted)
+          setError(t`Connection is unfinished. Try again when you are ready.`);
+        return;
       }
-      const result = await connectMcpOauth(server.id);
-      if (result === "cancelled") return;
-      if (botId) await rpc.mcp.assignments.approve({ botId, serverId: server.id });
+      setAuthorizationUrl(null);
+      setApiKey("");
       setConnected((current) => [...current, url]);
       onServerConnected?.(server.id);
     });
@@ -232,8 +239,69 @@ export function IntegrationSetup({
           ) : null}
         </>
       ) : null}
+      {authorizationUrl ? (
+        <div className="flex flex-wrap gap-3">
+          <a href={authorizationUrl} target="_blank" rel="noreferrer" className="text-sm underline">
+            <Trans>Continue in browser</Trans>
+          </a>
+          {busy ? (
+            <Button size="sm" variant="ghost" onClick={() => connectionAttempt.current?.abort()}>
+              <Trans>Stop waiting</Trans>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {choice === "direct" ? (
         <>
+          <form
+            className="space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void connect(serverName, endpoint.trim());
+            }}
+          >
+            <Input
+              aria-label={t`Server URL`}
+              type="url"
+              value={endpoint}
+              onChange={(event) => setEndpoint(event.target.value)}
+              placeholder="https://example.com/mcp"
+              disabled={busy}
+            />
+            <Collapsible>
+              <CollapsibleTrigger className="cursor-pointer text-sm text-muted-foreground">
+                <Trans>Connection settings</Trans>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-3">
+                <Input
+                  aria-label={t`Server name`}
+                  value={serverName}
+                  onChange={(event) => setServerName(event.target.value)}
+                  placeholder={t`Server name (optional)`}
+                  disabled={busy}
+                />
+                <Input
+                  aria-label={t`Access token`}
+                  type="password"
+                  autoComplete="new-password"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  placeholder={t`Access token (optional)`}
+                  disabled={busy}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+            <Button
+              type="submit"
+              disabled={busy || !endpoint.trim() || connected.includes(endpoint.trim())}
+            >
+              {busy
+                ? t`Connecting…`
+                : connected.includes(endpoint.trim())
+                  ? t`Connected`
+                  : t`Connect`}
+            </Button>
+          </form>
           <form
             className="flex gap-2"
             onSubmit={(event) => {
@@ -275,27 +343,6 @@ export function IntegrationSetup({
               <Trans>No remote MCP servers found</Trans>
             </p>
           ) : null}
-          <Collapsible className="text-sm text-muted-foreground">
-            <CollapsibleTrigger className="cursor-pointer">
-              <Trans>Add server URL</Trans>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="mt-3 space-y-3">
-                <Input
-                  aria-label={t`Server URL`}
-                  value={endpoint}
-                  onChange={(event) => setEndpoint(event.target.value)}
-                  placeholder="https://example.com/mcp"
-                />
-                <Button
-                  disabled={busy || !endpoint.trim()}
-                  onClick={() => void connect("MCP server", endpoint.trim())}
-                >
-                  <Trans>Connect</Trans>
-                </Button>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
         </>
       ) : null}
       {choice === "executor" ? (

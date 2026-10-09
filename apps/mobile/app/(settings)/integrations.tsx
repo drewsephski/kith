@@ -1,13 +1,18 @@
-import type { CapabilityInstall, Connection, ConnectionCatalogItem } from "@rakazo/contracts";
+import type {
+  CapabilityInstall,
+  Connection,
+  ConnectionCatalogItem,
+  IntegrationSetupState,
+} from "@rakazo/contracts";
 import {
-  abortableDelay,
   buildFeaturedConnectorTiles,
   CONNECTION_CATALOG_PAGE_SIZE,
   EMPTY_PLUGIN_CATALOG_MESSAGE,
   filterConnectionCatalogItems,
   humanizeToolName,
+  waitForAppConnection,
 } from "@rakazo/core";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -50,6 +55,7 @@ function itemKey(item: Pick<ConnectionCatalogItem, "connectorId" | "slug">) {
 }
 
 export default function Integrations() {
+  const router = useRouter();
   const styles = useThemedStyles(createIntegrationsStyles);
   const { t } = useI18n();
   const { width } = useWindowDimensions();
@@ -75,7 +81,7 @@ export default function Integrations() {
   const [detailKey, setDetailKey] = useState<{ connectorId: string; slug: string } | null>(null);
   const [tools, setTools] = useState<ConnectionTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [toolsTick, setToolsTick] = useState(0);
   const connectionAttempt = useRef<AbortController | null>(null);
 
@@ -333,7 +339,7 @@ export default function Integrations() {
 
   function openDetail(item: ConnectionCatalogItem) {
     setCatalogError(null);
-    setToolsOpen(true);
+    setToolsOpen(false);
     setDetailKey({ connectorId: item.connectorId, slug: item.slug });
   }
 
@@ -389,22 +395,26 @@ export default function Integrations() {
       );
       if (!isCurrent() || controller.signal.aborted) return;
       if (started.authorizationUrl) await Linking.openURL(started.authorizationUrl);
-      for (let attempt = 0; attempt < 45; attempt += 1) {
-        if (controller.signal.aborted || !isCurrent()) return;
-        const row = await rpc<Connection>("connections/complete", {
-          connectionId: started.connectionId,
-        }).catch(() => undefined);
-        if (row?.status === "connected") {
-          if (controller.signal.aborted || !isCurrent()) return;
-          updateAccount(row);
-          void notifyAppConnected(item, isCurrent);
-          await refresh();
-          if (isCurrent()) setToolsTick((tick) => tick + 1);
-          return;
-        }
-        await abortableDelay(2_000, controller.signal);
-      }
+      const row = await waitForAppConnection(
+        () => {
+          if (!isCurrent()) throw new Error("Account changed");
+          return rpc<Connection>(
+            "connections/complete",
+            { connectionId: started.connectionId },
+            { signal: controller.signal },
+          );
+        },
+        { signal: controller.signal },
+      );
       if (controller.signal.aborted || !isCurrent()) return;
+      updateAccount(row);
+      if (row.status === "connected") {
+        void notifyAppConnected(item, isCurrent);
+        await refresh();
+        if (isCurrent()) setToolsTick((tick) => tick + 1);
+        return;
+      }
+      if (row.status !== "pending") throw new Error(t("Could not connect"));
       Alert.alert(
         t("Connection pending"),
         t("Finish connecting in the browser, then refresh this page."),
@@ -412,6 +422,61 @@ export default function Integrations() {
     } catch (reason) {
       if (controller.signal.aborted || !isCurrent()) return;
       setCatalogError(errorText(reason, t("Could not connect")));
+    } finally {
+      if (connectionAttempt.current === controller) {
+        connectionAttempt.current = null;
+        if (isCurrent()) setPending(null);
+      }
+    }
+  }
+
+  async function openAppSetup() {
+    const isCurrent = captureConnectionScope();
+    try {
+      const setup = await rpc<IntegrationSetupState>("integrationSetup/get");
+      if (!isCurrent()) return;
+      if (setup.canConfigure) router.push("/integration-setup");
+      else
+        Alert.alert(t("App connections"), t("Ask the server owner to configure an app provider."));
+    } catch (error) {
+      if (isCurrent()) setCatalogError(errorText(error, t("Could not load integrations")));
+    }
+  }
+
+  async function checkAccount(account: Connection) {
+    const isCurrent = captureConnectionScope();
+    if (!isCurrent()) return;
+    connectionAttempt.current?.abort();
+    const controller = new AbortController();
+    connectionAttempt.current = controller;
+    setPending(account.id);
+    setCatalogError(null);
+    try {
+      const row = await waitForAppConnection(
+        () => {
+          if (!isCurrent()) throw new Error("Account changed");
+          return rpc<Connection>(
+            "connections/complete",
+            { connectionId: account.id },
+            { signal: controller.signal },
+          );
+        },
+        { signal: controller.signal },
+      );
+      if (!isCurrent() || controller.signal.aborted) return;
+      updateAccount(row);
+      if (row.status === "connected") {
+        await refresh();
+        return;
+      }
+      setCatalogError(
+        row.status === "pending"
+          ? t("Finish connecting in the browser, then check again.")
+          : t("Could not connect"),
+      );
+    } catch (error) {
+      if (isCurrent() && !controller.signal.aborted)
+        setCatalogError(errorText(error, t("Could not connect")));
     } finally {
       if (connectionAttempt.current === controller) {
         connectionAttempt.current = null;
@@ -491,12 +556,19 @@ export default function Integrations() {
   }
 
   function beginSource(kind: SourceKind) {
+    if (kind === "mcp" || kind === "treg" || kind === "executor") {
+      router.push({
+        pathname: "/integration-setup",
+        params: { mode: "mcp", ...(kind === "treg" ? { endpoint: "https://treg.to/mcp/" } : {}) },
+      });
+      return;
+    }
     setSourceKind(kind);
     setSourceError(null);
-    setName(kind === "treg" ? "Treg" : kind === "executor" ? "Executor" : "");
-    setUrl(kind === "treg" ? "https://treg.to/mcp/" : "");
+    setName("");
+    setUrl("");
     setCredential("");
-    setRequiresAuth(kind === "treg" || kind === "executor");
+    setRequiresAuth(false);
   }
 
   async function addSource() {
@@ -660,6 +732,15 @@ export default function Integrations() {
                 accessibilityLabel={t("Account label")}
                 style={styles.accountLabel}
               />
+              {row.status === "pending" ? (
+                <NativeActionButton
+                  label={t("Check connection")}
+                  disabled={!!pending}
+                  fill={false}
+                  prominence="secondary"
+                  onPress={() => void checkAccount(row)}
+                />
+              ) : null}
               <NativeActionButton
                 accessibilityLabel={t("Remove {name}", { name: row.displayName })}
                 disabled={pending === row.id || uninstalling}
@@ -724,6 +805,22 @@ export default function Integrations() {
       >
         {!detailItem && calendarIdentity ? <CalendarConnection key={calendarIdentity} /> : null}
         {!detailItem ? (
+          <NativeActionButton
+            label={t("Add MCP server")}
+            fill={false}
+            prominence="secondary"
+            onPress={() => router.push("/integration-setup?mode=mcp")}
+          />
+        ) : null}
+        {pending ? (
+          <NativeActionButton
+            label={t("Stop waiting")}
+            fill={false}
+            prominence="secondary"
+            onPress={() => connectionAttempt.current?.abort()}
+          />
+        ) : null}
+        {!detailItem ? (
           <TextInput
             value={query}
             onChangeText={(value) => {
@@ -779,7 +876,15 @@ export default function Integrations() {
             ) : null}
 
             {catalogReady && catalog.length === 0 ? (
-              <Text style={styles.secondary}>{t(EMPTY_PLUGIN_CATALOG_MESSAGE)}</Text>
+              <View style={styles.catalogStack}>
+                <Text style={styles.secondary}>{t(EMPTY_PLUGIN_CATALOG_MESSAGE)}</Text>
+                <NativeActionButton
+                  label={t("Set up app connections")}
+                  fill={false}
+                  prominence="secondary"
+                  onPress={() => void openAppSetup()}
+                />
+              </View>
             ) : null}
 
             {catalogReady && catalog.length > 0 ? (

@@ -1,7 +1,7 @@
-import type { MessageBlock } from "@rakazo/contracts";
+import type { IntegrationSetupState, MessageBlock } from "@rakazo/contracts";
 import { useEffect, useState } from "react";
 import type { ViewProps } from "react-native";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, StyleSheet, Text, View } from "react-native";
 import { rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
@@ -53,6 +53,7 @@ export function McpApprovalCard({
     setPendingAction(action);
     try {
       if (action === "approve") {
+        await rpc("mcp/servers/check", { serverId: block.serverId }, { timeoutMs: 120_000 });
         await rpc("mcp/assignments/approve", { botId, serverId: block.serverId, threadId });
       } else {
         await rpc("mcp/assignments/dismiss", { botId, serverId: block.serverId, threadId });
@@ -65,6 +66,19 @@ export function McpApprovalCard({
       );
     } finally {
       setPendingAction(null);
+    }
+  }
+
+  async function openWebConnection() {
+    try {
+      const setup = await rpc<IntegrationSetupState>("integrationSetup/get");
+      const url = new URL(setup.webUrl);
+      url.searchParams.set("mode", "mcp");
+      url.searchParams.set("botId", botId);
+      if (block.endpoint) url.searchParams.set("endpoint", block.endpoint);
+      await Linking.openURL(url.toString());
+    } catch (error) {
+      Alert.alert(t("Could not connect"), errorText(error));
     }
   }
 
@@ -109,6 +123,14 @@ export function McpApprovalCard({
               : t("Approve this server to let your agent use its tools.")}
           </Text>
           <View style={styles.actions}>
+            {block.needsOAuth ? (
+              <NativeActionButton
+                label={t("Open web app")}
+                fill={false}
+                disabled={pendingAction !== null}
+                onPress={() => void openWebConnection()}
+              />
+            ) : null}
             {!block.needsOAuth ? (
               <NativeActionButton
                 label={t("Approve")}

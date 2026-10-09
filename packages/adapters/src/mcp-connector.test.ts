@@ -1218,3 +1218,56 @@ describe("allowlistDrift", () => {
     });
   });
 });
+
+describe("MCP settings verification", () => {
+  const context = {
+    spaceId: "w1",
+    userId: "u1",
+    operationId: "connect",
+    traceId: "connect",
+    signal: new AbortController().signal,
+  };
+  it("discovers tools before any bot assignment is required and performs no tool calls", async () => {
+    const server = { ...SERVER, enabled: true, userId: "u1", spaceId: "w1" };
+    const findFirst = vi.fn(async () => server);
+    const prisma = { mcpServer: { findFirst } };
+    const state = { failNext: false, initializations: 0, calls: [] as string[] };
+    vi.stubGlobal("fetch", mcpFetch(state));
+    const store = new EncryptedSecretStore("test-only-key");
+    const connector = new McpConnector(
+      prisma as unknown as ConstructorParameters<typeof McpConnector>[0],
+      store,
+      { network: TEST_NETWORK },
+    );
+    try {
+      await expect(connector.checkServer(server.id, context)).resolves.toBeUndefined();
+      expect(state.initializations).toBe(1);
+      expect(state.calls).toEqual([]);
+      expect(findFirst).toHaveBeenLastCalledWith({
+        where: { id: server.id, spaceId: "w1", userId: "u1", enabled: true, revision: 1 },
+      });
+    } finally {
+      await connector.close();
+      await store.close();
+    }
+  });
+  it("rejects a server changed during verification", async () => {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce({ ...SERVER, enabled: true })
+      .mockResolvedValue(null);
+    vi.stubGlobal("fetch", mcpFetch({ failNext: false, initializations: 0 }));
+    const store = new EncryptedSecretStore("test-only-key");
+    const connector = new McpConnector(
+      { mcpServer: { findFirst } } as unknown as ConstructorParameters<typeof McpConnector>[0],
+      store,
+      { network: TEST_NETWORK },
+    );
+    try {
+      await expect(connector.checkServer(SERVER.id, context)).rejects.toThrow("MCP server changed");
+    } finally {
+      await connector.close();
+      await store.close();
+    }
+  });
+});

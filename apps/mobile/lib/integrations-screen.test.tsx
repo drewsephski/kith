@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   focused: true,
 }));
 vi.mock("expo-router", () => ({
+  useRouter: () => ({ push: vi.fn() }),
   useFocusEffect: (callback: () => undefined | (() => void)) => {
     useEffect(() => {
       if (state.focused) return callback();
@@ -98,6 +99,7 @@ vi.mock("react-native", () => {
     useWindowDimensions: () => ({ width: 390 }),
     Alert: { alert: vi.fn() },
     Linking: { openURL: vi.fn() },
+    AppState: { addEventListener: () => ({ remove: vi.fn() }) },
   };
 });
 
@@ -475,6 +477,9 @@ it.each(["rename", "revoke", "uninstall", "connect"])(
           ? "connections/complete"
           : "connections/revoke",
       expect.anything(),
+      ...(action === "connect"
+        ? [expect.objectContaining({ signal: expect.any(AbortSignal) })]
+        : []),
     );
     state.current = false;
     state.scope.mockImplementation(async () => {

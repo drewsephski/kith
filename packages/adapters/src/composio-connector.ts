@@ -1,6 +1,7 @@
 import { Composio } from "@composio/core";
 import type {
   AdapterContext,
+  CalendarReader,
   ConnectedConnector,
   ConnectorCall,
   ConnectorCatalogItem,
@@ -9,6 +10,7 @@ import type {
   ConnectorTool,
   ManagedConnectorProvider,
 } from "@rakazo/adapter-kit";
+import { CalendarAccessError } from "@rakazo/adapter-kit";
 import { getLogger } from "@rakazo/logging";
 import {
   composioToolkitDirectory,
@@ -16,6 +18,7 @@ import {
   type ToolkitDirectoryEntry,
 } from "./composio-catalog-cache.js";
 import { DestinationEmulator } from "./destination-emulator.js";
+import { GoogleCalendarReader } from "./google-calendar.js";
 import { isVitestRuntime } from "./test-runtime.js";
 
 type ComposioSession = Awaited<ReturnType<Composio["create"]>>;
@@ -397,6 +400,34 @@ export class ComposioConnector implements ComposioProvider {
     });
     this.executeSessions.set(userId, { sessionId: session.sessionId, key });
     return session;
+  }
+
+  calendarReader(providerRef: string, context: AdapterContext): CalendarReader {
+    return new GoogleCalendarReader(async (url, requestContext) => {
+      requestContext.signal.throwIfAborted();
+      try {
+        const response = await this.sdk().tools.proxyExecute(
+          {
+            connectedAccountId: providerRef,
+            endpoint: url.href,
+            method: "GET",
+          },
+          { signal: requestContext.signal },
+        );
+        if ([401, 403].includes(response.status)) throw new CalendarAccessError();
+        if (response.status < 200 || response.status >= 300)
+          throw new Error("Calendar request failed; try again");
+        requestContext.signal.throwIfAborted();
+        const data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+        if (JSON.stringify(data)?.length > 4_000_000)
+          throw new Error("Calendar response too large");
+        return data;
+      } catch (error) {
+        if (error instanceof CalendarAccessError) throw error;
+        context.signal.throwIfAborted();
+        throw new Error("Could not read Calendar. Check its connection and try again.");
+      }
+    });
   }
 
   async catalog(context: AdapterContext, query?: string): Promise<ConnectorCatalogItem[]> {

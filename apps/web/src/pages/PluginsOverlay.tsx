@@ -5,13 +5,15 @@ import type {
   ConnectionCatalogItem,
   IntegrationCatalogResult,
   IntegrationCatalogSurface,
+  IntegrationSetupState,
+  McpServer,
 } from "@rakazo/contracts";
 import {
-  abortableDelay,
   buildFeaturedConnectorTiles,
   CONNECTION_CATALOG_PAGE_SIZE,
   filterConnectionCatalogItems,
   humanizeToolName,
+  waitForAppConnection,
 } from "@rakazo/core";
 import {
   Button,
@@ -33,8 +35,11 @@ import {
 import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IntegrationSetup } from "../components/integrations/IntegrationSetup";
+import type { AppAuthorization } from "../lib/app-connect";
+import { connectAppAccount } from "../lib/app-connect";
+import { connectRemoteMcp } from "../lib/mcp-install";
 import { optionalCatalogFeedProbe } from "../lib/optional-catalog-feed";
-import { rpc } from "../lib/rpc";
+import { rpc, selectedSpaceId } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 
 type SourceKind = "treg" | "executor" | "mcp" | "api" | "graphql";
@@ -82,11 +87,15 @@ export function PluginsOverlay({
 }) {
   const { t } = useLingui();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false);
+  const [setupState, setSetupState] = useState<IntegrationSetupState | null>(null);
+  const [authorization, setAuthorization] = useState<AppAuthorization | null>(null);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(CONNECTION_CATALOG_PAGE_SIZE);
   const [catalog, setCatalog] = useState<ConnectionCatalogItem[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [labelDrafts, setLabelDrafts] = useState<Record<string, string>>({});
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [sources, setSources] = useState<CapabilityInstall[]>([]);
   const [sourceKind, setSourceKind] = useState<SourceKind | null>(null);
   const [sourceName, setSourceName] = useState("");
@@ -108,17 +117,21 @@ export function PluginsOverlay({
   const [detailKey, setDetailKey] = useState<{ connectorId: string; slug: string } | null>(null);
   const [tools, setTools] = useState<ConnectionTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [toolsTick, setToolsTick] = useState(0);
   const connectionAttempt = useRef<AbortController | null>(null);
 
   async function refresh() {
-    const [items, installs, rows, catalogFeed] = await Promise.all([
+    const [items, installs, rows, catalogFeed, setup, servers] = await Promise.all([
       rpc.connections.catalog({}),
       rpc.capabilities.list(),
       rpc.connections.list(),
       optionalCatalogFeedProbe(rpc.capabilities.catalogSearch({ query: "" })),
+      rpc.integrationSetup.get(),
+      rpc.mcp.servers.list(),
     ]);
+    setSetupState(setup);
+    setMcpServers(servers);
     setCatalog(items);
     setConnections(rows);
     setLabelDrafts((current) => {
@@ -187,7 +200,7 @@ export function PluginsOverlay({
 
   function openDetail(item: ConnectionCatalogItem) {
     setCatalogError(null);
-    setToolsOpen(true);
+    setToolsOpen(false);
     setDetailKey({ connectorId: item.connectorId, slug: item.slug });
   }
 
@@ -224,37 +237,25 @@ export function PluginsOverlay({
       const existing = activeAccounts(connections, item).filter(
         (row) => row.status === "connected",
       );
-      const started = await rpc.connections.begin({
-        connectorId: item.connectorId,
-        provider: item.slug,
+      setAuthorization(null);
+      const row = await connectAppAccount(item, {
+        signal: controller.signal,
         displayName: nextAccountLabel(item.name, existing.length),
+        onAuthorization: setAuthorization,
       });
-      if (started.authorizationUrl)
-        window.open(started.authorizationUrl, "rakazo-plugin-connect", "noopener,noreferrer");
-      if (item.noAuth && !started.authorizationUrl) {
-        if (controller.signal.aborted) return;
+      if (controller.signal.aborted) return;
+      if (row.status === "connected") {
+        setAuthorization(null);
         setItemConnected(item, true);
         void notifyAppConnected(item);
-        await refresh().catch(() => undefined);
+        await refresh();
         setToolsTick((tick) => tick + 1);
         return;
       }
-      for (let i = 0; i < 45; i += 1) {
-        if (controller.signal.aborted) return;
-        const row = await rpc.connections
-          .complete({ connectionId: started.connectionId })
-          .catch(() => undefined);
-        if (row?.status === "connected") {
-          if (controller.signal.aborted) return;
-          setItemConnected(item, true);
-          void notifyAppConnected(item);
-          await refresh().catch(() => undefined);
-          setToolsTick((tick) => tick + 1);
-          return;
-        }
-        await abortableDelay(2_000, controller.signal);
+      if (row.status !== "pending") {
+        setAuthorization(null);
+        throw new Error(t`Could not connect ${item.name}. Try again.`);
       }
-      if (controller.signal.aborted) return;
       setCatalogError(
         t`Connection to ${item.name} is still pending. You can close this and check again.`,
       );
@@ -262,6 +263,38 @@ export function PluginsOverlay({
     } catch (err) {
       if (controller.signal.aborted) return;
       setCatalogError(errorText(err, t`Could not connect`));
+    } finally {
+      if (connectionAttempt.current === controller) {
+        connectionAttempt.current = null;
+        setPending(null);
+      }
+    }
+  }
+
+  async function resumeConnection() {
+    if (!authorization) return;
+    const spaceId = selectedSpaceId();
+    connectionAttempt.current?.abort();
+    const controller = new AbortController();
+    connectionAttempt.current = controller;
+    setPending("resume");
+    setCatalogError(null);
+    try {
+      const row = await waitForAppConnection(
+        () => {
+          if (selectedSpaceId() !== spaceId) throw new Error(t`Account changed; connect again.`);
+          return rpc.connections.complete(
+            { connectionId: authorization.connectionId },
+            { context: { spaceId } },
+          );
+        },
+        { signal: controller.signal },
+      );
+      if (row.status === "connected") setAuthorization(null);
+      else if (row.status !== "pending") throw new Error(t`Could not connect. Try again.`);
+      await refresh();
+    } catch (error) {
+      if (!controller.signal.aborted) setCatalogError(errorText(error, t`Could not connect`));
     } finally {
       if (connectionAttempt.current === controller) {
         connectionAttempt.current = null;
@@ -379,34 +412,33 @@ export function PluginsOverlay({
     setSourceError(null);
     setPending("install-source");
     try {
+      if (sourceKind === "mcp" || sourceKind === "treg" || sourceKind === "executor") {
+        const server = await connectRemoteMcp({
+          endpoint: sourceUrl,
+          name: sourceName,
+          botId: activeBotId,
+          secret: authType === "bearer" ? credential : undefined,
+          headers:
+            authType === "header" && credential.trim()
+              ? { [authName.trim()]: credential.trim() }
+              : undefined,
+        });
+        if (!server) return;
+        setCredential("");
+        setSourceKind(null);
+        await refresh();
+        return;
+      }
       const auth = {
         type: authType,
         ...(authType === "header" ? { name: authName.trim() } : {}),
       };
       await rpc.capabilities.install({
-        kind: sourceKind === "treg" || sourceKind === "executor" ? "mcp" : sourceKind,
-        name:
-          sourceName.trim() ||
-          (sourceKind === "treg"
-            ? "Treg"
-            : sourceKind === "executor"
-              ? "Executor"
-              : sourceKind === "graphql"
-                ? "GraphQL"
-                : "Custom connector"),
+        kind: sourceKind,
+        name: sourceName.trim() || (sourceKind === "graphql" ? "GraphQL" : "Custom connector"),
         source: sourceUrl.trim(),
         credential: credential.trim() || undefined,
-        config:
-          sourceKind === "treg"
-            ? { preset: "treg", auth: { type: "bearer" } }
-            : sourceKind === "api"
-              ? { openApi: true, auth }
-              : sourceKind === "graphql"
-                ? { auth }
-                : {
-                    preset: "custom",
-                    auth: sourceKind === "executor" ? { type: "bearer" } : auth,
-                  },
+        config: sourceKind === "api" ? { openApi: true, auth } : { auth },
       });
       setCredential("");
       setSourceKind(null);
@@ -458,13 +490,14 @@ export function PluginsOverlay({
         variant="secondary"
         className="rounded-full"
         size="sm"
-        disabled={connecting}
+        disabled={Boolean(pending)}
+        aria-label={t`Connect ${item.name}`}
         onClick={(event) => {
           event.stopPropagation();
           void connect(item);
         }}
       >
-        {connecting ? <Trans>Adding…</Trans> : <Trans>Add</Trans>}
+        {connecting ? <Trans>Connecting…</Trans> : <Trans>Connect</Trans>}
       </Button>
     );
   }
@@ -562,7 +595,7 @@ export function PluginsOverlay({
             variant="secondary"
             className="rounded-full"
             size="sm"
-            disabled={uninstalling || connecting}
+            disabled={Boolean(pending)}
             onClick={() => void uninstall(item)}
           >
             {uninstalling ? <Trans>Removing…</Trans> : <Trans>Uninstall</Trans>}
@@ -708,10 +741,48 @@ export function PluginsOverlay({
           >
             <Trans>Browse MCP servers</Trans>
           </Button>
+          {!detailItem && mcpServers.length > 0 ? (
+            <div className="mb-6 space-y-2">
+              <div className="text-sm font-medium">
+                <Trans>MCP servers</Trans>
+              </div>
+              {mcpServers
+                .filter((server) => server.name.toLowerCase().includes(query.toLowerCase()))
+                .map((server) => (
+                  <div
+                    key={server.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border p-3"
+                  >
+                    <span className="min-w-0 truncate">{server.name}</span>
+                    {onOpenMcp ? (
+                      <Button size="sm" variant="ghost" onClick={onOpenMcp}>
+                        <Trans>Manage</Trans>
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+            </div>
+          ) : null}
+          {providerSetupOpen ? (
+            <div className="mb-6">
+              <IntegrationSetup
+                serverSetup
+                managedOnly
+                initialState={setupState}
+                onDone={() => {
+                  setProviderSetupOpen(false);
+                  void refresh().catch((err: unknown) =>
+                    setCatalogError(errorText(err, t`Could not load integrations`)),
+                  );
+                }}
+              />
+            </div>
+          ) : null}
           {setupOpen ? (
             <div className="mb-6">
               <IntegrationSetup
                 botId={activeBotId}
+                onServerConnected={() => void refresh()}
                 onDone={() => {
                   setSetupOpen(false);
                   void refresh().catch((err: unknown) =>
@@ -721,7 +792,43 @@ export function PluginsOverlay({
               />
             </div>
           ) : null}
-          {catalogError ? <p className="mb-4 text-sm text-destructive">{catalogError}</p> : null}
+          {authorization ? (
+            <div
+              role="status"
+              className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border p-3"
+            >
+              <a
+                className="text-sm underline"
+                href={authorization.authorizationUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Trans>Continue in browser</Trans>
+              </a>
+              {!pending ? (
+                <Button size="sm" variant="outline" onClick={() => void resumeConnection()}>
+                  <Trans>Check connection</Trans>
+                </Button>
+              ) : null}
+              {pending ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    connectionAttempt.current?.abort();
+                    setPending(null);
+                  }}
+                >
+                  <Trans>Stop waiting</Trans>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {catalogError ? (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              {catalogError}
+            </p>
+          ) : null}
 
           {detailItem ? (
             renderDetail(detailItem)
@@ -737,10 +844,16 @@ export function PluginsOverlay({
                 <div className="mb-6" data-testid="featured-connectors">
                   {!loading && catalog.length === 0 ? (
                     <p className="text-[13.5px] leading-6 text-muted-foreground/80">
-                      <Trans>Configure a plugin catalog on the server to connect apps.</Trans>
+                      {setupState?.canConfigure ? (
+                        <Button variant="outline" onClick={() => setProviderSetupOpen(true)}>
+                          <Trans>Set up app connections</Trans>
+                        </Button>
+                      ) : (
+                        <Trans>Ask the server owner to enable app connections.</Trans>
+                      )}
                     </p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {featuredTiles.map((tile) => {
                         const item = tile.item;
                         const key = item ? itemKey(item) : tile.id;
@@ -790,7 +903,7 @@ export function PluginsOverlay({
                 </p>
               ) : null}
               {visible.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {rendered.map((item) =>
                     renderCatalogTile(item, item.name, item.logo, {
                       // Avoid duplicate connection-tile-* ids while featured is also shown.

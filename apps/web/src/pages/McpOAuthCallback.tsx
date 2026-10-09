@@ -22,7 +22,12 @@ export function McpOAuthCallbackPage() {
     const code = params.get("code");
     const state = params.get("state");
     if (!code || !state) {
-      setError(params.get("error_description") ?? t`OAuth authorization was cancelled.`);
+      setError(t`OAuth authorization was cancelled.`);
+      if (state) {
+        const channel = new BroadcastChannel(POPUP_NAME);
+        channel.postMessage({ type: "mcp-oauth-complete", sessionId: state, status: "error" });
+        channel.close();
+      }
       return;
     }
     if (handledState.current === state) return;
@@ -31,7 +36,7 @@ export function McpOAuthCallbackPage() {
       .complete({ sessionId: state, code, state })
       .then(() => {
         const channel = new BroadcastChannel(POPUP_NAME);
-        channel.postMessage({ type: "mcp-oauth-complete" });
+        channel.postMessage({ type: "mcp-oauth-complete", sessionId: state, status: "connected" });
         channel.close();
         if (window.name === POPUP_NAME) {
           setDone(true);
@@ -40,7 +45,12 @@ export function McpOAuthCallbackPage() {
         }
         navigate("/app?mcp_oauth=connected", { replace: true });
       })
-      .catch((err: unknown) => setError(errorText(err, t`Could not complete OAuth`)));
+      .catch((err: unknown) => {
+        setError(errorText(err, t`Could not complete OAuth`));
+        const channel = new BroadcastChannel(POPUP_NAME);
+        channel.postMessage({ type: "mcp-oauth-complete", sessionId: state, status: "error" });
+        channel.close();
+      });
   }, [navigate, params, t]);
   const showReturn = Boolean(error) && window.name !== POPUP_NAME;
   return (
