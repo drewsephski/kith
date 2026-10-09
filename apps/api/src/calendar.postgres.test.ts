@@ -168,6 +168,165 @@ describeDatabase("calendar OAuth → durable briefing (PostgreSQL, offline provi
     );
   }
 
+  async function managedAccount() {
+    const source = await prisma.connection.create({
+      data: {
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        connectorId: "managed-test",
+        provider: "googlecalendar",
+        displayName: "Work Calendar",
+        providerRef: "fake-account",
+        status: "connected",
+      },
+    });
+    const reader = {
+      sources: vi.fn(async () => [{ id: "primary", name: "Work", timezone: "America/Chicago" }]),
+      events: vi.fn(async (input: Parameters<CalendarProvider["events"]>[1]) => ({
+        ...input,
+        retrievedAt: new Date().toISOString(),
+        events: [],
+      })),
+    };
+    service = new CalendarService({
+      ...service.deps,
+      managed: {
+        configured: async () => "managed-test",
+        reader: async () => reader,
+      },
+    });
+    return { source, reader };
+  }
+  it("reuses a managed account without token export and queues only one briefing on concurrent clicks", async () => {
+    const { source } = await managedAccount();
+    await Promise.all(
+      [1, 2].map(() =>
+        service.connectAccount(actor, {
+          connectionId: source.id,
+          botId,
+          timezone: "America/Chicago",
+        }),
+      ),
+    );
+    const receipt = await prisma.calendarBriefing.findFirstOrThrow({
+      where: { run: { userId: actor.userId } },
+    });
+    expect(await prisma.calendarBriefing.count({ where: { run: { userId: actor.userId } } })).toBe(
+      1,
+    );
+    expect(await prisma.secret.count({ where: { userId: actor.userId } })).toBe(0);
+    expect((await service.status(actor)).managedConnections).toEqual([
+      { id: source.id, displayName: "Work Calendar" },
+    ]);
+    await execute(receipt.runId);
+    expect((await service.receipt(actor, receipt.id)).status).toBe("completed");
+    expect(provider.exchange).not.toHaveBeenCalled();
+    await service.disconnect(actor);
+    expect((await prisma.connection.findUniqueOrThrow({ where: { id: source.id } })).status).toBe(
+      "connected",
+    );
+    expect(provider.revoke).not.toHaveBeenCalled();
+  });
+  it("rejects managed accounts outside the actor scope before provider reads", async () => {
+    const { source, reader } = await managedAccount();
+    await expect(
+      service.connectAccount(
+        { ...actor, userId: "other" },
+        { connectionId: source.id, botId, timezone: "UTC" },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      service.connectAccount(
+        { ...actor, spaceId: "other" },
+        { connectionId: source.id, botId, timezone: "UTC" },
+      ),
+    ).rejects.toThrow();
+    expect(reader.sources).not.toHaveBeenCalled();
+  });
+  it("does not attach a managed account without event permissions", async () => {
+    const { source, reader } = await managedAccount();
+    reader.events.mockRejectedValueOnce(new CalendarAccessError());
+    await expect(
+      service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" }),
+    ).rejects.toThrow();
+    expect(await prisma.calendarBriefing.count({ where: { run: { userId: actor.userId } } })).toBe(
+      0,
+    );
+  });
+  it("fences revoked managed accounts during retrieval and before final publication", async () => {
+    const { source, reader } = await managedAccount();
+    await service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" });
+    const receipt = await prisma.calendarBriefing.findFirstOrThrow({
+      where: { run: { userId: actor.userId } },
+    });
+    reader.events.mockImplementationOnce(async (input) => {
+      await prisma.connection.update({ where: { id: source.id }, data: { status: "revoked" } });
+      return { ...input, retrievedAt: new Date().toISOString(), events: [] };
+    });
+    await execute(receipt.runId);
+    expect((await service.receipt(actor, receipt.id)).snapshot).toBeNull();
+    expect((await service.status(actor)).status).toBe("error");
+    await expect(service.retry(actor, receipt.id)).rejects.toThrow();
+  });
+  it("invalidates a managed briefing when another app account is selected during retrieval", async () => {
+    const { source, reader } = await managedAccount();
+    await service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" });
+    const receipt = await prisma.calendarBriefing.findFirstOrThrow({
+      where: { run: { userId: actor.userId } },
+    });
+    const next = await prisma.connection.create({
+      data: {
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        connectorId: source.connectorId,
+        provider: source.provider,
+        displayName: "Home Calendar",
+        providerRef: "fake-home-account",
+        status: "connected",
+      },
+    });
+    reader.events.mockImplementationOnce(async (input) => {
+      await service.connectAccount(actor, { connectionId: next.id, botId, timezone: "UTC" });
+      return { ...input, retrievedAt: new Date().toISOString(), events: [] };
+    });
+    await execute(receipt.runId);
+    expect((await service.receipt(actor, receipt.id)).status).toBe("failed");
+    expect((await service.status(actor)).managedConnectionId).toBe(next.id);
+    expect(await prisma.calendarBriefing.count({ where: { run: { userId: actor.userId } } })).toBe(
+      2,
+    );
+  });
+  it("switching from direct pending authorization removes its verifier and rejects its callback", async () => {
+    const state = await begin();
+    const { source } = await managedAccount();
+    await service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" });
+    expect(
+      await prisma.secret.count({
+        where: { userId: actor.userId, kind: "calendar-oauth-pending" },
+      }),
+    ).toBe(0);
+    await expect(service.callback({ state, code: "fake-code" })).rejects.toThrow();
+    expect(provider.exchange).not.toHaveBeenCalled();
+  });
+  it("does not publish a saved outcome when the linked managed account is revoked", async () => {
+    const { source } = await managedAccount();
+    await service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" });
+    const receipt = await prisma.calendarBriefing.findFirstOrThrow({
+      where: { run: { userId: actor.userId } },
+    });
+    const finalize = events.finalizeRun.bind(events);
+    vi.spyOn(events, "finalizeRun").mockImplementationOnce(async (input) => {
+      await prisma.connection.update({ where: { id: source.id }, data: { status: "revoked" } });
+      return finalize(input);
+    });
+    await execute(receipt.runId);
+    const saved = await service.receipt(actor, receipt.id);
+    expect(saved.status).toBe("failed");
+    expect(await prisma.message.count({ where: { runId: receipt.runId, role: "assistant" } })).toBe(
+      0,
+    );
+  });
+
   it("automatically queues after OAuth, persists encrypted credentials and saves one verified empty-calendar outcome", async () => {
     const receipt = await connected();
     expect(receipt.run.status).toBe("queued");

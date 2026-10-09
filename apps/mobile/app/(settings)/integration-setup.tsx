@@ -1,5 +1,5 @@
 import type { IntegrationSetupState } from "@rakazo/contracts";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { NativeActionButton } from "../../components/native-action-button";
@@ -12,10 +12,13 @@ import { closeSettingsSheet } from "../../lib/settings-sheet";
 
 export default function IntegrationSetup() {
   const router = useRouter();
+  const { mode, endpoint } = useLocalSearchParams<{ mode?: string; endpoint?: string }>();
+  const directOnly = mode === "mcp";
   const { t } = useI18n();
   const styles = useThemedStyles(createStyles);
   const [state, setState] = useState<IntegrationSetupState | null>(null);
-  const [choice, setChoice] = useState("direct");
+  const [choice, setChoice] = useState("composio");
+  const [serverUrl, setServerUrl] = useState(endpoint ?? "");
   const [key, setKey] = useState("");
   const [clientId, setClientId] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -33,7 +36,7 @@ export default function IntegrationSetup() {
     void rpc<IntegrationSetupState>("integrationSetup/get")
       .then((setup) => {
         if (!mounted.current) return;
-        if (!setup.canConfigure) {
+        if (!setup.canConfigure && !directOnly) {
           router.replace("/integrations");
           return;
         }
@@ -47,7 +50,8 @@ export default function IntegrationSetup() {
     { value: "pipedream", label: "Pipedream" },
     { value: "executor", label: "Executor" },
   ];
-  const managed = choice === "composio" || choice === "pipedream";
+  const selectedChoice = directOnly ? "direct" : choice;
+  const managed = selectedChoice === "composio" || selectedChoice === "pipedream";
   const configured = state?.providers.find((provider) => provider.id === choice)?.configured;
   async function save() {
     setBusy(true);
@@ -104,18 +108,20 @@ export default function IntegrationSetup() {
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
     >
-      <NativeSegmentedControl
-        accessibilityLabel={t("Server integrations")}
-        disabled={busy}
-        onChange={(next) => {
-          setChoice(next);
-          setKey("");
-          setError(null);
-        }}
-        options={choices}
-        value={choice}
-      />
-      {choice === "composio" || choice === "pipedream" ? (
+      {!directOnly ? (
+        <NativeSegmentedControl
+          accessibilityLabel={t("Server integrations")}
+          disabled={busy}
+          onChange={(next) => {
+            setChoice(next);
+            setKey("");
+            setError(null);
+          }}
+          options={choices}
+          value={choice}
+        />
+      ) : null}
+      {managed ? (
         <>
           {configured ? <Text style={styles.text}>{t("Connected")}</Text> : null}
           {state?.canConfigure ? (
@@ -169,15 +175,30 @@ export default function IntegrationSetup() {
       ) : (
         <>
           <Text style={styles.text}>
-            {choice === "executor"
+            {selectedChoice === "executor"
               ? t("Set up Executor on your server in the web app.")
-              : t("Finish MCP authorization in the web app.")}
+              : t("Connect MCP servers in the web app.")}
           </Text>
+          {selectedChoice === "direct" ? (
+            <TextInput
+              accessibilityLabel={t("Server URL")}
+              placeholder="https://example.com/mcp"
+              value={serverUrl}
+              onChangeText={setServerUrl}
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.input}
+            />
+          ) : null}
           {button(
             t("Open web app"),
             () => {
               const url = new URL(state.webUrl);
-              if (choice === "direct") url.searchParams.set("mode", "mcp");
+              if (selectedChoice === "direct") {
+                url.searchParams.set("mode", "mcp");
+                if (serverUrl.trim()) url.searchParams.set("endpoint", serverUrl.trim());
+              }
               void Linking.openURL(url.toString());
             },
             !state,

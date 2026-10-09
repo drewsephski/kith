@@ -226,6 +226,7 @@ async function main() {
     prisma,
     secrets,
     provider: new GoogleCalendarProvider(),
+    managed: integrationSettings.calendarProvider(),
     jobs,
     events,
     memory: new MarkdownMemoryStore(prisma),

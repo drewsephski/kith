@@ -121,6 +121,33 @@ export class McpConnector implements ConnectorProvider {
     };
   }
 
+  /** Verify a settings connection before granting a bot access. Uses the same
+   * transport, credential handling and endpoint policy as runtime discovery. */
+  async checkServer(serverId: string, context: AdapterContext): Promise<void> {
+    const server = await this.prisma.mcpServer.findFirst({
+      where: { id: serverId, spaceId: context.spaceId, userId: context.userId, enabled: true },
+    });
+    if (!server) throw new Error("MCP server is unavailable");
+    const connected = await this.connectSession(server, context, () => undefined);
+    try {
+      await connected.session.listTools({ signal: context.signal });
+      const current = await this.prisma.mcpServer.findFirst({
+        where: {
+          id: server.id,
+          spaceId: context.spaceId,
+          userId: context.userId,
+          enabled: true,
+          revision: server.revision,
+        },
+      });
+      if (!current) throw new Error("MCP server changed; connect again");
+    } catch (error) {
+      throw new Error(sanitizeConnectorError(error, oauthMaterialSecrets(connected.material)));
+    } finally {
+      await connected.session.close().catch(() => undefined);
+    }
+  }
+
   async discoverTools(context: AdapterContext): Promise<ConnectorTool[]> {
     const tools = await this.authorizedTools(context);
     if (tools.length <= DIRECT_TOOL_LIMIT) return tools;

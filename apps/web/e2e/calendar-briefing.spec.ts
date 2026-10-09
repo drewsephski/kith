@@ -48,6 +48,7 @@ test("Calendar onboarding is visible in the assistant conversation", async ({ pa
   await expect(draft).toBeHidden();
   await preferences.click();
   await expect(draft).toHaveValue("Leave preparation time before meetings.");
+  await page.getByRole("button", { name: "Use your own Google OAuth app", exact: true }).click();
   await expect(page.getByLabel("OAuth Client ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("OAuth Client secret", { exact: true })).toHaveAttribute(
     "type",
@@ -168,4 +169,58 @@ test("saved briefing has structured facts, suggestions and an inspectable receip
   await expect(page.getByRole("dialog")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await captureScreenshot(page, testInfo, "calendar-receipt-narrow");
+});
+
+test("Calendar reuses a managed account without OAuth client setup or a second sign-in", async ({
+  page,
+}, testInfo) => {
+  let attached = false;
+  let signIns = 0;
+  await page.route("**/rpc/calendar/status", (route) =>
+    route.fulfill({
+      json: {
+        json: {
+          configured: true,
+          directConfigured: false,
+          canConfigure: false,
+          redirectUri: "https://example.test/calendar/callback",
+          managedConnectorId: "composio",
+          managedConnectionId: attached ? "work-account" : null,
+          managedConnections: [{ id: "work-account", displayName: "Work Calendar" }],
+          connectionId: attached ? "briefing-connection" : null,
+          status: attached ? "connected" : "disconnected",
+        },
+      },
+    }),
+  );
+  await page.route("**/rpc/connections/begin", (route) => {
+    signIns += 1;
+    return route.abort();
+  });
+  let request: unknown;
+  await page.route("**/rpc/calendar/connectAccount", (route) => {
+    request = route.request().postDataJSON().json;
+    attached = true;
+    return route.fulfill({ json: { json: { ok: true } } });
+  });
+  await signup(
+    page,
+    `calendar-managed-${Date.now()}@rakazo.test`,
+    "password12",
+    "Managed Calendar",
+  );
+  await completeOnboarding(page);
+  const botId = activeBotId(page);
+  await page.getByRole("button", { name: "Connect Google Calendar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Calendar", exact: true })).toBeVisible();
+  expect(request).toMatchObject({ connectionId: "work-account", botId });
+  expect(signIns).toBe(0);
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Disconnect briefing", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("OAuth Client ID", { exact: true })).toBeHidden();
+  await captureScreenshot(page, testInfo, "calendar-managed-account");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await captureScreenshot(page, testInfo, "calendar-managed-account-narrow");
 });

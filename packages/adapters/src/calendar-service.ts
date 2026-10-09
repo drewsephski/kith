@@ -2,8 +2,10 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type {
   AdapterContext,
   CalendarProvider,
+  CalendarReader,
   CalendarTokens,
   JobPublisher,
+  ManagedCalendarProvider,
   MemoryStore,
   SecretStore,
 } from "@rakazo/adapter-kit";
@@ -15,8 +17,14 @@ import {
   CalendarSnapshotSchema,
   CalendarSuggestionsSchema,
 } from "@rakazo/contracts";
-import { CALENDAR_PREFERENCES_PATH } from "@rakazo/core";
-import type { PrismaClient, ThreadEvents } from "@rakazo/db";
+import {
+  CALENDAR_PREFERENCES_PATH,
+  managedConnectionId,
+  managedProviderRef,
+  matchFeaturedConnectorId,
+  tomorrowWindow,
+} from "@rakazo/core";
+import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
   createThreadMessageInTransaction,
@@ -55,6 +63,7 @@ export class CalendarService {
       prisma: PrismaClient;
       secrets: SecretStore;
       provider: CalendarProvider;
+      managed?: ManagedCalendarProvider;
       jobs: JobPublisher;
       events: ThreadEvents;
       memory: MemoryStore;
@@ -120,13 +129,48 @@ export class CalendarService {
         row.status = "error";
       }
     }
+    const managedConnectorId = (await this.deps.managed?.configured()) ?? null;
+    const managedConnections = managedConnectorId
+      ? (
+          await this.deps.prisma.connection.findMany({
+            where: {
+              userId: actor.userId,
+              spaceId: actor.spaceId,
+              connectorId: managedConnectorId,
+              status: "connected",
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        )
+          .filter(
+            (connection) => matchFeaturedConnectorId(connection.provider) === "google-calendar",
+          )
+          .map((connection) => ({ id: connection.id, displayName: connection.displayName }))
+      : [];
+    if (row?.status === "connected" && managedConnectionId(row.metadata)) {
+      const source = await this.deps.prisma.connection.findFirst({
+        where: {
+          id: managedConnectionId(row.metadata)!,
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          status: "connected",
+          providerRef: managedProviderRef(row.metadata),
+        },
+      });
+      if (!source) row.status = "error";
+    }
+    const directConfigured = Boolean(
+      await this.deps.prisma.integrationProviderConfig.findUnique({
+        where: { id: CALENDAR_CONNECTOR_ID },
+        select: { id: true },
+      }),
+    );
     return {
-      configured: Boolean(
-        await this.deps.prisma.integrationProviderConfig.findUnique({
-          where: { id: CALENDAR_CONNECTOR_ID },
-          select: { id: true },
-        }),
-      ),
+      configured: directConfigured || Boolean(managedConnectorId),
+      directConfigured,
+      managedConnectorId,
+      managedConnectionId: managedConnectionId(row?.metadata),
+      managedConnections,
       canConfigure: actor.isDeploymentOwner,
       redirectUri: this.deps.redirectUri,
       connectionId: row?.id ?? null,
@@ -321,61 +365,15 @@ export class CalendarService {
               where: { id: actor.id },
               data: { status: "connected", secretId: tokenId, metadata: { generation } },
             });
-            const task = await tx.task.create({
-              data: {
-                spaceId: actor.spaceId,
-                userId: actor.userId,
-                botId: bot.id,
-                threadId: bot.thread.id,
-                prompt: "Prepare tomorrow's calendar briefing",
-                status: "queued",
-              },
-            });
-            const run = await tx.run.create({
-              data: {
-                spaceId: actor.spaceId,
-                userId: actor.userId,
-                botId: bot.id,
-                threadId: bot.thread.id,
-                taskId: task.id,
-                trigger: "calendar",
-                status: "queued",
-                clientNonce: `calendar:${actor.id}:${generation}`,
-              },
-            });
-            const receipt = await tx.calendarBriefing.create({
-              data: {
-                runId: run.id,
-                connectionId: actor.id,
-                generation,
-                timezone: authorization.timezone,
-              },
-            });
-            const message = await createThreadMessageInTransaction(tx, {
-              threadId: run.threadId,
-              botId: bot.id,
-              runId: run.id,
-              role: "bot",
-              blocks: [{ kind: "calendar_receipt", receiptId: receipt.id }],
-            });
-            await appendEventInTransaction(tx, {
-              spaceId: actor.spaceId,
-              threadId: run.threadId,
-              botId: bot.id,
-              runId: run.id,
-              type: "thread.message.created",
-              payload: { messageId: message.id, role: "bot", blocks: message.blocks },
-            });
             await tx.secret.deleteMany({ where: { id: authorization.secretId } });
-            const event = await appendEventInTransaction(tx, {
-              spaceId: actor.spaceId,
-              threadId: bot.thread.id,
-              botId: bot.id,
-              runId: run.id,
-              type: "thread.progress",
-              payload: { text: "Preparing tomorrow's calendar briefing…", receiptId: receipt.id },
-            });
-            return { run, event };
+            return this.createBriefing(
+              tx,
+              actor,
+              { id: bot.id, thread: bot.thread },
+              actor.id,
+              generation,
+              authorization.timezone,
+            );
           }),
       );
       // Durable run repairs a missed wake; delivery failure cannot invalidate OAuth.
@@ -429,6 +427,229 @@ export class CalendarService {
         .deleteMany({ where: { id: authorization.secretId } })
         .catch(() => getLogger().warn("Calendar verifier cleanup failed"));
     }
+  }
+
+  private async createBriefing(
+    tx: Prisma.TransactionClient,
+    actor: Pick<Actor, "spaceId" | "userId">,
+    bot: { id: string; thread: { id: string } },
+    connectionId: string,
+    generation: string,
+    timezone: string,
+  ) {
+    const task = await tx.task.create({
+      data: {
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        botId: bot.id,
+        threadId: bot.thread.id,
+        prompt: "Prepare tomorrow's calendar briefing",
+        status: "queued",
+      },
+    });
+    const run = await tx.run.create({
+      data: {
+        spaceId: actor.spaceId,
+        userId: actor.userId,
+        botId: bot.id,
+        threadId: bot.thread.id,
+        taskId: task.id,
+        trigger: "calendar",
+        status: "queued",
+        clientNonce: `calendar:${connectionId}:${generation}`,
+      },
+    });
+    const receipt = await tx.calendarBriefing.create({
+      data: {
+        runId: run.id,
+        connectionId: connectionId,
+        generation,
+        timezone: timezone,
+      },
+    });
+    const message = await createThreadMessageInTransaction(tx, {
+      threadId: run.threadId,
+      botId: bot.id,
+      runId: run.id,
+      role: "bot",
+      blocks: [{ kind: "calendar_receipt", receiptId: receipt.id }],
+    });
+    await appendEventInTransaction(tx, {
+      spaceId: actor.spaceId,
+      threadId: run.threadId,
+      botId: bot.id,
+      runId: run.id,
+      type: "thread.message.created",
+      payload: { messageId: message.id, role: "bot", blocks: message.blocks },
+    });
+    const event = await appendEventInTransaction(tx, {
+      spaceId: actor.spaceId,
+      threadId: bot.thread.id,
+      botId: bot.id,
+      runId: run.id,
+      type: "thread.progress",
+      payload: { text: "Preparing tomorrow's calendar briefing…", receiptId: receipt.id },
+    });
+    return { run, event };
+  }
+
+  /** Reuse a verified app connection without exporting tokens or granting more scopes. */
+  async connectAccount(
+    actor: Actor,
+    input: { connectionId: string; botId: string; timezone: string },
+  ) {
+    const context = contextFor(actor, "calendar.connectAccount");
+    const source = await this.deps.prisma.connection.findFirst({
+      where: {
+        id: input.connectionId,
+        userId: actor.userId,
+        spaceId: actor.spaceId,
+        status: "connected",
+      },
+    });
+    if (
+      !source?.providerRef ||
+      !this.deps.managed ||
+      matchFeaturedConnectorId(source.provider) !== "google-calendar"
+    )
+      throw new CalendarAccessError();
+    const bot = await this.deps.prisma.bot.findFirst({
+      where: { id: input.botId, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+      include: { thread: true },
+    });
+    if (!bot?.thread || bot.thread.userId !== actor.userId) throw new IsolationError();
+    const threadId = bot.thread.id;
+    const reader = await this.deps.managed.reader(
+      { ...source, providerRef: source.providerRef },
+      context,
+    );
+    const sources = await reader.sources(context);
+    if (sources.length === 0) throw new CalendarAccessError();
+    // A provider may report ACTIVE after the user deselects event access.
+    await reader.events({ ...tomorrowWindow(new Date(), input.timezone), sources }, context);
+    const committed = await this.deps.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${CALENDAR_CONNECTOR_ID}), hashtext(${`${actor.spaceId}:${actor.userId}`}))`;
+      // Match briefing publication: thread, local attachment, then managed account.
+      await tx.$queryRaw`SELECT id FROM threads WHERE id = ${threadId} FOR UPDATE`;
+      const previous = await tx.connection.findFirst({
+        where: { userId: actor.userId, spaceId: actor.spaceId, connectorId: CALENDAR_CONNECTOR_ID },
+        orderBy: { createdAt: "desc" },
+      });
+      if (previous)
+        await tx.$queryRaw`SELECT id FROM connections WHERE id = ${previous.id} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM connections WHERE id = ${source.id} FOR UPDATE`;
+      const current = await tx.connection.findFirst({
+        where: {
+          id: source.id,
+          userId: actor.userId,
+          spaceId: actor.spaceId,
+          status: "connected",
+          providerRef: source.providerRef,
+        },
+      });
+      const currentBot = await tx.bot.findFirst({
+        where: { id: bot.id, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+        include: { thread: true },
+      });
+      if (!current || !currentBot?.thread || currentBot.thread.userId !== actor.userId)
+        throw new IsolationError();
+      if (previous && ["revoking", "revocation_failed"].includes(previous.status))
+        throw new Error("Finish disconnecting Calendar before connecting again");
+      if (
+        previous?.status === "connected" &&
+        managedConnectionId(previous.metadata) === source.id &&
+        managedProviderRef(previous.metadata) === source.providerRef
+      ) {
+        const receipt = await tx.calendarBriefing.findFirst({
+          where: { connectionId: previous.id, run: { botId: bot.id }, timezone: input.timezone },
+          orderBy: { createdAt: "desc" },
+          include: { run: true },
+        });
+        if (
+          receipt &&
+          tomorrowWindow(receipt.createdAt, input.timezone).date ===
+            tomorrowWindow(new Date(), input.timezone).date
+        )
+          return { run: receipt.run, event: null };
+      }
+      if (previous) {
+        const authorization = await tx.calendarAuthorization.findUnique({
+          where: { connectionId: previous.id },
+        });
+        if (authorization) {
+          await tx.calendarAuthorization.delete({ where: { connectionId: previous.id } });
+          await tx.secret.deleteMany({ where: { id: authorization.secretId } });
+        }
+      }
+      // Keep direct credentials for explicit grant revocation, as in direct reconnects.
+      if (previous)
+        await tx.connection.update({ where: { id: previous.id }, data: { status: "revoked" } });
+      const generation = randomUUID();
+      const connection = await tx.connection.create({
+        data: {
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          connectorId: CALENDAR_CONNECTOR_ID,
+          provider: "google-calendar",
+          displayName: source.displayName,
+          status: "connected",
+          metadata: {
+            generation,
+            managedConnectionId: source.id,
+            managedProviderRef: source.providerRef,
+          },
+        },
+      });
+      return this.createBriefing(
+        tx,
+        actor,
+        { id: currentBot.id, thread: currentBot.thread },
+        connection.id,
+        generation,
+        input.timezone,
+      );
+    });
+    await this.deps.jobs
+      .enqueue(runContinueJob(committed.run.id))
+      .catch((error) => getLogger().error("calendar briefing enqueue", error));
+    if (committed.event)
+      await this.deps.events
+        .notify(committed.run.threadId, committed.event.seq)
+        .catch((error) => getLogger().error("calendar briefing notify", error));
+  }
+
+  async reader(
+    connectionId: string,
+    actor: Pick<Actor, "spaceId" | "userId">,
+    context: AdapterContext,
+  ): Promise<CalendarReader> {
+    const row = await this.deps.prisma.connection.findFirst({
+      where: {
+        id: connectionId,
+        ...actor,
+        connectorId: CALENDAR_CONNECTOR_ID,
+        status: "connected",
+      },
+    });
+    if (!row) throw new CalendarAccessError();
+    const sourceId = managedConnectionId(row.metadata);
+    if (sourceId) {
+      const source = await this.deps.prisma.connection.findFirst({
+        where: { id: sourceId, ...actor, status: "connected" },
+      });
+      if (
+        !source?.providerRef ||
+        !this.deps.managed ||
+        managedProviderRef(row.metadata) !== source.providerRef
+      )
+        throw new CalendarAccessError();
+      return this.deps.managed.reader({ ...source, providerRef: source.providerRef }, context);
+    }
+    const tokens = await this.credentials(connectionId, actor, context);
+    return {
+      sources: (requestContext) => this.deps.provider.sources(tokens, requestContext),
+      events: (input, requestContext) => this.deps.provider.events(tokens, input, requestContext),
+    };
   }
 
   async credentials(
@@ -559,6 +780,23 @@ export class CalendarService {
         include: { run: true, connection: true },
       });
       if (receipt?.connection?.status !== "connected") throw new IsolationError();
+      await tx.$queryRaw`SELECT id FROM connections WHERE id = ${receipt.connection.id} FOR UPDATE`;
+      const sourceId = managedConnectionId(receipt.connection.metadata);
+      if (sourceId) {
+        await tx.$queryRaw`SELECT id FROM connections WHERE id = ${sourceId} FOR UPDATE`;
+        if (
+          !(await tx.connection.findFirst({
+            where: {
+              id: sourceId,
+              spaceId: actor.spaceId,
+              userId: actor.userId,
+              status: "connected",
+              providerRef: managedProviderRef(receipt.connection.metadata),
+            },
+          }))
+        )
+          throw new CalendarAccessError();
+      }
       const updated = await tx.run.updateMany({
         where: { id: receipt.runId, status: "failed" },
         data: {

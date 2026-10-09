@@ -14,6 +14,8 @@ import {
 import {
   CALENDAR_PREFERENCES_PATH,
   calendarConflicts,
+  managedConnectionId,
+  managedProviderRef,
   renderCalendarBriefing,
   tomorrowWindow,
 } from "@rakazo/core";
@@ -200,6 +202,19 @@ export async function executeCalendarBriefing(
         },
       });
       if (!connection) throw new CalendarAccessError();
+      const sourceId = managedConnectionId(connection.metadata);
+      if (sourceId) {
+        await tx.$queryRaw`SELECT id FROM connections WHERE id = ${sourceId} FOR UPDATE`;
+        const source = await tx.connection.findFirst({
+          where: {
+            id: sourceId,
+            ...scope,
+            status: "connected",
+            providerRef: managedProviderRef(connection.metadata),
+          },
+        });
+        if (!source) throw new CalendarAccessError();
+      }
       const held = await tx.run.updateMany({
         where: {
           id: runId,
@@ -234,11 +249,10 @@ export async function executeCalendarBriefing(
     if (!snapshot) {
       if (!receipt.connectionId) throw new CalendarAccessError();
       await progress("Reading your calendars…");
-      const tokens = await deps.calendar.credentials(receipt.connectionId, scope, context);
-      const sources = await deps.calendar.deps.provider.sources(tokens, context);
+      const reader = await deps.calendar.reader(receipt.connectionId, scope, context);
+      const sources = await reader.sources(context);
       snapshot = CalendarSnapshotSchema.parse(
-        await deps.calendar.deps.provider.events(
-          tokens,
+        await reader.events(
           { ...tomorrowWindow(receipt.createdAt, receipt.timezone), sources },
           context,
         ),

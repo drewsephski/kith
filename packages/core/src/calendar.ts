@@ -122,3 +122,13 @@ export function renderCalendarBriefing(
   }
   return lines.join("\n");
 }
+
+export function managedConnectionId(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || !("managedConnectionId" in metadata))
+    return null;
+  return typeof metadata.managedConnectionId === "string" ? metadata.managedConnectionId : null;
+}
+export function managedProviderRef(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object" || !("managedProviderRef" in metadata)) return null;
+  return typeof metadata.managedProviderRef === "string" ? metadata.managedProviderRef : null;
+}

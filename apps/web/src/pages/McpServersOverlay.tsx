@@ -27,8 +27,9 @@ import {
   TabsTrigger,
 } from "@rakazo/ui-web";
 import { Check, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { connectMcpOauth, MCP_OAUTH_CHANNEL } from "../lib/mcp-connect";
+import { connectRemoteMcp } from "../lib/mcp-install";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 
@@ -59,6 +60,9 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
   const [command, setCommand] = useState("");
   const [args, setArgs] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
+  const connectionAttempt = useRef<AbortController | null>(null);
+  useEffect(() => () => connectionAttempt.current?.abort(), []);
   const [saving, setSaving] = useState(false);
   const [oauthPending, setOauthPending] = useState<string | null>(null);
 
@@ -119,6 +123,9 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
       return;
     }
     setSaving(true);
+    const controller = new AbortController();
+    connectionAttempt.current?.abort();
+    connectionAttempt.current = controller;
     try {
       const slug = deriveMcpSlug(name);
       const headers = headerValue.trim()
@@ -136,30 +143,23 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
               secret: secret || undefined,
               enabled: true,
             })
-          : await rpc.mcp.servers.create({
-              slug,
+          : await connectRemoteMcp({
               name: name.trim(),
               transport,
               endpoint: endpoint.trim(),
-              headers,
               secret: secret || undefined,
-              enabled: true,
+              headers,
+              signal: controller.signal,
+              onAuthorization: setAuthorizationUrl,
             });
-      // replace() overwrites the bot's whole list, so merge with what it already has.
-      await Promise.all(
-        selectedBotIds.map((botId) => {
-          const existing = (botAssignments[botId] ?? []).filter(
-            (entry) => entry.serverId !== created.id,
-          );
-          return rpc.mcp.assignments.replace({
-            botId,
-            assignments: [
-              ...existing,
-              { serverId: created.id, allowAllTools: true, allowedTools: [] },
-            ],
-          });
-        }),
-      );
+      if (!created || controller.signal.aborted) return;
+      if (transport === "stdio" && selectedBotIds.length > 0)
+        await rpc.mcp.servers.check({ serverId: created.id });
+      for (const botId of selectedBotIds) {
+        controller.signal.throwIfAborted();
+        await rpc.mcp.assignments.approve({ botId, serverId: created.id });
+      }
+      setAuthorizationUrl(null);
       await refresh();
       setName("");
       setEndpoint("");
@@ -179,14 +179,15 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
     setError(null);
     setOauthPending(server.id);
     try {
-      const result = await connectMcpOauth(server.id);
+      const result = await connectMcpOauth(server.id, { onAuthorization: setAuthorizationUrl });
+      if (result !== "cancelled") {
+        await rpc.mcp.servers.check({ serverId: server.id });
+        setAuthorizationUrl(null);
+      }
       if (result !== "cancelled") setOauthPending(null);
       await refresh();
       if (result === "connected") return;
-      if (result === "already_connected") {
-        setError(t`This server is already connected. Disconnect it first to authorize again.`);
-        return;
-      }
+      if (result === "already_connected") return;
       if (result === "authorization_not_requested") {
         setError(t`This server did not request browser authorization.`);
         return;
@@ -206,6 +207,14 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
       ? current.filter((entry) => entry.serverId !== server.id)
       : [...current, { serverId: server.id, allowAllTools: true, allowedTools: [] }];
     try {
+      if (!assigned && server.transport !== "stdio") {
+        const result = await connectMcpOauth(server.id, { onAuthorization: setAuthorizationUrl });
+        if (result === "cancelled") return;
+        await rpc.mcp.servers.check({ serverId: server.id });
+        setAuthorizationUrl(null);
+      }
+      if (!assigned && server.transport === "stdio")
+        await rpc.mcp.servers.check({ serverId: server.id });
       const updated = await rpc.mcp.assignments.replace({ botId, assignments: next });
       setBotAssignments((map) => ({ ...map, [botId]: updated }));
     } catch (err) {
@@ -262,6 +271,18 @@ export function McpServersOverlay({ onClose }: { onClose: () => void }) {
             <X />
           </DialogClose>
         </DialogHeader>
+        {authorizationUrl ? (
+          <div role="status" className="flex flex-wrap items-center gap-3">
+            <a
+              className="text-sm underline"
+              href={authorizationUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Trans>Continue in browser</Trans>
+            </a>
+          </div>
+        ) : null}
         {error ? (
           <p
             role="alert"

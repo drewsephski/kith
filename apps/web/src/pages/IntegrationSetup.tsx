@@ -33,7 +33,7 @@ export function IntegrationSetupPage() {
         }
         setSetupState(setup);
         setBots(rows);
-        setBotId(rows[0]?.id ?? "");
+        setBotId(rows.find((bot) => bot.id === params.get("botId"))?.id ?? rows[0]?.id ?? "");
         setReady(true);
       })
       .catch(() => {
@@ -42,7 +42,7 @@ export function IntegrationSetupPage() {
     return () => {
       cancelled = true;
     };
-  }, [serverSetup, navigate]);
+  }, [serverSetup, navigate, params]);
   return (
     <div className="min-h-full bg-background px-6 py-12">
       <div className="mx-auto max-w-[560px]">
@@ -60,6 +60,7 @@ export function IntegrationSetupPage() {
             key={serverSetup ? "server" : "mcp"}
             serverSetup={serverSetup}
             initialState={setupState}
+            initialEndpoint={serverSetup ? "" : (params.get("endpoint") ?? "")}
             botId={botId || undefined}
             onDone={() => navigate(bots.length ? "/app" : "/onboarding")}
           />

@@ -2,6 +2,7 @@ export * from "./action-approval.js";
 export * from "./agent-skill.js";
 export * from "./ai-consent.js";
 export * from "./answerable-ask.js";
+export * from "./app-connection.js";
 export * from "./artifact-sandbox.js";
 export * from "./assistant-response.js";
 export * from "./async.js";

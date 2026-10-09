@@ -344,6 +344,7 @@ export function McpApprovalCard({
   const { name, serverId, transport, endpoint, needsOAuth, status: savedStatus } = block;
   const [localStatus, setLocalStatus] = useState<McpApprovalState>("pending");
   const [error, setError] = useState<string | null>(null);
+  const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // A removal repaints the block to pending. Drop an in-session connected
   // override so the card does not keep the old decision.
@@ -367,12 +368,14 @@ export function McpApprovalCard({
     setError(null);
     try {
       if (needsOAuth) {
-        const result = await connectMcpOauth(serverId);
+        const result = await connectMcpOauth(serverId, { onAuthorization: setAuthorizationUrl });
         if (result === "cancelled") {
           setLocalStatus("pending");
           return;
         }
       }
+      await rpc.mcp.servers.check({ serverId });
+      setAuthorizationUrl(null);
       await rpc.mcp.assignments.approve({ botId, serverId, threadId });
       setLocalStatus("connected");
     } catch (err) {
@@ -419,6 +422,16 @@ export function McpApprovalCard({
               ? t`Authorize this server so agents can use its tools. A popup opens.`
               : t`Approve this server to let your agent use its tools.`}
           </p>
+          {authorizationUrl ? (
+            <a
+              className="mt-2 block text-sm underline"
+              href={authorizationUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Trans>Continue in browser</Trans>
+            </a>
+          ) : null}
           {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
           <div className="mt-3 flex gap-2">
             <Button

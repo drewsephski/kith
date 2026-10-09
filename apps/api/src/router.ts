@@ -30,6 +30,7 @@ import type {
   FaviconResolver,
   getBotSecretMetadata,
   IntegrationProviderSettings,
+  McpConnector,
   MemoryProviderResolver,
   PiOAuthLogins,
   RemoteConnectorDependencies,
@@ -101,6 +102,7 @@ import {
   revokeScreenControl,
   routineRunModelPin,
   sanitizeComposioError,
+  sanitizeConnectorError,
   savePushToken,
   scheduleComputerControlExpiry,
   scheduleComputerSleep,
@@ -559,6 +561,7 @@ export interface RouterDeps {
   calendar?: CalendarService;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
+  mcp?: Pick<McpConnector, "checkServer">;
   connectors: ConnectorRegistry;
   remoteConnectors?: RemoteConnectorDependencies;
   artifacts: ArtifactStore;
@@ -3122,6 +3125,11 @@ export function createRouter(deps: RouterDeps) {
         if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
         return deps.calendar.status(context.actor);
       }),
+      connectAccount: authed.calendar.connectAccount.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        await deps.calendar.connectAccount(context.actor, input);
+        return { ok: true as const };
+      }),
       configure: authed.calendar.configure.handler(async ({ context, input }) => {
         if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
         if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
@@ -3874,6 +3882,18 @@ export function createRouter(deps: RouterDeps) {
     },
     mcp: {
       servers: {
+        check: authed.mcp.servers.check.handler(async ({ context, input }) => {
+          if (!deps.mcp) throw new ORPCError("NOT_IMPLEMENTED");
+          try {
+            await deps.mcp.checkServer(
+              input.serverId,
+              connectionContext(context.actor, "mcp.check", context.signal),
+            );
+            return { ok: true as const };
+          } catch (error) {
+            throw new ORPCError("BAD_REQUEST", { message: sanitizeConnectorError(error) });
+          }
+        }),
         list: authed.mcp.servers.list.handler(async ({ context }) => {
           const rows = await deps.prisma.mcpServer.findMany({
             where: { spaceId: context.actor.spaceId, userId: context.actor.userId },
@@ -3996,7 +4016,8 @@ export function createRouter(deps: RouterDeps) {
                     enabled: existing.enabled,
                     transport: existing.transport as "streamable_http" | "sse",
                     endpoint: existing.endpoint!,
-                    headers: (existingMaterial.headers ?? {}) as Record<string, string>,
+                    headers:
+                      input.headers ?? ((existingMaterial.headers ?? {}) as Record<string, string>),
                     secret: input.secret,
                   };
             if (!("config" in input) && existing.transport === "stdio") {
