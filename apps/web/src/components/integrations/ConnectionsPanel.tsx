@@ -1,6 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { connectedAppServices } from "@rakazo/core";
-import { Button, ConnectorIcon } from "@rakazo/ui-web";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  ConnectorIcon,
+} from "@rakazo/ui-web";
 import { Plus } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { rpc } from "../../lib/rpc";
@@ -15,6 +21,7 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
   const { t } = useLingui();
   const [services, setServices] = useState<ReturnType<typeof connectedAppServices>>([]);
   const [nativeCalendar, setNativeCalendar] = useState(false);
+  const [calendarAvailable, setCalendarAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
@@ -40,6 +47,10 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
         calendar.status === "fulfilled" &&
           calendar.value.status === "connected" &&
           !calendar.value.managedConnectionId,
+      );
+      setCalendarAvailable(
+        calendar.status === "fulfilled" &&
+          (calendar.value.configured || calendar.value.canConfigure),
       );
       setError([rows, catalog, calendar].some((result) => result.status === "rejected"));
       setLoading(false);
@@ -94,6 +105,16 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
         <Plus size={15} />
         <Trans>Connect services</Trans>
       </Button>
+      {calendarAvailable && !nativeCalendar ? (
+        <Collapsible className="border-t border-border pt-3">
+          <CollapsibleTrigger>
+            <Trans>Calendar briefing</Trans>
+          </CollapsibleTrigger>
+          <CollapsibleContent keepMounted={false} className="pt-2">
+            <CalendarConnection botId={botId} />
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
       <Suspense fallback={null}>
         {open ? (
           <PluginsOverlay

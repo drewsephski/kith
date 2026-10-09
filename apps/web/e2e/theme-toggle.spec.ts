@@ -22,8 +22,16 @@ async function mockThemeDependencies(context: BrowserContext) {
       },
     }),
   );
-  await context.route("**/api/account/security", (route) =>
-    route.fulfill({ json: { hasPassword: false } }),
+  await context.route("**/api/auth/account-security", (route) =>
+    route.fulfill({
+      json: {
+        hasPassword: false,
+        freshOidcAuth: false,
+        ssoLinked: false,
+        emailDeletion: false,
+        sso: null,
+      },
+    }),
   );
   await context.route("**/rpc/approvalRules/list", (route) =>
     route.fulfill({ json: { json: [] } }),

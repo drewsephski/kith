@@ -13,11 +13,18 @@ import {
 
 let systemLight = false;
 const mediaListeners = new Set<() => void>();
+const stored = new Map<string, string>();
+const storage = {
+  getItem: (key: string) => stored.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    stored.set(key, value);
+  },
+};
 let stopWatching: (() => void) | undefined;
 
 beforeEach(() => {
-  vi.stubGlobal("localStorage", window.localStorage);
-  localStorage.clear();
+  vi.stubGlobal("localStorage", storage);
+  stored.clear();
   systemLight = false;
   vi.stubGlobal("matchMedia", () => ({
     get matches() {
@@ -61,7 +68,7 @@ describe("appearance synchronization", () => {
   });
 
   it("retains the active choice when storage is unavailable and the OS changes", () => {
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    vi.spyOn(storage, "setItem").mockImplementation(() => {
       throw new Error("Storage unavailable");
     });
     stopWatching = watchUiAppearance();
@@ -92,7 +99,7 @@ describe("appearance synchronization", () => {
     stopWatching = watchUiAppearance();
     const storageChange = (key: string | null, newValue: string | null) => {
       window.dispatchEvent(
-        new StorageEvent("storage", { key, newValue, storageArea: localStorage }),
+        Object.assign(new Event("storage"), { key, newValue, storageArea: storage }),
       );
     };
     storageChange("other-setting", "light");

@@ -76,7 +76,10 @@ test("connections list every account and open the complete Composio catalog", as
   await page.route("**/rpc/connections/catalog", (route) =>
     route.fulfill({ json: { json: catalog } }),
   );
-  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Connect Google Calendar", exact: true }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "Services", exact: true }).click();
   const panel = page.getByTestId("connections-panel");
   for (const name of ["Work Gmail", "Personal Gmail", "Slack"]) {
     await expect(panel.getByText(name, { exact: true })).toBeVisible();

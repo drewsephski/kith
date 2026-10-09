@@ -7,6 +7,34 @@ import {
   signup,
 } from "./helpers";
 
+test("header appearance toggle persists across app routes and works with collapsed navigation", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await signup(page, `header-appearance-${Date.now()}@example.test`, "password12", "Example");
+  await completeOnboarding(page);
+  const toggle = page.getByTestId("theme-toggle");
+  await expect(toggle).toHaveAccessibleName("Switch to light mode");
+  await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+  await toggle.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await captureScreenshot(page, testInfo, "header-theme-light-collapsed");
+  await page.reload();
+  await expect(toggle).toHaveAccessibleName("Switch to dark mode");
+  await page.getByRole("button", { name: "Show sidebar", exact: true }).click();
+  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/artifacts$/);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await toggle.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("link", { name: "Conversation", exact: true }).click();
+  await expect(toggle).toHaveAccessibleName("Switch to light mode");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await toggle.click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await captureScreenshot(page, testInfo, "header-theme-mobile-light");
+});
+
 async function captureSidebarSearchSelected(
   page: Page,
   testInfo: Parameters<typeof captureScreenshot>[1],

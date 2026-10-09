@@ -152,7 +152,6 @@ import {
   AssistantResponseRow,
   CollaborationMarker,
 } from "../components/ai/CollaborationMarker";
-import { CalendarConnection } from "../components/CalendarConnection";
 import { CalendarReceipt } from "../components/CalendarReceipt";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
@@ -3833,7 +3832,15 @@ export function ShellPage() {
           <div className="app-no-drag flex min-w-0 items-center gap-1">
             <ThemeToggle />
             {isMainConversation && assistantId && !quickAskMode ? (
-              <CalendarConnection key={assistantId} botId={assistantId} compact />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPanel(panel === "connections" ? null : "connections")}
+                aria-pressed={panel === "connections"}
+              >
+                <Puzzle size={16} />
+                <Trans>Services</Trans>
+              </Button>
             ) : null}
             {quickAskMode ? (
               <Button
