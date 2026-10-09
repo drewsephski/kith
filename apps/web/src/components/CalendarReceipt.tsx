@@ -1,7 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { CalendarReceipt as Receipt } from "@rakazo/contracts";
 import { calendarTime } from "@rakazo/core";
-import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { rpc } from "../lib/rpc";
@@ -44,7 +53,7 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
         <Trans>Calendar briefing · View receipt</Trans>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85dvh] max-w-xl overflow-y-auto">
+        <DialogContent showCloseButton={false} className="max-h-[85dvh] max-w-xl overflow-y-auto">
           <div className="flex items-center justify-between">
             <DialogTitle>
               <Trans>Briefing receipt</Trans>
@@ -138,14 +147,16 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
                       </li>
                     ))}
                   </ul>
-                  <details>
-                    <summary className="cursor-pointer">
+                  <Collapsible>
+                    <CollapsibleTrigger className="cursor-pointer">
                       <Trans>Source records</Trans>
-                    </summary>
-                    <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">
-                      {JSON.stringify(receipt.snapshot, null, 2)}
-                    </pre>
-                  </details>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">
+                        {JSON.stringify(receipt.snapshot, null, 2)}
+                      </pre>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </>
               ) : null}
               <p>
@@ -164,14 +175,16 @@ export function CalendarReceipt({ receiptId }: { receiptId: string }) {
                 </div>
               ) : null}
               {receipt.outcome ? (
-                <details>
-                  <summary className="cursor-pointer">
+                <Collapsible>
+                  <CollapsibleTrigger className="cursor-pointer">
                     <Trans>Saved outcome</Trans>
-                  </summary>
-                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs">
-                    {receipt.outcome}
-                  </pre>
-                </details>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <pre className="mt-2 whitespace-pre-wrap break-words text-xs">
+                      {receipt.outcome}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
               ) : null}
             </div>
           ) : null}

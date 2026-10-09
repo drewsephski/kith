@@ -7,7 +7,7 @@ import {
   type CronUnit,
   cronFromPreset,
 } from "@rakazo/core";
-import { Input, SelectField, } from "@rakazo/ui-web";
+import { Input, SelectField } from "@rakazo/ui-web";
 import { Clock } from "lucide-react";
 
 const UNITS: CronUnit[] = ["minutes", "hours", "days"];
@@ -181,36 +181,40 @@ export function RoutineSchedule({
   }
 
   const intervalAmountSelect = (
-    <SelectField size="sm"
-value={String(value.n)}
-aria-label={t`Interval amount`}
-onValueChange={(selectedValue) => patch({ n: Number(selectedValue) })} items={[...(numbers.map((n) => (
-        ({ value: String(n), label: <>
-          {n}
-        </> })
-      )))]} />
+    <SelectField
+      size="sm"
+      value={String(value.n)}
+      aria-label={t`Interval amount`}
+      onValueChange={(selectedValue) => patch({ n: Number(selectedValue) })}
+      items={[...numbers.map((n) => ({ value: String(n), label: <>{n}</> }))]}
+    />
   );
 
   const intervalUnitSelect = (
-    <SelectField size="sm"
-value={value.unit}
-aria-label={t`Interval unit`}
-onValueChange={(selectedValue) => patch({ unit: selectedValue as CronUnit })} items={[...(UNITS.map((unit) => (
-        ({ value: String(unit), label: <>
-          {i18n.locale === "ru" ? russianIntervalUnit(value.n, unit) : cronUnitLabel(unit)}
-        </> })
-      )))]} />
+    <SelectField
+      size="sm"
+      value={value.unit}
+      aria-label={t`Interval unit`}
+      onValueChange={(selectedValue) => patch({ unit: selectedValue as CronUnit })}
+      items={[
+        ...UNITS.map((unit) => ({
+          value: String(unit),
+          label: (
+            <>{i18n.locale === "ru" ? russianIntervalUnit(value.n, unit) : cronUnitLabel(unit)}</>
+          ),
+        })),
+      ]}
+    />
   );
 
   const timeSelect = (
-    <SelectField size="sm"
-value={value.time}
-aria-label={t`Time of day`}
-onValueChange={(selectedValue) => patch({ time: selectedValue })} items={[...(times.map((time) => (
-        ({ value: String(time), label: <>
-          {time}
-        </> })
-      )))]} />
+    <SelectField
+      size="sm"
+      value={value.time}
+      aria-label={t`Time of day`}
+      onValueChange={(selectedValue) => patch({ time: selectedValue })}
+      items={[...times.map((time) => ({ value: String(time), label: <>{time}</> }))]}
+    />
   );
 
   return (
@@ -223,21 +227,25 @@ onValueChange={(selectedValue) => patch({ time: selectedValue })} items={[...(ti
         ) : null}
       </div>
       <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <SelectField size="sm"
-value={value.freq}
-aria-label={t`How often`}
-onValueChange={(selectedValue) => {
+        <SelectField
+          size="sm"
+          value={value.freq}
+          aria-label={t`How often`}
+          onValueChange={(selectedValue) => {
             const freq = selectedValue as CronFreq;
             if (freq === "Advanced") {
               patch({ freq, cron: cronFromPreset(value) });
               return;
             }
             patch({ freq });
-          }} items={[...(CRON_FREQS.map((freq) => (
-            ({ value: String(freq), label: <>
-              {cronFreqLabel(freq)}
-            </> })
-          )))]} />
+          }}
+          items={[
+            ...CRON_FREQS.map((freq) => ({
+              value: String(freq),
+              label: <>{cronFreqLabel(freq)}</>,
+            })),
+          ]}
+        />
         {value.freq === "Interval" ? (
           i18n.locale === "ru" ? (
             <>

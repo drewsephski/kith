@@ -3,6 +3,9 @@ import type { MemoryDocument } from "@rakazo/contracts";
 import { CALENDAR_PREFERENCES_PATH } from "@rakazo/core";
 import {
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Dialog,
   DialogClose,
   DialogContent,
@@ -129,7 +132,7 @@ export function CalendarConnection({
         </span>
       ) : null}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto">
+        <DialogContent showCloseButton={false} className="max-h-[85dvh] max-w-lg overflow-y-auto">
           <div className="flex items-center justify-between">
             <DialogTitle>
               <Trans>Google Calendar</Trans>
@@ -213,52 +216,56 @@ export function CalendarConnection({
               <Trans>Disconnect Calendar</Trans>
             </Button>
           ) : null}
-          <details className="space-y-3">
-            <summary className="cursor-pointer text-sm">
+          <Collapsible className="space-y-3">
+            <CollapsibleTrigger className="cursor-pointer text-sm">
               <Trans>Briefing preferences</Trans>
-            </summary>
-            <Textarea
-              aria-label={t`Briefing preferences`}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              maxLength={4000}
-              rows={4}
-              placeholder={t`What should your assistant keep in mind?`}
-            />
-            <div className="flex gap-2">
-              <Button
-                disabled={busy || draft === (preferences?.content ?? "")}
-                onClick={() =>
-                  void action(async () => {
-                    await rpc.calendar.preferences({
-                      botId,
-                      content: draft,
-                      expectedRevision: preferences?.revision ?? 0,
-                    });
-                    const docs = await rpc.memory.list({ scope: "user" });
-                    setPreferences(docs.find((d) => d.path === CALENDAR_PREFERENCES_PATH) ?? null);
-                  })
-                }
-              >
-                <Trans>Save preferences</Trans>
-              </Button>
-              {preferences ? (
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <Textarea
+                aria-label={t`Briefing preferences`}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                maxLength={4000}
+                rows={4}
+                placeholder={t`What should your assistant keep in mind?`}
+              />
+              <div className="flex gap-2">
                 <Button
-                  variant="ghost"
-                  disabled={busy}
+                  disabled={busy || draft === (preferences?.content ?? "")}
                   onClick={() =>
                     void action(async () => {
-                      await rpc.memory.remove({ documentId: preferences.id });
-                      setPreferences(null);
-                      setDraft("");
+                      await rpc.calendar.preferences({
+                        botId,
+                        content: draft,
+                        expectedRevision: preferences?.revision ?? 0,
+                      });
+                      const docs = await rpc.memory.list({ scope: "user" });
+                      setPreferences(
+                        docs.find((d) => d.path === CALENDAR_PREFERENCES_PATH) ?? null,
+                      );
                     })
                   }
                 >
-                  <Trans>Forget</Trans>
+                  <Trans>Save preferences</Trans>
                 </Button>
-              ) : null}
-            </div>
-          </details>
+                {preferences ? (
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      void action(async () => {
+                        await rpc.memory.remove({ documentId: preferences.id });
+                        setPreferences(null);
+                        setDraft("");
+                      })
+                    }
+                  >
+                    <Trans>Forget</Trans>
+                  </Button>
+                ) : null}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </DialogContent>
       </Dialog>
     </>

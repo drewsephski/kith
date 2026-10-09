@@ -20,10 +20,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Input,
-  SelectField,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  SelectField,
   Textarea,
 } from "@rakazo/ui-web";
 import {
@@ -416,19 +416,30 @@ export function RoutineEditor({
             <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
               <label htmlFor={`${fieldId}-model`} className="block text-sm text-muted-foreground">
                 <Trans>Model</Trans>
-                <SelectField id={`${fieldId}-model`}
-className="mt-2 w-full"
-value={draft.modelKey}
-onValueChange={(selectedValue) => onChange({ ...draft, modelKey: selectedValue, thinkingLevel: "" })} items={[{ value: String(""), label: <>{t`Bot's model`}</> },
-...(draft.modelKey &&
-                  !modelOptions.some((option) => option.key === draft.modelKey) ? [{ value: String(draft.modelKey), label: <>
-                      {selectedModel?.modelId ?? draft.modelKey}
-                    </> }] : []),
-...(modelOptions.map((option) => (
-                    ({ value: String(option.key), label: <>
-                      {option.label}
-                    </> })
-                  )))]} />
+                <SelectField
+                  id={`${fieldId}-model`}
+                  className="mt-2 w-full"
+                  value={draft.modelKey}
+                  onValueChange={(selectedValue) =>
+                    onChange({ ...draft, modelKey: selectedValue, thinkingLevel: "" })
+                  }
+                  items={[
+                    { value: String(""), label: <>{t`Bot's model`}</> },
+                    ...(draft.modelKey &&
+                    !modelOptions.some((option) => option.key === draft.modelKey)
+                      ? [
+                          {
+                            value: String(draft.modelKey),
+                            label: <>{selectedModel?.modelId ?? draft.modelKey}</>,
+                          },
+                        ]
+                      : []),
+                    ...modelOptions.map((option) => ({
+                      value: String(option.key),
+                      label: <>{option.label}</>,
+                    })),
+                  ]}
+                />
               </label>
 
               {thinkingOptions.length ? (
@@ -437,17 +448,24 @@ onValueChange={(selectedValue) => onChange({ ...draft, modelKey: selectedValue, 
                   className="mt-5 block text-sm text-muted-foreground"
                 >
                   <Trans>Thinking</Trans>
-                  <SelectField id={`${fieldId}-thinking`}
-className="mt-2 w-full"
-value={draft.thinkingLevel}
-onValueChange={(selectedValue) => onChange({ ...draft, thinkingLevel: selectedValue })} items={[{ value: String(""), label: <>
-                      {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
-                    </> },
-...(thinkingOptions.map((level) => (
-                      ({ value: String(level), label: <>
-                        {thinkingLevelLabel(level)}
-                      </> })
-                    )))]} />
+                  <SelectField
+                    id={`${fieldId}-thinking`}
+                    className="mt-2 w-full"
+                    value={draft.thinkingLevel}
+                    onValueChange={(selectedValue) =>
+                      onChange({ ...draft, thinkingLevel: selectedValue })
+                    }
+                    items={[
+                      {
+                        value: String(""),
+                        label: <>{t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}</>,
+                      },
+                      ...thinkingOptions.map((level) => ({
+                        value: String(level),
+                        label: <>{thinkingLevelLabel(level)}</>,
+                      })),
+                    ]}
+                  />
                 </label>
               ) : null}
             </PopoverContent>

@@ -16,6 +16,7 @@ export * from "./components/ui/badge.js";
 export * from "./components/ui/button.js";
 export * from "./components/ui/card.js";
 export * from "./components/ui/checkbox.js";
+export * from "./components/ui/collapsible.js";
 export * from "./components/ui/command.js";
 export * from "./components/ui/dialog.js";
 export * from "./components/ui/dropdown-menu.js";
@@ -40,3 +41,4 @@ export { GroupAvatar, type GroupAvatarMember, type GroupAvatarProps } from "./gr
 export { KithAvatar } from "./kith-avatar.js";
 export { cn } from "./lib/utils.js";
 export { ModelThinkingOptions } from "./model-thinking-options.js";
+export { SelectField } from "./select-field.js";

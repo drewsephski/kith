@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { IntegrationCatalogResult, IntegrationSetupState } from "@rakazo/contracts";
-import { Button, Input } from "@rakazo/ui-web";
+import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } from "@rakazo/ui-web";
 import { Check } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { newClientId } from "../../lib/client-id";
@@ -275,25 +275,27 @@ export function IntegrationSetup({
               <Trans>No remote MCP servers found</Trans>
             </p>
           ) : null}
-          <details className="text-sm text-muted-foreground">
-            <summary className="cursor-pointer">
+          <Collapsible className="text-sm text-muted-foreground">
+            <CollapsibleTrigger className="cursor-pointer">
               <Trans>Add server URL</Trans>
-            </summary>
-            <div className="mt-3 space-y-3">
-              <Input
-                aria-label={t`Server URL`}
-                value={endpoint}
-                onChange={(event) => setEndpoint(event.target.value)}
-                placeholder="https://example.com/mcp"
-              />
-              <Button
-                disabled={busy || !endpoint.trim()}
-                onClick={() => void connect("MCP server", endpoint.trim())}
-              >
-                <Trans>Connect</Trans>
-              </Button>
-            </div>
-          </details>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="mt-3 space-y-3">
+                <Input
+                  aria-label={t`Server URL`}
+                  value={endpoint}
+                  onChange={(event) => setEndpoint(event.target.value)}
+                  placeholder="https://example.com/mcp"
+                />
+                <Button
+                  disabled={busy || !endpoint.trim()}
+                  onClick={() => void connect("MCP server", endpoint.trim())}
+                >
+                  <Trans>Connect</Trans>
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </>
       ) : null}
       {choice === "executor" ? (
@@ -325,19 +327,21 @@ export function IntegrationSetup({
           >
             <Trans>Connect</Trans>
           </Button>
-          <details className="text-sm text-muted-foreground">
-            <summary className="cursor-pointer">
+          <Collapsible className="text-sm text-muted-foreground">
+            <CollapsibleTrigger className="cursor-pointer">
               <Trans>Setup help</Trans>
-            </summary>
-            <a
-              href="https://executor.sh/#get-started"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 block underline"
-            >
-              <Trans>Download Executor</Trans>
-            </a>
-          </details>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <a
+                href="https://executor.sh/#get-started"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block underline"
+              >
+                <Trans>Download Executor</Trans>
+              </a>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       ) : null}
       {error ? (

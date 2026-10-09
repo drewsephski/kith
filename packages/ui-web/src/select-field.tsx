@@ -1,5 +1,12 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select.js";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select.js";
 
 type SelectFieldProps = ComponentProps<typeof SelectTrigger> & {
   value: string;
@@ -8,10 +15,23 @@ type SelectFieldProps = ComponentProps<typeof SelectTrigger> & {
 };
 
 /** A single-choice field using the shared shadcn Select, including empty/default values. */
-export function SelectField({ value, onValueChange, items, disabled, ...triggerProps }: SelectFieldProps) {
+export function SelectField({
+  value,
+  onValueChange,
+  items,
+  disabled,
+  ...triggerProps
+}: SelectFieldProps) {
   return (
-    <Select value={value} items={items} disabled={disabled} onValueChange={(next) => { if (next !== null) onValueChange(next); }}>
-      <SelectTrigger {...triggerProps}>
+    <Select
+      value={value}
+      items={items}
+      disabled={disabled}
+      onValueChange={(next) => {
+        if (next !== null) onValueChange(next);
+      }}
+    >
+      <SelectTrigger data-value={value} {...triggerProps}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="start" alignItemWithTrigger={false}>

@@ -218,15 +218,19 @@ export function MemorySettingsOverlay({
                 <FieldLabel htmlFor={providerSelectId}>
                   <Trans>Provider</Trans>
                 </FieldLabel>
-                <SelectField id={providerSelectId}
-className="w-full"
-value={selectedProvider}
-disabled={busy}
-onValueChange={(selectedValue) => setSelectedProvider(selectedValue)} items={[...(MEMORY_PROVIDER_SETTINGS.map((entry) => (
-                    ({ value: String(entry.id), label: <>
-                      {entry.name}
-                    </> })
-                  )))]} />
+                <SelectField
+                  id={providerSelectId}
+                  className="w-full"
+                  value={selectedProvider}
+                  disabled={busy}
+                  onValueChange={(selectedValue) => setSelectedProvider(selectedValue)}
+                  items={[
+                    ...MEMORY_PROVIDER_SETTINGS.map((entry) => ({
+                      value: String(entry.id),
+                      label: <>{entry.name}</>,
+                    })),
+                  ]}
+                />
               </Field>
             ) : null}
 

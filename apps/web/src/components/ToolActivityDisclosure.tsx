@@ -1,6 +1,6 @@
 import { Plural, Trans } from "@lingui/react/macro";
 import type { ThreadMessage } from "@rakazo/contracts";
-import { ChevronRight } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@rakazo/ui-web";
 import type { ReactNode } from "react";
 import { formatToolActivityDuration, toolStepCount } from "../lib/tool-activity-view";
 
@@ -69,23 +69,17 @@ export function ToolActivityDisclosure({
 }) {
   const duration = formatToolActivityDuration(durationMs);
   return (
-    <details
+    <Collapsible
       key={live ? "working" : "actions"}
       data-testid="tool-activity"
       data-live={live || undefined}
       className="group"
     >
-      <summary
+      <CollapsibleTrigger
         className={`flex min-h-6 w-fit cursor-pointer list-none items-center gap-1 rounded-md py-0.5 pe-1.5 text-[13px] font-medium outline-none hover:text-foreground/75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
           live ? "text-foreground/75" : "text-muted-foreground"
         }`}
       >
-        <ChevronRight
-          aria-hidden
-          size={14}
-          strokeWidth={1.8}
-          className="transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
-        />
         {live ? (
           <Trans>Working…</Trans>
         ) : (
@@ -94,9 +88,11 @@ export function ToolActivityDisclosure({
             {duration ? ` · ${duration}` : null}
           </>
         )}
-      </summary>
-      <div className="ms-[7px] mt-0.5 border-s border-border ps-3">{children}</div>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="ms-[7px] mt-0.5 border-s border-border ps-3">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

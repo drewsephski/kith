@@ -7,7 +7,7 @@ import {
   moveBackupChoice,
   sameBackupChoices,
 } from "@rakazo/contracts";
-import { Button, SelectField, } from "@rakazo/ui-web";
+import { Button, SelectField } from "@rakazo/ui-web";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rpc, selectedSpaceId } from "../lib/rpc";
 
@@ -334,30 +334,43 @@ export function ModelBackupsSettings({
               <label htmlFor="model-backup-picker">
                 <Trans>Add connected model</Trans>
               </label>
-              <SelectField id="model-backup-picker"
-aria-label={t`Add connected model`}
-className="mt-1.5 w-full text-foreground"
-value={addableKey}
-disabled={
+              <SelectField
+                id="model-backup-picker"
+                aria-label={t`Add connected model`}
+                className="mt-1.5 w-full text-foreground"
+                value={addableKey}
+                disabled={
                   !editable ||
                   currentState.draft.length >= MAX_MODEL_BACKUPS ||
                   addableOptions.length === 0
                 }
-onValueChange={(selectedValue) => {
+                onValueChange={(selectedValue) => {
                   if (!editable) return;
                   setState((previous) =>
                     previous.scopeKey === activeScopeKey
                       ? { ...previous, selectedKey: selectedValue, error: null, notice: null }
                       : previous,
                   );
-                }} items={[{ value: String(""), label: <>
-                  <Trans>Select a connected model</Trans>
-                </> },
-...(addableOptions.map((option) => (
-                  ({ value: String(backupChoiceKey(option)), label: <>
-                    {option.providerName} · {option.label}
-                  </> })
-                )))]} />
+                }}
+                items={[
+                  {
+                    value: String(""),
+                    label: (
+                      <>
+                        <Trans>Select a connected model</Trans>
+                      </>
+                    ),
+                  },
+                  ...addableOptions.map((option) => ({
+                    value: String(backupChoiceKey(option)),
+                    label: (
+                      <>
+                        {option.providerName} · {option.label}
+                      </>
+                    ),
+                  })),
+                ]}
+              />
             </div>
             <Button
               type="button"

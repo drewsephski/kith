@@ -6,7 +6,7 @@ import {
   commandVariableProblem,
   encodeLoginSecret,
 } from "@rakazo/contracts";
-import { Button, Input, SelectField, } from "@rakazo/ui-web";
+import { Button, Input, SelectField } from "@rakazo/ui-web";
 import { useEffect, useId, useState } from "react";
 import { rpc } from "../../lib/rpc";
 import { errorText } from "../../lib/user-error";
@@ -443,15 +443,20 @@ export function BotCredentialsSection({ botId }: { botId: string }) {
           )}
           <label htmlFor={`${ids}-auth`} className={fieldLabelClass}>
             <Trans>Type</Trans>
-            <SelectField id={`${ids}-auth`}
-data-testid="credential-auth-type"
-className="mt-1.5 w-full"
-value={authType}
-onValueChange={(selectedValue) => setAuthType(selectedValue as CredentialAuthType)} items={[{ value: String("bearer"), label: <>{t`Bearer token`}</> },
-{ value: String("header"), label: <>{t`Custom header`}</> },
-{ value: String("basic"), label: <>{t`Basic auth`}</> },
-{ value: String("login"), label: <>{t`Website login`}</> },
-{ value: String("command"), label: <>{t`Command variable`}</> }]} />
+            <SelectField
+              id={`${ids}-auth`}
+              data-testid="credential-auth-type"
+              className="mt-1.5 w-full"
+              value={authType}
+              onValueChange={(selectedValue) => setAuthType(selectedValue as CredentialAuthType)}
+              items={[
+                { value: String("bearer"), label: <>{t`Bearer token`}</> },
+                { value: String("header"), label: <>{t`Custom header`}</> },
+                { value: String("basic"), label: <>{t`Basic auth`}</> },
+                { value: String("login"), label: <>{t`Website login`}</> },
+                { value: String("command"), label: <>{t`Command variable`}</> },
+              ]}
+            />
           </label>
           {authType === "header" ? (
             <label htmlFor={`${ids}-header`} className={fieldLabelClass}>

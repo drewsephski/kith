@@ -10,7 +10,7 @@ import {
   FieldLabel,
   Input,
   SelectField,
-  } from "@rakazo/ui-web";
+} from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { rpc } from "../lib/rpc";
@@ -313,16 +313,24 @@ export function VoiceSettingsOverlay({
                     <FieldLabel htmlFor={voiceSelectId}>
                       <Trans>Voice</Trans>
                     </FieldLabel>
-                    <SelectField id={voiceSelectId}
-className="w-full"
-value={voiceId}
-disabled={busy}
-onValueChange={(selectedValue) => void chooseVoice(selectedValue)} items={[...(voiceOptions.map((voice) => (
-                        ({ value: String(voice.id), label: <>
-                          {voice.label}
-                          {voice.description ? ` · ${voice.description}` : ""}
-                        </> })
-                      )))]} />
+                    <SelectField
+                      id={voiceSelectId}
+                      className="w-full"
+                      value={voiceId}
+                      disabled={busy}
+                      onValueChange={(selectedValue) => void chooseVoice(selectedValue)}
+                      items={[
+                        ...voiceOptions.map((voice) => ({
+                          value: String(voice.id),
+                          label: (
+                            <>
+                              {voice.label}
+                              {voice.description ? ` · ${voice.description}` : ""}
+                            </>
+                          ),
+                        })),
+                      ]}
+                    />
                   </Field>
                   {selected.id === "fish-audio" ? (
                     <Field className="mt-6">

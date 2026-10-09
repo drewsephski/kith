@@ -43,7 +43,7 @@ function stepsOf(n: number) {
   return Array.from({ length: n }, (_, i) => ({ label: `step-${i}`, count: 1 }));
 }
 
-const OPEN_DETAILS = /<details[^>]* open/;
+const OPEN_DETAILS = /aria-expanded="true"/;
 
 function mountCard() {
   const container = document.createElement("div");
@@ -56,9 +56,9 @@ function mountCard() {
         </ToolActivityDisclosure>,
       ),
     );
-  const details = () => container.querySelector("details");
-  const summary = () => container.querySelector("summary");
-  return { render, details, summary, unmount: () => root.unmount() };
+  const expanded = () => container.querySelector("button[aria-expanded]")?.getAttribute("aria-expanded") === "true";
+  const summary = () => container.querySelector<HTMLButtonElement>("button[aria-expanded]");
+  return { render, expanded, summary, unmount: () => root.unmount() };
 }
 
 describe("ToolActivityDisclosure", () => {
@@ -92,7 +92,7 @@ describe("ToolActivityDisclosure", () => {
 
   it("is collapsed once done and expands to the tool rows", () => {
     const html = markup({ live: false, stepCount: 2 });
-    expect(html).toContain("<details");
+    expect(html).toContain('aria-expanded="false"');
     expect(html).not.toMatch(OPEN_DETAILS);
     expect(html).toContain("Shell ×2");
   });
@@ -100,12 +100,12 @@ describe("ToolActivityDisclosure", () => {
   it("folds when the run finishes", () => {
     const card = mountCard();
     card.render(true);
-    expect(card.details()?.open).toBe(false);
-    card.summary()?.click();
-    expect(card.details()?.open).toBe(true);
+    expect(card.expanded()).toBe(false);
+    flushSync(() => card.summary()?.click());
+    expect(card.expanded()).toBe(true);
 
     card.render(false);
-    expect(card.details()?.open).toBe(false);
+    expect(card.expanded()).toBe(false);
     expect(card.summary()?.textContent).toContain("Activity · 2 steps");
     card.unmount();
   });
@@ -113,26 +113,26 @@ describe("ToolActivityDisclosure", () => {
   it("keeps a manual expansion while more steps arrive in the same run", () => {
     const card = mountCard();
     card.render(true, 2);
-    card.summary()?.click();
-    expect(card.details()?.open).toBe(true);
+    flushSync(() => card.summary()?.click());
+    expect(card.expanded()).toBe(true);
 
     card.render(true, 3);
-    expect(card.details()?.open).toBe(true);
+    expect(card.expanded()).toBe(true);
     expect(card.summary()?.textContent).toContain("Working…");
 
     card.render(false, 3);
-    expect(card.details()?.open).toBe(false);
+    expect(card.expanded()).toBe(false);
     card.unmount();
   });
 
   it("can still be expanded by hand once done", () => {
     const card = mountCard();
     card.render(false);
-    card.summary()?.click();
-    expect(card.details()?.open).toBe(true);
+    flushSync(() => card.summary()?.click());
+    expect(card.expanded()).toBe(true);
 
     card.render(false);
-    expect(card.details()?.open).toBe(true);
+    expect(card.expanded()).toBe(true);
     card.unmount();
   });
 });

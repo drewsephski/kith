@@ -13,7 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   SelectField,
-  } from "@rakazo/ui-web";
+} from "@rakazo/ui-web";
 import { XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -146,17 +146,18 @@ export function MessagingSettingsOverlay({ onClose }: { onClose: () => void }) {
             </p>
           )}
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <SelectField aria-label={t`Bot to link`}
-value={linkBotId}
-onValueChange={(selectedValue) => {
+            <SelectField
+              aria-label={t`Bot to link`}
+              value={linkBotId}
+              onValueChange={(selectedValue) => {
                 setLinkBotId(selectedValue);
                 setLinkCode(null);
-              }} items={[{ value: String(""), label: <>{t`Choose a bot…`}</> },
-...(bots.map((bot) => (
-                ({ value: String(bot.id), label: <>
-                  {bot.name}
-                </> })
-              )))]} />
+              }}
+              items={[
+                { value: String(""), label: <>{t`Choose a bot…`}</> },
+                ...bots.map((bot) => ({ value: String(bot.id), label: <>{bot.name}</> })),
+              ]}
+            />
             <Button
               className="rounded-full"
               disabled={!linkBotId}

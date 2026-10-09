@@ -5,6 +5,9 @@ import type { RunActivityRow, RunStatus } from "@rakazo/contracts";
 import { isAgedStuckWork } from "@rakazo/core";
 import {
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Input,
   Label,
   Select,
@@ -265,74 +268,76 @@ function ActivityFilters({
           className="rounded-xl bg-card text-[13px] dark:bg-input"
         />
       </div>
-      <details className="group rounded-lg">
-        <summary className="w-fit cursor-pointer rounded-md py-1 text-xs font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
+      <Collapsible className="group rounded-lg">
+        <CollapsibleTrigger className="w-fit cursor-pointer rounded-md py-1 text-xs font-medium text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring">
           <Trans>Filters</Trans>
-        </summary>
-        <div className="space-y-3 pb-3 pt-2">
-          <div>
-            <Label htmlFor={statusId} className="text-[12.5px] text-muted-foreground">
-              <Trans>Status</Trans>
-            </Label>
-            <Select
-              value={filters.status}
-              items={statusItems}
-              onValueChange={(status) => onChange({ ...filters, status: status ?? "all" })}
-            >
-              <SelectTrigger
-                id={statusId}
-                data-testid="activity-status-filter"
-                className="mt-1 w-full"
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="space-y-3 pb-3 pt-2">
+            <div>
+              <Label htmlFor={statusId} className="text-[12.5px] text-muted-foreground">
+                <Trans>Status</Trans>
+              </Label>
+              <Select
+                value={filters.status}
+                items={statusItems}
+                onValueChange={(status) => onChange({ ...filters, status: status ?? "all" })}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusItems.map(({ value, label }) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  id={statusId}
+                  data-testid="activity-status-filter"
+                  className="mt-1 w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusItems.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor={fromId} className="text-[12.5px] text-muted-foreground">
+                <Trans>From</Trans>
+              </Label>
+              <Input
+                id={fromId}
+                data-testid="activity-date-from"
+                type="date"
+                value={filters.dateRange.from}
+                onChange={(event) =>
+                  onChange({
+                    ...filters,
+                    dateRange: { ...filters.dateRange, from: event.target.value },
+                  })
+                }
+                className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
+              />
+            </div>
+            <div>
+              <Label htmlFor={toId} className="text-[12.5px] text-muted-foreground">
+                <Trans>To</Trans>
+              </Label>
+              <Input
+                id={toId}
+                data-testid="activity-date-to"
+                type="date"
+                value={filters.dateRange.to}
+                onChange={(event) =>
+                  onChange({
+                    ...filters,
+                    dateRange: { ...filters.dateRange, to: event.target.value },
+                  })
+                }
+                className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor={fromId} className="text-[12.5px] text-muted-foreground">
-              <Trans>From</Trans>
-            </Label>
-            <Input
-              id={fromId}
-              data-testid="activity-date-from"
-              type="date"
-              value={filters.dateRange.from}
-              onChange={(event) =>
-                onChange({
-                  ...filters,
-                  dateRange: { ...filters.dateRange, from: event.target.value },
-                })
-              }
-              className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
-            />
-          </div>
-          <div>
-            <Label htmlFor={toId} className="text-[12.5px] text-muted-foreground">
-              <Trans>To</Trans>
-            </Label>
-            <Input
-              id={toId}
-              data-testid="activity-date-to"
-              type="date"
-              value={filters.dateRange.to}
-              onChange={(event) =>
-                onChange({
-                  ...filters,
-                  dateRange: { ...filters.dateRange, to: event.target.value },
-                })
-              }
-              className="mt-1 rounded-xl bg-card text-[13px] dark:bg-input"
-            />
-          </div>
-        </div>
-      </details>
+        </CollapsibleContent>
+      </Collapsible>
       {filtersOn ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {filters.query.trim() ? (

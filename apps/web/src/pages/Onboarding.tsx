@@ -24,6 +24,9 @@ import {
 } from "@rakazo/core";
 import {
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Input,
   ModelThinkingOptions,
   Select,
@@ -717,72 +720,74 @@ export function OnboardingPage() {
                     />
                   </>
                 ) : (
-                  <details key={provider} className="text-muted-foreground">
-                    <summary className="w-fit cursor-pointer select-none">
+                  <Collapsible key={provider} className="text-muted-foreground">
+                    <CollapsibleTrigger className="w-fit cursor-pointer select-none">
                       <Trans>Model settings</Trans>
-                    </summary>
-                    <div className="mt-4 text-foreground">
-                      <span className="font-medium">
-                        <Trans>Model</Trans>
-                      </span>
-                      <Select
-                        value={selected?.id ?? modelId}
-                        onValueChange={(value) => {
-                          if (typeof value !== "string" || !value) return;
-                          if (value === modelId) return;
-                          cancelOAuthAttempt();
-                          setModelId(value);
-                          setThinkingLevel(null);
-                          invalidatePreflight();
-                        }}
-                        items={modelItems}
-                      >
-                        <SelectTrigger aria-label={t`Model`} className="mt-2 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {modelsForProvider.map((entry) => (
-                            <SelectItem key={`${entry.provider}:${entry.id}`} value={entry.id}>
-                              {entry.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {catalogThinkingLevels.length ? (
-                        <div className="mt-4 block">
-                          <span className="font-medium">
-                            <Trans>Thinking</Trans>
-                          </span>
-                          <Select
-                            value={thinkingLevel ?? DEFAULT_THINKING_LEVEL_OPTION}
-                            onValueChange={(value) => {
-                              const next = String(value);
-                              setThinkingLevel(
-                                next === DEFAULT_THINKING_LEVEL_OPTION
-                                  ? null
-                                  : (next as ThinkingLevel),
-                              );
-                            }}
-                            items={thinkingLevelItems}
-                          >
-                            <SelectTrigger aria-label={t`Thinking`} className="mt-2 w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={DEFAULT_THINKING_LEVEL_OPTION}>
-                                {t`Default (${thinkingLevelLabel("medium")})`}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-4 text-foreground">
+                        <span className="font-medium">
+                          <Trans>Model</Trans>
+                        </span>
+                        <Select
+                          value={selected?.id ?? modelId}
+                          onValueChange={(value) => {
+                            if (typeof value !== "string" || !value) return;
+                            if (value === modelId) return;
+                            cancelOAuthAttempt();
+                            setModelId(value);
+                            setThinkingLevel(null);
+                            invalidatePreflight();
+                          }}
+                          items={modelItems}
+                        >
+                          <SelectTrigger aria-label={t`Model`} className="mt-2 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {modelsForProvider.map((entry) => (
+                              <SelectItem key={`${entry.provider}:${entry.id}`} value={entry.id}>
+                                {entry.label}
                               </SelectItem>
-                              {catalogThinkingLevels.map((level) => (
-                                <SelectItem key={level} value={level}>
-                                  {thinkingLevelLabel(level)}
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {catalogThinkingLevels.length ? (
+                          <div className="mt-4 block">
+                            <span className="font-medium">
+                              <Trans>Thinking</Trans>
+                            </span>
+                            <Select
+                              value={thinkingLevel ?? DEFAULT_THINKING_LEVEL_OPTION}
+                              onValueChange={(value) => {
+                                const next = String(value);
+                                setThinkingLevel(
+                                  next === DEFAULT_THINKING_LEVEL_OPTION
+                                    ? null
+                                    : (next as ThinkingLevel),
+                                );
+                              }}
+                              items={thinkingLevelItems}
+                            >
+                              <SelectTrigger aria-label={t`Thinking`} className="mt-2 w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={DEFAULT_THINKING_LEVEL_OPTION}>
+                                  {t`Default (${thinkingLevelLabel("medium")})`}
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ) : null}
-                    </div>
-                  </details>
+                                {catalogThinkingLevels.map((level) => (
+                                  <SelectItem key={level} value={level}>
+                                    {thinkingLevelLabel(level)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 )}
               </div>
               {subscriptionSignIn ? (
@@ -918,29 +923,31 @@ export function OnboardingPage() {
                       {oauthPending ? <Trans>Starting…</Trans> : signInLabel}
                     </Button>
                   )}
-                  <details className="mt-4 text-sm text-muted-foreground">
-                    <summary className="w-fit cursor-pointer select-none">
+                  <Collapsible className="mt-4 text-sm text-muted-foreground">
+                    <CollapsibleTrigger className="w-fit cursor-pointer select-none">
                       <Trans>Connection details</Trans>
-                    </summary>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-3"
-                      disabled={oauthPending || preflightTesting}
-                      onClick={() => void testOAuthConnection()}
-                    >
-                      {modelPreflightTestingLabel(
-                        preflightTesting && preflightTarget === "sign-in",
-                        "sign-in",
-                      )}
-                    </Button>
-                    {preflightTarget === "sign-in" ? (
-                      <ModelPreflightFeedback
-                        success={preflightSuccess}
-                        failure={preflightFailure}
-                      />
-                    ) : null}
-                  </details>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3"
+                        disabled={oauthPending || preflightTesting}
+                        onClick={() => void testOAuthConnection()}
+                      >
+                        {modelPreflightTestingLabel(
+                          preflightTesting && preflightTarget === "sign-in",
+                          "sign-in",
+                        )}
+                      </Button>
+                      {preflightTarget === "sign-in" ? (
+                        <ModelPreflightFeedback
+                          success={preflightSuccess}
+                          failure={preflightFailure}
+                        />
+                      ) : null}
+                    </CollapsibleContent>
+                  </Collapsible>
                 </div>
               ) : null}
               {isCloudflareGateway && acceptsKey ? (
@@ -977,37 +984,41 @@ export function OnboardingPage() {
               ) : null}
               {acceptsKey ? (
                 isOpenAiCompatible ? (
-                  <details className="mt-4 text-sm text-muted-foreground">
-                    <summary className="w-fit cursor-pointer select-none">
+                  <Collapsible className="mt-4 text-sm text-muted-foreground">
+                    <CollapsibleTrigger className="w-fit cursor-pointer select-none">
                       <Trans>API key</Trans>
-                    </summary>
-                    <Input
-                      aria-label={t`API key`}
-                      value={apiKey}
-                      onChange={(e) => updateApiKey(e.target.value)}
-                      placeholder={t`Optional`}
-                      type="password"
-                      autoComplete="new-password"
-                      className="mt-2"
-                    />
-                  </details>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <Input
+                        aria-label={t`API key`}
+                        value={apiKey}
+                        onChange={(e) => updateApiKey(e.target.value)}
+                        placeholder={t`Optional`}
+                        type="password"
+                        autoComplete="new-password"
+                        className="mt-2"
+                      />
+                    </CollapsibleContent>
+                  </Collapsible>
                 ) : (
                   <div>
                     {subscriptionSignIn ? (
-                      <details className="mt-4 text-sm text-muted-foreground">
-                        <summary className="w-fit cursor-pointer select-none">
+                      <Collapsible className="mt-4 text-sm text-muted-foreground">
+                        <CollapsibleTrigger className="w-fit cursor-pointer select-none">
                           <Trans>Use an API key</Trans>
-                        </summary>
-                        <Input
-                          aria-label={t`API key`}
-                          value={apiKey}
-                          onChange={(e) => updateApiKey(e.target.value)}
-                          placeholder="sk-…"
-                          type="password"
-                          autoComplete="new-password"
-                          className="mt-2"
-                        />
-                      </details>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Input
+                            aria-label={t`API key`}
+                            value={apiKey}
+                            onChange={(e) => updateApiKey(e.target.value)}
+                            placeholder="sk-…"
+                            type="password"
+                            autoComplete="new-password"
+                            className="mt-2"
+                          />
+                        </CollapsibleContent>
+                      </Collapsible>
                     ) : (
                       <label
                         htmlFor={`${fieldId}-api-key`}
@@ -1032,26 +1043,31 @@ export function OnboardingPage() {
               !isOpenAiCompatible &&
               !subscriptionSignIn &&
               selected?.catalogProbe ? (
-                <details className="mt-4 text-sm text-muted-foreground">
-                  <summary className="w-fit cursor-pointer select-none">
+                <Collapsible className="mt-4 text-sm text-muted-foreground">
+                  <CollapsibleTrigger className="w-fit cursor-pointer select-none">
                     <Trans>Connection details</Trans>
-                  </summary>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3"
-                    disabled={preflightTesting || apiKey.trim().length < 8}
-                    onClick={() => void testApiKeyConnection()}
-                  >
-                    {modelPreflightTestingLabel(
-                      preflightTesting && preflightTarget === "api-key",
-                      "api-key",
-                    )}
-                  </Button>
-                  {preflightTarget === "api-key" ? (
-                    <ModelPreflightFeedback success={preflightSuccess} failure={preflightFailure} />
-                  ) : null}
-                </details>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      disabled={preflightTesting || apiKey.trim().length < 8}
+                      onClick={() => void testApiKeyConnection()}
+                    >
+                      {modelPreflightTestingLabel(
+                        preflightTesting && preflightTarget === "api-key",
+                        "api-key",
+                      )}
+                    </Button>
+                    {preflightTarget === "api-key" ? (
+                      <ModelPreflightFeedback
+                        success={preflightSuccess}
+                        failure={preflightFailure}
+                      />
+                    ) : null}
+                  </CollapsibleContent>
+                </Collapsible>
               ) : null}
               {notice ? (
                 <p className="mt-3 text-sm text-success" role="status">
