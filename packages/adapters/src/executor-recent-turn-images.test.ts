@@ -2,12 +2,16 @@ import type { AgentRunRequest } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
-import { createRunExecutor } from "./executor.js";
+import { COMPUTER_TOOL_NAMES, createRunExecutor } from "./executor.js";
+import { NoneSandboxProvider } from "./none-sandbox.js";
 
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ComputerLifecycleModule>()),
   acquireComputerExecutionLease: async () => null,
-  provisionComputer: async () => ({ id: "computer-1", kind: "desktop" }),
+  provisionComputer: async (deps: { sandbox: { describe: () => { id?: string } } }) => {
+    if (deps.sandbox.describe().id === "none") throw new Error("Computers unavailable");
+    return { id: "computer-1", kind: "desktop" };
+  },
 }));
 
 const TEXT_ONLY_MODEL = "deepseek/deepseek-v4-flash-0731";
@@ -55,6 +59,7 @@ async function runWithModel(
   switchModel?: { provider: string; modelId: string },
   backupReadFails = false,
   scripted = false,
+  computerAvailable = true,
 ) {
   const run = {
     id: "run-1",
@@ -168,13 +173,15 @@ async function runWithModel(
     prisma,
     deploymentModelKey: "fake-deployment-key",
     runtime: { describe: () => ({ capabilities: { scripted } }), run: runtimeRun },
-    sandbox: {
-      describe: () => ({ capabilities: { graphical: false } }),
-      writeFile: vi.fn(async () => undefined),
-      async *exportWorkspace() {
-        yield* [];
-      },
-    },
+    sandbox: computerAvailable
+      ? {
+          describe: () => ({ capabilities: { graphical: false } }),
+          writeFile: vi.fn(async () => undefined),
+          async *exportWorkspace() {
+            yield* [];
+          },
+        }
+      : new NoneSandboxProvider(),
     home: { commit: vi.fn(async () => "fixture-revision") },
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
@@ -186,12 +193,34 @@ async function runWithModel(
 
   await executor.continueRun(run.id, "worker-1");
   expect(runtimeRun).toHaveBeenCalled();
-  expect(finalizeRun).not.toHaveBeenCalledWith(expect.objectContaining({ outcome: "failed" }));
+  expect(finalizeRun).toHaveBeenCalledWith(
+    expect.objectContaining({
+      outcome: "completed",
+      blocks: expect.arrayContaining([{ kind: "text", text: "Done" }]),
+    }),
+  );
   if (!request) throw new Error("runtime was not called");
   return { request, get, prisma, run };
 }
 
 describe("recent turn images follow model vision", () => {
+  it("responds with a connected model without provisioning a computer", async () => {
+    const { request } = await runWithModel(VISION_MODEL, undefined, false, false, false);
+    const tools = request.tools.map((tool) => tool.name);
+    expect(tools.filter((name) => COMPUTER_TOOL_NAMES.has(name))).toEqual([]);
+    expect(tools).toEqual(
+      expect.arrayContaining(["ask_user", "message_user", "remember", "web_search"]),
+    );
+    expect(request.instructions).toContain("No computer is connected");
+    expect(request.instructions).not.toContain("Relative file paths and shell working directories");
+    await expect(
+      request.executeTool?.("shell", { command: "echo unsafe" }, "tool-1"),
+    ).resolves.toEqual({ error: "This tool is disabled for this bot." });
+    expect(request.history.find((entry) => entry.id === "earlier")?.images?.[0]).toMatchObject({
+      name: "shot.png",
+    });
+  });
+
   it("does not send history images to a text-only model", async () => {
     const { request, get } = await runWithModel(TEXT_ONLY_MODEL);
 

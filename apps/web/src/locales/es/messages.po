@@ -5501,3 +5501,23 @@ msgstr "Vuelve a la app para terminar de conectar."
 #: src/pages/IntegrationCallback.tsx
 msgid "Close tab"
 msgstr "Cerrar pestaña"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Rename conversation"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Could not rename conversation"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not archive conversation"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Archive {name}"
+msgstr ""

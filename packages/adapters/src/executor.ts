@@ -2938,6 +2938,7 @@ export function isTerminalModelSetupError(error: unknown): boolean {
 
 export function createRunExecutor(deps: ExecutorDeps) {
   const contextStrategy = deps.contextStrategy ?? DEFAULT_CONTEXT_STRATEGY;
+  const computerAvailable = deps.sandbox?.describe().id !== "none";
   const web = deps.web ?? createWebProvider();
   const browser = deps.browser ?? createBrowserProvider(undefined, { sandbox: deps.sandbox });
   const cloudAgent = deps.cloudAgent;
@@ -3304,27 +3305,29 @@ export function createRunExecutor(deps: ExecutorDeps) {
         data: { status: "running", startedAt: current.startedAt ?? new Date() },
       });
       if (started.count !== 1) return;
-      const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
-        where: { id: run.botId },
-        select: { computerId: true, computerSwitching: true },
-      });
-      if (!leaseTarget.computerId) throw new Error("Bot has no computer");
-      if (leaseTarget.computerSwitching) {
-        await requeueComputerRun(deps, runId, workerId, fence, resumeCheckpoint, heldForTakeover);
-        return;
-      }
       let computerLease: ComputerExecutionLease | null = null;
-      try {
-        computerLease = await acquireComputerExecutionLease(deps.prisma, {
-          computerId: leaseTarget.computerId,
-          runId,
-          botId: run.botId,
-          resumeHeldLease,
+      if (computerAvailable) {
+        const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
+          where: { id: run.botId },
+          select: { computerId: true, computerSwitching: true },
         });
-      } catch (error) {
-        if (!(error instanceof ComputerBusyError)) throw error;
-        await requeueComputerRun(deps, runId, workerId, fence, resumeCheckpoint, heldForTakeover);
-        return;
+        if (!leaseTarget.computerId) throw new Error("Bot has no computer");
+        if (leaseTarget.computerSwitching) {
+          await requeueComputerRun(deps, runId, workerId, fence, resumeCheckpoint, heldForTakeover);
+          return;
+        }
+        try {
+          computerLease = await acquireComputerExecutionLease(deps.prisma, {
+            computerId: leaseTarget.computerId,
+            runId,
+            botId: run.botId,
+            resumeHeldLease,
+          });
+        } catch (error) {
+          if (!(error instanceof ComputerBusyError)) throw error;
+          await requeueComputerRun(deps, runId, workerId, fence, resumeCheckpoint, heldForTakeover);
+          return;
+        }
       }
       const attempt = await deps.prisma.attempt
         .create({
@@ -3726,40 +3729,55 @@ export function createRunExecutor(deps: ExecutorDeps) {
           });
         }
 
-        if (!bot.computer) throw new Error("Bot has no computer");
+        if (computerAvailable && !bot.computer) throw new Error("Bot has no computer");
         const storedComputer = bot.computer;
-        const computerMode = parseComputerMode(storedComputer.scope);
-        const computer = await provisionComputer(deps, storedComputer.id, context, "bot");
-        screenRelease = { computer, context };
-        scheduleComputerSleep(deps.jobs, storedComputer.id);
-        const workspaceCheckpoint = createRunWorkspaceCheckpoint(() =>
-          checkpointRunComputerWorkspace(deps, storedComputer, computer, context),
-        );
+        const computerMode = parseComputerMode(storedComputer?.scope ?? "dedicated");
+        const computer =
+          computerAvailable && storedComputer
+            ? await provisionComputer(deps, storedComputer.id, context, "bot")
+            : null;
+        const requireComputer = (): ComputerRef => {
+          if (!computer) throw new Error("No computer is connected.");
+          return computer;
+        };
+        if (computer && storedComputer) {
+          screenRelease = { computer, context };
+          scheduleComputerSleep(deps.jobs, storedComputer.id);
+        }
+        const workspaceCheckpoint = createRunWorkspaceCheckpoint(async () => {
+          if (computer && storedComputer) {
+            await checkpointRunComputerWorkspace(deps, storedComputer, computer, context);
+          }
+        });
         let currentTurnFiles: Awaited<ReturnType<typeof materializeCurrentTurnFiles>>;
         try {
-          currentTurnFiles = deps.artifacts
-            ? await materializeCurrentTurnFiles(
-                {
-                  prisma: deps.prisma,
-                  artifacts: deps.artifacts,
-                  sandbox: deps.sandbox,
-                },
-                turnBlocks,
-                {
-                  context,
-                  computer,
-                  computerMode,
-                  markWorkspaceDirty: workspaceCheckpoint.markDirty,
-                },
-              )
-            : [];
+          currentTurnFiles =
+            deps.artifacts && computer
+              ? await materializeCurrentTurnFiles(
+                  {
+                    prisma: deps.prisma,
+                    artifacts: deps.artifacts,
+                    sandbox: deps.sandbox,
+                  },
+                  turnBlocks,
+                  {
+                    context,
+                    computer,
+                    computerMode,
+                    markWorkspaceDirty: workspaceCheckpoint.markDirty,
+                  },
+                )
+              : [];
         } catch (error) {
           await workspaceCheckpoint.flush().catch(() => undefined);
           throw error;
         }
-        const attachedFilesPrompt = currentTurnFilesInstruction(currentTurnFiles);
-        const graphical =
-          computer.kind !== "desktop" && deps.sandbox.describe().capabilities.graphical;
+        const attachedFilesPrompt =
+          currentTurnFilesInstruction(currentTurnFiles) ||
+          (!computer ? unavailableComputerFilesInstruction(turnBlocks) : "");
+        const graphical = Boolean(
+          computer && computer.kind !== "desktop" && deps.sandbox.describe().capabilities.graphical,
+        );
         // Gate on the model this run will actually call — the pair written to the run row
         // above. Deriving it a second time here dropped the deployment fallback, so a
         // vision-capable default was gated as "scripted" and lost its screenshot tools.
@@ -3814,8 +3832,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const pageBrowserAllowed =
           graphical && browser.describe().capabilities.page && !heldForTakeover;
         const disabledBuiltinTools = disabledBuiltinToolSet(bot.disabledBuiltinTools);
+        if (!computer) {
+          for (const name of COMPUTER_TOOL_NAMES) disabledBuiltinTools.add(name);
+        }
         const builtins = [
           ...selectBuiltinToolsForRun({
+            computerAvailable: Boolean(computer),
             historyRetrievalEnabled: contextStrategy !== "current",
             graphicalToolsAllowed,
             pageBrowserAllowed,
@@ -3877,20 +3899,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
         });
         const approvedEffectReplays = createApprovedEffectReplayQueue(approvedEffects);
         const baseComputerInstruction = persistentComputerInstruction({
+          computerAvailable: Boolean(computer),
           heldForTakeover,
           graphicalToolsAllowed,
           graphical,
           disabled: disabledBuiltinTools,
         });
         const dockerToolInstruction = dockerComputerToolInstruction(
-          computer.kind,
+          computer?.kind ?? "none",
           disabledBuiltinTools,
         );
         const computerInstruction = dockerToolInstruction
           ? `${baseComputerInstruction} ${dockerToolInstruction}`
           : baseComputerInstruction;
-        const workspaceInstruction =
-          computerMode === "team"
+        const workspaceInstruction = !computer
+          ? ""
+          : computerMode === "team"
             ? `Your Team Computer home is ${teamBotWorkspaceDirectory(bot.id)}. Relative file paths and shell working directories start there. Put intentionally shared work under shared/. Other bots' folders are visible under bots/; treat them as their working areas.`
             : "This entire computer workspace is your private home. Relative file paths and shell working directories start at its root.";
 
@@ -4673,7 +4697,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               };
             }
             return computerScreenToolResult(async () =>
-              formatObservation(await deps.sandbox.observe(computer, context)),
+              formatObservation(await deps.sandbox.observe(requireComputer(), context)),
             );
           }
           if (name === "computer_act") {
@@ -4693,7 +4717,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             workspaceCheckpoint.markDirty();
             return computerScreenToolResult(async () => {
               const result = await deps.sandbox.act(
-                computer,
+                requireComputer(),
                 {
                   actions,
                   observe: args.observe !== false,
@@ -4713,7 +4737,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           if (name === "list_files") {
             const requestedPath = String(args.path ?? "");
             const entries = await deps.sandbox.listFiles(
-              computer,
+              requireComputer(),
               resolveBotWorkspacePath(computerMode, bot.id, requestedPath),
               context,
             );
@@ -4730,7 +4754,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const storedPath = resolveBotWorkspacePath(computerMode, bot.id, filePath);
             let bytes: Uint8Array;
             try {
-              bytes = await deps.sandbox.readFile(computer, storedPath, context, {
+              bytes = await deps.sandbox.readFile(requireComputer(), storedPath, context, {
                 maxBytes: MAX_MODEL_FILE_BYTES,
               });
             } catch (error) {
@@ -4776,7 +4800,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             workspaceCheckpoint.markDirty();
             try {
               await deps.sandbox.writeFile(
-                computer,
+                requireComputer(),
                 { path: resolveBotWorkspacePath(computerMode, bot.id, filePath), content },
                 context,
               );
@@ -4806,7 +4830,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 typeof args.data_path === "string" && args.data_path ? args.data_path : undefined;
               if (!rows && dataPath) {
                 const bytes = await deps.sandbox.readFile(
-                  computer,
+                  requireComputer(),
                   resolveBotWorkspacePath(computerMode, bot.id, dataPath),
                   context,
                   { maxBytes: ATTACHMENT_MAX_BYTES },
@@ -4828,7 +4852,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   : `charts/plot-${Date.now()}.png`;
               workspaceCheckpoint.markDirty();
               await deps.sandbox.writeFile(
-                computer,
+                requireComputer(),
                 {
                   path: resolveBotWorkspacePath(computerMode, bot.id, outPath),
                   content: png,
@@ -4891,7 +4915,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const storedPath = resolveBotWorkspacePath(computerMode, bot.id, filePath);
             let bytes: Uint8Array;
             try {
-              bytes = await deps.sandbox.readFile(computer, storedPath, context, {
+              bytes = await deps.sandbox.readFile(requireComputer(), storedPath, context, {
                 maxBytes: ATTACHMENT_MAX_BYTES,
               });
             } catch {
@@ -4990,7 +5014,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               };
               const observed = await observeShellCommand(
                 deps.sandbox.execute(
-                  computer,
+                  requireComputer(),
                   {
                     argv: [
                       "bash",
@@ -4999,7 +5023,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       "rakazo-background-launch",
                       // Marker id must match sleepComputerIfIdle's probe (DB id), not ComputerRef.id
                       // (providerRef via toComputerRef). Scope launches to this run for cancel teardown.
-                      storedComputer.id,
+                      bot.computerId ?? requireComputer().id,
                       runId,
                       randomUUID(),
                       command,
@@ -5076,7 +5100,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             return computerScreenToolResult(async () => {
               try {
                 const result = await deps.sandbox.act(
-                  computer,
+                  requireComputer(),
                   {
                     actions: [
                       {
@@ -5112,7 +5136,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             return computerScreenToolResult(async () => {
               try {
                 const result = await deps.sandbox.act(
-                  computer,
+                  requireComputer(),
                   {
                     actions: [
                       {
@@ -5206,8 +5230,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   : null;
             return computerScreenToolResult(async () => {
               const result = tool
-                ? redactConnectorPayload(await tool(browser, computer, context, args), redactions())
-                : await browserActFromTool(browser, computer, context, args, {
+                ? redactConnectorPayload(
+                    await tool(browser, requireComputer(), context, args),
+                    redactions(),
+                  )
+                : await browserActFromTool(browser, requireComputer(), context, args, {
                     redactions,
                     resolveSecretFill: async (step) => {
                       const resolved = await resolveLoginFill({
@@ -6581,7 +6608,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                         const { images, files, unavailableInstruction } =
                           await settleSteeringAttachmentLoads(
                             loadCurrentTurnImages(deps, item.blocks, context),
-                            deps.artifacts
+                            deps.artifacts && computer
                               ? materializeCurrentTurnFiles(
                                   {
                                     prisma: deps.prisma,
@@ -6601,7 +6628,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                             context.signal,
                           );
                         workspaceCheckpoint.markFiles(files);
-                        const filesInstruction = currentTurnFilesInstruction(files);
+                        const filesInstruction =
+                          currentTurnFilesInstruction(files) ||
+                          (!computer ? unavailableComputerFilesInstruction(item.blocks) : "");
                         return {
                           id: item.id,
                           messageId: item.messageId,
@@ -6728,6 +6757,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               });
               return;
             } else if (event.type === "takeover") {
+              if (!computer || !storedComputer) throw new Error("No computer is connected.");
               if (!(await renewRunLease(deps, runId, workerId, fence))) return;
               const safeReason = redactSecrets(event.reason, runSecrets);
               // Publish pending narration as tagged mid-turn progress so reconciliation
@@ -6957,7 +6987,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             for (const file of turn.files ?? []) {
               workspaceCheckpoint.markDirty();
               await deps.sandbox.writeFile(
-                computer,
+                requireComputer(),
                 {
                   path: resolveBotWorkspacePath(computerMode, bot.id, file.path),
                   content: new TextEncoder().encode(file.content),
@@ -7374,6 +7404,7 @@ function computerRetryDelay(fence: number): number {
 }
 
 export function selectBuiltinToolsForRun(options: {
+  computerAvailable?: boolean;
   historyRetrievalEnabled?: boolean;
   graphicalToolsAllowed: boolean;
   /** Page browser tools need a graphical computer (Chrome), not model vision. */
@@ -7407,6 +7438,7 @@ export function selectBuiltinToolsForRun(options: {
   ).filter(
     (tool) =>
       !disabled.has(tool.name) &&
+      (options.computerAvailable !== false || !COMPUTER_TOOL_NAMES.has(tool.name)) &&
       (options.voiceCall || tool.name !== "end_call") &&
       (options.historyRetrievalEnabled ||
         !["search_history", "read_history"].includes(tool.name)) &&
@@ -7421,6 +7453,30 @@ export function selectBuiltinToolsForRun(options: {
         ].includes(tool.name) &&
           !tool.name.startsWith("scratchpad_"))),
   );
+}
+
+/** Tools that require a leased computer, never the API host filesystem or shell. */
+export const COMPUTER_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "computer_observe",
+  "computer_act",
+  "browser_navigate",
+  "browser_snapshot",
+  "browser_act",
+  "list_files",
+  "read_file",
+  "write_file",
+  "attach_file",
+  "shell",
+  "open_path",
+  "launch_app",
+  "request_takeover",
+  "render_plot",
+]);
+
+function unavailableComputerFilesInstruction(blocks: MessageBlock[] | undefined): string {
+  const files = blocks?.filter((block) => block.kind === "file");
+  if (!files?.length) return "";
+  return `These attached files cannot be opened without a computer: ${files.map((file) => JSON.stringify(file.name)).join(", ")}. Do not guess their contents; ask for the relevant text.`;
 }
 
 export const PAGE_BROWSER_TOOL_NAMES = new Set([
@@ -7463,11 +7519,15 @@ function fileAndShellClause(disabled: ReadonlySet<string> | undefined): string |
 }
 
 export function persistentComputerInstruction(options: {
+  computerAvailable?: boolean;
   heldForTakeover: boolean;
   graphicalToolsAllowed: boolean;
   graphical: boolean;
   disabled?: ReadonlySet<string>;
 }): string {
+  if (options.computerAvailable === false) {
+    return "No computer is connected. Answer using conversation context and the available tools. Filesystem, shell, and desktop actions are unavailable.";
+  }
   if (options.heldForTakeover) return DESKTOP_HELD_FOR_TAKEOVER_MESSAGE;
   const disabled = options.disabled;
   if (options.graphicalToolsAllowed) {

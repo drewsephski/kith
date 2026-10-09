@@ -14,7 +14,6 @@ import {
   shippedBotAvatarShapePath,
   shippedHash,
 } from "@rakazo/core";
-import { tokens } from "@rakazo/ui-tokens";
 import type { CSSProperties } from "react";
 import { memo, useId, useMemo, useSyncExternalStore } from "react";
 import type { AvatarStyle } from "./avatar-style.js";
@@ -477,7 +476,7 @@ function OrganicAvatar({
           <g
             key={mode}
             className={`rakazo-organic-avatar-eyes rakazo-organic-avatar-eyes-${mode}`}
-            fill={tokens.background}
+            fill="var(--background)"
           >
             <rect x="-14" y="-12" width="7" height="24" rx="3.5" />
             <rect x="7" y="-12" width="7" height="24" rx="3.5" />
@@ -524,8 +523,8 @@ export function GrokShapePreview({
       className={cn(
         "relative flex size-11 items-center justify-center rounded-xl transition-transform hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover",
         selected
-          ? "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-white/10"
-          : "hover:bg-white/5",
+          ? "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-accent"
+          : "hover:bg-accent",
       )}
     >
       <svg viewBox={VIEWBOX} className="size-8 overflow-visible" aria-hidden="true">

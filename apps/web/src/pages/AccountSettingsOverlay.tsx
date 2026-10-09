@@ -38,9 +38,10 @@ import {
   setToolActivityPreference,
 } from "../lib/tool-activity-preference";
 import type { AppearancePreference } from "../lib/ui-appearance";
-import { getUiAppearancePreference, setUiAppearance } from "../lib/ui-appearance";
+import { setUiAppearance } from "../lib/ui-appearance";
 import type { UiLocale } from "../lib/ui-locale";
 import { UI_LOCALE_LABELS, UI_LOCALES } from "../lib/ui-locale";
+import { useUiAppearance } from "../lib/use-ui-appearance";
 import { authErrorText } from "../lib/user-error";
 
 export type SettingsGeneralProps = {
@@ -66,9 +67,7 @@ export function GeneralSettingsPanels({
   const [accountSecurity, setAccountSecurity] = useState<AccountSecurity | null>(null);
   const [locale, setLocale] = useState<UiLocale>(() => getActiveUiLocale());
   const localeRequestRef = useRef(0);
-  const [appearance, setAppearance] = useState<AppearancePreference>(() =>
-    getUiAppearancePreference(),
-  );
+  const { preference: appearance } = useUiAppearance();
   const [streamReplies, setStreamReplies] = useState(
     () => getResponseStreamingPreference() === "on",
   );
@@ -140,13 +139,7 @@ export function GeneralSettingsPanels({
         <h3 className="text-[15px] font-medium text-foreground">
           <Trans>Appearance</Trans>
         </h3>
-        <AppearancePicker
-          value={appearance}
-          onChange={(next) => {
-            setAppearance(next);
-            setUiAppearance(next);
-          }}
-        />
+        <AppearancePicker value={appearance} onChange={setUiAppearance} />
       </section>
 
       <section className="rounded-xl border border-border px-4 py-4">

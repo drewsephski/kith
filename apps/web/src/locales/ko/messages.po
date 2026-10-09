@@ -5501,3 +5501,23 @@ msgstr "연결을 마치려면 앱으로 돌아가세요."
 #: src/pages/IntegrationCallback.tsx
 msgid "Close tab"
 msgstr "탭 닫기"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Rename conversation"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Could not rename conversation"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not archive conversation"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Archive {name}"
+msgstr ""

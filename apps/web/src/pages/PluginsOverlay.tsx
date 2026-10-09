@@ -80,10 +80,12 @@ export function PluginsOverlay({
   onClose,
   onOpenMcp,
   activeBotId,
+  connectorId,
 }: {
   onClose: () => void;
   onOpenMcp?: () => void;
   activeBotId?: string;
+  connectorId?: string;
 }) {
   const { t } = useLingui();
   const [setupOpen, setSetupOpen] = useState(false);
@@ -123,16 +125,18 @@ export function PluginsOverlay({
 
   async function refresh() {
     const [items, installs, rows, catalogFeed, setup, servers] = await Promise.all([
-      rpc.connections.catalog({}),
-      rpc.capabilities.list(),
+      rpc.connections.catalog({ connectorId }),
+      connectorId ? Promise.resolve([]) : rpc.capabilities.list(),
       rpc.connections.list(),
-      optionalCatalogFeedProbe(rpc.capabilities.catalogSearch({ query: "" })),
+      connectorId
+        ? Promise.resolve({ enabled: false })
+        : optionalCatalogFeedProbe(rpc.capabilities.catalogSearch({ query: "" })),
       rpc.integrationSetup.get(),
-      rpc.mcp.servers.list(),
+      connectorId ? Promise.resolve([]) : rpc.mcp.servers.list(),
     ]);
     setSetupState(setup);
     setMcpServers(servers);
-    setCatalog(items);
+    setCatalog(connectorId ? items.filter((item) => item.connectorId === connectorId) : items);
     setConnections(rows);
     setLabelDrafts((current) => {
       const next: Record<string, string> = {};
@@ -193,9 +197,12 @@ export function PluginsOverlay({
   }, [detailKey, toolsTick]);
 
   const featuredTiles = useMemo(() => buildFeaturedConnectorTiles(catalog), [catalog]);
-  const showFeatured = !query.trim();
+  const showFeatured = !connectorId && !query.trim();
 
-  const visible = useMemo(() => filterConnectionCatalogItems(catalog, query), [catalog, query]);
+  const visible = useMemo(
+    () => (connectorId && !query.trim() ? catalog : filterConnectionCatalogItems(catalog, query)),
+    [catalog, query, connectorId],
+  );
   const rendered = visible.slice(0, visibleCount);
 
   function openDetail(item: ConnectionCatalogItem) {
@@ -500,17 +507,23 @@ export function PluginsOverlay({
   ) {
     const connected = itemConnected(item);
     const tileTestId = opts?.tileTestId !== false && connected;
-    const icon = <ConnectorIcon name={label} brand={item.slug} logo={logo} />;
+    const icon = (
+      <ConnectorIcon name={label} brand={item.slug} logo={logo} size={connectorId ? 28 : 36} />
+    );
     const title = (
       <div className="min-w-0 flex-1 text-start">
-        <div className="truncate text-[15px] font-medium text-foreground">{label}</div>
+        <div
+          className={`truncate font-medium text-foreground ${connectorId ? "text-sm" : "text-[15px]"}`}
+        >
+          {label}
+        </div>
       </div>
     );
     return (
       <div
         key={itemKey(item)}
         data-testid={tileTestId ? `connection-tile-${item.slug.toLowerCase()}` : undefined}
-        className="flex min-w-0 items-center gap-3 rounded-xl px-2.5 py-2"
+        className={`flex min-w-0 items-center rounded-xl ${connectorId ? "gap-2.5 px-2 py-1.5" : "gap-3 px-2.5 py-2"}`}
       >
         {connected ? (
           <button
@@ -671,11 +684,13 @@ export function PluginsOverlay({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex h-[760px] max-h-[calc(100%-2rem)] w-[1080px] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 sm:max-w-[1080px]"
+        className={`flex max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 ${connectorId ? "h-[600px] w-[760px] sm:max-w-[760px]" : "h-[760px] w-[1080px] sm:max-w-[1080px]"}`}
       >
-        <DialogHeader className="flex-row items-start justify-between px-8 pt-7">
-          <DialogTitle className="text-2xl text-foreground">
-            <Trans>Integrations</Trans>
+        <DialogHeader
+          className={`flex-row items-start justify-between ${connectorId ? "px-5 pt-5" : "px-8 pt-7"}`}
+        >
+          <DialogTitle className={`text-foreground ${connectorId ? "text-lg" : "text-2xl"}`}>
+            {connectorId ? <Trans>Connect services</Trans> : <Trans>Integrations</Trans>}
           </DialogTitle>
           <DialogClose
             render={<Button variant="ghost" size="icon-sm" aria-label={t`Close integrations`} />}
@@ -685,7 +700,7 @@ export function PluginsOverlay({
         </DialogHeader>
 
         {!detailItem ? (
-          <div className="px-8 pt-4">
+          <div className={connectorId ? "px-5 pt-3" : "px-8 pt-4"}>
             <Input
               value={query}
               onChange={(event) => {
@@ -694,20 +709,27 @@ export function PluginsOverlay({
               }}
               aria-label={t`Search apps`}
               placeholder={t`Search apps`}
-              className="h-11 rounded-xl px-4 md:text-[15px]"
+              className={
+                connectorId ? "h-9 rounded-lg px-3" : "h-11 rounded-xl px-4 md:text-[15px]"
+              }
             />
           </div>
         ) : null}
 
-        <div id="integration-list" className="rk-scroll flex-1 overflow-y-auto px-8 py-6">
-          <Button
-            variant="outline"
-            className="mb-4"
-            onClick={() => setSetupOpen((current) => !current)}
-          >
-            <Trans>Browse MCP servers</Trans>
-          </Button>
-          {!detailItem && mcpServers.length > 0 ? (
+        <div
+          id="integration-list"
+          className={`rk-scroll min-h-0 flex-1 overflow-y-auto ${connectorId ? "px-5 py-3" : "px-8 py-6"}`}
+        >
+          {!connectorId ? (
+            <Button
+              variant="outline"
+              className="mb-4"
+              onClick={() => setSetupOpen((current) => !current)}
+            >
+              <Trans>Browse MCP servers</Trans>
+            </Button>
+          ) : null}
+          {!connectorId && !detailItem && mcpServers.length > 0 ? (
             <div className="mb-6 space-y-2">
               <div className="text-sm font-medium">
                 <Trans>MCP servers</Trans>
@@ -857,9 +879,15 @@ export function PluginsOverlay({
               ) : null}
 
               {!loading && catalog.length === 0 && !showFeatured ? (
-                <p className="text-muted-foreground/80">
-                  <Trans>No managed app catalog is configured on this deployment.</Trans>
-                </p>
+                setupState?.canConfigure ? (
+                  <Button variant="outline" onClick={() => setProviderSetupOpen(true)}>
+                    <Trans>Set up app connections</Trans>
+                  </Button>
+                ) : (
+                  <p className="text-muted-foreground/80">
+                    <Trans>Ask the server owner to enable app connections.</Trans>
+                  </p>
+                )
               ) : null}
               {!loading && catalog.length > 0 && visible.length === 0 && !showFeatured ? (
                 <p className="text-muted-foreground/80">
@@ -891,6 +919,7 @@ export function PluginsOverlay({
               ) : null}
 
               <Collapsible
+                hidden={Boolean(connectorId)}
                 data-testid="integrations-advanced"
                 className="group mt-8"
                 onOpenChange={(open) => {

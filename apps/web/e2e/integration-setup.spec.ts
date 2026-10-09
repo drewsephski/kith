@@ -353,7 +353,7 @@ test("blocked popups expose a browser link and checking resumes the same app sig
     window.open = () => null;
   });
   await page.getByRole("button", { name: "Connections", exact: true }).click();
-  await page.getByRole("button", { name: "More connections", exact: true }).click();
+  await page.getByRole("button", { name: "Connect services", exact: true }).click();
   await page.getByRole("button", { name: "Connect Gmail", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Continue in browser", exact: true }),

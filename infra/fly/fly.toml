@@ -18,6 +18,8 @@ kill_timeout = "60s"
   API_PROXY_TARGET = "http://127.0.0.1:3100"
   WEB_PORT = "5173"
   SANDBOX_PROVIDER = "none"
+  AUTH_FORWARDED_IP_HEADER = "x-vercel-forwarded-for"
+  AUTH_EDGE_IP_HEADER = "fly-client-ip"
 
 [[mounts]]
   source = "kith_data"
@@ -43,8 +45,8 @@ kill_timeout = "60s"
     path = "/health"
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "2gb"
+  size = "performance-1x"
+  memory = "4gb"
 
 [[restart]]
   policy = "always"

@@ -33,7 +33,7 @@ fly volumes create kith_data --app "$KITH_BACKEND_APP" --region ord --size 5
 ```
 
 Use a PostgreSQL database in the same region where possible. Put server configuration in a
-private, ignored `.env.hosted` file; replace the example URLs and secret values:
+private, ignored `.env.hosted.local` file; replace the example URLs and secret values:
 
 ```dotenv
 DATABASE_URL=postgresql://example:REPLACE_WITH_PASSWORD@db.example.test/kith?sslmode=require
@@ -45,9 +45,13 @@ BETTER_AUTH_SECRET=REPLACE_WITH_RANDOM_VALUE
 ENCRYPTION_KEY=REPLACE_WITH_RANDOM_VALUE
 SCREEN_PROXY_SECRET=REPLACE_WITH_RANDOM_VALUE
 COMPOSIO_API_KEY=REPLACE_WITH_SERVER_SIDE_KEY
+AUTH_PROXY_SECRET=REPLACE_WITH_ANOTHER_RANDOM_VALUE
 ```
 
 Generate each of the three application secrets independently with `openssl rand -hex 32`.
+Generate the proxy secret independently too, and configure the same `AUTH_PROXY_SECRET` in
+Vercel's production environment as a sensitive server-side build setting. It authenticates
+only the auth-route proxy handoff. The static asset build does not receive this secret.
 Keep them stable across redeployments; changing `ENCRYPTION_KEY` makes existing encrypted
 provider credentials unreadable. `DATABASE_DIRECT_URL` may be omitted when `DATABASE_URL`
 already uses a direct endpoint. Never use a transaction-pooled endpoint for both settings.
@@ -56,7 +60,7 @@ Optional `REALTIME_DATABASE_URL` must also be a direct endpoint of the same data
 Import the file without putting secret values in command arguments, then deploy:
 
 ```bash
-fly secrets import --app "$KITH_BACKEND_APP" < .env.hosted
+fly secrets import --app "$KITH_BACKEND_APP" < .env.hosted.local
 fly deploy . --app "$KITH_BACKEND_APP" --config ./infra/fly/fly.toml \
   --dockerfile ./infra/fly/Dockerfile --ignorefile ./.dockerignore --ha=false --remote-only
 ```
@@ -104,6 +108,12 @@ Set one non-secret build environment variable for the frontend:
 API_PROXY_TARGET=https://kith-example-api.fly.dev
 ```
 
+Set the matching sensitive `AUTH_PROXY_SECRET` as described above. The generated auth route
+uses a server-side request-header transform; it never places this value in browser assets
+or response headers. Fly verifies the handoff before trusting Vercel's client-IP header.
+Direct Fly requests use Fly's edge-injected address. Client-supplied IP/token headers cannot
+replace the normalized auth address. These settings preserve per-client auth rate limits.
+
 Set it for every deployment environment that should reach this backend. Use a separate
 backend/database for previews that need isolation; production provider credentials belong
 only on the production backend.
@@ -111,8 +121,8 @@ only on the production backend.
 The build validates a public, credential-free HTTPS root URL and generates the Vercel Build
 Output API directory. It copies the built assets, emits external API/RPC/screen HTTP rewrites
 with explicit `no-store` headers, forwards `/health`, and keeps SPA navigation working.
-Missing or malformed proxy configuration fails the build. Vercel needs no database,
-Composio, encryption, or auth signing secrets.
+Missing or malformed proxy configuration fails the build. Database, Composio, encryption,
+and auth signing secrets stay exclusively on Fly.
 
 For a local build check:
 
@@ -135,6 +145,14 @@ public addresses, not secrets. The default hosted path opens sign-in and account
 advanced server selection preserves self-hosting. See the desktop and mobile release
 configuration for their platform-specific build commands.
 
+## First owner and registration
+
+Before exposing a fresh service, restrict `SIGNUP_ALLOWLIST` to the operator's email.
+The first admitted account claims deployment ownership. Once that account exists, enable
+public registration and clear the allowlist in the owner's settings, then remove the
+bootstrap `SIGNUP_ALLOWLIST` environment secret so a later restart does not restore it.
+Keep registration restricted when operating a private service.
+
 ## Verify and operate
 
 ```bash
@@ -153,7 +171,9 @@ uncached, and never publish logs containing account or provider data.
 
 Back up PostgreSQL and the Fly volume separately. Volume snapshots do not back up the
 PostgreSQL database, and database backups do not contain uploaded or generated files.
-Monitor disk capacity, failed jobs, and memory use; the initial Fly Machine requests 2 GB.
+Monitor disk capacity, failed jobs, and memory use; the initial Fly Machine requests a dedicated
+performance CPU and 4 GB. Shared CPUs can throttle cold starts when the API and worker load
+their provider adapters concurrently.
 Keep deployments at one Machine with the existing volume. Recovering to a new host requires
 restoring both stores and importing the same encryption/signing configuration.
 

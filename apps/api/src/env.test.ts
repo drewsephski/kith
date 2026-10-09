@@ -7,6 +7,44 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("keeps client IP normalization optional and validates the configured trust boundary", () => {
+    expect(loadEnv(base).authClientIp).toBeUndefined();
+    expect(loadEnv({ ...base, AUTH_EDGE_IP_HEADER: " Fly-Client-IP " }).authClientIp).toEqual({
+      edgeHeader: "fly-client-ip",
+      forwardedHeader: undefined,
+      proxySecret: undefined,
+    });
+    expect(
+      loadEnv({
+        ...base,
+        AUTH_EDGE_IP_HEADER: "fly-client-ip",
+        AUTH_FORWARDED_IP_HEADER: "x-vercel-forwarded-for",
+        AUTH_PROXY_SECRET: "offline-proxy-secret-with-at-least-32-characters",
+      }).authClientIp,
+    ).toMatchObject({ forwardedHeader: "x-vercel-forwarded-for" });
+  });
+
+  it.each([
+    { AUTH_PROXY_SECRET: "short" },
+    { AUTH_EDGE_IP_HEADER: "cookie" },
+    { AUTH_EDGE_IP_HEADER: "bad header" },
+    { AUTH_EDGE_IP_HEADER: "x-kith-client-ip" },
+    { AUTH_EDGE_IP_HEADER: "fly-client-ip", AUTH_PROXY_SECRET: "short" },
+    { AUTH_EDGE_IP_HEADER: "fly-client-ip", AUTH_FORWARDED_IP_HEADER: "x-vercel-forwarded-for" },
+    {
+      AUTH_EDGE_IP_HEADER: "fly-client-ip",
+      AUTH_FORWARDED_IP_HEADER: "x-vercel-forwarded-for",
+      AUTH_PROXY_SECRET: "short",
+    },
+    {
+      AUTH_EDGE_IP_HEADER: "fly-client-ip",
+      AUTH_FORWARDED_IP_HEADER: "fly-client-ip",
+      AUTH_PROXY_SECRET: "offline-proxy-secret-with-at-least-32-characters",
+    },
+  ])("rejects unsafe or incomplete auth proxy configuration", (configuration) => {
+    expect(() => loadEnv({ ...base, ...configuration })).toThrow("AUTH_");
+  });
+
   it("accepts a separate HTTPS computer gateway without changing the web origin", () => {
     expect(
       loadEnv({ ...base, SCREEN_PROXY_ORIGIN: " https://gateway.example.test/ " }),

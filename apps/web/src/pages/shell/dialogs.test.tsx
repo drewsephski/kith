@@ -30,19 +30,27 @@ vi.mock("@rakazo/ui-web", () => ({
   AlertDialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
 }));
 
-import { RenameSpaceDialog } from "./dialogs";
+import { RenameConversationDialog, RenameSpaceDialog } from "./dialogs";
 
 let container: HTMLDivElement;
 let root: Root;
 
-async function render(onConfirm: (name: string) => Promise<void>) {
+async function render(onConfirm: (name: string) => Promise<void>, conversation = false) {
   await act(async () => {
     root.render(
-      <RenameSpaceDialog
-        space={{ name: "Personal" }}
-        onCancel={() => undefined}
-        onConfirm={onConfirm}
-      />,
+      conversation ? (
+        <RenameConversationDialog
+          conversation={{ name: "Personal" }}
+          onCancel={() => undefined}
+          onConfirm={onConfirm}
+        />
+      ) : (
+        <RenameSpaceDialog
+          space={{ name: "Personal" }}
+          onCancel={() => undefined}
+          onConfirm={onConfirm}
+        />
+      ),
     );
   });
 }
@@ -75,6 +83,31 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+});
+
+describe("RenameConversationDialog", () => {
+  it("trims names and prevents blank or unchanged submissions", async () => {
+    const confirm = vi.fn(async () => undefined);
+    await render(confirm, true);
+    await submit("   ");
+    await submit(" Personal ");
+    expect(confirm).not.toHaveBeenCalled();
+    await submit("  Trip planning  ");
+    expect(confirm).toHaveBeenCalledExactlyOnceWith("Trip planning");
+  });
+
+  it("shows failures and allows a retry", async () => {
+    const confirm = vi
+      .fn<(name: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("   "))
+      .mockResolvedValueOnce(undefined);
+    await render(confirm, true);
+    await submit("Trip planning");
+    expect(container.textContent).toContain("Could not rename conversation");
+    await submit("Trip planning");
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(container.textContent).not.toContain("Could not rename conversation");
+  });
 });
 
 afterEach(async () => {

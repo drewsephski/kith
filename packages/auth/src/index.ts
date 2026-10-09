@@ -39,6 +39,8 @@ export interface AuthEnv {
   signupsEnabled: string | undefined;
   signupAllowlist: string | undefined;
   extraOrigins?: string[];
+  /** A trusted header synthesized by the API gateway, never raw client input. */
+  clientIpHeader?: string;
   email?: TransactionalEmailProvider;
   onEmailError?: (error: unknown) => void;
   beforeDeleteUser?: (userId: string) => Promise<void>;
@@ -257,6 +259,9 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       accountLinking: { enabled: true, disableImplicitLinking: true, trustedProviders: [] },
     },
     rateLimit: authRateLimitOptions(),
+    ...(env.clientIpHeader
+      ? { advanced: { ipAddress: { ipAddressHeaders: [env.clientIpHeader] } } }
+      : {}),
     database: prismaAdapter(prisma, { provider: "postgresql" }),
     emailAndPassword: {
       enabled: env.passwordAuth !== false,

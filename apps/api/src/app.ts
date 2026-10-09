@@ -101,6 +101,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createBillingService } from "./billing.js";
 import { mountBillingRoutes } from "./billing-webhook.js";
+import { AUTH_CLIENT_IP_HEADER, authRequestWithClientIp } from "./client-ip.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
 import { healthRoutes } from "./health.js";
@@ -387,6 +388,7 @@ export async function createApp(
     passwordAuth: env.passwordAuth,
     oidc: env.oidc,
     secret: env.authSecret,
+    clientIpHeader: env.authClientIp ? AUTH_CLIENT_IP_HEADER : undefined,
     baseURL: env.authUrl,
     webOrigin: env.webOrigin,
     signupsEnabled: env.signupsEnabled,
@@ -651,7 +653,7 @@ export async function createApp(
     if (isBlockedAuthPath(path)) {
       return c.json({ error: "Not available in version 1" }, 404);
     }
-    return auth.handler(c.req.raw);
+    return auth.handler(authRequestWithClientIp(c.req.raw, env.authClientIp));
   });
   mountLocalSettings(app, { token: env.desktopStackToken, prisma, rpc });
   const requestSession = async (request: Request) => {

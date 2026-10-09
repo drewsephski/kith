@@ -5501,3 +5501,23 @@ msgstr "कनेक्शन पूरा करने के लिए ऐप 
 #: src/pages/IntegrationCallback.tsx
 msgid "Close tab"
 msgstr "टैब बंद करें"
+
+#: src/pages/BotContextMenu.tsx
+msgid "Rename"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Rename conversation"
+msgstr ""
+
+#: src/pages/shell/dialogs.tsx
+msgid "Could not rename conversation"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Could not archive conversation"
+msgstr ""
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Archive {name}"
+msgstr ""

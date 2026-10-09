@@ -91,3 +91,38 @@ test("writes static assets and routing output without retaining stale files", as
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("authenticates only the auth proxy handoff without sharing its token with screen upstreams", () => {
+  const secret = "offline_proxy_secret_0123456789abcdef";
+  const { routes } = vercelBuildConfig("https://kith-example.fly.dev", secret);
+  const routeFor = (pathname) =>
+    routes.find((route) => route.src && new RegExp(route.src).test(pathname));
+  for (const pathname of ["/api/auth", "/api/auth/get-session", "/api/auth/sign-in/email"]) {
+    const route = routeFor(pathname);
+    assert.deepEqual(route.transforms, [
+      {
+        type: "request.headers",
+        op: "set",
+        target: { key: "x-kith-proxy-token" },
+        args: secret,
+      },
+    ]);
+    assert.ok(!JSON.stringify(route.headers).includes(secret));
+  }
+  for (const pathname of [
+    "/api/other",
+    "/api/auth-other",
+    "/rpc/feed/stream",
+    "/novnc/session/view/token",
+    "/health",
+    "/assets/index.js",
+  ]) {
+    assert.equal(routeFor(pathname)?.transforms, undefined);
+  }
+  for (const invalid of ["short", "x".repeat(257), `${"x".repeat(32)}\r\n`]) {
+    assert.throws(
+      () => vercelBuildConfig("https://kith-example.fly.dev", invalid),
+      /AUTH_PROXY_SECRET/,
+    );
+  }
+});

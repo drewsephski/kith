@@ -16,6 +16,7 @@ import {
   terminalSocketUrl,
 } from "../../lib/computer-workspace";
 import { rpc } from "../../lib/rpc";
+import { useUiAppearance } from "../../lib/use-ui-appearance";
 import { errorText } from "../../lib/user-error";
 
 const COMMANDS_REFRESH_MS = 3_000;
@@ -285,6 +286,7 @@ function TerminalPane({
 
 function useXterm(host: RefObject<HTMLDivElement | null>, interactive: boolean) {
   const [terminal, setTerminal] = useState<Terminal | null>(null);
+  const { resolved } = useUiAppearance();
   useEffect(() => {
     if (!host.current) return;
     const term = new Terminal({
@@ -309,6 +311,9 @@ function useXterm(host: RefObject<HTMLDivElement | null>, interactive: boolean) 
       setTerminal(null);
     };
   }, [host, interactive]);
+  useEffect(() => {
+    if (terminal) terminal.options.theme = terminalTheme();
+  }, [terminal, resolved]);
   return terminal;
 }
 

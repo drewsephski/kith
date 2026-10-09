@@ -12,6 +12,8 @@ import {
   resolveSupervisorToken,
 } from "@rakazo/core";
 import { resolveDatabaseUrls } from "@rakazo/db";
+import type { AuthClientIpConfig } from "./client-ip.js";
+import { resolveAuthClientIpConfig } from "./client-ip.js";
 
 export { resolveCloudAgentProvider, resolveSandboxProvider } from "@rakazo/adapters";
 
@@ -25,6 +27,7 @@ export interface AppEnv {
   realtimeDatabaseUrl: string;
   authSecret: string;
   authUrl: string;
+  authClientIp?: AuthClientIpConfig;
   webOrigin: string;
   privacyPolicyUrl?: string;
   apiUrl: string;
@@ -165,6 +168,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     ...resolveDatabaseUrls(source),
     desktopStackToken: optional(source.RAKAZO_DESKTOP_STACK_TOKEN),
     authSecret,
+    authClientIp: resolveAuthClientIpConfig(source),
     authUrl: source.BETTER_AUTH_URL ?? source.WEB_ORIGIN ?? "http://127.0.0.1:5173",
     webOrigin: source.WEB_ORIGIN ?? "http://127.0.0.1:5173",
     privacyPolicyUrl: optional(source.PRIVACY_POLICY_URL),

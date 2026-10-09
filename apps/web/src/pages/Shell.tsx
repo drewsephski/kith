@@ -165,7 +165,9 @@ import { CallCard } from "../components/call/CallCard";
 import { VoiceChatCard } from "../components/call/VoiceChatCard";
 import { ComputerWorkspace } from "../components/computer/ComputerWorkspace";
 import { lazyOverlay } from "../components/ErrorBoundary";
+import { ConnectionsPanel } from "../components/integrations/ConnectionsPanel";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
+import { ThemeToggle } from "../components/ThemeToggle";
 import {
   LIVE_TOOL_STEP_WINDOW,
   StandaloneToolActivity,
@@ -289,6 +291,7 @@ import {
   NewSpaceDialog,
   PickerInfoDialog,
   RenameBotSectionDialog,
+  RenameConversationDialog,
   RenameSpaceDialog,
 } from "./shell/dialogs";
 import { KithSidebar } from "./shell/kith-sidebar";
@@ -686,13 +689,23 @@ export function ShellPage() {
   } | null>(null);
   // The context menu anchors to the pointer, so return focus to the row that opened it.
   const botMenuAnchor = useRef<HTMLElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
+  const [renameConversationTarget, setRenameConversationTarget] = useState<
+    { kind: "bot"; chat: Bot } | { kind: "group"; chat: Group } | null
+  >(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<Group | null>(null);
   useEffect(() => {
-    if (botMenu || !botMenuAnchor.current) return;
+    if (
+      botMenu ||
+      renameConversationTarget ||
+      deleteTarget ||
+      deleteGroupTarget ||
+      !botMenuAnchor.current
+    )
+      return;
     botMenuAnchor.current.focus();
     botMenuAnchor.current = null;
-  }, [botMenu]);
-  const [deleteTarget, setDeleteTarget] = useState<Bot | null>(null);
-  const [deleteGroupTarget, setDeleteGroupTarget] = useState<Group | null>(null);
+  }, [botMenu, renameConversationTarget, deleteTarget, deleteGroupTarget]);
   const [deleteSpaceTarget, setDeleteSpaceTarget] = useState<Space | null>(null);
   const [renameSpaceTarget, setRenameSpaceTarget] = useState<Space | null>(null);
   const [spaceMenu, setSpaceMenu] = useState<{
@@ -2899,6 +2912,16 @@ export function ShellPage() {
       setCreatingThread(false);
     }
   }
+  async function archiveConversation(target: { kind: "bot" | "group"; id: string }) {
+    try {
+      if (target.kind === "bot") await rpc.bots.archive({ botId: target.id });
+      else await rpc.groups.archive({ groupId: target.id });
+      await refreshBots(true);
+    } catch (cause) {
+      setSendError(errorText(cause, t`Could not archive conversation`));
+    }
+  }
+
   const initials = userName
     .split(" ")
     .map((p) => p[0])
@@ -3007,6 +3030,11 @@ export function ShellPage() {
               setMobileSidebarOpen(false);
               navigate(`/app/g/${id}`);
             }}
+            onContextMenu={(target, anchor, position) => {
+              botMenuAnchor.current = anchor;
+              setBotMenu({ ...target, position });
+            }}
+            onArchive={(target) => void archiveConversation(target)}
             onSearch={() => {
               setMobileSidebarOpen(false);
               setCommandPaletteOpen(true);
@@ -3803,6 +3831,7 @@ export function ShellPage() {
             </button>
           </div>
           <div className="app-no-drag flex min-w-0 items-center gap-1">
+            <ThemeToggle />
             {isMainConversation && assistantId && !quickAskMode ? (
               <CalendarConnection key={assistantId} botId={assistantId} compact />
             ) : null}
@@ -4090,17 +4119,7 @@ export function ShellPage() {
               </div>
             ) : null}
             {panel === "connections" && assistantId ? (
-              <div className="space-y-4">
-                <CalendarConnection botId={assistantId} />
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => setPluginsOpen(true)}
-                >
-                  <Puzzle size={16} />
-                  <Trans>More connections</Trans>
-                </Button>
-              </div>
+              <ConnectionsPanel key={bootstrapMe?.spaceId} botId={assistantId} />
             ) : null}
             {panel === "memory" && (assistantId || active) ? (
               <PersonalMemoryPanel
@@ -4497,6 +4516,15 @@ export function ShellPage() {
             bot={contextChat}
             position={botMenu.position}
             onClose={closeBotMenu}
+            compact={!advancedNavigation}
+            onRename={() => {
+              setRenameConversationTarget(
+                contextBot
+                  ? { kind: "bot", chat: contextBot }
+                  : { kind: "group", chat: contextGroup! },
+              );
+              setBotMenu(null);
+            }}
             sections={botSections}
             onTogglePinned={() => {
               setBotMenu(null);
@@ -4589,10 +4617,10 @@ export function ShellPage() {
             }}
             onArchive={() => {
               setBotMenu(null);
-              const request = contextBot
-                ? rpc.bots.archive({ botId: contextBot.id })
-                : rpc.groups.archive({ groupId: contextGroup!.id });
-              void request.then(() => refreshBots(true));
+              void archiveConversation({
+                kind: contextBot ? "bot" : "group",
+                id: contextChat.id,
+              });
             }}
             onDelete={() => {
               if (contextBot) setDeleteTarget(contextBot);
@@ -4830,6 +4858,32 @@ export function ShellPage() {
 
         {pickerInfoTopic ? (
           <PickerInfoDialog topic={pickerInfoTopic} onClose={() => setPickerInfoTopic(null)} />
+        ) : null}
+
+        {renameConversationTarget ? (
+          <RenameConversationDialog
+            conversation={renameConversationTarget.chat}
+            onCancel={() => setRenameConversationTarget(null)}
+            onConfirm={async (name) => {
+              const target = renameConversationTarget;
+              const chat =
+                target.kind === "bot"
+                  ? await rpc.bots.update({ botId: target.chat.id, name })
+                  : await rpc.groups.update({ groupId: target.chat.id, name });
+              if (target.kind === "bot") {
+                setBots((current) =>
+                  current.map((bot) => (bot.id === chat.id ? { ...bot, name: chat.name } : bot)),
+                );
+              } else {
+                setGroups((current) =>
+                  current.map((group) =>
+                    group.id === chat.id ? { ...group, name: chat.name } : group,
+                  ),
+                );
+              }
+              setRenameConversationTarget(null);
+            }}
+          />
         ) : null}
 
         {clearTarget ? (
@@ -6740,7 +6794,7 @@ export const Composer = memo(function Composer({
               aria-label={t`Send`}
               disabled={sending || !canSend || disabled}
               onClick={send}
-              className="size-8 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-white/10 disabled:text-muted-foreground/30 disabled:shadow-none"
+              className="size-8 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:bg-muted disabled:text-muted-foreground/30 disabled:shadow-none"
             >
               <ArrowUp size={16} strokeWidth={2.2} />
             </Button>
@@ -7492,7 +7546,7 @@ const MessageView = memo(function MessageView({
                 {block.lines.map((line) => (
                   <div key={line.k} className="flex items-baseline gap-2.5 text-[15px]">
                     <span className="text-success">✓</span>
-                    <span className="font-semibold text-white">{line.k}</span>
+                    <span className="font-semibold text-foreground">{line.k}</span>
                     <span className="text-muted-foreground">→</span>
                     <span>{line.v}</span>
                   </div>

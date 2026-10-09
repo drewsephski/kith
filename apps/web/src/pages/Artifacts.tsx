@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { PdfViewer } from "../components/PdfViewer";
 import { SandboxedHtmlViewer } from "../components/SandboxedHtmlViewer";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { decodeArtifactBase64, downloadArtifactBytes } from "../lib/artifact-open";
 import { takeInitialBootstrap } from "../lib/bootstrap";
 import { desktopBridge } from "../lib/desktop";
@@ -230,6 +231,7 @@ export function ArtifactsPage() {
             </h1>
           </div>
           <div className="app-no-drag flex shrink-0 items-center gap-2">
+            <ThemeToggle />
             <button
               type="button"
               aria-pressed={filtersOpen}

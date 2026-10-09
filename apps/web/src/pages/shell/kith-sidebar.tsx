@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, Group } from "@rakazo/contracts";
 import { Button, KithAvatar, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
 import {
+  Archive,
   Brain,
   Check,
   CircleAlert,
@@ -15,6 +16,71 @@ import {
   Search,
   Settings,
 } from "lucide-react";
+import type { ReactNode } from "react";
+import type { ContextMenuPosition } from "../BotContextMenu";
+
+type ConversationTarget = { kind: "bot" | "group"; id: string };
+type OpenConversationMenu = (
+  target: ConversationTarget,
+  anchor: HTMLButtonElement,
+  position: ContextMenuPosition,
+) => void;
+
+function ConversationRow({
+  target,
+  name,
+  selected,
+  children,
+  onOpen,
+  onContextMenu,
+  onArchive,
+}: {
+  target: ConversationTarget;
+  name: string;
+  selected: boolean;
+  children: ReactNode;
+  onOpen: () => void;
+  onContextMenu: OpenConversationMenu;
+  onArchive: (target: ConversationTarget) => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <div className="group/conversation relative">
+      <NavigationButton
+        selected={selected}
+        variant="ghost"
+        className="h-auto min-h-10 gap-2.5 px-3 py-2 pe-11"
+        onClick={onOpen}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onContextMenu(target, event.currentTarget, { x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
+          event.preventDefault();
+          const bounds = event.currentTarget.getBoundingClientRect();
+          onContextMenu(target, event.currentTarget, {
+            x: bounds.left + bounds.width / 2,
+            y: bounds.bottom,
+          });
+        }}
+        aria-current={selected ? "page" : undefined}
+      >
+        {children}
+      </NavigationButton>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="absolute end-1 top-1/2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover/conversation:opacity-100 group-focus-within/conversation:opacity-100 [@media(hover:none)]:opacity-100"
+        aria-label={t`Archive ${name}`}
+        title={t`Archive`}
+        onClick={() => onArchive(target)}
+      >
+        <Archive size={15} />
+      </Button>
+    </div>
+  );
+}
 
 export function KithSidebar({
   assistantId,
@@ -25,6 +91,8 @@ export function KithSidebar({
   activeDetail,
   onOpenBot,
   onOpenGroup,
+  onContextMenu,
+  onArchive,
   onSearch,
   onCollapse,
   onNewThread,
@@ -44,6 +112,8 @@ export function KithSidebar({
   activeDetail?: "activity" | "memory" | "connections" | "settings" | null;
   onOpenBot: (id: string) => void;
   onOpenGroup: (id: string) => void;
+  onContextMenu: OpenConversationMenu;
+  onArchive: (target: ConversationTarget) => void;
   onSearch: () => void;
   onCollapse: () => void;
   onNewThread: () => void;
@@ -64,13 +134,14 @@ export function KithSidebar({
     .filter((bot) => !active.includes(bot))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const row = (bot: Bot) => (
-    <NavigationButton
+    <ConversationRow
+      target={{ kind: "bot", id: bot.id }}
+      name={bot.name}
       selected={activeId === bot.id && !activeGroupId}
       key={bot.id}
-      variant="ghost"
-      className="h-auto min-h-10 gap-2.5 px-3 py-2"
-      onClick={() => onOpenBot(bot.id)}
-      aria-current={activeId === bot.id && !activeGroupId ? "page" : undefined}
+      onOpen={() => onOpenBot(bot.id)}
+      onContextMenu={onContextMenu}
+      onArchive={onArchive}
     >
       {bot.status === "waiting_input" || bot.status === "waiting_takeover" ? (
         <CircleAlert size={15} className="shrink-0 text-warning" />
@@ -89,7 +160,7 @@ export function KithSidebar({
           </span>
         </span>
       ) : null}
-    </NavigationButton>
+    </ConversationRow>
   );
   return (
     <SelectionGroup>
@@ -164,15 +235,18 @@ export function KithSidebar({
               </h2>
               {recent.map(row)}
               {groups.map((group) => (
-                <NavigationButton
+                <ConversationRow
+                  target={{ kind: "group", id: group.id }}
+                  name={group.name}
                   selected={activeGroupId === group.id}
                   key={group.id}
-                  className="h-10 gap-3 px-3"
-                  onClick={() => onOpenGroup(group.id)}
+                  onOpen={() => onOpenGroup(group.id)}
+                  onContextMenu={onContextMenu}
+                  onArchive={onArchive}
                 >
                   <MessageCircle size={15} className="shrink-0" />
                   <span className="min-w-0 flex-1 truncate">{group.name}</span>
-                </NavigationButton>
+                </ConversationRow>
               ))}
             </section>
           ) : null}

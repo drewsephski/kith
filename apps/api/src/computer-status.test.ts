@@ -1,7 +1,25 @@
+import { ComputerStatusSchema } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import { executionBlocksUserTakeover, toComputerStatus } from "./computer-status.js";
 
 describe("toComputerStatus", () => {
+  it("returns a valid disabled computer status for deployments without a sandbox", () => {
+    const status = toComputerStatus("bot-1", {
+      kind: "none",
+      state: "error",
+      scope: "team",
+      controlHolder: "none",
+      homeRevision: "",
+    });
+    expect(ComputerStatusSchema.safeParse(status).success).toBe(true);
+    expect(status).toMatchObject({
+      kind: "none",
+      screenAvailable: false,
+      terminalAvailable: false,
+      canUpdate: false,
+    });
+  });
+
   it("only marks control that is bound to a waiting run as a requested takeover", () => {
     const computer = {
       kind: "fake",

@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { publishComputerCommand } from "../../lib/computer-workspace";
+import { setUiAppearance } from "../../lib/ui-appearance";
 
 const history = vi.hoisted(() => ({
   impl: vi.fn<(...args: unknown[]) => Promise<ComputerCommand[]>>(),
@@ -22,6 +23,7 @@ vi.mock("@lingui/react/macro", () => {
 
 const term = vi.hoisted(() => {
   const api = {
+    options: { theme: {} },
     writes: [] as string[],
     loadAddon: vi.fn(),
     open: vi.fn(),
@@ -109,6 +111,28 @@ async function renderTerminal() {
 afterEach(() => {
   term.writes.length = 0;
   history.impl.mockReset();
+});
+
+it("recolors an open terminal without clearing its output or recreating it", async () => {
+  const resolveHistory = hangHistory();
+  const view = await renderTerminal();
+  try {
+    await act(async () => resolveHistory([shell()]));
+    const output = [...term.writes];
+    term.dispose.mockClear();
+    document.documentElement.style.setProperty("--background", "#fafafb");
+    document.documentElement.style.setProperty("--foreground", "#24262b");
+    await act(async () => {
+      setUiAppearance("light");
+    });
+    expect(term.options.theme).toMatchObject({ background: "#fafafb", foreground: "#24262b" });
+    expect(term.writes).toEqual(output);
+    expect(term.dispose).not.toHaveBeenCalled();
+  } finally {
+    document.documentElement.style.removeProperty("--background");
+    document.documentElement.style.removeProperty("--foreground");
+    await view.cleanup();
+  }
 });
 
 it("keeps the terminal blank until history settles, then shows the empty state", async () => {

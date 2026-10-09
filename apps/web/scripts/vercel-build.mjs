@@ -41,8 +41,11 @@ export function publicBackendOrigin(value) {
   return url.origin;
 }
 
-export function vercelBuildConfig(target) {
+export function vercelBuildConfig(target, authProxySecret) {
   const origin = publicBackendOrigin(target);
+  if (authProxySecret !== undefined && !/^[A-Za-z0-9_-]{32,256}$/.test(authProxySecret)) {
+    throw new Error("AUTH_PROXY_SECRET must contain 32 to 256 URL-safe characters.");
+  }
   const privateResponseHeaders = {
     "Cache-Control": "private, no-store",
     "CDN-Cache-Control": "no-store",
@@ -51,6 +54,23 @@ export function vercelBuildConfig(target) {
   return {
     version: 3,
     routes: [
+      ...(authProxySecret
+        ? [
+            {
+              src: "^/(api/auth(?:/.*)?)$",
+              dest: `${origin}/$1`,
+              headers: privateResponseHeaders,
+              transforms: [
+                {
+                  type: "request.headers",
+                  op: "set",
+                  target: { key: "x-kith-proxy-token" },
+                  args: authProxySecret,
+                },
+              ],
+            },
+          ]
+        : []),
       {
         src: "^/((?:api|rpc|novnc)(?:/.*)?)$",
         dest: `${origin}/$1`,
@@ -72,9 +92,9 @@ export function vercelBuildConfig(target) {
   };
 }
 
-export async function writeVercelOutput({ target, dist, output }) {
+export async function writeVercelOutput({ target, authProxySecret, dist, output }) {
   // Validate before changing output; a bad target must not create a broken deployment.
-  const config = vercelBuildConfig(target);
+  const config = vercelBuildConfig(target, authProxySecret);
   await rm(output, { recursive: true, force: true });
   await mkdir(output, { recursive: true });
   await cp(dist, path.join(output, "static"), { recursive: true });
@@ -90,13 +110,16 @@ function run(command, args, cwd, env) {
 
 export async function buildVercelWeb(env = process.env) {
   const target = publicBackendOrigin(env.API_PROXY_TARGET);
+  const { AUTH_PROXY_SECRET: authProxySecret, ...staticEnv } = env;
+  vercelBuildConfig(target, authProxySecret);
   // These defaults exist only in the static build process. No server secrets are
   // required by, or written to, the public frontend build.
-  const buildEnv = { ...env, NODE_ENV: "production", RAKAZO_ALLOW_DEV_SECRETS: "1" };
+  const buildEnv = { ...staticEnv, NODE_ENV: "production", RAKAZO_ALLOW_DEV_SECRETS: "1" };
   run("pnpm", ["--filter", "@rakazo/db", "generate"], path.resolve(webRoot, "../.."), buildEnv);
   run("pnpm", ["exec", "vite", "build"], webRoot, buildEnv);
   await writeVercelOutput({
     target,
+    authProxySecret,
     dist: path.join(webRoot, "dist"),
     output: path.join(webRoot, ".vercel/output"),
   });

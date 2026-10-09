@@ -7,7 +7,7 @@ import { I18nBootstrap } from "./components/I18nBootstrap";
 import { applyUiDirection } from "./lib/apply-ui-direction";
 import { markAfterPaint, markOnce } from "./lib/performance";
 import { installPreloadRecovery } from "./lib/preload-recovery";
-import { applyUiAppearance, watchSystemAppearance } from "./lib/ui-appearance";
+import { applyUiAppearance, watchUiAppearance } from "./lib/ui-appearance";
 import { resolveUiLocale } from "./lib/ui-locale";
 import "./styles.css";
 
@@ -25,7 +25,7 @@ function PerformanceProbe() {
 }
 
 function AppearanceSync() {
-  useEffect(() => watchSystemAppearance(), []);
+  useEffect(() => watchUiAppearance(), []);
   return null;
 }
 

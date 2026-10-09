@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, BotSection } from "@rakazo/contracts";
+import { BOT_NAME_MAX_LENGTH } from "@rakazo/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +20,7 @@ import {
   Input,
 } from "@rakazo/ui-web";
 import { Lock, Users } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { errorText } from "../../lib/user-error";
 
 /** Each dialog is mounted only while open, so `open` is always true and the
@@ -97,26 +98,32 @@ export function NewSpaceDialog({
   );
 }
 
-export function RenameSpaceDialog({
-  space,
+function RenameDialog({
+  initialName,
+  title,
+  maxLength,
+  fallbackError,
   onCancel,
   onConfirm,
 }: {
-  space: { name: string };
+  initialName: string;
+  title: React.ReactNode;
+  maxLength: number;
+  fallbackError: string;
   onCancel: () => void;
   onConfirm: (name: string) => Promise<void>;
 }) {
-  const { t } = useLingui();
   const nameId = useId();
-  const [name, setName] = useState(space.name);
+  const nameInput = useRef<HTMLInputElement | null>(null);
+  const [name, setName] = useState(initialName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trimmed = name.trim();
-  const unchanged = trimmed === space.name;
+  const unchanged = trimmed === initialName;
 
   return (
     <Dialog open onOpenChange={closeUnlessBusy(saving, onCancel)}>
-      <DialogContent showCloseButton={false} aria-describedby={undefined}>
+      <DialogContent showCloseButton={false} aria-describedby={undefined} initialFocus={nameInput}>
         <form
           className="contents"
           onSubmit={(event) => {
@@ -125,25 +132,20 @@ export function RenameSpaceDialog({
             setSaving(true);
             setError(null);
             void onConfirm(trimmed).catch((err: unknown) => {
-              setError(
-                err instanceof Error && err.message.trim()
-                  ? err.message
-                  : t`Could not rename space`,
-              );
+              setError(err instanceof Error && err.message.trim() ? err.message : fallbackError);
               setSaving(false);
             });
           }}
         >
           <DialogHeader>
-            <DialogTitle>
-              <Trans>Rename space</Trans>
-            </DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
           <label htmlFor={nameId} className="block text-[13.5px] text-foreground/75">
             <Trans>Name</Trans>
             <Input
               id={nameId}
-              maxLength={60}
+              ref={nameInput}
+              maxLength={maxLength}
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="mt-2"
@@ -162,6 +164,42 @@ export function RenameSpaceDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function RenameSpaceDialog(props: {
+  space: { name: string };
+  onCancel: () => void;
+  onConfirm: (name: string) => Promise<void>;
+}) {
+  const { t } = useLingui();
+  return (
+    <RenameDialog
+      initialName={props.space.name}
+      title={<Trans>Rename space</Trans>}
+      maxLength={60}
+      fallbackError={t`Could not rename space`}
+      onCancel={props.onCancel}
+      onConfirm={props.onConfirm}
+    />
+  );
+}
+
+export function RenameConversationDialog(props: {
+  conversation: { name: string };
+  onCancel: () => void;
+  onConfirm: (name: string) => Promise<void>;
+}) {
+  const { t } = useLingui();
+  return (
+    <RenameDialog
+      initialName={props.conversation.name}
+      title={<Trans>Rename conversation</Trans>}
+      maxLength={BOT_NAME_MAX_LENGTH}
+      fallbackError={t`Could not rename conversation`}
+      onCancel={props.onCancel}
+      onConfirm={props.onConfirm}
+    />
   );
 }
 
