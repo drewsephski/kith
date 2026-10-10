@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   # Stable releases must validate and publish serially. Per-tag concurrency would let an older
@@ -85,6 +86,23 @@ jobs:
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=$tag_sha" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rakazo/desktop build
+      - name: Verify reviewed hosted application origin
+        env:
+          RAKAZO_SERVICE_URL: ${{ vars.RAKAZO_SERVICE_URL }}
+        run: node apps/desktop/scripts/verify-service.mjs
+      - name: Require successful CI on the release commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${RELEASE_SHA}&event=push" --jq '.workflow_runs[0] | .status == "completed" and .conclusion == "success"' | grep -Fx true
       - name: Choose release platforms
         id: platforms
         env:
@@ -124,6 +142,7 @@ jobs:
         env:
           RAKAZO_ALLOW_DEV_SECRETS: "1"
           RAKAZO_SERVICE_URL: ${{ vars.RAKAZO_SERVICE_URL }}
+          RAKAZO_RELEASE_BUILD: "1"
 
       - name: Require macOS signing and notarization credentials
         if: runner.os == 'macOS'
@@ -162,18 +181,50 @@ jobs:
         env:
           APPLE_API_KEY: ${{ runner.temp }}/apple-api-key.p8
         run: rm -f "$APPLE_API_KEY"
+      - name: Validate actual universal application resources
+        if: runner.os == 'macOS'
+        id: mac_package
+        env:
+          RAKAZO_SERVICE_URL: ${{ vars.RAKAZO_SERVICE_URL }}
+        run: node apps/desktop/scripts/verify-package.mjs mac universal
       - name: Verify macOS signature, notarization ticket, and update feed
         if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
-          app="apps/desktop/out/mac-universal/Rakazo.app"
+          app="${{ steps.mac_package.outputs.app }}"
+          test "$(lipo -archs "$app/Contents/MacOS/Kith")" = "x86_64 arm64"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")" = dev.rakazo.desktop
+          codesign -dv --verbose=4 "$app" 2>&1 | grep -E 'flags=.*runtime'
           codesign --verify --deep --strict --verbose=2 "$app"
           xcrun stapler validate "$app"
           spctl --assess --type execute --verbose=2 "$app"
           grep -Fqx "provider: github" "$app/Contents/Resources/app-update.yml"
           grep -Fqx "owner: drewsephski" "$app/Contents/Resources/app-update.yml"
           grep -Fqx "repo: kith" "$app/Contents/Resources/app-update.yml"
+
+      - name: Verify installed DMG and update ZIP contents
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          dmg="apps/desktop/out/Kith-${RELEASE_VERSION}-universal.dmg"
+          zip="apps/desktop/out/Kith-${RELEASE_VERSION}-universal.zip"
+          mount="$RUNNER_TEMP/kith-install"
+          mkdir -p "$mount" "$RUNNER_TEMP/Applications" "$RUNNER_TEMP/kith-update"
+          hdiutil verify "$dmg"
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount"
+          trap 'hdiutil detach "$mount"' EXIT
+          ditto "$mount/Kith.app" "$RUNNER_TEMP/Applications/Kith.app"
+          ditto -x -k "$zip" "$RUNNER_TEMP/kith-update"
+          for app in "$RUNNER_TEMP/Applications/Kith.app" "$RUNNER_TEMP/kith-update/Kith.app"; do
+            codesign --verify --deep --strict "$app"
+            xcrun stapler validate "$app"
+            spctl --assess --type execute "$app"
+            test "$(lipo -archs "$app/Contents/MacOS/Kith")" = "x86_64 arm64"
+          done
 
       - name: Require Windows signing credentials
         if: runner.os == 'Windows'
@@ -233,9 +284,6 @@ jobs:
         run: |
           set -euo pipefail
           config="apps/desktop/out/linux-unpacked/resources/app-update.yml"
-          if [[ ! -f "$config" ]]; then
-            config="$(find apps/desktop/out -name app-update.yml -print -quit)"
-          fi
           test -n "$config"
           test -f "$config"
           grep -Fqx "provider: github" "$config"
@@ -244,6 +292,29 @@ jobs:
           test -f apps/desktop/out/latest-linux.yml
           grep -Fqx "version: $RELEASE_VERSION" apps/desktop/out/latest-linux.yml
 
+      - name: Validate Linux packaged resources
+        if: runner.os == 'Linux'
+        env:
+          RAKAZO_SERVICE_URL: ${{ vars.RAKAZO_SERVICE_URL }}
+        run: node apps/desktop/scripts/verify-package.mjs linux x64
+      - name: Validate Windows packaged resources
+        if: runner.os == 'Windows'
+        env:
+          RAKAZO_SERVICE_URL: ${{ vars.RAKAZO_SERVICE_URL }}
+        run: node apps/desktop/scripts/verify-package.mjs win x64
+      - name: Verify installer metadata and content checksums
+        shell: bash
+        run: node apps/desktop/scripts/verify-artifacts.mjs apps/desktop/out "${{ needs.validate.outputs.version }}" "${{ needs.validate.outputs.windows }}" "${{ runner.os == 'macOS' && 'mac' || runner.os == 'Linux' && 'linux' || 'win' }}"
+      - name: Exercise packaged macOS startup and recovery
+        if: runner.os == 'macOS'
+        env:
+          RAKAZO_E2E_EXECUTABLE: out/mac-universal/Kith.app/Contents/MacOS/Kith
+        run: pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+      - name: Exercise packaged Linux startup and recovery
+        if: runner.os == 'Linux'
+        env:
+          RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo
+        run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
       - name: Retain installers and updater metadata
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -261,6 +332,7 @@ jobs:
 
   publish:
     name: Attest and publish complete release
+    environment: desktop-release
     needs: [validate, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -280,6 +352,16 @@ jobs:
           pattern: desktop-*-${{ needs.validate.outputs.sha }}
           path: release-artifacts
           merge-multiple: true
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Require operator acceptance of this exact commit
+        env:
+          ACCEPTED_SHA: ${{ vars.DESKTOP_ACCEPTANCE_SHA }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+        run: test "$ACCEPTED_SHA" = "$RELEASE_SHA"
       - name: Verify the complete stable update feed
         env:
           RELEASE_SHA: ${{ needs.validate.outputs.sha }}
@@ -295,6 +377,7 @@ jobs:
             exit 1
           fi
 
+          node apps/desktop/scripts/verify-artifacts.mjs release-artifacts "$RELEASE_VERSION" "$WINDOWS_BUILT"
           test -f release-artifacts/latest-mac.yml
           test -f release-artifacts/latest-linux.yml
           compgen -G 'release-artifacts/*.dmg' >/dev/null
@@ -330,12 +413,41 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: >-
           gh release create "$RELEASE_TAG" release-artifacts/*
-          --draft --generate-notes --title "Rakazo $RELEASE_TAG" --verify-tag
+          --draft --generate-notes --notes-file "docs/desktop-release-notes-${RELEASE_TAG}.md" --title "Kith $RELEASE_TAG" --verify-tag
+      - name: Independently download and verify draft release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          WINDOWS_BUILT: ${{ needs.validate.outputs.windows }}
+        run: |
+          gh release download "$RELEASE_TAG" --dir downloaded-assets
+          cd downloaded-assets
+          sha256sum --check SHA256SUMS
+          cd ..
+          node apps/desktop/scripts/verify-artifacts.mjs downloaded-assets "$RELEASE_VERSION" "$WINDOWS_BUILT"
       - name: Publish the completed release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: gh release edit "$RELEASE_TAG" --draft=false --latest
+      - name: Verify anonymous public downloads
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          WINDOWS_BUILT: ${{ needs.validate.outputs.windows }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir public-assets
+          for asset in release-artifacts/*; do
+            name="$(basename "$asset")"
+            curl --fail --location --retry 5 --retry-all-errors --retry-delay 2 --max-time 300 "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/${name}" --output "public-assets/$name"
+          done
+          cd public-assets
+          sha256sum --check SHA256SUMS
+          cd ..
+          node apps/desktop/scripts/verify-artifacts.mjs public-assets "$RELEASE_VERSION" "$WINDOWS_BUILT"
       - name: Remove an incomplete draft
         if: failure() && steps.create_release.outcome != 'skipped'
         env:

@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ElectronAutoUpdater, UpdaterEvent } from "./auto-update.js";
 import {
   classifyUpdaterFailure,
   DesktopUpdateController,
-  type ElectronAutoUpdater,
   initialUpdateState,
   MIN_CHECK_INTERVAL_MS,
   reduceUpdateState,
   shouldCheck,
-  type UpdaterEvent,
   updaterSupport,
 } from "./auto-update.js";
 
@@ -58,6 +57,7 @@ function deferred() {
 describe("updaterSupport", () => {
   it("only runs in an installed build that has not opted out", () => {
     expect(updaterSupport(packaged).supported).toBe(true);
+    expect(updaterSupport({ ...packaged, releaseBuild: false }).supported).toBe(false);
     expect(updaterSupport({ packaged: false, version: "0.1.0" }).supported).toBe(false);
     expect(updaterSupport({ ...packaged, disabled: true }).supported).toBe(false);
   });

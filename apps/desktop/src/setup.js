@@ -21,6 +21,13 @@
   const changeModeButton = document.getElementById("change-mode");
   const useHostedButton = document.getElementById("use-hosted");
   const setupDescription = document.getElementById("setup-description");
+  const heading = document.querySelector("h1");
+  // Hide advanced setup before the asynchronous bridge lookup can paint a wizard.
+  if (new URLSearchParams(window.location.search).get("connecting") === "1") {
+    heading.textContent = "Opening Kith…";
+    setupDescription.hidden = true;
+    form.hidden = true;
+  }
 
   const STACK_POLL_MS = 1000;
   const PHASE_LABELS = {
@@ -86,6 +93,9 @@
 
   function syncPanels() {
     const mode = selectedMode();
+    form.hidden = false;
+    setupDescription.hidden = false;
+    heading.textContent = "Welcome to Kith";
     panelNew.hidden = mode !== "new";
     panelExisting.hidden = mode !== "existing";
     checkButton.hidden = mode !== "existing";
@@ -381,13 +391,28 @@
       } else if (serviceUrl !== null) {
         document.getElementById("mode-hosted").checked = true;
       }
+      if (serviceUrl !== null && state.saved?.serverUrl === serviceUrl) {
+        document.getElementById("mode-hosted").checked = true;
+      }
       // A relaunch with the stack down starts it before this window opens; show that
       // attempt instead of the saved mode, and follow it while it is still running.
       const stack = await bridge.stack.state();
       const attached = stack !== null && stack.phase !== "idle";
       if (attached) document.getElementById("mode-new").checked = true;
       syncPanels();
+      if (state.connecting) {
+        heading.textContent = "Opening Kith…";
+        setupDescription.hidden = true;
+        form.hidden = true;
+        return;
+      }
       if (state.error) setStatus(state.error, "error");
+      if (state.error && selectedMode() === "hosted") {
+        heading.textContent = "Could not connect to Kith";
+        setupDescription.textContent =
+          "Check your connection and try again. Your session is saved.";
+        continueButton.textContent = "Retry";
+      }
       if (attached) {
         renderStack(stack);
         if (!TERMINAL_PHASES.has(stack.phase)) void followStack();

@@ -13,6 +13,8 @@ import {
   parseStoredSetup,
   probeFailureMessage,
   readProbeJson,
+  releaseUpdatesEnabled,
+  requireReleaseServiceUrl,
   resolveStartupTarget,
   safeExternalUrl,
   serializeSetup,
@@ -338,5 +340,46 @@ describe("probe failures", () => {
     ["something else entirely", "Could not reach that address."],
   ])("explains %s", (message, expected) => {
     expect(probeFailureMessage(new Error(message))).toBe(expected);
+  });
+});
+
+describe("production release origin", () => {
+  const expected = "https://kith-agent-app.vercel.app";
+  it.each([
+    undefined,
+    "",
+    "http://kith-agent-app.vercel.app",
+    "https://wrong.vercel.app",
+    "https://user:secret@kith-agent-app.vercel.app",
+    "https://kith-agent-app.vercel.app/login",
+    "https://app.example.com",
+  ])("rejects absent, placeholder, credential-bearing and unreviewed origins (%s)", (input) => {
+    expect(() => requireReleaseServiceUrl(input, expected)).toThrow("Release service origin");
+  });
+  it("rejects even a placeholder reviewed origin", () => {
+    expect(() =>
+      requireReleaseServiceUrl("https://app.example.com", "https://app.example.com"),
+    ).toThrow();
+  });
+  it("accepts only the reviewed public origin", () => {
+    expect(requireReleaseServiceUrl(`${expected}/`, expected)).toBe(expected);
+  });
+});
+
+describe("release updater eligibility", () => {
+  it("requires an explicit release marker and valid hosted origin", () => {
+    expect(
+      releaseUpdatesEnabled(
+        '{"serviceUrl":"https://kith-agent-app.vercel.app","releaseBuild":true}',
+      ),
+    ).toBe(true);
+    for (const raw of [
+      "{}",
+      "bad",
+      '{"releaseBuild":true}',
+      '{"serviceUrl":"https://kith-agent-app.vercel.app"}',
+      '{"serviceUrl":"https://kith-agent-app.vercel.app","releaseBuild":false}',
+    ])
+      expect(releaseUpdatesEnabled(raw)).toBe(false);
   });
 });

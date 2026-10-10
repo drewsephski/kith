@@ -41,6 +41,22 @@ export function normalizeServiceUrl(input: string): string | null {
   }
 }
 
+/** Production packaging is pinned to the origin reviewed with this release. */
+export function requireReleaseServiceUrl(input: string | undefined, expected: string): string {
+  const url = input ? normalizeServiceUrl(input) : null;
+  if (
+    url === null ||
+    url !== normalizeServiceUrl(expected) ||
+    new URL(url).port !== "" ||
+    /(?:^|\.)(?:example\.(?:com|org|net)|invalid|test|example)$/.test(new URL(url).hostname)
+  ) {
+    throw new Error(
+      "Release service origin is missing, invalid, or differs from the reviewed origin.",
+    );
+  }
+  return url;
+}
+
 /** The public build artifact contains only the release service origin. */
 export function parseServiceConfig(raw: string): string | null {
   try {
@@ -50,6 +66,20 @@ export function parseServiceConfig(raw: string): string | null {
     return typeof serviceUrl === "string" ? normalizeServiceUrl(serviceUrl) : null;
   } catch {
     return null;
+  }
+}
+
+export function releaseUpdatesEnabled(raw: string): boolean {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return (
+      parseServiceConfig(raw) !== null &&
+      typeof value === "object" &&
+      value !== null &&
+      (value as Record<string, unknown>).releaseBuild === true
+    );
+  } catch {
+    return false;
   }
 }
 

@@ -43,12 +43,19 @@ gh secret set APPLE_API_KEY_P8 < AuthKey_XXXXXXXXXX.p8
 
 ## Cut a release
 
-1. Bump `version` in `apps/desktop/package.json` on `main`.
-2. Tag that commit `v<version>` and push the tag:
+1. Complete [release readiness](./desktop-release-readiness.md) and the
+   [acceptance matrix](./desktop-acceptance.md). Provision signing credentials and working
+   hosted password recovery. Deploy the matching shared Web renderer and obtain passing CI.
+2. Review `version` in `apps/desktop/package.json` on `main` and prepare matching
+   `docs/desktop-release-notes-v<version>.md`. Version 0.1.7 is prepared locally and is unused.
+3. Configure a protected `desktop-release` environment requiring operator approval. Set its
+   `DESKTOP_ACCEPTANCE_SHA` variable to the exact accepted release commit after manual acceptance.
+4. Obtain explicit operator approval of the release/tag operation.
+5. Tag that commit `v<version>` and push the tag:
 
 ```sh
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.7
+git push origin v0.1.7
 ```
 
 The workflow refuses tags that do not match the desktop version, are not on
@@ -64,13 +71,19 @@ Check the release asset list again immediately before configuring installer link
 The workflow requires a matching stable tag on `main`, repository release permissions, macOS
 signing/notarization secrets, complete platform artifacts, and successful feed verification.
 Windows is included only when its signing certificate is configured. Publishing runs after
-all selected platforms succeed; update YAML files and installers belong to the same release.
+all selected platforms succeed and the exact commit has passed CI and operator acceptance; update YAML files and installers belong to the same release.
 Do not upload an incomplete feed or reuse a released version/tag.
 
 `RAKAZO_SERVICE_URL` is a **public application HTTPS origin**, supplied through the repository
 Actions variable of the same name. It is validated and bundled as public service configuration.
+The release origin must equal the public origin reviewed in `apps/desktop/release-service.json`.
+`verify-service.mjs` requires backend health, authentication endpoints and password recovery
+when password signin is enabled. `verify-package.mjs` checks the bundled origin in actual ASAR;
+`verify-artifacts.mjs` checks stable installer names, versions, paths, sizes and SHA-512 hashes.
 A fresh hosted build uses that origin immediately and opens authentication without asking for
-Docker or a pasted address. A missing origin keeps the existing local/remote setup choices.
+Docker or a pasted address. Production release builds require this origin and `RAKAZO_RELEASE_BUILD=1`; a missing,
+placeholder, or unreviewed origin fails the build. Local developer builds without the release
+flag retain local/remote setup choices and report automatic updates as unsupported.
 The same origin must be used by Web so the account, assistant and conversations are shared.
 Server/model/integration secrets never belong in this variable or in the desktop bundle.
 

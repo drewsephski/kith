@@ -1,3 +1,5 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { _electron as electron, expect, test } from "@playwright/test";
 import type { RakazoDesktop } from "@rakazo/contracts";
@@ -9,11 +11,13 @@ const fixture = `<!doctype html>
 </html>`;
 
 test("launches with a narrow preload bridge and an isolated renderer", async () => {
+  const profile = await mkdtemp(path.join(tmpdir(), "kith-smoke-"));
   const app = await electron.launch({
     args: ["."],
     cwd: path.resolve(import.meta.dirname, ".."),
     env: {
       ...process.env,
+      RAKAZO_PERFORMANCE_USER_DATA: profile,
       RAKAZO_WEB_URL: `data:text/html;charset=utf-8,${encodeURIComponent(fixture)}`,
     },
   });
@@ -41,7 +45,15 @@ test("launches with a narrow preload bridge and an isolated renderer", async () 
       };
     });
 
-    expect(renderer.bridgeKeys).toEqual(["localSettings", "oauth", "platform", "update", "window"]);
+    expect(renderer.bridgeKeys).toEqual([
+      "commands",
+      "localSettings",
+      "oauth",
+      "platform",
+      "quickAsk",
+      "update",
+      "window",
+    ]);
     expect(renderer.windowKeys).toEqual(["close", "minimize", "state", "toggleMaximize"]);
     expect(renderer.updateKeys).toEqual(["check", "download", "install", "state"]);
     expect(renderer.platform).toBe(process.platform);
@@ -78,5 +90,6 @@ test("launches with a narrow preload bridge and an isolated renderer", async () 
     });
   } finally {
     await app.close();
+    await rm(profile, { recursive: true, force: true });
   }
 });
