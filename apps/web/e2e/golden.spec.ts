@@ -342,13 +342,13 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "Export", exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/chief-export\.json/i);
+  expect(download.suggestedFilename()).toBe("kith-export.json");
   const settings = page.getByTestId("bot-settings");
   await expect(settings.getByRole("button", { name: "Archive bot" })).toHaveCount(0);
   await expect(settings.getByRole("button", { name: "Delete bot" })).toHaveCount(0);
   await page.getByRole("button", { name: "Close panel" }).click();
 
-  await page.locator("aside").first().getByRole("button", { name: /Kith/ }).first().click({
+  await sidebarBotButton(page, "Kith").click({
     button: "right",
   });
   const botMenu = page.getByRole("menu", { name: "Actions for Kith" });

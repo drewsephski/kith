@@ -106,6 +106,34 @@ jobs:
           # and generated dashboard consumed by the comment step.
           python3 scripts/extract-playwright-artifacts.py \
             "$RUNNER_TEMP/playwright-artifacts.zip" "$RUNNER_TEMP/playwright-artifacts"
+      - name: Record interrupted tests without artifacts on the pull request
+        if: >-
+          github.event.workflow_run.event == 'pull_request' &&
+          steps.pull_request.outputs.number != '' &&
+          steps.artifact.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          TEST_RESULT: ${{ steps.playwright.outputs.job_result }}
+        shell: bash
+        run: |
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$SHA" =~ ^[a-f0-9]{40}$ ]]
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          if [[ "$current_sha" != "$SHA" ]]; then
+            echo "Superseded revision; retaining its workflow summary without replacing the current PR report."
+            exit 0
+          fi
+          marker="<!-- rakazo-playwright-screenshots -->"
+          body="$(printf '%s\n\nWeb E2E: **%s** at `%s`.\n\nArtifacts are unavailable; no successful test execution or gallery publication is claimed. [Workflow diagnostics](%s).\n' "$marker" "$TEST_RESULT" "$SHA" "$RUN_URL")"
+          comment_id="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" | jq -r --arg marker "$marker" '[.[][] | select(.user.login == "github-actions[bot]" and (.body | contains($marker)))] | last | .id // empty')"
+          payload="$(jq -n --arg body "$body" '{body: $body}')"
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --input - <<<"$payload"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --input - <<<"$payload"
+          fi
       - name: Publish trusted Playwright screenshot gallery
         if: steps.artifact.outputs.exists == 'true'
         id: publish

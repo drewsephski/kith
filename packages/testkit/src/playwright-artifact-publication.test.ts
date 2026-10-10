@@ -1,5 +1,5 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: Shell and GitHub expressions are literal workflow fixtures.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -84,6 +84,36 @@ with zipfile.ZipFile(sys.argv[1], "w") as archive:
 }
 
 describe("Playwright artifact publication boundary", () => {
+  it.each(["success", "failure"])(
+    "fails publication when completed %s tests lack HTML",
+    (result) => {
+      const root = temporaryDirectory();
+      const run = spawnSync("bash", ["scripts/publish-playwright-report.sh"], {
+        cwd: repoRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          AWS_ACCESS_KEY_ID: "fixture-key",
+          AWS_SECRET_ACCESS_KEY: "fixture-secret",
+          S3_BUCKET: "fixture-reports",
+          S3_ENDPOINT: "https://storage.example.invalid",
+          PLAYWRIGHT_PUBLIC_BASE_URL: "https://reports.example.invalid",
+          PLAYWRIGHT_RESULT: result,
+          PLAYWRIGHT_RUN_ATTEMPT: "1",
+          PLAYWRIGHT_RUN_ID: "1",
+          PLAYWRIGHT_RUN_NUMBER: "1",
+          PLAYWRIGHT_RUN_URL: "https://github.com/example/repo/actions/runs/1",
+          PLAYWRIGHT_SHA: "a".repeat(40),
+          PLAYWRIGHT_EVENT: "push",
+          PLAYWRIGHT_BRANCH: "main",
+          PLAYWRIGHT_REPORT_DIR: root,
+          PLAYWRIGHT_PUBLISH_REPORT: "true",
+        },
+      });
+      expect(run.status).toBe(1);
+      expect(run.stderr).toContain("missing its required HTML report");
+    },
+  );
   it("classifies cancellation, omission, timeout and failures through the publishing CLI", () => {
     execFileSync(process.execPath, ["--test", "scripts/playwright-job-result.test.mjs"], {
       cwd: repoRoot,

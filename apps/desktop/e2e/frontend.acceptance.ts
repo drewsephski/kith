@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import type { ElectronApplication } from "@playwright/test";
+import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
 
 // The harness provides the real API, migrated disposable PostgreSQL, scripted
@@ -90,15 +90,51 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
       exact: true,
     });
     await expect(newComposer).toBeEditable();
+    const newRoute = restored.url();
     const restoredId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
-    const recovered = restored.waitForEvent("domcontentloaded");
+    const recovery = app.waitForEvent("window");
     await app.evaluate(
       ({ BrowserWindow }, windowId) =>
         BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(),
       restoredId,
     );
-    await recovered;
-    await expect(newComposer).toBeEditable();
+    const setup = await recovery;
+    await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();
+    await setup.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect
+      .poll(async () => {
+        const windows = app!.windows();
+        return Promise.all(
+          windows.map((window) =>
+            window
+              .getByRole("combobox", { name: /^Message/ })
+              .isEditable()
+              .catch(() => false),
+          ),
+        );
+      })
+      .toContain(true);
+    const windows = app.windows();
+    let recoveredWindow: Page | undefined;
+    for (const window of windows) {
+      if (
+        await window
+          .getByRole("combobox", { name: /^Message/ })
+          .isEditable()
+          .catch(() => false)
+      ) {
+        recoveredWindow = window;
+        break;
+      }
+    }
+    if (!recoveredWindow) throw new Error("Missing recovered authenticated application window");
+    await recoveredWindow.goto(newRoute);
+    await expect(
+      recoveredWindow.getByRole("combobox", {
+        name: "Message New conversation",
+        exact: true,
+      }),
+    ).toBeEditable();
   } finally {
     await app?.close();
     await rm(profile, { recursive: true, force: true });

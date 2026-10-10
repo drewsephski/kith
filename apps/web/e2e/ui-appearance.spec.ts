@@ -147,6 +147,7 @@ test("sidebar bot rows hover with the same tone as the integrations row", async 
   await completeOnboarding(page, testInfo);
   await openAdvancedNavigation(page);
   await createNamedBot(page, "Second Bot");
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const chief = sidebar.getByRole("button", { name: /^Kith/ }).first();
