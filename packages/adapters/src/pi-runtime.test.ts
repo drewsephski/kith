@@ -25,11 +25,7 @@ describe("describeToolActivity", () => {
       }),
     ).toBe("Working across connected apps");
   });
-<<<<<<< Updated upstream
-  it("names builtin operations without exposing their arguments", () => {
-=======
   it("names builtin operations without echoing private arguments", () => {
->>>>>>> Stashed changes
     expect(describeToolActivity("shell", { command: "pnpm test --filter web" })).toBe(
       "Running a command…",
     );
@@ -58,17 +54,13 @@ describe("describeToolActivity", () => {
     expect(describeToolActivity("mcp__demo-oauth__greet", {})).toBe("Using demo-oauth: greet");
   });
 
-  it("omits long payloads and embedded whitespace", () => {
+  it("truncates long details and collapses whitespace", () => {
     const long = `x${"y".repeat(200)}`;
     const line = describeToolActivity("shell", { command: `a\n\t${long}` });
-    expect(line).toBe("Running a command…");
-    expect(line).not.toContain(long);
+    expect(line.length).toBeLessThanOrEqual("Running: ".length + 91);
     expect(line).toContain("…");
     expect(line).not.toContain("\n");
-<<<<<<< Updated upstream
-=======
     expect(line).toBe("Running a command…");
->>>>>>> Stashed changes
   });
 
   it("redacts credentials from activity details", () => {
@@ -78,17 +70,12 @@ describe("describeToolActivity", () => {
     });
 
     expect(line).toBe("Running a command…");
-<<<<<<< Updated upstream
-    expect(line).not.toContain("Authorization");
-    expect(line).not.toContain("api_key");
-=======
->>>>>>> Stashed changes
     expect(line).not.toContain(token);
     expect(line).not.toContain("fake-key");
     expect(line).not.toContain("fake-password");
   });
 
-  it("omits signed URLs from web_fetch activity", () => {
+  it("strips signed-URL query and fragment from web_fetch activity", () => {
     const line = describeToolActivity("web_fetch", {
       url: "https://user:secret@cdn.example.test/doc.pdf?X-Amz-Signature=abc123&token=leak#frag",
     });

@@ -91,23 +91,6 @@ it("preserves an empty surface when the optional generator is unavailable", asyn
   expect(container.textContent).toBe("");
 });
 
-<<<<<<< Updated upstream
-it("does not substitute service starters when grounded generation is unavailable", async () => {
-  rpc.mockRejectedValue(new Error("Unavailable"));
-  await render(false, ["gmail"]);
-  expect(container.textContent).toBe("");
-  expect(select).not.toHaveBeenCalled();
-  await render(true, ["gmail"]);
-  expect(container.textContent).toBe("");
-});
-
-it("keeps the surface empty when generation returns no grounded follow-ups", async () => {
-  rpc.mockResolvedValue([]);
-  await render(false, ["github"]);
-  expect(container.textContent).toBe("");
-  expect(select).not.toHaveBeenCalled();
-  expect(container.textContent).not.toContain("Draft replies");
-=======
 it("does not label generic service starters as follow-ups during outages or abstention", async () => {
   rpc.mockRejectedValue(new Error("Unavailable"));
   await render(false, ["gmail"]);
@@ -116,5 +99,4 @@ it("does not label generic service starters as follow-ups during outages or abst
   rpc.mockResolvedValue([]);
   await render(false, ["github"]);
   expect(container.textContent).toBe("");
->>>>>>> Stashed changes
 });
