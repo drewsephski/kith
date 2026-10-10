@@ -6,6 +6,7 @@ interface MessageIdentity {
 export interface ThreadHistory<TMessage extends MessageIdentity> {
   threadId: string;
   messages: readonly TMessage[];
+  settledRunIds?: string[];
   olderCursor: number | null;
 }
 

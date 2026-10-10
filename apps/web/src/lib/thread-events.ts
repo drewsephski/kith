@@ -10,6 +10,8 @@ import type {
 import {
   isActive,
   isRunTerminalEvent,
+  isSettledRunActivity,
+  settledRunIds,
   mergeThreadHistory,
   prependThreadHistoryPage,
   progressMessageId,
@@ -269,7 +271,8 @@ export function reduceThreadSnapshot(
   prev: ThreadSnapshot | null,
   event: ProductEvent,
 ): ThreadSnapshot | null {
-  if (!prev) return prev;
+  if (!prev || event.threadId !== prev.threadId || event.seq <= prev.cursor) return prev;
+  if (isSettledRunActivity(prev, event)) return { ...prev, cursor: event.seq };
   if (event.type === "thread.cleared") {
     return {
       ...prev,
@@ -393,6 +396,7 @@ export function reduceThreadSnapshot(
       primaryEnded ?? prev.activeRuns?.find((candidate) => candidate.id === event.runId) ?? null;
     return {
       ...prev,
+      settledRunIds: settledRunIds(prev.settledRunIds, event.runId),
       cursor: event.seq,
       messages: prev.messages.filter((message) => message.id !== progressMessageId(event)),
       members: updateMemberStatus(prev.members, event.botId, nextMemberRun?.status ?? "idle"),

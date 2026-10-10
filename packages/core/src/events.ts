@@ -50,7 +50,12 @@ export function projectMessages(
     if (event.runId) liveById.delete(progressMessageId(event));
     else liveById.clear();
   };
-  for (const event of events) {
+  const settled = new Set<string>();
+  let cursor = -1;
+  for (const event of [...events].sort((a, b) => a.seq - b.seq)) {
+    if (event.seq <= cursor) continue;
+    cursor = event.seq;
+    if (event.runId && settled.has(event.runId) && ["thread.progress", "agent.tool.called", "thread.subagent"].includes(event.type)) continue;
     const payload = asRecord(event.payload);
     const createdAt =
       typeof event.createdAt === "string" ? event.createdAt : event.createdAt.toISOString();
@@ -138,7 +143,11 @@ export function projectMessages(
       event.type === "run.failed" ||
       event.type === "run.cancelled"
     ) {
+      if (event.runId) settled.add(event.runId);
       clearLive(event);
+      for (const [id, message] of liveSubagents) {
+        if (message.runId === event.runId && message.blocks.some((b) => b.kind === "subagent" && b.status === "running")) liveSubagents.delete(id);
+      }
     }
   }
   for (const live of liveSubagents.values()) messages.push(live);
@@ -157,6 +166,21 @@ export function projectMessages(
     }
   }
   return messages;
+}
+
+/** A run identity never becomes live again after a terminal receipt. */
+export function isSettledRunActivity(
+  snapshot: { run?: { id: string; status: string } | null; settledRunIds?: string[] },
+  event: { type: string; runId?: string | null },
+): boolean {
+  if (!event.runId || !["run.started", "run.waiting_input", "computer.takeover.requested",
+    "thread.progress", "agent.tool.called", "agent.tool.completed", "thread.subagent"].includes(event.type)) return false;
+  return snapshot.settledRunIds?.includes(event.runId) === true ||
+    (snapshot.run?.id === event.runId && ["completed", "failed", "cancelled"].includes(snapshot.run.status));
+}
+
+export function settledRunIds(previous: string[] | undefined, runId: string | null | undefined): string[] {
+  return runId ? [...new Set([...(previous ?? []), runId])].slice(-100) : previous ?? [];
 }
 
 export function progressMessageId(event: { runId?: string | null; id?: string }): string {

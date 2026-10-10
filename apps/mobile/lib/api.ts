@@ -28,6 +28,8 @@ import {
   cancelResponseBody,
   ensureAiDataConsent,
   isRunTerminalEvent,
+  isSettledRunActivity,
+  settledRunIds,
   mergeThreadHistory,
   prependThreadHistoryPage,
   progressMessageId,
@@ -946,6 +948,7 @@ export type MobileSnapshot = {
   messages: MobileMessage[];
   olderCursor: number | null;
   run: { id: string; botId?: string; status: string; error?: string | null } | null;
+  settledRunIds?: string[];
   activeRuns?: Array<{ id: string; botId?: string; status: string }>;
   members?: MobileGroup["members"];
   computer?: {
@@ -1150,7 +1153,9 @@ export function applyMobileThreadEvent(
   prev: MobileSnapshot | null,
   event: ThreadEvent,
 ): MobileSnapshot | null {
-  if (!prev || event.type === "heartbeat") return prev;
+  if (!prev || event.type === "heartbeat" || (event.threadId && event.threadId !== prev.threadId) ||
+    (event.seq !== undefined && event.seq <= (prev.cursor ?? -1))) return prev;
+  if (isSettledRunActivity(prev, event)) return { ...prev, cursor: event.seq ?? prev.cursor };
   if (event.type === "thread.cleared") {
     return {
       ...prev,
@@ -1227,6 +1232,7 @@ export function applyMobileThreadEvent(
       primaryEnded ?? prev.activeRuns?.find((candidate) => candidate.id === event.runId) ?? null;
     return {
       ...prev,
+      settledRunIds: settledRunIds(prev.settledRunIds, event.runId),
       cursor: event.seq ?? prev.cursor,
       messages: prev.messages.filter((message) => message.id !== progressMessageId(event)),
       // A failed run stays in run so the thread can say why it stopped (see reduceThreadSnapshot).

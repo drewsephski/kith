@@ -94,7 +94,8 @@ describe("thread subscription recovery", () => {
     await vi.advanceTimersByTimeAsync(250);
     expect(callbacks.subscribe.mock.calls.map(([cursor]) => cursor)).toEqual([10, 10, 12]);
     expect(callbacks.refresh).toHaveBeenCalledTimes(2);
-    expect(callbacks.onEvent).toHaveBeenLastCalledWith(event(11), head);
+    expect(callbacks.onEvent).toHaveBeenCalledExactlyOnceWith(event(12), head);
+    expect(callbacks.applyEvent).toHaveBeenCalledExactlyOnceWith(event(12));
     abort.abort();
     channel.end();
     await running;

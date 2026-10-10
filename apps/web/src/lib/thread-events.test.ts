@@ -25,6 +25,19 @@ import {
 } from "./thread-events.js";
 
 describe("thread event reduction", () => {
+  it("ignores replayed deltas and older starts after terminal completion", () => {
+    let state: ThreadSnapshot | null = { ...snapshot([]), run: threadRun("run-1") };
+    const delta = event({ seq: 4, payload: { delta: "Hello" } });
+    state = reduceThreadSnapshot(state, delta);
+    const after = state;
+    expect(reduceThreadSnapshot(state, delta)).toBe(after);
+    state = reduceThreadSnapshot(state, event({ seq: 6, type: "run.completed" }));
+    expect(reduceThreadSnapshot(state, event({ seq: 5, type: "run.started" }))).toBe(state);
+    const late = reduceThreadSnapshot(state, event({ seq: 7, payload: { delta: "late" } }));
+    expect(late?.messages.some((m) => m.id.startsWith("progress:"))).toBe(false);
+    expect(late?.run?.status).toBe("completed");
+  });
+
   it("shows a committed direct send as queued before its snapshot refresh returns", () => {
     const initial = snapshot([message("user-1", [{ kind: "text", text: "Continue" }], 4)]);
 

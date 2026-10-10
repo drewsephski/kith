@@ -6052,6 +6052,7 @@ type ConversationDraft = {
   nonce: string | null;
   revision?: number;
   pendingNonce?: string | null;
+  suggestionNonce?: number;
 };
 
 export const Composer = memo(function Composer({
@@ -6134,6 +6135,7 @@ export const Composer = memo(function Composer({
   const [selectedMentions, setSelectedMentions] = useState<ComposerMention[]>(
     initialDraft.current?.mentions ?? [],
   );
+  const suggestionNonce = useRef(initialDraft.current?.suggestionNonce);
   const editRevision = useRef(initialDraft.current?.revision ?? 0);
   const pendingSendNonce = useRef<string | null>(initialDraft.current?.pendingNonce ?? null);
   const retryNonce = useRef<string | null>(initialDraft.current?.nonce ?? null);
@@ -6147,6 +6149,7 @@ export const Composer = memo(function Composer({
       nonce: retryNonce.current,
       revision: editRevision.current,
       pendingNonce: pendingSendNonce.current,
+      suggestionNonce: suggestionNonce.current,
     });
   }, [draft, draftKey, drafts, selectedSkill, selectedMentions, starter]);
   useEffect(() => {
@@ -6177,7 +6180,8 @@ export const Composer = memo(function Composer({
   }, [replyId, quote]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    if (!suggestedDraft) return;
+    if (!suggestedDraft || suggestionNonce.current === suggestedDraft.nonce) return;
+    suggestionNonce.current = suggestedDraft.nonce;
     setDraft(suggestedDraft.text);
     setStarter(suggestedDraft.starter);
     editRevision.current += 1;
@@ -6463,6 +6467,7 @@ export const Composer = memo(function Composer({
         nonce: clientNonce,
         revision,
         pendingNonce: null,
+        suggestionNonce: suggestionNonce.current,
       });
       window.dispatchEvent(new CustomEvent("kith:draft-restored", { detail: draftKey }));
     }

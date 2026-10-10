@@ -14,6 +14,7 @@ export async function runThreadSubscription(options: {
   refresh: () => Promise<unknown>;
   currentSnapshot: () => ThreadHead | null;
   subscribe: (cursor: number) => Promise<AsyncIterable<ProductEvent>>;
+  onConnectionState?: (state: "connecting" | "connected" | "reconnecting") => void;
   beforeEvent?: (event: ProductEvent) => void;
   applyEvent: (event: ProductEvent) => void;
   onEvent: (event: ProductEvent, initial: ThreadHead) => void;
@@ -23,6 +24,7 @@ export async function runThreadSubscription(options: {
     await abortableDelay(ms, signal);
     return !signal.aborted;
   };
+  options.onConnectionState?.("connecting");
   let initial = await options.loadInitial().catch(() => null);
   if (signal.aborted) return;
   let headRetryMs = 250;
@@ -60,6 +62,7 @@ export async function runThreadSubscription(options: {
   while (!signal.aborted) {
     try {
       const events = await options.subscribe(cursor);
+      options.onConnectionState?.("connected");
       const iterator = events[Symbol.asyncIterator]();
       try {
         let pending: Promise<IteratorResult<ProductEvent>> | undefined;
@@ -79,7 +82,8 @@ export async function runThreadSubscription(options: {
           retryMs = 250;
           // Heartbeats only prove the socket is alive; they carry no state and no cursor.
           if (event.type === "heartbeat") continue;
-          cursor = Math.max(cursor, event.seq);
+          if (event.threadId !== head.threadId || event.seq <= cursor) continue;
+          cursor = event.seq;
           options.beforeEvent?.(event);
           if (snapshotReady && options.currentSnapshot()?.threadId === event.threadId) {
             options.applyEvent(event);
@@ -96,6 +100,7 @@ export async function runThreadSubscription(options: {
       // Reconnect from the last durable event after a transient transport failure.
     }
     if (signal.aborted) return;
+    options.onConnectionState?.("reconnecting");
     await options.refresh().catch(() => null);
     if (!(await wait(retryMs))) return;
     retryMs = Math.min(retryMs * 2, 5_000);

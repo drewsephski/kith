@@ -3,7 +3,7 @@
 import type { AgentSkillCatalogEntry, ThreadMessage } from "@rakazo/contracts";
 import type { ComposerMention } from "@rakazo/core";
 import type { ComponentProps, ReactNode } from "react";
-import { act, createRef } from "react";
+import { act, createRef, useState } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -110,6 +110,35 @@ function pressEnter(textarea: HTMLTextAreaElement) {
 }
 
 describe("Composer", () => {
+  it("never replays a consumed suggestion retained by a real parent across A→B→A", async () => {
+    const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>().mockResolvedValue(true);
+    renderComposer(send);
+    const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
+    function Parent() {
+      const [target, setTarget] = useState("A");
+      const [suggestion] = useState({ target: "A", text: "Review the interview", nonce: 1 });
+      return <>
+        <button type="button" onClick={() => setTarget(target === "A" ? "B" : "A")}>Switch</button>
+        <Composer {...composerProps} key={target} draftKey={target} drafts={drafts}
+          suggestedDraft={suggestion.target === target ? suggestion : undefined} />
+      </>;
+    }
+    act(() => root?.render(<Parent />));
+    const input = () => container!.querySelector("textarea")!;
+    expect(input().value).toBe("Review the interview");
+    pressEnter(input());
+    await act(async () => {});
+    expect(input().value).toBe("");
+    const navigate = () => act(() => container!.querySelector("button")!.click());
+    navigate();
+    type(input(), "Unsent B");
+    navigate();
+    expect(input().value).toBe("");
+    navigate();
+    expect(input().value).toBe("Unsent B");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves a task starter through edits, thread switches, and cancelled setup", async () => {
     const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>().mockResolvedValue(false);
     const drafts: NonNullable<ComponentProps<typeof Composer>["drafts"]> = new Map();
