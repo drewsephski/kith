@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: mobile-android-screenshots-${{ github.ref }}
+  group: mobile-android-screenshots-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
