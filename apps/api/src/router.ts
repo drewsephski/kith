@@ -28,6 +28,7 @@ import type {
   ComputerExecutionLease,
   ConnectorRegistry,
   ConversationSuggestions,
+  ForYouRecommendations,
   FaviconResolver,
   getBotSecretMetadata,
   IntegrationProviderSettings,
@@ -563,6 +564,7 @@ export interface RouterDeps {
   integrationSettings?: IntegrationProviderSettings;
   calendar?: CalendarService;
   conversationSuggestions?: ConversationSuggestions;
+  forYouRecommendations?: ForYouRecommendations;
   taskStarters?: TaskStarterService;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
@@ -1540,6 +1542,16 @@ export function createRouter(deps: RouterDeps) {
           ),
         );
         return { ok: true as const };
+      }),
+    },
+    forYou: {
+      discover: authed.forYou.discover.handler(async ({ context, input }) => {
+        if (!deps.forYouRecommendations) return { recommendations: [], unavailable: true };
+        return deps.forYouRecommendations.discover(context.actor, input.assistantId);
+      }),
+      dismiss: authed.forYou.dismiss.handler(async ({ context, input }) => {
+        if (!deps.forYouRecommendations) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.forYouRecommendations.dismiss(context.actor, input.assistantId, input.recommendationId, input.action);
       }),
     },
     bots: {

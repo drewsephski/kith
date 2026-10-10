@@ -25,6 +25,7 @@ import {
   CodexCatalogCache,
   ComposioConnector,
   ConversationSuggestions,
+  ForYouRecommendations,
   createBackgroundJobHandlers,
   createCloudAgentConnection,
   createConnectorStack,
@@ -544,6 +545,7 @@ export async function createApp(
   reconciler?.start();
 
   const router = createRouter({
+    forYouRecommendations: new ForYouRecommendations({ ...taskStarters.deps, memory }),
     conversationSuggestions: new ConversationSuggestions({
       prisma,
       runtime,

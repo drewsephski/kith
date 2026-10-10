@@ -39,7 +39,7 @@ export interface TaskPlatform {
     context: AdapterContext,
   ): Promise<{ messages: TaskMailContent[]; complete: boolean }>;
   upcomingMeetings(
-    input: { connection: TaskConnection; timeMin: string; timeMax: string },
+    input: { connection: TaskConnection; timeMin: string; timeMax: string; maxMeetings?: number; maxCalendars?: number },
     context: AdapterContext,
   ): Promise<{ meetings: TaskMeeting[]; complete: boolean }>;
   hubspotContext(

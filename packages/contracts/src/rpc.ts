@@ -9,6 +9,7 @@ import {
 } from "./attachments.js";
 import { BotSecretMetadata, BotSecretPutInput, StoredBotSecretName } from "./bot-secrets.js";
 import { CalendarOAuthConfigSchema, CalendarReceiptSchema, CalendarTimezone } from "./calendar.js";
+import { ForYouDiscoverySchema } from "./for-you.js";
 import { ConversationSuggestionsSchema } from "./conversation-suggestions.js";
 import {
   ActionApprovalRuleSchema,
@@ -292,6 +293,10 @@ export const appContract = {
     disconnect: oc
       .input(z.object({ provider: z.string().trim().min(1) }))
       .output(z.object({ ok: z.literal(true) })),
+  },
+  forYou: {
+    discover: oc.input(z.object({ assistantId: Id })).output(ForYouDiscoverySchema),
+    dismiss: oc.input(z.object({ assistantId: Id, recommendationId: z.string().max(100), action: z.enum(["dismiss", "snooze"]) })).output(z.object({ ok: z.literal(true) })),
   },
   bots: {
     list: oc.output(z.array(BotSchema)),

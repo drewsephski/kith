@@ -9,13 +9,14 @@ import {
   forYouPrompt,
   PERSONAL_ASSISTANT_GUIDANCE,
 } from "@rakazo/core";
+import type { ForYouRecommendations } from "@rakazo/adapters";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { personalAssistantBotId } from "./personal-assistant.js";
 
 export async function launchForYou(
-  deps: { prisma: PrismaClient; jobs: JobPublisher },
+  deps: { prisma: PrismaClient; jobs: JobPublisher; forYouRecommendations?: ForYouRecommendations },
   actor: Actor,
   input: {
     userId: string;
@@ -31,12 +32,19 @@ export async function launchForYou(
     throw new ORPCError("CONFLICT", {
       message: "The selected account or space changed. Try again.",
     });
-  const suggestion = FOR_YOU_SUGGESTIONS.find((entry) => entry.id === input.suggestionId);
+  let recommendation: Awaited<ReturnType<ForYouRecommendations["launch"]>> | undefined;
+  if (input.suggestionId.startsWith("recommendation:")) {
+    if (!deps.forYouRecommendations) throw new ORPCError("NOT_IMPLEMENTED");
+    try { recommendation = await deps.forYouRecommendations.launch(actor, input.assistantId, input.suggestionId); }
+    catch { throw new ORPCError("CONFLICT", { message: "The source changed or is unavailable. Refresh For you." }); }
+  }
+  const suggestion = recommendation ? { id: input.suggestionId, title: recommendation.title, prompt: recommendation.prompt } : FOR_YOU_SUGGESTIONS.find((entry) => entry.id === input.suggestionId);
   if (!suggestion) throw new ORPCError("BAD_REQUEST", { message: "Unknown suggestion." });
+  const operationId = recommendation?.operationId ?? input.operationId;
   if ((await personalAssistantBotId(deps.prisma, actor)) !== input.assistantId)
     throw new ORPCError("CONFLICT", { message: "Your assistant changed. Try again." });
   const identity = createHash("sha256")
-    .update(JSON.stringify([actor.userId, input.operationId]))
+    .update(JSON.stringify([actor.userId, operationId]))
     .digest("hex");
   const spawnKey = `for-you:${identity}`;
   const existing = await deps.prisma.bot.findUnique({
@@ -50,8 +58,9 @@ export async function launchForYou(
       existing.archivedAt)
   )
     throw new ORPCError("CONFLICT", { message: "This launch is no longer available." });
+  const servicesNeeded = "services" in suggestion ? suggestion.services : undefined;
   const connections =
-    suggestion.services && !existing
+    servicesNeeded && !existing
       ? await deps.prisma.connection.findMany({
           where: { spaceId: actor.spaceId, userId: actor.userId, status: "connected" },
         })
@@ -83,7 +92,7 @@ export async function launchForYou(
       launchIdentity: {
         suggestionId: input.suggestionId,
         assistantId: input.assistantId,
-        operationId: input.operationId,
+        operationId,
       },
     },
   });
@@ -108,12 +117,13 @@ export async function launchForYou(
     bot.archivedAt ||
     identityRecord?.suggestionId !== input.suggestionId ||
     identityRecord.assistantId !== input.assistantId ||
-    identityRecord.operationId !== input.operationId
+    identityRecord.operationId !== operationId
   )
     throw new ORPCError("CONFLICT", { message: "This launch is no longer available." });
   if (run.status === "queued")
     await deps.jobs.enqueue(runContinueJob(run.id)).catch((error) => {
       getLogger().error("For you launch enqueue", error);
     });
+  if (recommendation) await deps.forYouRecommendations?.launched(actor, recommendation.id, bot.id);
   return bot;
 }
