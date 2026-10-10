@@ -157,6 +157,10 @@ msgstr "{name} पूरा हुआ"
 msgid "{name} stopped"
 msgstr "{name} रोक दिया गया"
 
+#: src/components/ai/RunStatus.tsx
+msgid "{name}: {activity}"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "{remaining} left · bot is watching, not acting"
 msgstr "{remaining} शेष · बॉट देख रहा है, कार्रवाई नहीं कर रहा"
@@ -180,10 +184,6 @@ msgstr "{title}, {label}"
 #: src/pages/PluginsOverlay.tsx
 msgid "{toolCount, plural, one {# tool} other {# tools}}"
 msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "{workingBotName} is working"
-msgstr "{workingBotName} काम कर रहा है"
 
 #. placeholder {0}: mention.name
 #: src/pages/Shell.tsx
@@ -808,6 +808,7 @@ msgstr "{0} का कंप्यूटर शुरू हो रहा है
 msgid "bot"
 msgstr "बॉट"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -1764,7 +1765,6 @@ msgid "Could not load"
 msgstr "लोड नहीं हो सका"
 
 #: src/pages/ActivityList.tsx
-#: src/pages/ForYou.tsx
 msgid "Could not load activity"
 msgstr "गतिविधि लोड नहीं हो सकी"
 
@@ -2132,6 +2132,10 @@ msgstr ""
 msgid "Could not verify computer setup ({failureMessage}). Fix the connection, then check again."
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Couldn’t finish"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Couldn't load messaging settings"
 msgstr ""
@@ -2468,6 +2472,7 @@ msgstr "Docker अतिरिक्त सुरक्षा के लिए �
 msgid "Don’t have an account?"
 msgstr "खाता नहीं है?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "पूर्ण"
@@ -3188,10 +3193,6 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Kith"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Kith is working"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -5385,6 +5386,7 @@ msgstr ""
 msgid "Starting"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/lib/roster-status.ts
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5418,6 +5420,10 @@ msgstr "सिखाना रोकें"
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Stop waiting"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Stopped"
 msgstr ""
 
 #. js-lingui-explicit-id
@@ -6046,6 +6052,14 @@ msgstr "थोड़ी देर रुकें और फिर से पर
 msgid "Waiting for the API to come back…"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for you"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for your input"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "कतार में प्रतीक्षा…"
@@ -6137,6 +6151,7 @@ msgstr "कब उपयोग करें"
 msgid "Where should bots run?"
 msgstr "बॉट कहां चलने चाहिए?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
@@ -6189,7 +6204,3 @@ msgstr "आपका ईमेल पता"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "आपका नाम"
-
-#: src/pages/ForYou.tsx
-msgid "Your work"
-msgstr "आपका काम"

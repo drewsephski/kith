@@ -157,6 +157,10 @@ msgstr "{name} 완료"
 msgid "{name} stopped"
 msgstr "{name} 중지됨"
 
+#: src/components/ai/RunStatus.tsx
+msgid "{name}: {activity}"
+msgstr ""
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "{remaining} left · bot is watching, not acting"
 msgstr "남은 시간 {remaining} · Bot은 화면만 보고 직접 조작하지 않습니다"
@@ -180,10 +184,6 @@ msgstr "{title}, {label}"
 #: src/pages/PluginsOverlay.tsx
 msgid "{toolCount, plural, one {# tool} other {# tools}}"
 msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "{workingBotName} is working"
-msgstr "{workingBotName} 작업 중"
 
 #. placeholder {0}: mention.name
 #: src/pages/Shell.tsx
@@ -808,6 +808,7 @@ msgstr "{0}의 컴퓨터를 켜는 중"
 msgid "bot"
 msgstr "Bot"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -1764,7 +1765,6 @@ msgid "Could not load"
 msgstr "불러올 수 없음"
 
 #: src/pages/ActivityList.tsx
-#: src/pages/ForYou.tsx
 msgid "Could not load activity"
 msgstr "활동을 불러올 수 없습니다"
 
@@ -2132,6 +2132,10 @@ msgstr ""
 msgid "Could not verify computer setup ({failureMessage}). Fix the connection, then check again."
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Couldn’t finish"
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Couldn't load messaging settings"
 msgstr "메시징 설정을 불러올 수 없습니다"
@@ -2468,6 +2472,7 @@ msgstr "Docker는 보안을 위해 컴퓨터 접근을 제한합니다. {hostLab
 msgid "Don’t have an account?"
 msgstr "계정이 없나요?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "완료"
@@ -3188,10 +3193,6 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Kith"
-msgstr ""
-
-#: src/pages/Shell.tsx
-msgid "Kith is working"
 msgstr ""
 
 #: src/pages/KnowledgeSection.tsx
@@ -5385,6 +5386,7 @@ msgstr ""
 msgid "Starting"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/lib/roster-status.ts
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5418,6 +5420,10 @@ msgstr "가르치기 종료"
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/pages/PluginsOverlay.tsx
 msgid "Stop waiting"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Stopped"
 msgstr ""
 
 #. js-lingui-explicit-id
@@ -6046,6 +6052,14 @@ msgstr "잠시 기다린 뒤 다시 테스트하세요."
 msgid "Waiting for the API to come back…"
 msgstr "API가 다시 작동하기를 기다리는 중…"
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for you"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for your input"
+msgstr ""
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "줄에서 기다리는 중…"
@@ -6137,6 +6151,7 @@ msgstr "언제 사용할지"
 msgid "Where should bots run?"
 msgstr "Bot을 어디에서 실행할까요?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
@@ -6189,7 +6204,3 @@ msgstr "이메일 주소"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "이름"
-
-#: src/pages/ForYou.tsx
-msgid "Your work"
-msgstr "내 작업"

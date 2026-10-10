@@ -164,6 +164,7 @@ import {
   LinkFaviconsContext,
   LinkifiedText,
   MarkdownLinkPromptProvider,
+  NativeScrollViewContext,
   RemoteImagesContext,
   RemoteMarkdownImage,
 } from "./markdown.native";
@@ -196,6 +197,23 @@ function tableRows(html: string) {
 }
 
 describe("native markdown tables", () => {
+  it("uses the native host's scroll component for table chrome", () => {
+    const html = renderToStaticMarkup(
+      <NativeScrollViewContext.Provider
+        value={({ children, horizontal }) => (
+          <div data-host-scroll="true" data-horizontal={horizontal}>
+            {children}
+          </div>
+        )}
+      >
+        <ChatMarkdown>{THREE_COLUMN_TABLE}</ChatMarkdown>
+      </NativeScrollViewContext.Provider>,
+    );
+    expect(html).toContain('data-host-scroll="true"');
+    expect(html).toContain('data-horizontal="true"');
+    expect(html).not.toContain("<rn-scroll-view");
+  });
+
   it("wraps the table in a horizontal scroll view", () => {
     const html = renderToStaticMarkup(<ChatMarkdown>{THREE_COLUMN_TABLE}</ChatMarkdown>);
     expect(html).toContain("<rn-scroll-view");

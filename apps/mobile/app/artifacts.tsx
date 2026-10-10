@@ -4,16 +4,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BotAvatar } from "../components/bot-avatar";
+import { FlatList, ScrollView } from "../components/minimal-scroll";
 import { NativeSymbol } from "../components/native-symbol";
 import { formatActivityRelativeTime } from "../lib/activity";
 import type { MobileBot } from "../lib/api";

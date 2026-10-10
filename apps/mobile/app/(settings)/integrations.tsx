@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +26,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CalendarConnection } from "../../components/CalendarConnection";
 import { ConnectorIcon } from "../../components/connector-icon";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { Chevron } from "../../components/row-accessories";
 import { rpc } from "../../lib/api";

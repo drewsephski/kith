@@ -1176,15 +1176,19 @@ export function ModelSettingsOverlay({
           </DialogClose>
         </DialogHeader>
       ) : (
-        <p className="px-6 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">{description}</p>
+        <p className="shrink-0 px-5 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">
+          {description}
+        </p>
       )}
 
-      <div className={`mx-6 sm:mx-8 ${embedded ? "mt-4" : "mt-5"}`}>
-        <div className="flex items-baseline gap-3">
+      <div
+        className={`mx-5 shrink-0 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:mx-8 ${embedded ? "mt-4" : "mt-5"}`}
+      >
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="shrink-0 text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground/80">
             <Trans>Active model</Trans>
           </span>
-          <span className="truncate text-[15px] text-foreground">
+          <span className="min-w-0 break-words text-[15px] font-medium text-foreground">
             {currentEntry?.label ?? me?.defaultModel ?? t`Deployment default`}
           </span>
           <span className="truncate text-[13px] text-muted-foreground">
@@ -1200,8 +1204,8 @@ export function ModelSettingsOverlay({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
-        <div className="flex min-h-0 shrink-0 flex-col md:w-[310px]">
+      <div className="rk-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8 lg:flex-row lg:overflow-hidden lg:py-6">
+        <div className="flex min-h-0 shrink-0 flex-col lg:w-[260px]">
           <div className="mb-3 text-[13.5px] text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
@@ -1215,7 +1219,7 @@ export function ModelSettingsOverlay({
             placeholder={t`Search providers`}
             className="h-10 rounded-xl px-3.5"
           />
-          <div className="rk-scroll mt-3 max-h-[240px] overflow-y-auto rounded-xl border border-border md:min-h-0 md:max-h-none md:flex-1">
+          <div className="rk-scroll mt-3 max-h-[200px] overflow-y-auto overscroll-contain rounded-xl border border-border lg:min-h-0 lg:max-h-none lg:flex-1">
             {filteredGroups.length ? (
               <>
                 {connectedGroups.length ? (
@@ -1241,7 +1245,10 @@ export function ModelSettingsOverlay({
           </div>
         </div>
 
-        <div ref={detailScrollRef} className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div
+          ref={detailScrollRef}
+          className="rk-scroll min-w-0 shrink-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain"
+        >
           {error ? (
             <p className="mb-4 text-sm text-destructive" role="alert">
               {error}
@@ -1434,7 +1441,7 @@ export function ModelSettingsOverlay({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="-mr-2 shrink-0 text-muted-foreground"
+                      className="shrink-0 text-muted-foreground"
                       disabled={busy}
                       onClick={() => setConfirmDisconnect(true)}
                     >

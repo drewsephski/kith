@@ -27,6 +27,7 @@ import type {
   ComposioProvider,
   ComputerExecutionLease,
   ConnectorRegistry,
+  ConversationSuggestions,
   FaviconResolver,
   getBotSecretMetadata,
   IntegrationProviderSettings,
@@ -561,6 +562,7 @@ export interface RouterDeps {
   ) => void;
   integrationSettings?: IntegrationProviderSettings;
   calendar?: CalendarService;
+  conversationSuggestions?: ConversationSuggestions;
   taskStarters?: TaskStarterService;
   composio?: ComposioProvider;
   mcpOAuth?: McpOAuthBroker;
@@ -2057,6 +2059,11 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     threads: {
+      suggestions: authed.threads.suggestions.handler(async ({ context, input }) => {
+        const target = await resolveThreadTarget(deps.prisma, context.actor, input);
+        if (target.kind !== "bot" || !deps.conversationSuggestions) return [];
+        return deps.conversationSuggestions.get(context.actor, target, input, context.signal);
+      }),
       head: authed.threads.head.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
         return threadHead(deps.prisma, target);

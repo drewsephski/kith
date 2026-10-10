@@ -17,6 +17,14 @@ const state = vi.hoisted(() => ({
   space: "space-one",
   generation: 1,
 }));
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("./integration-authorization", () => ({ openIntegrationAuthorization: state.openURL }));
 vi.mock("./i18n", () => ({
   t: (message: string, values: Record<string, unknown> = {}) =>

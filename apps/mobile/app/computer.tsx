@@ -3,7 +3,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AppState, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { AppState, Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   initialWindowMetrics,
@@ -15,6 +15,7 @@ import { ComputerKeyboardBar } from "../components/computer-keyboard-bar";
 import { ComputerMaintenanceActions } from "../components/computer-maintenance-actions";
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import { GlassIconButton } from "../components/glass-icon-button";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { currentApiBase, rpc } from "../lib/api";
 import type { ComputerStatus } from "../lib/computer";

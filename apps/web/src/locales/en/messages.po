@@ -157,6 +157,10 @@ msgstr "{name} finished"
 msgid "{name} stopped"
 msgstr "{name} stopped"
 
+#: src/components/ai/RunStatus.tsx
+msgid "{name}: {activity}"
+msgstr "{name}: {activity}"
+
 #: src/components/teach/TeachRecordingChrome.tsx
 msgid "{remaining} left · bot is watching, not acting"
 msgstr "{remaining} left · bot is watching, not acting"
@@ -180,10 +184,6 @@ msgstr "{title}, {label}"
 #: src/pages/PluginsOverlay.tsx
 msgid "{toolCount, plural, one {# tool} other {# tools}}"
 msgstr "{toolCount, plural, one {# tool} other {# tools}}"
-
-#: src/pages/Shell.tsx
-msgid "{workingBotName} is working"
-msgstr "{workingBotName} is working"
 
 #. placeholder {0}: mention.name
 #: src/pages/Shell.tsx
@@ -808,6 +808,7 @@ msgstr "Booting up {0}’s computer"
 msgid "bot"
 msgstr "bot"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/IntegrationSetup.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -1764,7 +1765,6 @@ msgid "Could not load"
 msgstr "Could not load"
 
 #: src/pages/ActivityList.tsx
-#: src/pages/ForYou.tsx
 msgid "Could not load activity"
 msgstr "Could not load activity"
 
@@ -2132,6 +2132,10 @@ msgstr "Could not upload file"
 msgid "Could not verify computer setup ({failureMessage}). Fix the connection, then check again."
 msgstr "Could not verify computer setup ({failureMessage}). Fix the connection, then check again."
 
+#: src/components/ai/RunStatus.tsx
+msgid "Couldn’t finish"
+msgstr "Couldn’t finish"
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Couldn't load messaging settings"
 msgstr "Couldn't load messaging settings"
@@ -2468,6 +2472,7 @@ msgstr "Docker limits access to your computer for added security. Using {hostLab
 msgid "Don’t have an account?"
 msgstr "Don’t have an account?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Done"
 msgstr "Done"
@@ -3189,10 +3194,6 @@ msgstr "Key events"
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr "Kith"
-
-#: src/pages/Shell.tsx
-msgid "Kith is working"
-msgstr "Kith is working"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -5385,6 +5386,7 @@ msgstr "Started"
 msgid "Starting"
 msgstr "Starting"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
 #: src/lib/roster-status.ts
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5419,6 +5421,10 @@ msgstr "Stop teaching"
 #: src/pages/PluginsOverlay.tsx
 msgid "Stop waiting"
 msgstr "Stop waiting"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Stopped"
+msgstr "Stopped"
 
 #. js-lingui-explicit-id
 #: src/lib/browser-notifications.ts
@@ -6046,6 +6052,14 @@ msgstr "Wait a moment and test again."
 msgid "Waiting for the API to come back…"
 msgstr "Waiting for the API to come back…"
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for you"
+msgstr "Waiting for you"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for your input"
+msgstr "Waiting for your input"
+
 #: src/lib/roster-status.ts
 msgid "Waiting in line…"
 msgstr "Waiting in line…"
@@ -6137,6 +6151,7 @@ msgstr "When to use"
 msgid "Where should bots run?"
 msgstr "Where should bots run?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
@@ -6189,7 +6204,3 @@ msgstr "Your email address"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Your name"
-
-#: src/pages/ForYou.tsx
-msgid "Your work"
-msgstr "Your work"

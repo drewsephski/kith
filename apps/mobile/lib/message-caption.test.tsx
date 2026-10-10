@@ -13,6 +13,14 @@ const linking = vi.hoisted(() => ({
   openURL: vi.fn(async () => undefined),
 }));
 
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("react-native", () => {
   function View({ children }: { children?: ReactNode }) {
     return createElement("div", null, children);

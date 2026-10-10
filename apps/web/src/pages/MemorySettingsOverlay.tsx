@@ -173,13 +173,17 @@ export function MemorySettingsOverlay({
           </DialogClose>
         </div>
       ) : (
-        <p className="px-6 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">
+        <p className="shrink-0 px-5 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">
           {registration?.description ?? <Trans>Manage the Space semantic memory provider.</Trans>}
         </p>
       )}
 
-      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
-        {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
+      <div className="rk-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8 sm:py-6">
+        {error ? (
+          <p role="alert" className="mb-4 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         {config === undefined ? (
           <p className="text-sm text-muted-foreground">

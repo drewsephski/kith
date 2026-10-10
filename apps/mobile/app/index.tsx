@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -23,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BotAvatar } from "../components/bot-avatar";
 import { BotOrganizeModal } from "../components/bot-organize-modal";
 import { GroupAvatar } from "../components/group-avatar";
+import { FlatList } from "../components/minimal-scroll";
 import { NativeSymbol } from "../components/native-symbol";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {

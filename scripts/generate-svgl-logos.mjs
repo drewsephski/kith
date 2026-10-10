@@ -6,6 +6,8 @@ const bundled = new Set([
   "Google",
   "Google Calendar",
   "Google Drive",
+  "Google Sheets",
+  "Supabase",
   "Slack",
   "Notion",
   "Linear",

@@ -1,14 +1,8 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { changePassword } from "../../lib/api";
 import { mobileTokens } from "../../lib/appearance";

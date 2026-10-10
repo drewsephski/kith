@@ -113,6 +113,6 @@ test("thread reducer hides live tokens when Stream replies is off", async ({ pag
   await expect(page.getByTestId("message-bot-bubble")).toContainText(COMPLETE_TEXT);
   await expect(page.locator(".rk-chat-markdown-streaming")).toHaveCount(0);
   await expect(page.locator(".rk-chat-markdown-cursor")).toHaveCount(0);
-  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("Done");
   await capture(page, testInfo, "thread-stream-off-done", { clip: true });
 });

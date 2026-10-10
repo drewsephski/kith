@@ -1,11 +1,16 @@
 import { useLingui } from "@lingui/react/macro";
+import type { ConnectedAppService } from "@rakazo/core";
 import { connectedAppServices, taskStarterApp } from "@rakazo/core";
 import { useEffect, useState } from "react";
 import { rpc, selectedSpaceId } from "../../lib/rpc";
 
-export function useConnectedApps(scopeKey?: string) {
-  const [state, setState] = useState<{ scope?: string; spaceId?: string | null; apps: string[] }>({
-    apps: [],
+export function useConnectedServices(scopeKey?: string) {
+  const [state, setState] = useState<{
+    scope?: string;
+    spaceId?: string | null;
+    services: ConnectedAppService[];
+  }>({
+    services: [],
   });
   useEffect(() => {
     let alive = true;
@@ -30,9 +35,7 @@ export function useConnectedApps(scopeKey?: string) {
       setState({
         scope: scopeKey,
         spaceId,
-        apps: services.map(
-          ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
-        ),
+        services,
       });
     }
     const refresh = () => void load();
@@ -45,7 +48,13 @@ export function useConnectedApps(scopeKey?: string) {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [scopeKey]);
-  return state.scope === scopeKey && state.spaceId === selectedSpaceId() ? state.apps : [];
+  return state.scope === scopeKey && state.spaceId === selectedSpaceId() ? state.services : [];
+}
+
+export function useConnectedApps(scopeKey?: string) {
+  return useConnectedServices(scopeKey).map(
+    ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  );
 }
 
 export function useAssistantSuggestions(botId?: string, connectedApps?: string[]) {

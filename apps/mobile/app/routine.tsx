@@ -1,8 +1,9 @@
 import type { Routine } from "@rakazo/contracts";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { glassHeaderOptions } from "../components/glass-title";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";

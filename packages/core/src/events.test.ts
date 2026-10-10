@@ -129,15 +129,57 @@ describe("reduceLiveMessageBlocks", () => {
     ).toEqual([{ kind: "progress", text: "Using browser", activity: true }]);
   });
 
-  it("replaces punctuated activity text with its tool step", () => {
+  it("keeps current activity separate from its tool audit step", () => {
     const activity = reduceLiveMessageBlocks([], {
       type: "progress",
       payload: { text: "Running: echo done.", activity: true },
     });
 
     expect(reduceLiveMessageBlocks(activity, { type: "tool", name: "shell" })).toEqual([
+      { kind: "progress", text: "Running: echo done.", activity: true },
       { kind: "steps", steps: [{ label: "Shell", count: 1 }] },
     ]);
+  });
+
+  it("records tool-only calls without swallowing their audit steps", () => {
+    const activity = reduceLiveMessageBlocks([], {
+      type: "progress",
+      payload: { text: "Checking Gmail", activity: true },
+    });
+    expect(reduceLiveMessageBlocks(activity, { type: "tool", name: "GMAIL_FETCH_EMAILS" })).toEqual(
+      [
+        { kind: "progress", text: "Checking Gmail", activity: true },
+        { kind: "steps", steps: [{ label: "Gmail fetch emails", count: 1 }] },
+      ],
+    );
+  });
+
+  it("preserves narration across activity changes and resumes text without mixing the label", () => {
+    const narration = [{ kind: "progress" as const, text: "I'll check your mail." }];
+    const checking = reduceLiveMessageBlocks(narration, {
+      type: "progress",
+      payload: { text: "Checking Gmail", activity: true },
+    });
+    const drafting = reduceLiveMessageBlocks(checking, {
+      type: "progress",
+      payload: { text: "Preparing drafts", activity: true },
+    });
+    expect(drafting).toEqual([
+      { kind: "progress", text: "Preparing drafts", activity: true },
+      ...narration,
+    ]);
+    expect(
+      reduceLiveMessageBlocks(drafting, {
+        type: "progress",
+        payload: { delta: " Saved two drafts." },
+      }),
+    ).toEqual([{ kind: "progress", text: "I'll check your mail. Saved two drafts." }]);
+    expect(
+      reduceLiveMessageBlocks(drafting, {
+        type: "progress",
+        payload: { text: "", activity: true },
+      }),
+    ).toEqual(narration);
   });
 });
 

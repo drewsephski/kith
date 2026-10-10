@@ -31,7 +31,6 @@ describe("For You catalog localization", () => {
       "Level up Kith",
       "For builders",
       "For you",
-      "Your work",
       "Connected apps",
       "Explore",
       "Previous categories",

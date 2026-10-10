@@ -203,18 +203,19 @@ export function VoiceSettingsOverlay({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
-        <div className="flex min-h-0 shrink-0 flex-col md:w-[280px]">
+      <div className="rk-scroll flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain px-5 py-5 sm:px-8 lg:flex-row lg:overflow-hidden lg:py-6">
+        <div className="flex min-h-0 shrink-0 flex-col lg:w-[260px]">
           <div className="mb-3 text-[13.5px] text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
-          <div className="rk-scroll overflow-y-auto rounded-xl border border-border">
+          <div className="rk-scroll max-h-[200px] overflow-y-auto overscroll-contain rounded-xl border border-border lg:min-h-0 lg:max-h-none">
             {catalog.map((entry) => {
               const connected = credentials.some((cred) => cred.provider === entry.id);
               return (
                 <button
                   key={entry.id}
                   type="button"
+                  aria-pressed={entry.id === provider}
                   disabled={busy}
                   onClick={() => {
                     setProvider(entry.id);
@@ -253,17 +254,25 @@ export function VoiceSettingsOverlay({
           </div>
         </div>
 
-        <div className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div className="rk-scroll min-w-0 shrink-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
           {loading ? (
             <p className="text-sm text-muted-foreground">
               <Trans>Loading voice providers…</Trans>
             </p>
           ) : null}
-          {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
-          {notice ? <p className="mb-4 text-sm text-success">{notice}</p> : null}
+          {error ? (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p role="status" className="mb-4 text-sm text-success">
+              {notice}
+            </p>
+          ) : null}
           {selected ? (
             <>
-              <Field className="mt-5">
+              <Field className="mt-0">
                 <FieldLabel htmlFor={apiKeyId}>
                   <Trans>API key</Trans>
                 </FieldLabel>

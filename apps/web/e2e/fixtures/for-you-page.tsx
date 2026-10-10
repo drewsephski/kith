@@ -25,8 +25,25 @@ if (desktopFixture) {
   });
 }
 function Fixture() {
-  const [openedWork, setOpenedWork] = useState("");
   const personalized = new URLSearchParams(location.search).has("personalized");
+  const fixtureServices = [
+    {
+      key: "gmail",
+      connectionId: "gmail-account",
+      connectorId: "composio",
+      slug: "gmail",
+      name: "Gmail",
+      logo: null,
+    },
+    {
+      key: "github",
+      connectionId: "github-account",
+      connectorId: "composio",
+      slug: "github",
+      name: "GitHub",
+      logo: null,
+    },
+  ];
   const [sent, setSent] = useState<{ botId: string; text: string; clientNonce: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,9 +164,7 @@ function Fixture() {
         ) : (
           <ForYouPage
             scopeKey={personalized ? "fixture-user:fixture-space" : undefined}
-            onOpenRun={
-              personalized ? (run) => setOpenedWork(`${run.threadId}:${run.messageId}`) : undefined
-            }
+            services={personalized ? undefined : fixtureServices}
             onSelect={(suggestion) => void select(suggestion)}
             busy={busy}
             error={error}
@@ -158,9 +173,6 @@ function Fixture() {
             windowChrome={sidebarCollapsed && desktopFixture ? <WindowChrome /> : undefined}
           />
         )}
-        <output data-testid="opened-work" className="sr-only">
-          {openedWork}
-        </output>
         <output data-testid="created-count" className="sr-only">
           {creates}
         </output>

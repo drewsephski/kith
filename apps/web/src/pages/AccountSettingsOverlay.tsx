@@ -107,7 +107,7 @@ export function GeneralSettingsPanels({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="w-full max-w-2xl space-y-5">
       <section className="rounded-xl border border-border px-4 py-4">
         <h3 className="text-[15px] font-medium text-foreground">
           <Trans>Account</Trans>
@@ -116,10 +116,6 @@ export function GeneralSettingsPanels({
         {email ? <p className="mt-1 text-[13px] text-muted-foreground/70">{email}</p> : null}
         <AccountAccess onSecurity={setAccountSecurity} />
       </section>
-
-      {accountSecurity?.hasPassword && accountSecurity.passwordChangeEnabled !== false ? (
-        <ChangePasswordSection email={email} />
-      ) : null}
 
       {messagingEnabled && onOpenMessaging ? (
         <section className="rounded-xl border border-border px-4 py-4">
@@ -183,6 +179,10 @@ export function GeneralSettingsPanels({
           </p>
         ) : null}
       </section>
+
+      {accountSecurity?.hasPassword && accountSecurity.passwordChangeEnabled !== false ? (
+        <ChangePasswordSection email={email} />
+      ) : null}
 
       {isDeploymentOwner ? (
         <Button variant="outline" nativeButton={false} render={<Link to="/integrations/setup" />}>

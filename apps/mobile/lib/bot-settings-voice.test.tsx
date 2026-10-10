@@ -31,6 +31,14 @@ function deferredSave() {
   return { promise, resolve, reject };
 }
 
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("./bot-voices", () => ({
   voiceLabel: (voice: { language: string; name: string }) => `${voice.language} · ${voice.name}`,
   deviceVoices: mocks.deviceVoices,

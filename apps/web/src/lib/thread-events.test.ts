@@ -900,7 +900,7 @@ describe("thread event reduction", () => {
     expect(threadRunError(next)).toBe("member exploded");
   });
 
-  it("clears the run and reports no error when it completes or fails without a message", () => {
+  it("retains terminal run state without inventing an error", () => {
     const finishing = threadRun("run-a");
     const initial: ThreadSnapshot = { ...snapshot([]), run: finishing };
 
@@ -913,9 +913,9 @@ describe("thread event reduction", () => {
       event({ type: "run.failed", seq: 12, runId: finishing.id, payload: { error: "  " } }),
     );
 
-    expect(completed?.run).toBeNull();
+    expect(completed?.run).toMatchObject({ id: finishing.id, status: "completed" });
     expect(threadRunError(completed)).toBeNull();
-    expect(blank?.run).toBeNull();
+    expect(blank?.run).toMatchObject({ id: finishing.id, status: "failed" });
     expect(threadRunError(blank)).toBeNull();
   });
 

@@ -1,8 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { RunActivityRow } from "@rakazo/contracts";
-import type { ForYouCategory, ForYouSuggestion } from "@rakazo/core";
-import { connectedForYouSuggestions, FOR_YOU_SUGGESTIONS } from "@rakazo/core";
-import { Button, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
+import type { ConnectedAppService, ForYouCategory, ForYouSuggestion } from "@rakazo/core";
+import { availableForYouSuggestions } from "@rakazo/core";
+import { Button, ConnectorIcon, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,9 +14,7 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { translateForYouMessage } from "../lib/for-you-messages";
-import { statusLabel, statusTone } from "./ActivityList";
-import { useConnectedApps } from "./shell/assistant-suggestions";
-import { useForYouWork } from "./shell/use-for-you-context";
+import { useConnectedServices } from "./shell/assistant-suggestions";
 
 export function ForYouPage({
   onSelect,
@@ -27,15 +24,11 @@ export function ForYouPage({
   onShowSidebar,
   windowChrome,
   scopeKey,
-  workRevision,
-  onOpenRun,
-  apps: connectedApps,
+  services: connectedServices,
 }: {
   onSelect: (suggestion: ForYouSuggestion) => void;
   scopeKey?: string;
-  workRevision?: string;
-  apps?: string[];
-  onOpenRun?: (run: RunActivityRow) => void;
+  services?: ConnectedAppService[];
   busy?: boolean;
   error?: string | null;
   onOpenNavigation?: () => void;
@@ -61,18 +54,10 @@ export function ForYouPage({
     updateCategoryScroll();
     return () => observer.disconnect();
   }, []);
-  const work = useForYouWork(scopeKey, workRevision);
-  const discoveredApps = useConnectedApps(connectedApps === undefined ? scopeKey : undefined);
-  const apps = connectedApps ?? discoveredApps;
-  const connectedIds = connectedForYouSuggestions(apps);
-  const connected = FOR_YOU_SUGGESTIONS.filter((suggestion) =>
-    connectedIds.includes(suggestion.id),
+  const discoveredServices = useConnectedServices(
+    connectedServices === undefined ? scopeKey : undefined,
   );
-  const starters = connected.length
-    ? connected
-    : scopeKey && work.loaded && !work.runs.length
-      ? FOR_YOU_SUGGESTIONS.filter((suggestion) => suggestion.id === "weekly-plan")
-      : [];
+  const services = connectedServices ?? discoveredServices;
   const [category, setCategory] = useState<ForYouCategory | "all">("all");
   const filters = [
     { id: "all" as const, label: t`All` },
@@ -81,7 +66,7 @@ export function ForYouPage({
     { id: "learn" as const, label: t`Level up Kith` },
     { id: "builders" as const, label: t`For builders` },
   ];
-  const suggestions = FOR_YOU_SUGGESTIONS.filter(
+  const suggestions = availableForYouSuggestions(services.map((service) => service.slug)).filter(
     (suggestion) => category === "all" || category === suggestion.category,
   );
   const groups = [...new Set(suggestions.map((suggestion) => suggestion.group))];
@@ -170,63 +155,31 @@ export function ForYouPage({
                 {error}
               </p>
             ) : null}
-            {onOpenRun && work.runs.length ? (
-              <section aria-label={t`Your work`} className="mb-8" data-testid="for-you-work">
-                <h2 className="mb-3 px-2 text-xs font-medium">
-                  <Trans>Your work</Trans>
-                </h2>
-                {work.runs.map((run) => (
-                  <Button
-                    key={run.runId}
-                    variant="ghost"
-                    onClick={() => onOpenRun(run)}
-                    className="h-auto min-h-14 w-full justify-start gap-3 px-2 py-2 text-start font-normal"
-                  >
-                    <span
-                      aria-hidden
-                      className={`size-2 shrink-0 rounded-full bg-current ${statusTone(run.status)}`}
-                    />
-                    <span className="min-w-0 flex-1 whitespace-normal">
-                      <span className="block text-sm leading-5">
-                        {run.promptSnippet || run.botName}
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                        {run.botName} · {statusLabel(run.status)}
-                      </span>
-                    </span>
-                  </Button>
-                ))}
-              </section>
-            ) : null}
-            {work.failed ? (
-              <p role="status" className="mb-6 px-2 text-sm text-muted-foreground">
-                <Trans>Could not load activity</Trans>
-              </p>
-            ) : null}
-            {starters.length ? (
+            {services.length ? (
               <section
-                aria-label={connected.length ? t`Connected apps` : t`For you`}
+                aria-label={t`Connected apps`}
                 className="mb-8"
-                data-testid={connected.length ? "for-you-connected" : "for-you-starter"}
+                data-testid="for-you-connected"
               >
-                {connected.length ? (
-                  <h2 className="mb-3 px-2 text-xs font-medium">
-                    <Trans>Connected apps</Trans>
-                  </h2>
-                ) : null}
-                {starters.map((suggestion) => (
-                  <Button
-                    key={suggestion.id}
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => onSelect(suggestion)}
-                    className="h-auto min-h-11 w-full justify-start px-2 py-2 text-start font-normal"
-                  >
-                    <span className="whitespace-normal text-sm leading-5">
-                      {translate(suggestion.title)}
-                    </span>
-                  </Button>
-                ))}
+                <h2 className="mb-3 px-2 text-xs font-medium">
+                  <Trans>Connected apps</Trans>
+                </h2>
+                <ul className="flex flex-wrap gap-x-6 gap-y-3 px-2">
+                  {services.map((service) => (
+                    <li
+                      key={service.key}
+                      className="flex min-w-0 max-w-full items-center gap-2 text-sm"
+                    >
+                      <ConnectorIcon
+                        name={service.name}
+                        brand={service.slug}
+                        logo={service.logo}
+                        size={28}
+                      />
+                      <span className="min-w-0 break-words">{service.name}</span>
+                    </li>
+                  ))}
+                </ul>
               </section>
             ) : null}
             <h2 className="mb-5 px-2 text-sm font-medium">

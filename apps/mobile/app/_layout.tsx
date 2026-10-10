@@ -2,6 +2,7 @@ import type { LinkFavicons } from "@rakazo/chat-ui/native";
 import {
   LinkFaviconsContext,
   MarkdownLinkPromptProvider,
+  NativeScrollViewContext,
   RemoteImagesContext,
 } from "@rakazo/chat-ui/native";
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
@@ -18,6 +19,7 @@ import { AvatarStyleProvider } from "../components/avatar-style";
 import { CallCard } from "../components/CallCard";
 import { ComputerUpdateProgress } from "../components/computer-update-progress";
 import { floatingHeaderOptions, glassHeaderOptions } from "../components/glass-title";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeSymbol } from "../components/native-symbol";
 import { VoicePlayerBar } from "../components/voice-player-bar";
 import {
@@ -76,7 +78,11 @@ function ChatContentProviders({
       copy={{ title: t("Open external link?"), cancel: t("Cancel"), open: t("Open") }}
     >
       <RemoteImagesContext.Provider value={loadRemoteImages}>
-        <LinkFaviconsContext.Provider value={linkFavicons}>{children}</LinkFaviconsContext.Provider>
+        <LinkFaviconsContext.Provider value={linkFavicons}>
+          <NativeScrollViewContext.Provider value={ScrollView}>
+            {children}
+          </NativeScrollViewContext.Provider>
+        </LinkFaviconsContext.Provider>
       </RemoteImagesContext.Provider>
     </MarkdownLinkPromptProvider>
   );

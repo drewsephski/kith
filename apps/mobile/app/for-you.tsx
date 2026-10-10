@@ -1,21 +1,20 @@
-import type { Connection, ConnectionCatalogItem, RunActivityRow } from "@rakazo/contracts";
-import type { ForYouSuggestion } from "@rakazo/core";
+import type { Connection, ConnectionCatalogItem } from "@rakazo/contracts";
+import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
+  availableForYouSuggestions,
   connectedAppServices,
-  connectedForYouSuggestions,
-  FOR_YOU_SUGGESTIONS,
   forYouLaunchAttempt,
   forYouLaunchStorageKey,
-  forYouWork,
   startForYouConversation,
 } from "@rakazo/core";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ConnectorIcon } from "../components/connector-icon";
 import { MenuPicker } from "../components/menu-picker";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeSymbol } from "../components/native-symbol";
-import { activityStatusLabel, fetchSpaceActivity } from "../lib/activity";
 import type { MobileMe } from "../lib/api";
 import { currentApiBase, rpc, selectedSpaceId } from "../lib/api";
 import { useI18n } from "../lib/i18n";
@@ -35,9 +34,7 @@ export default function ForYou() {
   const [context, setContext] = useState<{
     spaceId: string | null;
     session: number;
-    runs: RunActivityRow[];
-    suggestions: string[];
-    failed: boolean;
+    services: ConnectedAppService[];
   } | null>(null);
   useFocusEffect(
     useCallback(() => {
@@ -46,10 +43,9 @@ export default function ForYou() {
       const session = currentSessionGeneration();
       setContext(null);
       void Promise.allSettled([
-        fetchSpaceActivity(),
         rpc<Connection[]>("connections/list"),
         rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
-      ]).then(([work, accounts, catalog]) => {
+      ]).then(([accounts, catalog]) => {
         if (!active || selectedSpaceId() !== spaceId || currentSessionGeneration() !== session)
           return;
         const services = connectedAppServices(
@@ -59,12 +55,7 @@ export default function ForYou() {
         setContext({
           spaceId,
           session,
-          runs:
-            work.status === "fulfilled"
-              ? forYouWork([...work.value.active, ...work.value.recent])
-              : [],
-          suggestions: connectedForYouSuggestions(services.map((service) => service.slug)),
-          failed: work.status === "rejected",
+          services,
         });
       });
       return () => {
@@ -76,23 +67,7 @@ export default function ForYou() {
     context?.spaceId === selectedSpaceId() && context.session === currentSessionGeneration()
       ? context
       : null;
-  const connected = FOR_YOU_SUGGESTIONS.filter((suggestion) =>
-    currentContext?.suggestions.includes(suggestion.id),
-  );
-  const starters = connected.length
-    ? connected
-    : currentContext && !currentContext.runs.length
-      ? FOR_YOU_SUGGESTIONS.filter((suggestion) => suggestion.id === "weekly-plan")
-      : [];
-  function openWork(run: RunActivityRow) {
-    const params = {
-      name: run.groupName ?? run.botName,
-      ...(run.messageId ? { messageId: run.messageId } : {}),
-    };
-    if (run.groupId)
-      router.push({ pathname: "/group-thread", params: { ...params, groupId: run.groupId } });
-    else router.push({ pathname: "/thread", params: { ...params, botId: run.botId } });
-  }
+  const services = currentContext?.services ?? [];
   const choices = [
     { key: "all", label: t("All") },
     { key: "tasks", label: t("Tasks") },
@@ -100,7 +75,7 @@ export default function ForYou() {
     { key: "learn", label: t("Level up Kith") },
     { key: "builders", label: t("For builders") },
   ];
-  const suggestions = FOR_YOU_SUGGESTIONS.filter(
+  const suggestions = availableForYouSuggestions(services.map((service) => service.slug)).filter(
     (suggestion) => category === "all" || suggestion.category === category,
   );
   const groups = [...new Set(suggestions.map((suggestion) => suggestion.group))];
@@ -178,51 +153,21 @@ export default function ForYou() {
             {error}
           </Text>
         ) : null}
-        {currentContext?.runs.length ? (
+        {services.length ? (
           <View style={styles.group}>
             <Text accessibilityRole="header" style={styles.heading}>
-              {t("Your work")}
+              {t("Connected apps")}
             </Text>
-            {currentContext.runs.map((run) => (
-              <Pressable
-                key={run.runId}
-                accessibilityRole="button"
-                onPress={() => openWork(run)}
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              >
-                <View style={styles.copy}>
-                  <Text style={styles.title}>{run.promptSnippet || run.botName}</Text>
-                  <Text style={styles.description}>
-                    {run.botName} · {activityStatusLabel(run.status)}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        {currentContext?.failed ? (
-          <Text accessibilityRole="alert" style={styles.description}>
-            {t("Could not load activity")}
-          </Text>
-        ) : null}
-        {starters.length ? (
-          <View style={styles.group}>
-            {connected.length ? (
-              <Text accessibilityRole="header" style={styles.heading}>
-                {t("Connected apps")}
-              </Text>
-            ) : null}
-            {starters.map((suggestion) => (
-              <Pressable
-                key={suggestion.id}
-                accessibilityRole="button"
-                disabled={busy}
-                accessibilityState={{ disabled: busy }}
-                onPress={() => void select(suggestion)}
-                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              >
-                <Text style={styles.title}>{t(suggestion.title)}</Text>
-              </Pressable>
+            {services.map((service) => (
+              <View key={service.key} style={styles.row}>
+                <ConnectorIcon
+                  name={service.name}
+                  brand={service.slug}
+                  logo={service.logo}
+                  size={28}
+                />
+                <Text style={[styles.title, styles.copy]}>{service.name}</Text>
+              </View>
             ))}
           </View>
         ) : null}

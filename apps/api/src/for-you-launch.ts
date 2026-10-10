@@ -3,7 +3,12 @@ import { ORPCError } from "@orpc/server";
 import type { JobPublisher } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
 import type { Actor } from "@rakazo/contracts";
-import { FOR_YOU_SUGGESTIONS, PERSONAL_ASSISTANT_GUIDANCE } from "@rakazo/core";
+import {
+  connectedAppServices,
+  FOR_YOU_SUGGESTIONS,
+  forYouPrompt,
+  PERSONAL_ASSISTANT_GUIDANCE,
+} from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -45,6 +50,24 @@ export async function launchForYou(
       existing.archivedAt)
   )
     throw new ORPCError("CONFLICT", { message: "This launch is no longer available." });
+  const connections =
+    suggestion.services && !existing
+      ? await deps.prisma.connection.findMany({
+          where: { spaceId: actor.spaceId, userId: actor.userId, status: "connected" },
+        })
+      : [];
+  const services = connectedAppServices(
+    connections.map((row) => ({
+      id: row.id,
+      connectorId: row.connectorId,
+      provider: row.provider,
+      displayName: row.displayName,
+      status: "connected" as const,
+      capabilities: [],
+      createdAt: row.createdAt.toISOString(),
+    })),
+    [],
+  );
   const bot = await createRepos(deps.prisma).createBot(actor, {
     name: suggestion.title,
     title: "",
@@ -55,7 +78,7 @@ export async function launchForYou(
     spawnKey,
     rejectArchivedSpawnKey: true,
     initialTask: {
-      prompt: suggestion.prompt,
+      prompt: forYouPrompt(suggestion, services),
       clientNonce: spawnKey,
       launchIdentity: {
         suggestionId: input.suggestionId,

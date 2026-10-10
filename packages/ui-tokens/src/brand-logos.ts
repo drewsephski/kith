@@ -1,5 +1,6 @@
 import { svglArtwork } from "./brand-logos/artwork.js";
 import { svglCatalog } from "./brand-logos/catalog.js";
+import { officialBrandLogos } from "./brand-logos/official.js";
 
 const aliases: Record<string, string> = {
   googlemail: "gmail",
@@ -35,6 +36,7 @@ export function resolveBrandLogo(...names: (string | null | undefined)[]) {
   for (const name of names) {
     const normalized = name?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
     const key = Object.hasOwn(aliases, normalized) ? aliases[normalized]! : normalized;
+    if (key === "composio") return { key, ...officialBrandLogos.composio };
     const routes = Object.hasOwn(svglCatalog, key) ? svglCatalog[key] : undefined;
     if (routes) return { key, routes, artwork: svglArtwork[key] };
   }

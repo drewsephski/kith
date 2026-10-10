@@ -178,8 +178,6 @@ export function SettingsOverlay({
     leaveSettings(onClose);
   }
 
-  const widePane = section === "models" || section === "voice";
-
   return (
     <Dialog
       open
@@ -206,18 +204,14 @@ export function SettingsOverlay({
           );
           return navigation?.getClientRects().length ? navigation : true;
         }}
-        className={`flex max-h-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[calc(100%-5rem)] ${
-          widePane
-            ? "h-[min(760px,calc(100%-2rem))] w-[min(1080px,calc(100%-2rem))] sm:max-w-[1080px]"
-            : "h-[min(720px,calc(100%-2rem))] w-[min(920px,calc(100%-2rem))] sm:max-w-[920px]"
-        }`}
+        className="flex h-[min(760px,calc(100dvh-2rem))] w-[min(1080px,calc(100%-2rem))] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:h-[min(760px,calc(100dvh-5rem))] sm:max-w-[1080px]"
       >
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <SelectionGroup>
             <nav
               data-testid="settings-nav"
               aria-label={t`Settings`}
-              className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-border px-3 py-3 md:w-[200px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e md:px-3 md:py-4"
+              className="rk-scroll grid shrink-0 grid-cols-3 gap-1 border-b border-border p-3 md:flex md:w-[200px] md:flex-col md:overflow-y-auto md:border-b-0 md:border-e md:py-4"
             >
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -230,10 +224,10 @@ export function SettingsOverlay({
                     aria-current={active ? "page" : undefined}
                     disabled={panelBusy}
                     onClick={() => setSection(item.id)}
-                    className="h-10 w-auto gap-2.5 px-2.5 py-2 text-[13.5px] md:w-full"
+                    className="h-10 min-w-0 w-full justify-center gap-2 px-2 py-2 text-[13px] md:justify-start md:gap-2.5 md:px-2.5 md:text-[13.5px]"
                   >
                     <Icon className="size-4 shrink-0" strokeWidth={1.75} />
-                    <span className="whitespace-nowrap">{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </NavigationButton>
                 );
               })}
@@ -241,7 +235,7 @@ export function SettingsOverlay({
           </SelectionGroup>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-7">
+            <div className="flex shrink-0 items-center justify-between gap-4 px-5 pt-5 sm:px-8 sm:pt-7">
               <DialogTitle className="text-2xl font-medium text-foreground">
                 {sectionTitle}
               </DialogTitle>
@@ -255,10 +249,12 @@ export function SettingsOverlay({
             </div>
 
             <div
+              key={section}
+              data-testid="settings-content"
               className={`min-h-0 flex-1 ${
                 section === "models" || section === "voice" || section === "memory"
                   ? "flex flex-col overflow-hidden"
-                  : "rk-scroll overflow-y-auto overscroll-contain px-6 pb-6 pt-5 sm:px-8 sm:pb-8"
+                  : "rk-scroll overflow-y-auto overscroll-contain px-5 pb-5 pt-5 sm:px-8 sm:pb-8"
               }`}
             >
               {section === "general" ? (

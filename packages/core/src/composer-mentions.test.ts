@@ -14,6 +14,26 @@ import {
 } from "./composer-mentions.js";
 
 describe("buildComposerMentionOptions", () => {
+  it("preserves service identity and artwork for renamed account chips", () => {
+    const [option] = buildComposerMentionOptions({
+      query: "",
+      bots: [],
+      groups: [],
+      routines: [],
+      connectors: [
+        {
+          id: "account",
+          name: "Work inbox",
+          brand: "gmail",
+          logo: "https://example.test/gmail.svg",
+          authStatus: "connected",
+          connectionId: "account",
+        },
+      ],
+    });
+    expect(option).toMatchObject({ brand: "gmail", logo: "https://example.test/gmail.svg" });
+    expect(toThreadMentionPayload([option!])).toEqual([{ kind: "connector", id: "account" }]);
+  });
   it("lists bots groups routines connectors and everyone", () => {
     const options = buildComposerMentionOptions({
       query: "",

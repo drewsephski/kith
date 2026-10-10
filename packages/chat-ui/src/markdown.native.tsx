@@ -10,11 +10,12 @@ import Markdown, {
   FitImage,
   MarkdownStream,
 } from "@ronradtke/react-native-markdown-display";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { createContext, memo, useCallback, useContext, useMemo, useState } from "react";
 import type {
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ScrollViewProps,
   StyleProp,
   TextStyle,
   ViewStyle,
@@ -56,6 +57,8 @@ function keepMarkdownLinkToken(_url: string) {
 }
 
 const BLOCK_GAP = 10;
+/** Native hosts supply their scroll chrome without changing shared markdown rendering. */
+export const NativeScrollViewContext = createContext<ComponentType<ScrollViewProps>>(ScrollView);
 const BODY_FONT_SIZE = 15.5;
 const LINK_TILE_SIZE = 18;
 // Keeps the site icon on the line of the label's first word.
@@ -596,6 +599,7 @@ function TableScrollView({
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const TableScroll = useContext(NativeScrollViewContext);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [scrollX, setScrollX] = useState(0);
   const widths = useMemo(() => fittedColumnWidths(table, viewportWidth), [table, viewportWidth]);
@@ -621,7 +625,7 @@ function TableScrollView({
       }}
     >
       <TableLayoutContext.Provider value={tableLayout}>
-        <ScrollView
+        <TableScroll
           horizontal
           nestedScrollEnabled
           directionalLockEnabled
@@ -636,7 +640,7 @@ function TableScrollView({
           <View style={{ width: contentWidth, minWidth: contentWidth, flexShrink: 0 }}>
             {children}
           </View>
-        </ScrollView>
+        </TableScroll>
       </TableLayoutContext.Provider>
     </View>
   );

@@ -40,7 +40,11 @@ export {
   forYouLaunchStorageKey,
   startForYouConversation,
 } from "./for-you.js";
-export { connectedForYouSuggestions, forYouWork } from "./for-you-work.js";
+export {
+  availableForYouSuggestions,
+  connectedForYouSuggestions,
+  forYouPrompt,
+} from "./for-you-work.js";
 export * from "./format-file-size.js";
 export * from "./group-mentions.js";
 export * from "./http-response.js";
