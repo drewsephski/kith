@@ -1,6 +1,11 @@
 import type { MessageBlock, ThreadMessage, ThreadMessagePage } from "@rakazo/contracts";
 import { MessageBlock as MessageBlockSchema } from "@rakazo/contracts";
-import { callIdFromClientNonce, isPeerReceiptBlocks } from "@rakazo/core";
+import {
+  callIdFromClientNonce,
+  emailActionIdentity,
+  emailActionOutcome,
+  isPeerReceiptBlocks,
+} from "@rakazo/core";
 import { messageReplyPreview } from "@rakazo/core/message-quote";
 import type { Prisma, PrismaClient } from "@rakazo/db";
 
@@ -53,7 +58,7 @@ export async function loadMessagePage(
       const messages = includePeerRuns ? rows : await withoutPeerRunMessages(prisma, rows);
       return {
         threadId,
-        messages: messages.map(toThreadMessage),
+        messages: await withEmailActions(prisma, threadId, messages.map(toThreadMessage)),
         olderCursor: hasOlder ? (first?.seq ?? null) : null,
         coveredThroughSeq,
       };
@@ -82,7 +87,7 @@ export async function loadMessagePage(
     if (hasSubstantive || includePeerReceipts || !hasOlder || includePeerRuns) {
       return {
         threadId,
-        messages: visibleRows.map(toThreadMessage),
+        messages: await withEmailActions(prisma, threadId, visibleRows.map(toThreadMessage)),
         olderCursor: hasOlder ? (pageRows[0]?.seq ?? null) : null,
       };
     }
@@ -90,6 +95,107 @@ export async function loadMessagePage(
     // long peer-only histories make this path hot.
     cursor = pageRows[0]?.seq;
   }
+}
+
+/** Batched projection scoped to the already-authorized thread, including legacy edited receipts. */
+async function withEmailActions(
+  prisma: MessageDb,
+  threadId: string,
+  messages: ThreadMessage[],
+): Promise<ThreadMessage[]> {
+  const cards = messages.filter(
+    (message) => message.role === "bot" && message.blocks.some((block) => block.kind === "email"),
+  );
+  if (!cards.length) return messages;
+  const requests = await prisma.message.findMany({
+    where: {
+      threadId,
+      role: "user",
+      replyToMessageId: { in: cards.map((message) => message.id) },
+      clientNonce: { startsWith: "email-send:" },
+    },
+    orderBy: { seq: "asc" },
+    select: {
+      clientNonce: true,
+      blocks: true,
+      sourceRuns: {
+        select: {
+          id: true,
+          status: true,
+          effects: {
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: { id: true, kind: true, status: true, result: true, request: true },
+          },
+        },
+      },
+    },
+  });
+  const reviewRunIds = requests.flatMap((request) =>
+    request.sourceRuns.filter((run) => run.effects.length > 0).map((run) => run.id),
+  );
+  const reviewRows = reviewRunIds.length
+    ? await prisma.message.findMany({
+        where: {
+          threadId,
+          role: "bot",
+          runId: { in: reviewRunIds },
+          blocks: { array_contains: [{ kind: "ask", approvalAction: "email_send" }] },
+        },
+        orderBy: { seq: "desc" },
+        select: { blocks: true },
+      })
+    : [];
+  // A changed provider draft may have received a later final approval than the
+  // selected card. Show that actual approved content beside the send outcome.
+  const reviewedEmails = new Map<string, Extract<MessageBlock, { kind: "ask" }>>();
+  for (const row of reviewRows) {
+    const parsed = MessageBlockSchema.array().safeParse(row.blocks);
+    if (!parsed.success) continue;
+    for (const block of parsed.data) {
+      if (
+        block.kind === "ask" &&
+        block.approvalAction === "email_send" &&
+        block.approvalEffectId &&
+        !reviewedEmails.has(block.approvalEffectId)
+      )
+        reviewedEmails.set(block.approvalEffectId, block);
+    }
+  }
+  const byMessage = new Map<string, NonNullable<ThreadMessage["emailActions"]>>();
+  for (const request of requests) {
+    const identity = emailActionIdentity(request.clientNonce);
+    if (!identity) continue;
+    const states = byMessage.get(identity.messageId) ?? [];
+    if (states.some((state) => state.blockIndex === identity.blockIndex)) continue;
+    const run = request.sourceRuns[0];
+    if (!run) continue;
+    const parsed = MessageBlockSchema.array().safeParse(request.blocks);
+    const email = parsed.success ? parsed.data.find((block) => block.kind === "email") : undefined;
+    const outcome = emailActionOutcome(run, run.effects);
+    const review = outcome.effectId ? reviewedEmails.get(outcome.effectId) : undefined;
+    const approvedEmail =
+      review?.status === "answered" && review.answer === "allow" ? review.email : undefined;
+    const source = cards.find((message) => message.id === identity.messageId)?.blocks[
+      identity.blockIndex
+    ];
+    states.push({
+      blockIndex: identity.blockIndex,
+      runId: run.id,
+      status:
+        source?.kind === "email" && source.mode === "received" && run.status === "completed"
+          ? "completed"
+          : outcome.status,
+      ...(approvedEmail
+        ? { email: approvedEmail }
+        : email?.kind === "email"
+          ? { email: email.email }
+          : {}),
+    });
+    byMessage.set(identity.messageId, states);
+  }
+  return messages.map((message) =>
+    byMessage.has(message.id) ? { ...message, emailActions: byMessage.get(message.id) } : message,
+  );
 }
 
 export async function loadAllMessages(

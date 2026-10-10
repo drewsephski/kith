@@ -6,6 +6,7 @@ export function emailCardFromTool(args: Record<string, unknown>, secrets: string
   const card = EmailCardSchema.parse({
     kind: "email",
     mode: args.mode,
+    provenance: "unverified",
     email: args,
     messageId: args.messageId,
     draftId: args.draftId,

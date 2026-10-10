@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { setupI18n } from "@lingui/core";
 import { FOR_YOU_SUGGESTIONS } from "@rakazo/core";
 import type { ReactNode } from "react";
 import { act } from "react";
@@ -9,7 +10,7 @@ import { expect, it, vi } from "vitest";
 vi.mock("@lingui/react/macro", () => ({
   useLingui: () => ({
     t: (parts: TemplateStringsArray) => parts.join(""),
-    i18n: { _: (message: string) => message },
+    i18n: setupI18n({ locale: "en", messages: { en: {} } }),
   }),
   Trans: ({ children }: { children: ReactNode }) => children,
 }));
@@ -24,6 +25,13 @@ it("filters grouped prompts and launches the complete selected suggestion", () =
       addEventListener: () => {},
       removeEventListener: () => {},
     }) as unknown as MediaQueryList;
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -52,5 +60,6 @@ it("filters grouped prompts and launches the complete selected suggestion", () =
   } finally {
     act(() => root.unmount());
     container.remove();
+    vi.unstubAllGlobals();
   }
 });

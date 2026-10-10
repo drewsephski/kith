@@ -188,7 +188,12 @@ export interface ConnectorProvider {
     call: ConnectorCall,
     context: AdapterContext,
     options?: { includeContent?: boolean },
-  ): Promise<{ emailSend: boolean; email?: EmailContent; draftId?: string }>;
+  ): Promise<{
+    emailSend: boolean;
+    email?: EmailContent;
+    draftId?: string;
+    emailRevision?: string;
+  }>;
   execute(call: ConnectorCall, context: AdapterContext): AsyncIterable<ConnectorEvent>;
 }
 

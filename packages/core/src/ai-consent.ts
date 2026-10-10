@@ -24,6 +24,7 @@ export function aiDataUsesForProcedure(procedure: string, input?: unknown): AiDa
   if (
     [
       "threads/send",
+      "bots/launchForYou",
       "artifacts/create",
       "threads/followUp",
       "threads/react",
@@ -83,7 +84,12 @@ export function aiConsentTarget(input: unknown): {
   routineId?: string;
 } {
   if (!input || typeof input !== "object") return {};
-  const target = input as { botId?: unknown; groupId?: unknown; routineId?: unknown };
+  const target = input as {
+    botId?: unknown;
+    groupId?: unknown;
+    routineId?: unknown;
+    assistantId?: unknown;
+  };
   const routineId = typeof target.routineId === "string" ? target.routineId : undefined;
   if (typeof target.groupId === "string") {
     return routineId ? { groupId: target.groupId, routineId } : { groupId: target.groupId };
@@ -91,5 +97,6 @@ export function aiConsentTarget(input: unknown): {
   if (typeof target.botId === "string") {
     return routineId ? { botId: target.botId, routineId } : { botId: target.botId };
   }
+  if (typeof target.assistantId === "string") return { botId: target.assistantId };
   return routineId ? { routineId } : {};
 }

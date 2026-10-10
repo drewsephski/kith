@@ -446,7 +446,17 @@ describe("secrets model-visibility conformance", () => {
         body: `use ${OAUTH_ACCESS} and ${BOT_SECRET}`,
         client_secret: OAUTH_CLIENT_SECRET,
       };
-      const ask = buildApprovalAskBlock("effect-1", "gmail_send_email", args, secrets);
+      const ask = buildApprovalAskBlock("effect-1", "gmail_send_email", args, secrets, {
+        email: {
+          account: "mail@example.test",
+          to: ["person@example.test"],
+          cc: [],
+          bcc: [],
+          subject: "Review",
+          body: args.body,
+          attachments: [],
+        },
+      });
       assertNoLeak(ask, secrets);
 
       const reviewArgs = redactToolArgsForReview(args, secrets);

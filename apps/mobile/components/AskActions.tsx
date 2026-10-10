@@ -19,6 +19,7 @@ export function AskActions({
   actions,
   disabled,
   emailReview = false,
+  emailPreviewAvailable = true,
   onAnswer,
   accessibilityActions,
   onAccessibilityAction,
@@ -26,6 +27,7 @@ export function AskActions({
   actions: AskAction[];
   disabled?: boolean;
   emailReview?: boolean;
+  emailPreviewAvailable?: boolean;
   onAnswer: (answer: string) => Promise<void>;
   accessibilityActions?: ViewProps["accessibilityActions"];
   onAccessibilityAction?: ViewProps["onAccessibilityAction"];
@@ -37,6 +39,7 @@ export function AskActions({
 
   async function submit(answer: string) {
     if (disabled || submitting) return;
+    if (emailReview && !emailPreviewAvailable && answer === "allow") return;
     setPendingAction(answer);
     try {
       await onAnswer(answer);
@@ -64,7 +67,7 @@ export function AskActions({
               label={action.id === "allow" ? t("Send") : t("Cancel")}
               prominence={action.id === "allow" ? "primary" : "secondary"}
               busy={pendingAction === action.id}
-              disabled={disabled || submitting}
+              disabled={disabled || submitting || (action.id === "allow" && !emailPreviewAvailable)}
               size="compact"
               fill={false}
               onPress={() => void submit(action.id)}

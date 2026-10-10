@@ -135,13 +135,13 @@ describe.skipIf(!enabled)("persisted source-verified history followups", () => {
               }),
           },
         );
-        model.assertComplete();
-        expect(result).toMatchObject({
+        expect(result, result.reason ?? undefined).toMatchObject({
           status: "passed",
           toolCalls: 2,
           modelCalls: 5,
           cleanupFailed: false,
         });
+        model.assertComplete();
         expect(result.historyPreparationState).toMatchObject({
           generation: 0,
           beforeCursor: size === 1000 ? 949 : null,

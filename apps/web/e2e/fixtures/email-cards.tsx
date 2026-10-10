@@ -56,13 +56,27 @@ function Fixture() {
       <p className="text-sm">I drafted a response for you to review.</p>
       <EmailCard
         block={block}
-        message={message}
+        message={
+          requested
+            ? {
+                ...message,
+                emailActions: [
+                  {
+                    blockIndex: 0,
+                    runId: "run-fixture",
+                    status: "queued",
+                    email: { ...block.email, ...latestAction.edits },
+                  },
+                ],
+              }
+            : message
+        }
         blockIndex={0}
         onUpdated={async () => setRequested(true)}
       />
       {requested ? (
         <p role="status" className="text-xs text-muted-foreground">
-          Email sent
+          Request queued
         </p>
       ) : null}
       <output data-testid="email-send-payload" className="hidden">

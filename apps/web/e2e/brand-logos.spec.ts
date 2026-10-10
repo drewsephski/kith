@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 // These fixtures deliberately omit provider artwork; the app supplies local SVGL assets.
 const apps = [
@@ -32,8 +32,8 @@ test("connections use offline SVGL artwork in both themes and at narrow widths",
   );
   await signup(page, `brand-logos-${Date.now()}@rakazo.test`, "password12", "Logo Test");
   await completeOnboarding(page);
-  await page.getByRole("button", { name: "Connections", exact: true }).first().click();
-  await page.getByRole("button", { name: "More connections", exact: true }).click();
+  await openAdvancedNavigation(page);
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   const featured = page.getByTestId("featured-connectors");
   await expect(featured).toBeVisible();
   for (const [slug] of apps.slice(0, 5)) {

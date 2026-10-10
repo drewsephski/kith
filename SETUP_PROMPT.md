@@ -1,10 +1,11 @@
-# Set up Rakazo with a coding agent
+# Set up Kith with a coding agent
 
 Copy one of the prompts below into a coding agent.
 
-## Published images (no checkout)
+## Upstream Rakazo images (no checkout)
 
-Prefer this when the user wants a running web UI with Docker only (no Node/pnpm clone).
+This runs upstream Rakazo, without Kith fork changes. For Kith, use the source prompt below.
+Do not describe upstream images as Kith releases.
 
 ```text
 Set up Rakazo from published GHCR images and leave the web UI running.
@@ -23,7 +24,7 @@ Before making changes, ask me these concise questions:
 1. Which directory should contain the Rakazo folder (or use the current directory)?
 2. How should models be connected?
    - Add a deployment-wide `OPENROUTER_API_KEY` to `.env`.
-   - Connect during Rakazo onboarding with a provider API key or with ChatGPT Plus/Pro, GitHub Copilot, or SuperGrok / X Premium.
+   - Connect during assistant setup with a provider API key or with ChatGPT Plus/Pro, GitHub Copilot, or SuperGrok / X Premium.
    - Defer model setup and verify infrastructure only. Make clear that bots cannot answer until a model is connected.
 3. Do I want remote computers instead of local Docker? If yes, choose E2B (`E2B_API_KEY`), Daytona (`DAYTONA_API_KEY`), or Box (`BOX_API_KEY`) and set `SANDBOX_PROVIDER` accordingly. If no, keep the default `SANDBOX_PROVIDER=docker` (local computers via the in-stack supervisor).
 
@@ -66,11 +67,14 @@ When finished, report the directory path, effective Docker/Compose versions, con
 ## Local source checkout (pnpm)
 
 Use this for development, Docker sandboxes on the host, or Electron.
+For a Docker-free installation, follow [host deployment](./docs/host-deployment.md):
+run PostgreSQL, choose `SANDBOX_PROVIDER=none` or a remote provider, and use `pnpm dev:host`.
+Do not run the Docker sandbox build or supervisor in that mode.
 
 ```text
-Set up Rakazo locally and leave it running in a usable state.
+Set up Kith locally and leave it running in a usable state.
 
-Repository: https://github.com/elie222/rakazo.git
+Repository: https://github.com/drewsephski/kith.git
 
 Work like a careful onboarding engineer: perform the setup yourself, explain only decisions or blockers, and verify the product through the UI rather than stopping after dependency installation.
 
@@ -84,10 +88,10 @@ Safety rules:
 
 Before making changes, ask me these concise questions:
 
-1. Should you clone into the current directory, or what parent directory should contain `rakazo`? If you are already inside a Rakazo checkout, offer to use it without recloning.
+1. Should you clone into the current directory, or what parent directory should contain `kith`? If you are already inside a Kith checkout, offer to use it without recloning.
 2. How should models be connected?
    - Add a deployment-wide `OPENROUTER_API_KEY` to `.env`.
-   - Connect during Rakazo onboarding with a provider API key or with ChatGPT Plus/Pro, GitHub Copilot, or SuperGrok / X Premium.
+   - Connect during assistant setup with a provider API key or with ChatGPT Plus/Pro, GitHub Copilot, or SuperGrok / X Premium.
    - Defer model setup and verify infrastructure only. Make clear that bots cannot answer until a model is connected.
 3. Do I want a managed app catalog? If yes, choose Composio (`COMPOSIO_API_KEY`) or Pipedream Connect (`PIPEDREAM_CLIENT_ID`, `PIPEDREAM_CLIENT_SECRET`, and `PIPEDREAM_PROJECT_ID`); otherwise leave them empty. Explain that this is optional and that users can still add Treg, HTTPS MCP, or OpenAPI sources in the app.
 4. Set up the web app only (recommended), or also launch the Electron desktop shell after the web stack works?
@@ -132,7 +136,7 @@ Verification:
 
 - Request `http://127.0.0.1:3100/internal/health`. Require `ok: true`, `runtime: "pi"`, `sandbox: "docker"`, `jobs: "graphile"`, and `realtime: "postgres"`. Expect `composio: true` only when its key was configured and `pipedream: true` only when all Pipedream settings were configured. `revision` is `null` unless `GIT_SHA` is set.
 - Open `http://127.0.0.1:5173` in a browser. If browser automation is available, use it for non-sensitive steps; otherwise give me the exact UI steps.
-- Create a local test account with clearly fake data, complete first-run onboarding, and create a test bot. Do not use personal data.
+- Create a local test account with clearly fake data, complete first-run assistant setup, and resume that assistant. Do not use personal data.
 - If a model is connected, send a harmless test message and confirm the bot replies. If model setup was deferred, explicitly report that the stack is healthy but a first message will fail until a provider is configured; do not call the setup fully usable without that caveat.
 - Open the Agent computer pane and confirm the Docker computer reaches `running` and renders its desktop.
 - Open Integrations. If neither managed catalog was configured, confirm the view still offers Treg, HTTPS MCP, and OpenAPI sources. If one was configured, verify its app catalog loads without exposing any key or client secret.
@@ -147,5 +151,5 @@ When finished, report:
 - App URL, health result, UI/message/computer verification, and test/type-check results.
 - Every workaround or remaining limitation.
 - How to restart the stack.
-- How to stop it without deleting data. Do not use `pnpm compose:down` for a normal stop because that script includes `-v` and removes Compose volumes; use a non-destructive stop/down command without `-v` and explain it.
+- How to stop it without deleting data. `pnpm compose:down` preserves volumes; never use `pnpm compose:reset` for a normal stop because it deletes them. Explain the chosen non-destructive stop command.
 ```

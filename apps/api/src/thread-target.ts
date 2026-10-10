@@ -16,6 +16,7 @@ import { GROUP_MEMBER_MIN, MessageBlock as MessageBlockSchema } from "@rakazo/co
 import {
   ACTIVE_RUN_STATUSES,
   callIdFromClientNonce,
+  emailActionIdentity,
   emailActionNonce,
   emailActionPrompt,
   isActive,
@@ -153,8 +154,25 @@ async function enqueueRunsNeedingContinue(
 }
 
 async function findSendReceipt(prisma: PrismaClient, threadId: string, clientNonce: string) {
-  return prisma.message.findUnique({
+  const exact = await prisma.message.findUnique({
     where: { threadId_clientNonce: { threadId, clientNonce } },
+    include: { sourceRuns: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+  });
+  if (exact) return exact;
+  const identity = emailActionIdentity(clientNonce);
+  if (!identity) return null;
+  // Compatibility with accepted edited requests from before revisions were
+  // collapsed. Never replay another thread's card or another block's action.
+  return prisma.message.findFirst({
+    where: {
+      threadId,
+      replyToMessageId: identity.messageId,
+      role: "user",
+      clientNonce: {
+        startsWith: `${emailActionNonce(identity.messageId, identity.blockIndex).slice(0, -1)},`,
+      },
+    },
+    orderBy: { seq: "asc" },
     include: { sourceRuns: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
   });
 }
@@ -624,17 +642,10 @@ export async function sendThreadMessage(
   },
 ) {
   if (input.emailAction) {
-    const revision = input.emailAction.edits
-      ? createHash("sha256").update(JSON.stringify(input.emailAction.edits)).digest("hex")
-      : undefined;
     input = {
       emailAction: input.emailAction,
       replyToMessageId: input.emailAction.messageId,
-      clientNonce: emailActionNonce(
-        input.emailAction.messageId,
-        input.emailAction.blockIndex,
-        revision,
-      ),
+      clientNonce: emailActionNonce(input.emailAction.messageId, input.emailAction.blockIndex),
     };
   }
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
@@ -1308,5 +1319,3 @@ export async function setThreadUnreadState(
   });
   if (result.count > 1) throw new IsolationError();
 }
-
-import { createHash } from "node:crypto";

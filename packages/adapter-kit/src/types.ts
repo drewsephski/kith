@@ -18,6 +18,8 @@ export interface AdapterContext {
   signal: AbortSignal;
   /** Connected external accounts available to this run, including their owning connector. */
   connectedConnections?: ConnectedConnector[];
+  /** Server-owned local authority recheck immediately before using a selected account. */
+  assertConnectionActive?: (connection: ConnectedConnector) => Promise<void>;
   /** @deprecated Prefer connectedConnections so providers with the same app slug cannot collide. */
   connectedProviders?: string[];
 }
@@ -255,7 +257,7 @@ export interface ConnectorCall {
 export type ConnectorEvent =
   | { type: "log"; message: string }
   | { type: "result"; data: unknown }
-  | { type: "error"; message: string; logIds?: string[] };
+  | { type: "error"; message: string; logIds?: string[]; uncertain?: boolean };
 
 export interface ConnectorCapabilities {
   discover: boolean;

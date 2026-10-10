@@ -50,7 +50,8 @@ function fixture(
     steeringMessage: { create: vi.fn() },
   };
   const prisma = {
-    message: { findUnique: vi.fn(async () => null) },
+    message: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null) },
+    event: { findFirst: vi.fn(async () => ({ seq: 1, payload: {} })) },
     $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
   } as unknown as PrismaClient;
   const deps = {
@@ -121,7 +122,7 @@ describe("server-owned email actions", () => {
   });
 });
 
-it("persists the exact email approved by Send and derives a stable revision identity", async () => {
+it("persists the exact edited email with the same card identity as a post-reload original request", async () => {
   const edits = { subject: "Revised", body: "My response" };
   const send = fixture();
   await send.send({ emailAction: { messageId: "parent", blockIndex: 0, edits } });
@@ -130,7 +131,7 @@ it("persists the exact email approved by Send and derives a stable revision iden
     { kind: "text", text: "Send this email draft with my edits." },
     { ...card, email: { ...card.email, ...edits } },
   ]);
-  expect(data.clientNonce).not.toBe('email-send:["parent",0]');
+  expect(data.clientNonce).toBe('email-send:["parent",0]');
   const replay = fixture();
   await replay.send({ emailAction: { messageId: "parent", blockIndex: 0, edits } });
   expect(replay.tx.message.create.mock.calls[0]![0].data.clientNonce).toBe(data.clientNonce);
@@ -155,4 +156,44 @@ it("rejects edits to received emails", async () => {
     }),
   ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect(f.tx.task.create).not.toHaveBeenCalled();
+});
+
+it("replays an accepted edited request when the original card is clicked after reload", async () => {
+  const f = fixture();
+  const acceptedRun = { id: "run-edited", taskId: "task-edited", status: "completed" };
+  vi.mocked(f.prisma.message.findUnique).mockResolvedValue({
+    id: "edited-request",
+    seq: 2,
+    runId: acceptedRun.id,
+    sourceRuns: [acceptedRun],
+  } as never);
+  await expect(
+    f.send({ emailAction: { messageId: "parent", blockIndex: 0 } }),
+  ).resolves.toMatchObject({ runId: "run-edited" });
+  expect(f.tx.message.create).not.toHaveBeenCalled();
+  expect(f.tx.run.create).not.toHaveBeenCalled();
+});
+
+it("safely replays legacy revision nonces and scopes lookup to the source thread and block", async () => {
+  const f = fixture();
+  vi.mocked(f.prisma.message.findFirst).mockResolvedValue({
+    id: "legacy-request",
+    seq: 2,
+    runId: "legacy-run",
+    sourceRuns: [{ id: "legacy-run", taskId: "legacy-task", status: "completed" }],
+  } as never);
+  await expect(
+    f.send({ emailAction: { messageId: "parent", blockIndex: 0 } }),
+  ).resolves.toMatchObject({ runId: "legacy-run" });
+  expect(f.prisma.message.findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        threadId: "thread-1",
+        replyToMessageId: "parent",
+        role: "user",
+        clientNonce: { startsWith: 'email-send:["parent",0,' },
+      },
+    }),
+  );
+  expect(f.tx.run.create).not.toHaveBeenCalled();
 });

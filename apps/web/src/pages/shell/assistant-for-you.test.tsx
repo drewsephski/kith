@@ -8,7 +8,10 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const { list, catalog } = vi.hoisted(() => ({ list: vi.fn(), catalog: vi.fn() }));
-vi.mock("../../lib/rpc", () => ({ rpc: { connections: { list, catalog } } }));
+vi.mock("../../lib/rpc", () => ({
+  rpc: { connections: { list, catalog } },
+  selectedSpaceId: () => "space-1",
+}));
 vi.mock("@lingui/react/macro", () => {
   const t = (parts: TemplateStringsArray, ...values: unknown[]) =>
     parts.reduce((text, part, index) => `${text}${index > 0 ? values[index - 1] : ""}${part}`, "");
@@ -95,4 +98,13 @@ it("requires both services for a cross-service task", async () => {
   list.mockResolvedValue([connection("googleanalytics4"), connection("googlesheets")]);
   await act(async () => window.dispatchEvent(new Event("focus")));
   expect(container.textContent).toContain("Create a weekly report");
+});
+
+it("reuses confirmed Shell connection discovery without fetching it again", async () => {
+  await act(async () =>
+    root.render(<AssistantForYou botId="bot-1" apps={["github"]} onSuggest={onSuggest} />),
+  );
+  expect(container.textContent).toContain("Triage pull requests");
+  expect(list).not.toHaveBeenCalled();
+  expect(catalog).not.toHaveBeenCalled();
 });

@@ -30,7 +30,7 @@ components:
 
 This scoped record extends [the web design system](../../../apps/web/DESIGN.md). Its palette, font family, radius scale, spacing scale, and shared control states remain authoritative. For you applies those decisions to a grouped list of starter prompts with a narrow reading column and compact category navigation.
 
-Suggestions are catalog entries, not inferred activity or evidence of connected accounts. The interface keeps the title, a short secondary line, and the action together; selecting a row starts the work in a dedicated assistant conversation.
+Persisted work appears first when available: approvals and answers, failures, active tasks, then recent results. Rows open their recorded conversation and message destination. Confirmed connected services supply a few catalog suggestions; the complete catalog remains under Explore. Suggestions do not claim that particular inbox messages, meetings, or pull requests exist. The interface keeps the title, a short secondary line, and the action together; selecting a catalog row starts the work in a dedicated assistant conversation.
 
 **Key Characteristics:**
 
@@ -55,7 +55,7 @@ Inherit the parent ordinary-text font stack. The page title uses medium body-siz
 
 ## Layout
 
-The full-height surface keeps its header fixed in the flex layout (64px) and scrolls the prompt region independently. The centered list has a maximum width (672px). Below the medium breakpoint (768px), categories scroll horizontally above the list; from that breakpoint, they form a left column (176px). Main horizontal padding grows from 16px to 32px. Category labels do not shrink; prompt titles and descriptions wrap.
+The full-height surface keeps its header fixed in the flex layout (64px) and scrolls the prompt region independently. The centered list has a maximum width (672px). Below the medium breakpoint (768px), categories scroll horizontally above the list with 44px touch targets and contextual previous/next chevrons when more content exists; from that breakpoint, they form a left column (176px). Main horizontal padding grows from 16px to 32px. Category labels do not shrink; prompt titles and descriptions wrap.
 
 Groups use generous separation (40px) with smaller heading-to-list spacing (12px) and compact row gaps (4px). Prompt rows have a minimum height (56px), an icon-to-text gap (12px), and the frontmatter padding. The scroll region retains bottom breathing room (48px). The medium breakpoint describes responsive web layout, not native mobile navigation.
 
@@ -73,11 +73,11 @@ Rows inherit the shared base control radius through `var(--radius)`. Selection i
 
 Full-width shared ghost buttons hold a decorative outline SVG icon, title, and secondary description. The shared button SVG rule resolves the icons to 16px. Text remains left-aligned and wraps naturally. The accessible name is the translated title; decorative icons are hidden from assistive technology. Busy state disables prompt selection and exposes `aria-busy` on the list container.
 
-The shared typed catalog owns title, description, group, category, and prompt. Selection creates an empty child of the personal assistant, sends the catalog prompt immediately, and opens the resulting conversation on success. A failed send retains the created bot and client nonce for retry; it does not seed the composer. Error feedback appears as a contextual alert above the groups.
+The shared typed catalog owns title, description, group, category, and prompt. Selection uses one server-owned launch operation to commit a child of the personal assistant and its first queued task together, then opens the resulting conversation. Web and native clients persist only the pending operation identity before requesting the launch. A lost response or restart safely recovers the same conversation and first task; confirmed completion clears the identity so selecting the suggestion again intentionally creates new work. It does not seed the composer. Error feedback appears as a contextual alert above the groups.
 
 ### Category navigation
 
-Shared NavigationButton rows sit within one SelectionGroup. Pressed state is exposed through `aria-pressed`; the surface explicitly suppresses `aria-current` because these controls filter the list. Selected rows gain the shared tonal indicator and medium text. The indicator slides using the existing scoped motion; reduced motion renders it immediately.
+Shared NavigationButton rows sit within one SelectionGroup. Pressed state is exposed through `aria-pressed`; the surface explicitly suppresses `aria-current` because these controls filter the list. Selected rows gain the shared tonal indicator and medium text and scroll into view. One scoped resize observer tracks overflow; category chevrons reuse shared ghost buttons. The indicator slides using the existing scoped motion; reduced motion renders it immediately.
 
 ### Shell controls and motion
 
@@ -101,3 +101,7 @@ Surrounding sidebar connections, brain, and settings controls, and the shell max
 - **Don't** replace semantic colors with fixed light-theme or dark-theme colors.
 
 Not canonized: fixed fallback window-control colors are platform chrome, not product palette tokens; inherited legacy craft exceptions remain excluded by the parent record.
+
+## Persisted context
+
+Web and native For you rank the same persisted run contracts through the shared core helper. Active and recent runs include routine results and retain authoritative message destinations. Space and account changes discard stale responses. Entry and return-to-app refreshes replace timer polling; concurrent focus and visibility events reuse the pending request. Web Shell connection discovery is shared by composer mentions, the dedicated page, and the inline suggestion strip. Native uses the existing space-scoped connection endpoints. Future routine predictions and inferred profiling are not part of this surface.

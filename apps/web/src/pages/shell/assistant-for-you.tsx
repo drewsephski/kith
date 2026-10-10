@@ -5,12 +5,14 @@ import { useAssistantSuggestions } from "./assistant-suggestions";
 export function AssistantForYou({
   botId,
   onSuggest,
+  apps,
 }: {
   botId?: string;
+  apps?: string[];
   onSuggest: (text: string) => void;
 }) {
   const { t } = useLingui();
-  const suggestions = useAssistantSuggestions(botId).slice(0, 3);
+  const suggestions = useAssistantSuggestions(botId, apps).slice(0, 3);
   if (!suggestions.length) return null;
   return (
     <section
@@ -22,16 +24,16 @@ export function AssistantForYou({
         <h2 className="shrink-0 px-1 text-xs font-medium text-muted-foreground sm:px-0">
           <Trans>For you</Trans>
         </h2>
-        <div className="grid min-w-0 grid-flow-col auto-cols-fr gap-1 p-1 sm:flex sm:flex-1 sm:gap-2">
+        <div className="rk-scroll flex min-w-0 gap-2 overflow-x-auto p-1 sm:flex-1">
           {suggestions.map(({ title, prompt }) => (
             <Button
               key={title}
               variant="ghost"
               title={title}
               onClick={() => onSuggest(prompt)}
-              className="h-11 min-w-0 bg-muted/50 px-2 font-normal sm:h-9 sm:flex-1 sm:px-3"
+              className="h-11 min-w-0 shrink-0 bg-muted/50 px-3 font-normal sm:h-9 sm:flex-1"
             >
-              <span className="line-clamp-2 min-w-0 whitespace-normal text-center text-[11px] leading-3.5 wrap-anywhere sm:line-clamp-none sm:truncate sm:text-xs sm:leading-5">
+              <span className="min-w-0 whitespace-nowrap text-sm leading-5 sm:truncate sm:text-xs">
                 {title}
               </span>
             </Button>

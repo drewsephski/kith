@@ -1,10 +1,23 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { RunActivityRow } from "@rakazo/contracts";
 import type { ForYouCategory, ForYouSuggestion } from "@rakazo/core";
-import { FOR_YOU_SUGGESTIONS } from "@rakazo/core";
+import { connectedForYouSuggestions, FOR_YOU_SUGGESTIONS } from "@rakazo/core";
 import { Button, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
-import { Lightbulb, Menu, PanelLeftOpen, PencilLine, Repeat2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Lightbulb,
+  Menu,
+  PanelLeftOpen,
+  PencilLine,
+  Repeat2,
+} from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { translateForYouMessage } from "../lib/for-you-messages";
+import { statusLabel, statusTone } from "./ActivityList";
+import { useConnectedApps } from "./shell/assistant-suggestions";
+import { useForYouWork } from "./shell/use-for-you-context";
 
 export function ForYouPage({
   onSelect,
@@ -13,8 +26,16 @@ export function ForYouPage({
   onOpenNavigation,
   onShowSidebar,
   windowChrome,
+  scopeKey,
+  workRevision,
+  onOpenRun,
+  apps: connectedApps,
 }: {
   onSelect: (suggestion: ForYouSuggestion) => void;
+  scopeKey?: string;
+  workRevision?: string;
+  apps?: string[];
+  onOpenRun?: (run: RunActivityRow) => void;
   busy?: boolean;
   error?: string | null;
   onOpenNavigation?: () => void;
@@ -22,6 +43,36 @@ export function ForYouPage({
   windowChrome?: ReactNode;
 }) {
   const { t, i18n } = useLingui();
+  const categoryNav = useRef<HTMLElement>(null);
+  const [categoryScroll, setCategoryScroll] = useState({ before: false, after: false });
+  const updateCategoryScroll = () => {
+    const nav = categoryNav.current;
+    if (nav)
+      setCategoryScroll({
+        before: nav.scrollLeft > 1,
+        after: nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1,
+      });
+  };
+  useEffect(() => {
+    const nav = categoryNav.current;
+    if (!nav) return;
+    const observer = new ResizeObserver(updateCategoryScroll);
+    observer.observe(nav);
+    updateCategoryScroll();
+    return () => observer.disconnect();
+  }, []);
+  const work = useForYouWork(scopeKey, workRevision);
+  const discoveredApps = useConnectedApps(connectedApps === undefined ? scopeKey : undefined);
+  const apps = connectedApps ?? discoveredApps;
+  const connectedIds = connectedForYouSuggestions(apps);
+  const connected = FOR_YOU_SUGGESTIONS.filter((suggestion) =>
+    connectedIds.includes(suggestion.id),
+  );
+  const starters = connected.length
+    ? connected
+    : scopeKey && work.loaded && !work.runs.length
+      ? FOR_YOU_SUGGESTIONS.filter((suggestion) => suggestion.id === "weekly-plan")
+      : [];
   const [category, setCategory] = useState<ForYouCategory | "all">("all");
   const filters = [
     { id: "all" as const, label: t`All` },
@@ -34,7 +85,7 @@ export function ForYouPage({
     (suggestion) => category === "all" || category === suggestion.category,
   );
   const groups = [...new Set(suggestions.map((suggestion) => suggestion.group))];
-  const translate = (message: string) => i18n._(message);
+  const translate = (message: string) => translateForYouMessage(i18n, message);
   return (
     <section data-testid="for-you-page" className="flex min-h-0 flex-1 flex-col">
       <header className="app-drag flex h-16 shrink-0 items-center gap-2 px-3 md:px-7">
@@ -67,23 +118,50 @@ export function ForYouPage({
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <SelectionGroup>
-          <nav
-            aria-label={t`Suggestion categories`}
-            className="rk-scroll flex shrink-0 gap-1 overflow-x-auto px-4 pb-3 md:w-44 md:flex-col md:gap-0.5 md:px-3 md:pb-6"
-          >
-            {filters.map((filter) => (
-              <NavigationButton
-                key={filter.id}
-                selected={category === filter.id}
-                aria-current={false}
-                aria-pressed={category === filter.id}
-                onClick={() => setCategory(filter.id)}
-                className="h-9 w-auto shrink-0 justify-start px-3 md:w-full"
+          <div className="flex min-w-0 shrink-0 items-start border-b border-border px-2 md:contents">
+            {categoryScroll.before ? (
+              <Button
+                variant="ghost"
+                aria-label={t`Previous categories`}
+                className="h-11 w-9 shrink-0 px-0 md:hidden"
+                onClick={() => categoryNav.current?.scrollBy({ left: -240 })}
               >
-                {filter.label}
-              </NavigationButton>
-            ))}
-          </nav>
+                <ChevronLeft size={16} />
+              </Button>
+            ) : null}
+            <nav
+              ref={categoryNav}
+              onScroll={updateCategoryScroll}
+              aria-label={t`Suggestion categories`}
+              className="rk-scroll flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 pb-2 scroll-px-2 md:w-44 md:flex-none md:flex-col md:gap-0.5 md:border-0 md:px-3 md:pb-6"
+            >
+              {filters.map((filter) => (
+                <NavigationButton
+                  key={filter.id}
+                  selected={category === filter.id}
+                  aria-current={false}
+                  aria-pressed={category === filter.id}
+                  onClick={(event) => {
+                    setCategory(filter.id);
+                    event.currentTarget.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+                  }}
+                  className="h-11 w-auto shrink-0 justify-start px-3 md:h-9 md:w-full"
+                >
+                  {filter.label}
+                </NavigationButton>
+              ))}
+            </nav>
+            {categoryScroll.after ? (
+              <Button
+                variant="ghost"
+                aria-label={t`More categories`}
+                className="h-11 w-9 shrink-0 px-0 md:hidden"
+                onClick={() => categoryNav.current?.scrollBy({ left: 240 })}
+              >
+                <ChevronRight size={16} />
+              </Button>
+            ) : null}
+          </div>
         </SelectionGroup>
         <div className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pb-12 md:px-8">
           <div className="mx-auto max-w-2xl pt-3 md:pt-1" aria-busy={busy}>
@@ -92,6 +170,68 @@ export function ForYouPage({
                 {error}
               </p>
             ) : null}
+            {onOpenRun && work.runs.length ? (
+              <section aria-label={t`Your work`} className="mb-8" data-testid="for-you-work">
+                <h2 className="mb-3 px-2 text-xs font-medium">
+                  <Trans>Your work</Trans>
+                </h2>
+                {work.runs.map((run) => (
+                  <Button
+                    key={run.runId}
+                    variant="ghost"
+                    onClick={() => onOpenRun(run)}
+                    className="h-auto min-h-14 w-full justify-start gap-3 px-2 py-2 text-start font-normal"
+                  >
+                    <span
+                      aria-hidden
+                      className={`size-2 shrink-0 rounded-full bg-current ${statusTone(run.status)}`}
+                    />
+                    <span className="min-w-0 flex-1 whitespace-normal">
+                      <span className="block text-sm leading-5">
+                        {run.promptSnippet || run.botName}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                        {run.botName} · {statusLabel(run.status)}
+                      </span>
+                    </span>
+                  </Button>
+                ))}
+              </section>
+            ) : null}
+            {work.failed ? (
+              <p role="status" className="mb-6 px-2 text-sm text-muted-foreground">
+                <Trans>Could not load activity</Trans>
+              </p>
+            ) : null}
+            {starters.length ? (
+              <section
+                aria-label={connected.length ? t`Connected apps` : t`For you`}
+                className="mb-8"
+                data-testid={connected.length ? "for-you-connected" : "for-you-starter"}
+              >
+                {connected.length ? (
+                  <h2 className="mb-3 px-2 text-xs font-medium">
+                    <Trans>Connected apps</Trans>
+                  </h2>
+                ) : null}
+                {starters.map((suggestion) => (
+                  <Button
+                    key={suggestion.id}
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => onSelect(suggestion)}
+                    className="h-auto min-h-11 w-full justify-start px-2 py-2 text-start font-normal"
+                  >
+                    <span className="whitespace-normal text-sm leading-5">
+                      {translate(suggestion.title)}
+                    </span>
+                  </Button>
+                ))}
+              </section>
+            ) : null}
+            <h2 className="mb-5 px-2 text-sm font-medium">
+              <Trans>Explore</Trans>
+            </h2>
             {groups.map((group) => (
               <section key={group} aria-label={translate(group)} className="mb-10 last:mb-0">
                 <h2 className="mb-3 px-2 text-xs font-medium">{translate(group)}</h2>
@@ -111,10 +251,14 @@ export function ForYouPage({
                           variant="ghost"
                           disabled={busy}
                           onClick={() => onSelect(suggestion)}
-                          className="h-auto min-h-14 w-full justify-start gap-3 px-2 py-2 text-start font-normal"
+                          className="h-auto min-h-14 w-full items-start justify-start gap-3 px-2 py-2 text-start font-normal"
                           aria-label={translate(suggestion.title)}
                         >
-                          <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden />
+                          <Icon
+                            size={15}
+                            className="mt-0.5 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
                           <span className="min-w-0 whitespace-normal">
                             <span className="block text-sm leading-5">
                               {translate(suggestion.title)}

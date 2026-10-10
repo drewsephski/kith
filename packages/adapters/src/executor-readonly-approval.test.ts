@@ -1,11 +1,13 @@
 import type {
+  AdapterContext,
   AgentRunRequest,
   AutoReviewProvider,
   ConnectorCall,
+  ConnectorEvent,
   ConnectorTool,
 } from "@rakazo/adapter-kit";
 import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
-import type { EmailCard } from "@rakazo/contracts";
+import type { EmailCard, MessageBlock } from "@rakazo/contracts";
 import type { ActionApprovalRule } from "@rakazo/core";
 import { approvalEffectKey, toolEffectIdempotencyKey } from "@rakazo/core/node/approval-effect-key";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,15 +65,20 @@ function fixture({
   existingSharedMemory,
   emailIntent,
   emailPreview,
+  localEmailConnection,
   sendNonce = 'email-send:["parent",0]',
   advanceRevisionAfterRead = false,
+  parallel = false,
 }: {
+  parallel?: boolean;
   sendNonce?: string;
   emailIntent?: EmailCard;
+  localEmailConnection?: { status: string; providerRef?: string };
   emailPreview?: (includeContent: boolean) => {
     emailSend: boolean;
     email?: EmailCard["email"];
     draftId?: string;
+    emailRevision?: string;
   };
   builtin?: boolean;
   disabledBuiltinTools?: string[];
@@ -100,7 +107,18 @@ function fixture({
     },
     route: { connectorId: "demo", resourceId: "resource-1", toolName: name },
   };
+  const connectionRow = localEmailConnection
+    ? {
+        id: "connection-1",
+        connectorId: "demo",
+        provider: "gmail",
+        displayName: "Gmail",
+        ...localEmailConnection,
+      }
+    : undefined;
+  let emailProviderWrites = 0;
   const effects: Effect[] = [];
+  const approvalMessages: Array<{ blocks: MessageBlock[] }> = [];
   const results: unknown[] = [];
   const sharedMemoryState = {
     content: existingSharedMemory as string | undefined,
@@ -227,29 +245,36 @@ function fixture({
       findUnique: vi.fn(async () => ({
         clientNonce: emailIntent ? sendNonce : null,
       })),
-      findMany: vi.fn(async () =>
-        emailIntent
-          ? [
-              {
-                id: "source-1",
-                threadId: "thread-1",
-                seq: 1,
-                role: "user",
-                botId: null,
-                runId: "run-1",
-                blocks: [{ kind: "text", text: "Send this email draft as shown." }, emailIntent],
-                createdAt: new Date(),
-                clientNonce: sendNonce,
-                replyToMessageId: null,
-                replyQuote: null,
-                replyTo: null,
-              },
-            ]
-          : [],
+      findMany: vi.fn(async (query?: { where?: { role?: string } }) =>
+        query?.where?.role === "bot"
+          ? approvalMessages
+          : emailIntent
+            ? [
+                {
+                  id: "source-1",
+                  threadId: "thread-1",
+                  seq: 1,
+                  role: "user",
+                  botId: null,
+                  runId: "run-1",
+                  blocks: [{ kind: "text", text: "Send this email draft as shown." }, emailIntent],
+                  createdAt: new Date(),
+                  clientNonce: sendNonce,
+                  replyToMessageId: null,
+                  replyQuote: null,
+                  replyTo: null,
+                },
+              ]
+            : [],
       ),
     },
     task: { findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt })) },
-    connection: { findMany: vi.fn(async () => []) },
+    connection: {
+      findMany: vi.fn(async () => (connectionRow ? [connectionRow] : [])),
+      findFirst: vi.fn(async () =>
+        connectionRow?.status === "connected" ? { id: connectionRow.id } : null,
+      ),
+    },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
     userModelCredential: { findFirst: vi.fn(async () => null) },
     deploymentSettings: {
@@ -267,18 +292,43 @@ function fixture({
     actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: autoReview })) },
     externalEffect,
   };
-  const pauseRunForInput = vi.fn(async () => {
+  const pauseRunForInput = vi.fn(async (request: { blocks: MessageBlock[] }) => {
+    approvalMessages.unshift({ blocks: request.blocks });
     run.status = "waiting_input";
     return true;
   });
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
-  const execute = vi.fn(async function* (call: ConnectorCall) {
+  const execute = vi.fn(async function* (
+    call: ConnectorCall,
+    context: AdapterContext,
+  ): AsyncGenerator<ConnectorEvent> {
+    if (connectionRow) {
+      try {
+        await context.assertConnectionActive?.(context.connectedConnections![0]!);
+      } catch (error) {
+        yield {
+          type: "error",
+          message: error instanceof Error ? error.message : "Account disconnected",
+        };
+        return;
+      }
+      emailProviderWrites += 1;
+    }
     yield { type: "result" as const, data: { item: call.args.id } };
   });
   let calls: { args: Record<string, unknown>; executionId: string }[] = [
     { args: { id: "item-1" }, executionId: "call-1" },
   ];
   const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
+    if (parallel) {
+      results.push(
+        ...(await Promise.all(
+          calls.map((call) => request.executeTool!(name, call.args, call.executionId)),
+        )),
+      );
+      yield { type: "done" as const, text: "Done" };
+      return;
+    }
     for (const call of calls) {
       const result = await request.executeTool!(
         catalog ? "demo_execute_tool" : name,
@@ -300,7 +350,13 @@ function fixture({
               _call: ConnectorCall,
               _context: unknown,
               options?: { includeContent?: boolean },
-            ) => emailPreview(Boolean(options?.includeContent)),
+            ) => {
+              if (connectionRow)
+                await (_context as AdapterContext).assertConnectionActive?.(
+                  (_context as AdapterContext).connectedConnections![0]!,
+                );
+              return emailPreview(Boolean(options?.includeContent));
+            },
           }
         : {}),
       discoverTools: async () =>
@@ -361,6 +417,13 @@ function fixture({
     writtenMessages,
     effects,
     results,
+    get emailProviderWrites() {
+      return emailProviderWrites;
+    },
+    revokeEmailConnection() {
+      if (connectionRow) connectionRow.status = "revoked";
+    },
+    connectionLookup: prisma.connection.findFirst,
     execute,
     commit,
     sharedMemoryState,
@@ -410,6 +473,18 @@ describe("connector read-only metadata and approval enforcement", () => {
     const f = fixture({
       name,
       autoReview: true,
+      emailPreview: () => ({
+        emailSend: true,
+        email: {
+          account: "mail@example.test",
+          to: ["recipient@example.test"],
+          cc: [],
+          bcc: [],
+          subject: "Status",
+          body: "Reviewed message",
+          attachments: [],
+        },
+      }),
       rules: [{ effect: "always_allow", matchKind: "tool", matchValue: name }],
     });
     f.setCalls([{ args, executionId: "call-1" }]);
@@ -866,8 +941,148 @@ describe("one-click card sending", () => {
       bcc: [],
       subject: "Edited subject",
       body: "My inline edits",
+      attachments: [],
     },
   };
+  it("returns a recoverable error without publishing incomplete approval or sending", async () => {
+    const f = fixture({ name: "GMAIL_SEND_DRAFT", emailPreview: () => ({ emailSend: true }) });
+    f.setCalls([{ args: { draft_id: "draft-1" }, executionId: "send-1" }]);
+    await f.run();
+    expect(f.execute).not.toHaveBeenCalled();
+    expect(f.pauseRunForInput).not.toHaveBeenCalled();
+    expect(f.results.at(-1)).toMatchObject({ error: expect.stringContaining("complete email") });
+  });
+  it.each(["body", "revision"])(
+    "requires a fresh review if the provider draft %s changed after approval",
+    async (field) => {
+      const preview = {
+        emailSend: true,
+        draftId: card.draftId,
+        email: { ...card.email },
+        emailRevision: "revision-1",
+      };
+      const f = fixture({ name: "GMAIL_SEND_DRAFT", emailPreview: () => preview });
+      f.setCalls([{ args: { id: "item-1", draft_id: "draft-1" }, executionId: "send-1" }]);
+      await f.run();
+      f.effects[0]!.status = "approved";
+      if (field === "body") preview.email.body = "Changed at the provider";
+      else preview.emailRevision = "revision-2";
+      await f.run();
+      expect(f.execute).not.toHaveBeenCalled();
+      expect(f.results.at(-1)).toMatchObject({ terminate: true });
+      expect(f.pauseRunForInput).toHaveBeenCalledTimes(2);
+      expect(f.effects[0]!.status).toBe("intended");
+      f.effects[0]!.status = "approved";
+      await f.run();
+      expect(f.execute).toHaveBeenCalledOnce();
+    },
+  );
+  it("rechecks durable local authority after the selected draft preview and before sending", async () => {
+    const local = { status: "connected", providerRef: "account-1" };
+    const f = fixture({
+      name: "GMAIL_SEND_DRAFT",
+      emailIntent: card,
+      localEmailConnection: local,
+      emailPreview: (include) => {
+        if (include) {
+          f.revokeEmailConnection();
+          return { emailSend: true, draftId: card.draftId, email: card.email };
+        }
+        return { emailSend: true };
+      },
+    });
+    f.setCalls([{ args: { draft_id: "draft-1" }, executionId: "send-1" }]);
+    await f.run();
+    expect(f.emailProviderWrites).toBe(0);
+    expect(f.results.at(-1)).toMatchObject({ error: expect.stringContaining("Reconnect") });
+    expect(f.connectionLookup).toHaveBeenCalledWith({
+      where: {
+        id: "connection-1",
+        spaceId: "space-1",
+        userId: "user-1",
+        connectorId: "demo",
+        provider: "gmail",
+        providerRef: "account-1",
+        status: "connected",
+      },
+      select: { id: true },
+    });
+  });
+  it.each(["uncertain", "executing", "completed", "denied"])(
+    "binds a restarted email action to its persisted %s effect across wrapper and argument changes",
+    async (status) => {
+      const preview = () => ({ emailSend: true, draftId: card.draftId, email: card.email });
+      const first = fixture({
+        name: "COMPOSIO_MULTI_EXECUTE_TOOL",
+        emailIntent: card,
+        emailPreview: preview,
+      });
+      first.setCalls([
+        {
+          args: { tools: [{ tool_slug: "GMAIL_SEND_DRAFT", arguments: { draft_id: "draft-1" } }] },
+          executionId: "send-1",
+        },
+      ]);
+      await first.run();
+      expect(first.execute).toHaveBeenCalledOnce();
+      const restarted = fixture({
+        name: "GMAIL_SEND_DRAFT",
+        emailIntent: card,
+        emailPreview: preview,
+      });
+      restarted.effects.push({
+        ...first.effects[0]!,
+        status,
+        result:
+          status === "uncertain" || status === "executing" ? undefined : first.effects[0]!.result,
+      });
+      restarted.setCalls([{ args: { draft_id: "draft-1", user_id: "me" }, executionId: "send-2" }]);
+      await restarted.run();
+      expect(restarted.execute).not.toHaveBeenCalled();
+      expect(restarted.pauseRunForInput).not.toHaveBeenCalled();
+      expect(restarted.effects).toHaveLength(1);
+      if (status === "uncertain" || status === "executing")
+        expect(restarted.results.at(-1)).toMatchObject({ uncertain: true });
+      if (status === "denied")
+        expect(restarted.results.at(-1)).toMatchObject({
+          error: expect.stringContaining("denied"),
+        });
+    },
+  );
+  it("reserves one card send before parallel changed-argument calls can read effects", async () => {
+    const f = fixture({
+      name: "GMAIL_SEND_DRAFT",
+      emailIntent: card,
+      emailPreview: () => ({ emailSend: true, draftId: card.draftId, email: card.email }),
+      parallel: true,
+    });
+    f.setCalls([
+      { args: { draft_id: "draft-1" }, executionId: "send-1" },
+      { args: { draft_id: "draft-1", user_id: "me" }, executionId: "send-2" },
+    ]);
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
+    expect(f.effects).toHaveLength(1);
+    expect(f.results).toContainEqual({
+      error: expect.stringContaining("already has a send request"),
+    });
+  });
+  it("persists an ambiguous send failure as uncertain and never retries delivery", async () => {
+    const f = fixture({
+      name: "GMAIL_SEND_DRAFT",
+      emailIntent: card,
+      emailPreview: () => ({ emailSend: true, draftId: card.draftId, email: card.email }),
+    });
+    f.execute.mockImplementation(async function* () {
+      yield { type: "error" as const, message: "Connection timed out", uncertain: true };
+    });
+    f.setCalls([{ args: { draft_id: "draft-1" }, executionId: "send-1" }]);
+    await f.run();
+    expect(f.effects[0]!.status).toBe("uncertain");
+    expect(f.results.at(-1)).toMatchObject({ uncertain: true });
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
+  });
   it("uses the card's exact send authorization once without a second ask, including retries", async () => {
     const full = vi.fn(() => ({ emailSend: true, draftId: card.draftId, email: card.email }));
     const f = fixture({

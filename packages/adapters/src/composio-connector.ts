@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Composio } from "@composio/core";
 import type {
   AdapterContext,
@@ -13,7 +14,9 @@ import type {
   TaskPlatform,
 } from "@rakazo/adapter-kit";
 import { CalendarAccessError } from "@rakazo/adapter-kit";
-import { isEmailSendTool } from "@rakazo/core";
+import type { EmailContent } from "@rakazo/contracts";
+import { completeEmailApprovalPreview, isEmailSendTool } from "@rakazo/core";
+import { stableJsonValue } from "@rakazo/core/node/approval-effect-key";
 import { getLogger } from "@rakazo/logging";
 import {
   composioToolkitDirectory,
@@ -160,6 +163,21 @@ export function expandComposioMultiExecute(
 ): ComposioExecutionCall[] {
   if (tool !== COMPOSIO_MULTI_EXECUTE_TOOL || !Array.isArray(args.tools)) {
     return [{ tool, args }];
+  }
+  // A reviewed email is one consequential call. Execute it directly so its actual
+  // provider response, rather than a router batch envelope, determines delivery proof.
+  if (args.tools.length === 1) {
+    const email = asObject(args.tools[0]);
+    const slug = email?.tool_slug;
+    const payload = objectArguments(email?.arguments);
+    if (typeof slug === "string" && isEmailSendTool(slug) && payload)
+      return [
+        {
+          tool: slug,
+          args: payload,
+          ...(typeof email?.account === "string" ? { account: email.account } : {}),
+        },
+      ];
   }
   const calls: ComposioExecutionCall[] = [];
   let pending: unknown[] = [];
@@ -573,26 +591,34 @@ export class ComposioConnector implements ComposioProvider {
     options?: { includeContent?: boolean },
   ) {
     const preview = async (tool: string, args: Record<string, unknown>, account?: string) => {
-      let email = emailApprovalPreview(tool, { ...args, user_id: account ?? args.user_id }, []);
-      if (options?.includeContent && tool.toUpperCase() === "GMAIL_SEND_DRAFT") {
-        if (typeof args.draft_id !== "string" || !args.draft_id.trim())
-          throw new Error("A real Gmail draft ID is required.");
-        const session = await this.sessionForExecute(
-          context.userId,
-          connectedComposioConnections(context),
-        );
-        const result = await session.execute(
-          "GMAIL_GET_DRAFT",
-          { draft_id: args.draft_id, user_id: args.user_id ?? "me", format: "full" },
-          account ? { account } : undefined,
-        );
-        if (result.error)
-          throw new Error(sanitizeComposioError(composioResultError(result.error, result.data)));
-        const data = composioTaskActionData(result.data);
+      const emailSend = isEmailSendTool(tool);
+      if (!emailSend || !options?.includeContent) return { emailSend };
+      const connections = connectedComposioConnections(context);
+      const toolkit = tool.toUpperCase().startsWith("GMAIL_")
+        ? "gmail"
+        : tool.toUpperCase().startsWith("OUTLOOK_")
+          ? "outlook"
+          : undefined;
+      const connection = selectedEmailConnection(tool, context, account);
+      await context.assertConnectionActive?.(connection);
+      if (
+        connection.providerRef &&
+        composioSlugKey(connection.providerRef) !== composioSlugKey(connection.externalId)
+      ) {
+        const active = await this.listActiveAccountIds(context.userId, [connection.externalId]);
+        if (!active?.has(connection.providerRef))
+          throw new Error("Reconnect the sending email account before requesting approval.");
+      }
+      let email: EmailContent | undefined;
+      let draftId: string | undefined;
+      let emailRevision: string | undefined;
+      if (toolkit === "gmail") {
+        const session = await this.sessionForExecute(context.userId, connections);
+        const executeOptions = account ? { account } : undefined;
         const profileResult = await session.execute(
           "GMAIL_GET_PROFILE",
           { user_id: args.user_id ?? "me" },
-          account ? { account } : undefined,
+          executeOptions,
         );
         if (profileResult.error)
           throw new Error(
@@ -601,15 +627,117 @@ export class ComposioConnector implements ComposioProvider {
         const profile = composioTaskActionData(profileResult.data);
         if (typeof profile.emailAddress !== "string" || !profile.emailAddress.trim())
           throw new Error("Could not verify the sending email account.");
-        email = gmailEmailPreview(data.message, profile.emailAddress);
+        if (tool.toUpperCase() === "GMAIL_SEND_DRAFT") {
+          if (typeof args.draft_id !== "string" || !args.draft_id.trim())
+            throw new Error("A real Gmail draft ID is required.");
+          const result = await session.execute(
+            "GMAIL_GET_DRAFT",
+            { draft_id: args.draft_id, user_id: args.user_id ?? "me", format: "full" },
+            executeOptions,
+          );
+          if (result.error)
+            throw new Error(sanitizeComposioError(composioResultError(result.error, result.data)));
+          const data = composioTaskActionData(result.data);
+          if (data.id !== args.draft_id)
+            throw new Error("The provider returned a different or unverified draft.");
+          draftId = args.draft_id;
+          emailRevision = createHash("sha256")
+            .update(stableJsonValue([profile.emailAddress, data.message]))
+            .digest("hex");
+          email = gmailEmailPreview(data.message, profile.emailAddress);
+        } else {
+          email = emailApprovalPreview(tool, args, [], profile.emailAddress);
+        }
+      } else if (toolkit === "outlook" && connection.providerRef) {
+        // Resolve the selected account through the provider, not model-supplied user_id.
+        const response = await this.sdk().tools.proxyExecute({
+          connectedAccountId: connection.providerRef,
+          endpoint: "https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName",
+          method: "GET",
+        });
+        if (response.status < 200 || response.status >= 300)
+          throw new Error(
+            "Could not verify the sending email account. Reconnect it and try again.",
+          );
+        const profile = composioTaskActionData(response.data);
+        const identity =
+          typeof profile.mail === "string" && profile.mail
+            ? profile.mail
+            : profile.userPrincipalName;
+        if (typeof identity !== "string")
+          throw new Error("Could not verify the sending email account.");
+        if (args.user_id !== undefined && args.user_id !== "me" && args.user_id !== identity)
+          throw new Error("The requested mailbox does not match the verified sending account.");
+        if (tool.toUpperCase() === "OUTLOOK_SEND_DRAFT") {
+          const requestedId = args.message_id ?? args.draft_id;
+          if (typeof requestedId !== "string" || !requestedId.trim())
+            throw new Error("A real Outlook draft ID is required.");
+          const request = async (suffix: string) => {
+            const response = await this.sdk().tools.proxyExecute({
+              connectedAccountId: connection.providerRef!,
+              endpoint: `https://graph.microsoft.com/v1.0/me/messages/${encodeURIComponent(requestedId)}${suffix}`,
+              method: "GET",
+            });
+            if (response.status < 200 || response.status >= 300)
+              throw new Error(
+                "Could not fetch the complete Outlook draft. Reconnect the account and try again.",
+              );
+            return composioTaskActionData(response.data);
+          };
+          const message = await request("");
+          if (message.id !== requestedId || message.isDraft !== true)
+            throw new Error("The provider returned a different or unverified draft.");
+          const attachmentResponse = await request(
+            "/attachments?$select=id,name,contentType,size,isInline",
+          );
+          if (!Array.isArray(attachmentResponse.value) || attachmentResponse["@odata.nextLink"])
+            throw new Error("Could not inspect every draft attachment.");
+          const recipients = (value: unknown): string[] | undefined => {
+            if (!Array.isArray(value)) return undefined;
+            const result: string[] = [];
+            for (const item of value) {
+              const address = asObject(asObject(item)?.emailAddress)?.address;
+              if (typeof address !== "string") return undefined;
+              result.push(address);
+            }
+            return result;
+          };
+          const body = asObject(message.body);
+          const attachments = attachmentResponse.value.map((item: unknown) => asObject(item)?.name);
+          email = emailApprovalPreview(
+            tool,
+            {
+              to: recipients(message.toRecipients),
+              cc: recipients(message.ccRecipients),
+              bcc: recipients(message.bccRecipients),
+              subject: message.subject,
+              body: body?.content,
+              is_html: String(body?.contentType).toLowerCase() === "html",
+              attachments,
+            },
+            [],
+            identity,
+            { attachmentsVerified: true },
+          );
+          draftId = requestedId;
+          emailRevision = createHash("sha256")
+            .update(stableJsonValue([identity, message, attachmentResponse.value]))
+            .digest("hex");
+        } else {
+          // Forward/reply tools without complete destination payloads require a saved draft.
+          email = emailApprovalPreview(tool, args, [], identity);
+        }
       }
+      if (!completeEmailApprovalPreview(email))
+        throw new Error(
+          "Could not verify the complete email. Fetch its recipients, subject, body, and attachments before requesting approval.",
+        );
+      await context.assertConnectionActive?.(connection);
       return {
-        emailSend: isEmailSendTool(tool),
+        emailSend,
         email,
-        draftId:
-          tool.toUpperCase() === "GMAIL_SEND_DRAFT" && typeof args.draft_id === "string"
-            ? args.draft_id
-            : undefined,
+        draftId,
+        emailRevision,
       };
     };
     if (call.tool !== COMPOSIO_MULTI_EXECUTE_TOOL || !Array.isArray(call.args.tools)) {
@@ -636,6 +764,7 @@ export class ComposioConnector implements ComposioProvider {
 
   async *execute(call: ConnectorCall, context: AdapterContext): AsyncIterable<ConnectorEvent> {
     const executed = [];
+    let emailSendAttempted = false;
     try {
       const session = await this.sessionForExecute(
         context.userId,
@@ -643,6 +772,11 @@ export class ComposioConnector implements ComposioProvider {
       );
       const planned = expandComposioMultiExecute(call.tool, call.args ?? {});
       for (const item of planned) {
+        if (isEmailSendTool(item.tool)) {
+          const connection = selectedEmailConnection(item.tool, context, item.account);
+          await context.assertConnectionActive?.(connection);
+          emailSendAttempted = true;
+        }
         const result = await session.execute(
           item.tool,
           item.args,
@@ -653,6 +787,7 @@ export class ComposioConnector implements ComposioProvider {
           yield {
             type: "error",
             message: sanitizeComposioError(composioResultError(result.error, result.data)),
+            ...(emailSendAttempted ? { uncertain: true } : {}),
             ...(logIds.length > 0 ? { logIds } : {}),
           };
           return;
@@ -670,6 +805,12 @@ export class ComposioConnector implements ComposioProvider {
         data: {
           data: sanitizePayload(result.data),
           logId,
+          ...(executed.length === 1 &&
+          planned[0]?.tool.toUpperCase().startsWith("GMAIL_") &&
+          isEmailSendTool(planned[0].tool) &&
+          confirmedGmailSend(result.data)
+            ? { emailSendVerified: true }
+            : {}),
           ...(logIds.length > 1 ? { logIds: logIds.slice(1).map((id) => ({ logId: id })) } : {}),
         },
       };
@@ -678,6 +819,7 @@ export class ComposioConnector implements ComposioProvider {
       yield {
         type: "error",
         message: sanitizeComposioError(error),
+        ...(emailSendAttempted ? { uncertain: true } : {}),
         ...(logIds.length > 0 ? { logIds } : {}),
       };
     }
@@ -1157,4 +1299,50 @@ function redactSecretLiterals(value: string): string {
     .replace(/ck_[A-Za-z0-9]+/g, "[redacted]")
     .replace(/sk-or-v1-[A-Za-z0-9]+/g, "[redacted]")
     .replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
+}
+
+/** A tool response is not delivery proof unless the sending provider returned its message identity. */
+export function confirmedGmailSend(value: unknown): boolean {
+  try {
+    const data = composioTaskActionData(value);
+    return (
+      data.successful !== false &&
+      data.success !== false &&
+      !data.error &&
+      typeof data.id === "string" &&
+      Boolean(data.id.trim()) &&
+      typeof data.threadId === "string" &&
+      Boolean(data.threadId.trim())
+    );
+  } catch {
+    return false;
+  }
+}
+
+function selectedEmailConnection(
+  tool: string,
+  context: AdapterContext,
+  account?: string,
+): ConnectedConnector {
+  const toolkit = tool.toUpperCase().startsWith("GMAIL_")
+    ? "gmail"
+    : tool.toUpperCase().startsWith("OUTLOOK_")
+      ? "outlook"
+      : undefined;
+  const matching = connectedComposioConnections(context).filter(
+    (connection) =>
+      toolkit &&
+      [toolkit, toolkit === "outlook" ? "microsoft_outlook" : toolkit].includes(
+        composioSlugKey(connection.externalId),
+      ),
+  );
+  if (!matching.length) throw new Error("Reconnect the sending email account before continuing.");
+  const selected = account
+    ? matching.filter(
+        (connection) => connection.providerRef === account || connection.displayName === account,
+      )
+    : matching;
+  if (selected.length !== 1)
+    throw new Error("Select exactly one connected email account before continuing.");
+  return selected[0]!;
 }

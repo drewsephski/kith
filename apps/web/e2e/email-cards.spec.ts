@@ -4,6 +4,8 @@ import { captureScreenshot } from "./helpers";
 test("email content and sending stay in chat and fit mobile without horizontal scrolling", async ({
   page,
 }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   for (const viewport of [
     { width: 1440, height: 900 },
@@ -21,13 +23,13 @@ test("email content and sending stay in chat and fit mobile without horizontal s
         .getByLabel("Email body")
         .first()
         .evaluate((node) => getComputedStyle(node).fontSize),
-    ).toBe("12px");
+    ).toBe(viewport.width < 768 ? "16px" : "12px");
     await expect(page.getByTestId("email-card").first()).toContainText("private@example.test");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Requested", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Request queued", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Save draft", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("status")).toHaveText("Email sent");
+    await expect(page.getByRole("status")).toHaveText("Request queued");
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
       false,
     );
@@ -41,11 +43,14 @@ test("email content and sending stay in chat and fit mobile without horizontal s
     await captureScreenshot(page, testInfo, `email-send-${viewport.width}`);
     await expect(page.getByRole("button", { name: "Reply", exact: true })).toBeVisible();
   }
+  expect(errors).toEqual([]);
 });
 
-test("inline mail edits retain typography, expose all content, and send without a second approval", async ({
+test("inline mail edits retain typography, expose all content, and submit selected content", async ({
   page,
 }, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 375, height: 812 },
@@ -75,14 +80,13 @@ test("inline mail edits retain typography, expose all content, and send without 
     await expect(page.getByTestId("email-preview").first()).toContainText("My revised subject");
     await expect(page.getByLabel("Email body").first()).toHaveValue(content);
   }
+  expect(errors).toEqual([]);
 });
-test("Send submits inline edits immediately with no save or repeated approval", async ({
-  page,
-}) => {
+test("Send submits inline edits immediately without an extra save step", async ({ page }) => {
   await page.goto("/e2e/fixtures/email-cards.html");
   await page.getByLabel("Email body").first().fill("Updated response");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Email sent");
+  await expect(page.getByRole("status")).toHaveText("Request queued");
   await expect(page.getByTestId("email-send-payload")).toHaveText(
     JSON.stringify({
       messageId: "mail-preview",

@@ -435,7 +435,7 @@ msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "All"
-msgstr ""
+msgstr "सभी"
 
 #: src/pages/Artifacts.tsx
 msgid "All conversations"
@@ -676,7 +676,7 @@ msgstr "अटैचमेंट"
 
 #: src/components/EmailCard.tsx
 msgid "Attachments"
-msgstr ""
+msgstr "अटैचमेंट"
 
 #: src/components/CalendarReceipt.tsx
 msgid "Attempts"
@@ -731,6 +731,10 @@ msgstr "अवतार स्टूडियो"
 msgid "Avatars"
 msgstr ""
 
+#: src/components/EmailCard.tsx
+msgid "Awaiting final approval"
+msgstr "अंतिम मंज़ूरी की प्रतीक्षा"
+
 #: src/pages/ActivityList.tsx
 msgid "Awaiting reply"
 msgstr ""
@@ -779,7 +783,7 @@ msgstr ""
 
 #: src/components/EmailCard.tsx
 msgid "Bcc"
-msgstr ""
+msgstr "गुप्त प्रति"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -847,6 +851,11 @@ msgstr ""
 msgid "Briefing receipt"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Bring broken checks across your repositories into one review"
+msgstr "अपने रिपॉजिटरी की असफल जांच एक ही समीक्षा में देखें"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Browse MCP servers"
 msgstr ""
@@ -858,6 +867,11 @@ msgstr ""
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Build a brief for my next meeting"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Build a repeatable check for replies, bounces, and next steps"
+msgstr "जवाबों, वापस लौटे ईमेल और अगले कदमों की नियमित जांच करें"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
@@ -927,14 +941,30 @@ msgid "cancelled"
 msgstr "रद्द"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "रद्द किया गया"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture reproduction steps, expected behavior, and evidence"
+msgstr "दोहराने के चरण, अपेक्षित व्यवहार और प्रमाण दर्ज करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture your tone, follow-up timing, and approval preferences"
+msgstr "अपना लहजा, दोबारा संपर्क का समय और मंज़ूरी की पसंद दर्ज करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Catch quota limits and service failures before they interrupt work"
+msgstr "काम बाधित होने से पहले कोटा सीमा और सेवा की खराबी पहचानें"
+
 #: src/components/EmailCard.tsx
 msgid "Cc"
-msgstr ""
+msgstr "प्रति"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1059,6 +1089,11 @@ msgstr "फ़ाइल चुनें"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose task sources"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Choose which accounts would make your assistant more helpful"
+msgstr "ऐसे खाते चुनें जो आपके सहायक को अधिक उपयोगी बनाएं"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Choose which connected model Kith uses."
@@ -1198,6 +1233,11 @@ msgstr ""
 msgid "Collect recent receipts"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Collect recent receipts and invoices"
+msgstr "हाल की रसीदें और बिल इकट्ठा करें"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color"
 msgstr "रंग"
@@ -1224,6 +1264,7 @@ msgstr "कमांड वेरिएबल"
 msgid "Complete"
 msgstr "पूर्ण"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
@@ -1343,6 +1384,11 @@ msgstr "OAuth कनेक्ट करें"
 msgid "Connect services"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Connect the tools you use every day"
+msgstr "रोज़ इस्तेमाल होने वाले उपकरण जोड़ें"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect this provider to use it as your personal model."
 msgstr "इस प्रोवाइडर को अपने व्यक्तिगत मॉडल के रूप में उपयोग करने के लिए कनेक्ट करें।"
@@ -1375,6 +1421,10 @@ msgstr "{0} कनेक्ट किया गया।"
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connected and using {0}."
 msgstr "{0} कनेक्ट किया गया और उपयोग में है।"
+
+#: src/pages/ForYou.tsx
+msgid "Connected apps"
+msgstr "जुड़े ऐप"
 
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Connected services"
@@ -1501,6 +1551,11 @@ msgstr "कॉपी करें"
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Copy .env example"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Correct outdated details and fill in the gaps"
+msgstr "पुरानी जानकारी सुधारें और अधूरी जानकारी जोड़ें"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1709,8 +1764,9 @@ msgid "Could not load"
 msgstr "लोड नहीं हो सका"
 
 #: src/pages/ActivityList.tsx
+#: src/pages/ForYou.tsx
 msgid "Could not load activity"
-msgstr ""
+msgstr "गतिविधि लोड नहीं हो सकी"
 
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Could not load all connections."
@@ -1916,7 +1972,7 @@ msgstr "चार्ट रेंडर नहीं हो सका"
 
 #: src/components/EmailCard.tsx
 msgid "Could not request email action"
-msgstr ""
+msgstr "ईमेल कार्रवाई का अनुरोध नहीं हो सका"
 
 #: src/pages/Auth.tsx
 msgid "Could not reset password"
@@ -2030,7 +2086,7 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Could not start the conversation. Select the suggestion to retry."
-msgstr ""
+msgstr "बातचीत शुरू नहीं हो सकी। दोबारा प्रयास करने के लिए सुझाव चुनें।"
 
 #: src/pages/Onboarding.tsx
 msgid "Could not start your assistant"
@@ -2335,6 +2391,11 @@ msgstr ""
 msgid "Desktop update"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Developer tools"
+msgstr "डेवलपर उपकरण"
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Direct MCP"
 msgstr ""
@@ -2447,6 +2508,11 @@ msgstr ""
 msgid "Draft lead follow-ups"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Draft replies that need your attention"
+msgstr "ध्यान देने योग्य ईमेल के जवाबों का मसौदा बनाएं"
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Draft skill"
 msgstr "ड्राफ़्ट स्किल"
@@ -2495,7 +2561,7 @@ msgstr "ईमेल और फ़ॉलो-अप"
 
 #: src/components/EmailCard.tsx
 msgid "Email body"
-msgstr ""
+msgstr "ईमेल का मुख्य पाठ"
 
 #: src/components/EmailCard.tsx
 msgid "Email draft"
@@ -2511,7 +2577,7 @@ msgstr "ईमेल खोज"
 
 #: src/components/EmailCard.tsx
 msgid "Email subject"
-msgstr ""
+msgstr "ईमेल का विषय"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2617,6 +2683,10 @@ msgstr "विस्तृत करें"
 msgid "Expand {0}"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Explore"
+msgstr "खोजें"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "एक्सपोर्ट करें"
@@ -2644,6 +2714,7 @@ msgstr "अतिरिक्त उच्च"
 msgid "failed"
 msgstr "असफल"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -2710,6 +2781,21 @@ msgstr ""
 msgid "Find receipts and invoices in my inbox from the past 30 days. Make a table of vendors, dates, amounts, and currencies, with links to the source emails, and flag any missing amounts or duplicate charges."
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find relevant collaborators and prepare thoughtful first messages"
+msgstr "उपयुक्त सहयोगी खोजें और सोच-समझकर शुरुआती संदेश तैयार करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find the gaps in onboarding, billing, and support"
+msgstr "शुरुआती मार्गदर्शन, बिलिंग और सहायता की कमियां खोजें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find time-sensitive conversations and leave replies as drafts"
+msgstr "समय-संवेदनशील बातचीत खोजें और जवाब मसौदे में रखें"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Finding…"
@@ -2750,13 +2836,23 @@ msgstr "MCP कनेक्शन पूरा हो रहा है…"
 msgid "Flag unexpected actions"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Follow up on unanswered conversations"
+msgstr "अनुत्तरित बातचीत पर फिर संपर्क करें"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Follow up unanswered emails"
 msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "For builders"
-msgstr ""
+msgstr "निर्माताओं के लिए"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "For builders"
+msgstr "निर्माताओं के लिए"
 
 #: src/pages/ForYou.tsx
 #: src/pages/shell/assistant-for-you.tsx
@@ -2788,7 +2884,7 @@ msgstr ""
 #: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "From"
-msgstr ""
+msgstr "प्रेषक"
 
 #. placeholder {0}: filters.dateRange.from
 #: src/pages/ActivityList.tsx
@@ -2804,13 +2900,28 @@ msgstr "फ़ुलस्क्रीन"
 msgid "Gateway ID"
 msgstr "गेटवे आईडी"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Gather the agenda, useful context, and questions to ask"
+msgstr "एजेंडा, उपयोगी संदर्भ और पूछने के प्रश्न जुटाएं"
+
 #: src/pages/SettingsOverlay.tsx
+msgid "General"
+msgstr "सामान्य"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
 msgid "General"
 msgstr "सामान्य"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Get pull requests ready to ship"
+msgstr "पुल रिक्वेस्ट रिलीज़ के लिए तैयार करें"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3053,9 +3164,19 @@ msgstr "अभी-अभी"
 msgid "Just start chatting"
 msgstr "बस बातचीत शुरू करें"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep applications, interviews, and follow-ups in view"
+msgstr "आवेदन, साक्षात्कार और अगले संपर्क पर नज़र रखें"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
 msgstr "मेमोरी रखें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep promising introductions and partnerships moving"
+msgstr "उपयोगी परिचय और साझेदारियां आगे बढ़ाएं"
 
 #: src/pages/RoutineEditor.tsx
 msgid "key"
@@ -3099,7 +3220,12 @@ msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "Level up Kith"
-msgstr ""
+msgstr "Kith को बेहतर बनाएं"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Level up Kith"
+msgstr "Kith को बेहतर बनाएं"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
@@ -3244,6 +3370,11 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Make a plan for the week ahead"
+msgstr "आने वाले सप्ताह की योजना बनाएं"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
@@ -3509,6 +3640,10 @@ msgstr "मासिक"
 msgid "More"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "More categories"
+msgstr "और श्रेणियां"
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr ""
@@ -3571,6 +3706,7 @@ msgstr "अपने सहायक का नाम रखें"
 msgid "Needs assistance"
 msgstr ""
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
@@ -3734,7 +3870,7 @@ msgstr "अभी तक कोई स्किल नहीं"
 
 #: src/components/EmailCard.tsx
 msgid "No subject"
-msgstr ""
+msgstr "कोई विषय नहीं"
 
 #: src/pages/ActivityList.tsx
 msgid "No tasks match these filters."
@@ -3958,6 +4094,11 @@ msgstr "संगठन API कुंजी"
 msgid "Organize my day"
 msgstr "मेरा दिन व्यवस्थित करें"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Organize vendors, dates, amounts, and source links"
+msgstr "विक्रेता, तारीख, राशि और स्रोत लिंक व्यवस्थित करें"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "मूल संदेश उपलब्ध नहीं है"
@@ -3966,6 +4107,11 @@ msgstr "मूल संदेश उपलब्ध नहीं है"
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
 msgstr "अन्य मॉडल…"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Outreach"
+msgstr "संपर्क"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Page views"
@@ -4056,6 +4202,11 @@ msgstr "सूची से एक मॉडल चुनें या इस �
 msgid "Pin"
 msgstr "पिन करें"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Plan infrastructure and usage alerts"
+msgstr "इंफ्रास्ट्रक्चर और उपयोग के अलर्ट की योजना बनाएं"
+
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Plan my day"
 msgstr "मेरे दिन की योजना बनाएँ"
@@ -4079,6 +4230,11 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Preferences"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Prepare for your next meeting"
+msgstr "अपनी अगली बैठक की तैयारी करें"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
@@ -4108,6 +4264,10 @@ msgstr ""
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Preview report"
 msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "Previous categories"
+msgstr "पिछली श्रेणियां"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
@@ -4482,8 +4642,12 @@ msgid "Report time"
 msgstr ""
 
 #: src/components/EmailCard.tsx
+msgid "Request queued"
+msgstr "अनुरोध कतार में है"
+
+#: src/components/EmailCard.tsx
 msgid "Requested"
-msgstr ""
+msgstr "अनुरोध किया गया"
 
 #: src/components/EmailCard.tsx
 msgid "Requesting…"
@@ -4492,6 +4656,11 @@ msgstr ""
 #: src/pages/shell/assistant-focus.tsx
 msgid "Research and projects"
 msgstr "शोध और परियोजनाएँ"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Research partners and draft introductions"
+msgstr "साझेदारों पर शोध करें और परिचय के मसौदे लिखें"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4587,6 +4756,11 @@ msgstr "रिवीज़न {0}"
 msgid "Revenue"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review failed checks, open feedback, and the next fix"
+msgstr "असफल जांच, लंबित प्रतिक्रिया और अगले सुधार की समीक्षा करें"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review my Notion task pages, find overdue and unfinished tasks assigned to me, and list them by urgency with their due dates and page links."
 msgstr ""
@@ -4602,6 +4776,21 @@ msgstr "प्रोवाइडर सेटिंग्स की समीक
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review Slack messages from the past 24 hours and summarize decisions, blockers, and follow-ups that need my attention. Include links to the relevant messages."
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review unfinished work and prepare for the coming week"
+msgstr "अधूरे काम की समीक्षा करें और अगले सप्ताह की तैयारी करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review what Kith remembers about you"
+msgstr "देखें कि Kith को आपके बारे में क्या याद है"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review your launch readiness"
+msgstr "लॉन्च की तैयारी की समीक्षा करें"
 
 #. placeholder {0}: doc.revision
 #: src/pages/PersonalMemoryPanel.tsx
@@ -4877,7 +5066,7 @@ msgstr "उत्तर भेजें"
 
 #: src/components/AskCard.tsx
 msgid "Send approved"
-msgstr ""
+msgstr "भेजने की मंज़ूरी मिली"
 
 #: src/components/AccountAccess.tsx
 msgid "Send deletion code"
@@ -4892,12 +5081,22 @@ msgid "Send reset link"
 msgstr "रीसेट लिंक भेजें"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 msgid "Sending…"
 msgstr "भेजा जा रहा है…"
+
+#: src/components/EmailCard.tsx
+msgid "Sent and verified"
+msgstr "भेजा गया और सत्यापित"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Sentry alert"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Separate interested leads, questions, and declines"
+msgstr "इच्छुक संभावित ग्राहक, प्रश्न और इनकार अलग करें"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Serenity endpoint is required."
@@ -4928,6 +5127,26 @@ msgstr "सर्वर URL"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Sessions"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a daily reply and bounce tracker"
+msgstr "जवाब और वापस लौटे ईमेल की दैनिक निगरानी सेट करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a morning digest of failing builds"
+msgstr "असफल बिल्ड का सुबह का सारांश सेट करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a Sunday evening weekly review"
+msgstr "रविवार शाम की साप्ताहिक समीक्षा सेट करें"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a weekly job search review"
+msgstr "नौकरी खोज की साप्ताहिक समीक्षा सेट करें"
 
 #: src/components/CalendarConnection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -4963,6 +5182,11 @@ msgstr "सेटअप सहायता"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
 msgstr "आकार"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Share the preferences that make everyday help more useful"
+msgstr "रोज़ की मदद को उपयोगी बनाने वाली पसंद साझा करें"
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -5289,11 +5513,21 @@ msgstr ""
 #: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
-msgstr ""
+msgstr "कार्य"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
 msgstr "कोई कार्य सिखाएं"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith how you like to work"
+msgstr "Kith को अपनी पसंद का काम करने का तरीका सिखाएं"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith your outreach process"
+msgstr "Kith को अपनी संपर्क प्रक्रिया सिखाएं"
 
 #: src/pages/Shell.tsx
 msgid "Teaching in progress. Stop teaching before sending a new message."
@@ -5361,7 +5595,7 @@ msgstr "चयनित मेमोरी प्रोवाइडर इस �
 
 #: src/pages/Shell.tsx
 msgid "The selected space changed. Try again."
-msgstr ""
+msgstr "चुना हुआ स्पेस बदल गया। दोबारा प्रयास करें।"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
@@ -5497,7 +5731,7 @@ msgstr "शीर्षक"
 #: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "To"
-msgstr ""
+msgstr "प्राप्तकर्ता"
 
 #. placeholder {0}: filters.dateRange.to
 #: src/pages/ActivityList.tsx
@@ -5541,6 +5775,11 @@ msgstr "Treg टोकन"
 msgid "Triage pull requests"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Triage replies to cold outreach"
+msgstr "पहली बार किए गए संपर्क के जवाब छांटें"
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial"
 msgstr ""
@@ -5571,6 +5810,16 @@ msgstr ""
 #: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn rough notes into a useful bug report"
+msgstr "अधूरे नोट्स से उपयोगी बग रिपोर्ट बनाएं"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn your priorities and commitments into a manageable week"
+msgstr "प्राथमिकताओं और प्रतिबद्धताओं को व्यावहारिक साप्ताहिक योजना में बदलें"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
@@ -5624,6 +5873,10 @@ msgstr "असमर्थित फ़ाइल प्रकार: {0}"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Untitled email"
 msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Unverified email preview"
+msgstr "असत्यापित ईमेल पूर्वावलोकन"
 
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -5757,6 +6010,10 @@ msgstr "सत्यापित स्रोत"
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "पुष्टि करके जोड़ें"
+
+#: src/components/EmailCard.tsx
+msgid "Verify before retrying"
+msgstr "दोबारा प्रयास करने से पहले जांचें"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verifying…"
@@ -5932,3 +6189,7 @@ msgstr "आपका ईमेल पता"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "आपका नाम"
+
+#: src/pages/ForYou.tsx
+msgid "Your work"
+msgstr "आपका काम"

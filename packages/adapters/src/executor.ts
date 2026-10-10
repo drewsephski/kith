@@ -12,6 +12,7 @@ import type {
   AutoReviewProvider,
   BrowserProvider,
   ComputerRef,
+  ConnectedConnector,
   ConnectorCall,
   ConnectorProvider,
   ConnectorTool,
@@ -62,6 +63,7 @@ import {
   botMessageAllowsSilence,
   CALL_CLIENT_NONCE_PREFIX,
   callIdFromClientNonce,
+  completeEmailApprovalPreview,
   connectorKindFromToolName,
   containsSecret,
   createStreamingRedactor,
@@ -73,6 +75,7 @@ import {
   humanizeToolName,
   inferAttachmentMimeType,
   isCallClientNonce,
+  isEmailActionEffect,
   isEmailSendTool,
   isMessagingChannelRun,
   isOneShotRoutineCrons,
@@ -3511,6 +3514,21 @@ export function createRunExecutor(deps: ExecutorDeps) {
           runId,
           screenLeaseId: screenLeaseIdForRun(computerLease, runId, fence),
           signal: runAbortController.signal,
+          assertConnectionActive: async (connection: ConnectedConnector) => {
+            const active = await deps.prisma.connection.findFirst({
+              where: {
+                id: connection.id,
+                spaceId: run.spaceId,
+                userId: run.userId,
+                connectorId: connection.connectorId,
+                provider: connection.externalId,
+                providerRef: connection.providerRef ?? null,
+                status: "connected",
+              },
+              select: { id: true },
+            });
+            if (!active) throw new Error("Reconnect the sending account before continuing.");
+          },
           connectedConnections: connectedPlugins.map((row) => ({
             id: row.id,
             connectorId: row.connectorId,
@@ -3589,7 +3607,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
           sourceEmail?.length === 1
             ? sourceEmail[0]
             : undefined;
-        let authorizedEmailEffectKey: string | undefined;
+        // Tool dispatch can be parallel within an attempt. Reserve this card's intent
+        // synchronously before any effect read; persisted effects protect restarts.
+        let reservedEmailEffectKey: string | undefined;
 
         const allowSilentPeerMessage = botMessageAllowsSilence(
           peerMessage?.intent,
@@ -4312,9 +4332,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
           if (
             sourceClientNonce?.startsWith("email-send:") &&
             emailSendIntent?.kind === "email" &&
-            connectorPreview?.emailSend &&
-            (!authorizedEmailEffectKey || authorizedEmailEffectKey === emailEffectKey)
+            connectorPreview?.emailSend
           ) {
+            if (reservedEmailEffectKey && reservedEmailEffectKey !== emailEffectKey)
+              return {
+                error:
+                  "This email already has a send request. Resume its existing review or check its result before starting a new send.",
+              };
+            reservedEmailEffectKey = emailEffectKey;
             // Completed sends replay without fetching a draft that Gmail has already removed.
             const previous = await deps.prisma.externalEffect.findUnique({
               where: { idempotencyKey: emailEffectKey },
@@ -4325,6 +4350,33 @@ export function createRunExecutor(deps: ExecutorDeps) {
               if (gate.action === "uncertain")
                 return settleUncertainEffect(deps.prisma, previous.id, name);
             }
+            // The card grants one durable send action, not one tool spelling per worker.
+            // A restart or wrapper/default-argument change must return the original effect.
+            const priorSends = await deps.prisma.externalEffect.findMany({
+              where: { runId, spaceId: run.spaceId },
+              select: {
+                id: true,
+                idempotencyKey: true,
+                kind: true,
+                status: true,
+                request: true,
+                result: true,
+              },
+              orderBy: { createdAt: "asc" },
+            });
+            const distinct = priorSends.find(
+              (effect) => effect.idempotencyKey !== emailEffectKey && isEmailActionEffect(effect),
+            );
+            if (distinct) {
+              const gate = resolveDuplicateEffectGate(distinct, name);
+              if (gate.action === "return") return gate.result;
+              if (gate.action === "uncertain")
+                return settleUncertainEffect(deps.prisma, distinct.id, name);
+              return {
+                error:
+                  "This email already has a send request. Resume its existing review or check its result before starting a new send.",
+              };
+            }
             try {
               connectorPreview = await deps.connector?.approvalPreview?.(
                 { ...connectorCall, tool: name, args },
@@ -4333,9 +4385,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
               );
               emailSendAuthorized = Boolean(
                 connectorPreview?.emailSend &&
+                  completeEmailApprovalPreview(connectorPreview.email) &&
+                  !emailSendIntent.email.attachments?.length &&
                   emailSendMatchesCard(emailSendIntent, connectorPreview),
               );
-              if (emailSendAuthorized) authorizedEmailEffectKey = emailEffectKey;
             } catch (error) {
               return { error: sanitizeConnectorError(error) };
             }
@@ -4631,14 +4684,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
               return pauseForApproval();
             }
             await workspaceCheckpoint.flush();
-            const fullPreview =
-              viaConnector && deps.connector?.approvalPreview
-                ? await deps.connector.approvalPreview(
-                    { ...connectorCall, tool: name, args },
-                    context,
-                    { includeContent: true },
-                  )
-                : connectorPreview;
+            let approvalBlock: MessageBlock;
+            try {
+              const fullPreview =
+                viaConnector && deps.connector?.approvalPreview
+                  ? await deps.connector.approvalPreview(
+                      { ...connectorCall, tool: name, args },
+                      context,
+                      { includeContent: true },
+                    )
+                  : connectorPreview;
+              approvalBlock = buildApprovalAskBlock(applied!.effect.id, name, args, runSecrets, {
+                reviewReason,
+                emailSend: fullPreview?.emailSend,
+                email: fullPreview?.email,
+                emailRevision: fullPreview?.emailRevision,
+              });
+            } catch (error) {
+              // No approval is published until the entire consequential payload is inspectable.
+              return { error: sanitizeConnectorError(error) };
+            }
             const paused = await deps.events.pauseRunForInput({
               spaceId: run.spaceId,
               threadId: run.threadId,
@@ -4647,13 +4712,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               attemptId: attempt.id,
               leaseOwner: workerId,
               leaseFence: fence,
-              blocks: [
-                buildApprovalAskBlock(applied!.effect.id, name, args, runSecrets, {
-                  reviewReason,
-                  emailSend: fullPreview?.emailSend,
-                  email: fullPreview?.email,
-                }),
-              ],
+              blocks: [approvalBlock],
             });
             // pauseRunForInput returning false after a successful renew means the run row no
             // longer matches this worker. Exiting via pauseForApproval() would leave the run
@@ -4730,6 +4789,53 @@ export function createRunExecutor(deps: ExecutorDeps) {
             } else if (gate.action === "uncertain") {
               return settleUncertainEffect(deps.prisma, applied.effect.id, gate.toolName);
             } else if (gate.action === "execute") {
+              if (connectorPreview?.emailSend || (viaConnector && isEmailSendTool(name))) {
+                let fresh: typeof connectorPreview;
+                try {
+                  fresh = await deps.connector?.approvalPreview?.(
+                    { ...connectorCall, tool: name, args },
+                    context,
+                    { includeContent: true },
+                  );
+                } catch (error) {
+                  return { error: sanitizeConnectorError(error) };
+                }
+                const approvals = await deps.prisma.message.findMany({
+                  where: { runId, spaceId: run.spaceId, threadId: run.threadId, role: "bot" },
+                  orderBy: { seq: "desc" },
+                  select: { blocks: true },
+                });
+                const reviewed = approvals
+                  .flatMap((message) => (Array.isArray(message.blocks) ? message.blocks : []))
+                  .find(
+                    (block) =>
+                      block &&
+                      typeof block === "object" &&
+                      (block as { kind?: string }).kind === "ask" &&
+                      (block as { approvalEffectId?: string }).approvalEffectId ===
+                        applied.effect.id,
+                  ) as Extract<MessageBlock, { kind: "ask" }> | undefined;
+                const unchanged =
+                  reviewed?.email &&
+                  completeEmailApprovalPreview(reviewed.email) &&
+                  fresh?.email &&
+                  completeEmailApprovalPreview(fresh.email) &&
+                  emailSendMatchesCard(
+                    { kind: "email", mode: "draft", draftId: "approval", email: reviewed.email },
+                    { draftId: "approval", email: fresh.email },
+                  ) &&
+                  reviewed.emailRevision === fresh.emailRevision;
+                if (!unchanged) {
+                  const reset = await deps.prisma.externalEffect.updateMany({
+                    where: { id: applied.effect.id, status: "approved" },
+                    data: { status: "intended" },
+                  });
+                  if (reset.count !== 1) return uncertainEffectResult(name);
+                  reviewReason =
+                    "The email changed after review. Review its current content before sending.";
+                  return requestApproval();
+                }
+              }
               const early = await claimOrReturn("approved");
               if (early !== undefined) return early;
             }
@@ -6420,7 +6526,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 }
               }
               if (event.type === "error") {
-                result = { error: event.message };
+                result = { error: event.message, ...(event.uncertain ? { uncertain: true } : {}) };
                 for (const logId of event.logIds ?? []) {
                   await deps.events.append({
                     spaceId: run.spaceId,
@@ -6433,6 +6539,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 }
               }
             }
+            if (
+              applied &&
+              claimedEffect &&
+              result &&
+              typeof result === "object" &&
+              "uncertain" in result &&
+              result.uncertain === true
+            )
+              return settleUncertainEffect(deps.prisma, applied.effect.id, name);
             return finish(result);
           }
           return finish({ error: `unknown tool ${name}` });

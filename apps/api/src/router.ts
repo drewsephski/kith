@@ -225,6 +225,7 @@ import {
   resolveBusyBotName,
   toComputerStatus,
 } from "./computer-status.js";
+import { launchForYou } from "./for-you-launch.js";
 import { searchIntegrationCatalog } from "./integration-catalog.js";
 import {
   dismissMcpServerApprovals,
@@ -1540,6 +1541,11 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     bots: {
+      launchForYou: authed.bots.launchForYou.handler(async ({ context, input }) => {
+        if ((await modelSetup(deps, context.actor)).needsModel)
+          throw new ORPCError("BAD_REQUEST", { message: "Connect a model to start a run." });
+        return launchForYou(deps, context.actor, input);
+      }),
       list: authed.bots.list.handler(async ({ context }) => repos.listBots(context.actor)),
       listArchived: authed.bots.listArchived.handler(async ({ context }) =>
         repos.listBots(context.actor, { archived: true }),

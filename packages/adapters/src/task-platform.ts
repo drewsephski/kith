@@ -14,8 +14,8 @@ import {
   TaskAnalyticsPropertySchema,
   TaskMetricSchema,
 } from "@rakazo/contracts";
-import { JSDOM } from "jsdom";
 import * as z from "zod";
+import { emailHtmlText } from "./email-approval.js";
 
 /** Internal authenticated transport. Credentials never cross this boundary. */
 export type TaskProxyRequest = {
@@ -136,11 +136,7 @@ function safeUrl(value: unknown): string | null {
 }
 
 function htmlText(html: string): string {
-  const dom = new JSDOM(html);
-  for (const node of dom.window.document.querySelectorAll("script,style,template")) node.remove();
-  const text = dom.window.document.body.textContent ?? "";
-  dom.window.close();
-  return text.replace(/\s+/g, " ").trim();
+  return emailHtmlText(html).replace(/\s+/g, " ").trim();
 }
 
 function mailText(payload: Record<string, unknown>, depth = 0, maxChars = 30_000): string {
@@ -178,8 +174,13 @@ function mailText(payload: Record<string, unknown>, depth = 0, maxChars = 30_000
 export function gmailEmailPreview(message: unknown, account: string) {
   const payload = obj(obj(message).payload);
   const headers = items(payload.headers);
-  const header = (name: string) =>
-    str(headers.find((item) => str(item.name).toLowerCase() === name)?.value);
+  const header = (name: string) => {
+    const matches = headers.filter((item) => str(item.name).toLowerCase() === name);
+    if (matches.length > 1) throw new Error("Email has ambiguous duplicate headers");
+    return str(matches[0]?.value);
+  };
+  if (!headers.some((item) => str(item.name).toLowerCase() === "subject"))
+    throw new Error("The email subject is missing from the complete preview");
   const body = mailText(payload, 0, 50_001);
   const attachments: string[] = [];
   const collect = (part: Record<string, unknown>, depth = 0) => {
@@ -187,13 +188,34 @@ export function gmailEmailPreview(message: unknown, account: string) {
       throw new Error("This email exceeds the complete preview size limit.");
     if (depth > 10) throw new Error("Email MIME nesting exceeds the supported limit");
     if (str(part.filename)) attachments.push(str(part.filename));
+    if (
+      !str(part.filename) &&
+      (typeof obj(part.body ?? {}).attachmentId === "string" ||
+        (Number(obj(part.body ?? {}).size) > 0 && !str(obj(part.body ?? {}).data)))
+    )
+      throw new Error("The email body must be fetched in full before approval");
+    if (Array.isArray(part.parts) && part.parts.length > 50)
+      throw new Error("Email has too many MIME parts");
+    if (str(part.mimeType).toLowerCase() === "multipart/alternative") {
+      const alternatives = items(part.parts)
+        .map((child) =>
+          mailText(child, depth + 1, 50_001)
+            .replace(/\s+/g, " ")
+            .trim(),
+        )
+        .filter(Boolean);
+      if (new Set(alternatives).size > 1)
+        throw new Error(
+          "The email's rich content differs from its plain-text preview. Prepare a plain-text draft for review.",
+        );
+    }
     for (const child of items(part.parts)) collect(child, depth + 1);
   };
   collect(payload);
   if (body.length > 50_000) throw new Error("This email is too long for a complete send preview.");
   return EmailContentSchema.parse({
     account,
-    from: header("from"),
+    from: header("from") || undefined,
     to: [header("to")],
     cc: header("cc") ? [header("cc")] : [],
     bcc: header("bcc") ? [header("bcc")] : [],

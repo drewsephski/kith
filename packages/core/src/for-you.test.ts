@@ -1,51 +1,55 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ForYouConversationAttempt } from "./for-you.js";
-import { FOR_YOU_SUGGESTIONS, startForYouConversation } from "./for-you.js";
+import {
+  FOR_YOU_SUGGESTIONS,
+  forYouLaunchAttempt,
+  forYouLaunchStorageKey,
+  startForYouConversation,
+} from "./for-you.js";
 
 const suggestion = FOR_YOU_SUGGESTIONS[0]!;
+const scope = { userId: "user", spaceId: "space", assistantId: "assistant" };
+const id = "00000000-0000-4000-8000-000000000001";
+
 describe("For you conversation launch", () => {
-  it("creates a separate assistant thread and sends the selected prompt", async () => {
-    const create = vi.fn().mockResolvedValue({ id: "new-thread" });
-    const send = vi.fn().mockResolvedValue({});
-    const attempt = { clientNonce: "prompt-nonce" };
+  it("delegates creation and the first task to one authoritative operation", async () => {
+    const launch = vi.fn().mockResolvedValue({ id: "conversation" });
     await expect(
-      startForYouConversation(suggestion, "assistant", attempt, { create, send }),
-    ).resolves.toBe("new-thread");
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: suggestion.title,
-        parentBotId: "assistant",
-        startEmpty: true,
-        notifyOnFinish: true,
-      }),
+      startForYouConversation(suggestion, scope, { operationId: id }, { launch }),
+    ).resolves.toBe("conversation");
+    expect(launch).toHaveBeenCalledWith({ ...scope, suggestionId: suggestion.id, operationId: id });
+  });
+
+  it("recovers a failed or uncertain request after reload with the same persisted identity", async () => {
+    const storage = new Map<string, string>();
+    const key = forYouLaunchStorageKey(scope, suggestion.id);
+    const first = forYouLaunchAttempt(storage.get(key) ?? null, () => id);
+    storage.set(key, first.operationId);
+    const launch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("lost response"))
+      .mockResolvedValueOnce({ id: "same-conversation" });
+    await expect(startForYouConversation(suggestion, scope, first, { launch })).rejects.toThrow(
+      "lost response",
     );
-    expect(send).toHaveBeenCalledWith({
-      botId: "new-thread",
-      text: suggestion.prompt,
-      clientNonce: "prompt-nonce",
-    });
-    expect(create.mock.invocationCallOrder[0]).toBeLessThan(send.mock.invocationCallOrder[0]!);
+    const reloaded = forYouLaunchAttempt(storage.get(key) ?? null, () => "other-operation");
+    expect(reloaded).toEqual(first);
+    await startForYouConversation(suggestion, scope, reloaded, { launch });
+    expect(launch.mock.calls[0]).toEqual(launch.mock.calls[1]);
+    storage.delete(key);
+    expect(forYouLaunchAttempt(storage.get(key) ?? null, () => "new-operation").operationId).toBe(
+      "new-operation",
+    );
   });
-  it("reuses the thread and message nonce after a failed send", async () => {
-    const create = vi.fn().mockResolvedValue({ id: "new-thread" });
-    const send = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({});
-    const attempt: ForYouConversationAttempt = { clientNonce: "retry-nonce" };
-    await expect(
-      startForYouConversation(suggestion, "assistant", attempt, { create, send }),
-    ).rejects.toThrow("offline");
-    expect(attempt.botId).toBe("new-thread");
-    await startForYouConversation(suggestion, "assistant", attempt, { create, send });
-    expect(create).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);
-  });
-  it("does not send when creating the thread fails", async () => {
-    const create = vi.fn().mockRejectedValue(new Error("unavailable"));
-    const send = vi.fn();
-    const attempt: ForYouConversationAttempt = { clientNonce: "nonce" };
-    await expect(
-      startForYouConversation(suggestion, "assistant", attempt, { create, send }),
-    ).rejects.toThrow("unavailable");
-    expect(attempt.botId).toBeUndefined();
-    expect(send).not.toHaveBeenCalled();
+
+  it("isolates pending attempts by account, space, assistant, and suggestion", () => {
+    const keys = [
+      forYouLaunchStorageKey(scope, suggestion.id),
+      forYouLaunchStorageKey({ ...scope, userId: "other" }, suggestion.id),
+      forYouLaunchStorageKey({ ...scope, spaceId: "other" }, suggestion.id),
+      forYouLaunchStorageKey({ ...scope, assistantId: "other" }, suggestion.id),
+      forYouLaunchStorageKey(scope, "other"),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(forYouLaunchAttempt("invalid", () => id).operationId).toBe(id);
   });
 });

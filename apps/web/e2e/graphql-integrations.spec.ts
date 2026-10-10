@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test("advanced GraphQL install shows Add GraphQL in MCP, OpenAPI, GraphQL, Executor, Treg order", async ({
   page,
@@ -8,8 +8,8 @@ test("advanced GraphQL install shows Add GraphQL in MCP, OpenAPI, GraphQL, Execu
   await signup(page, `graphql-source-${stamp}@rakazo.test`, "password12", `GraphQL ${stamp}`);
   await completeOnboarding(page);
 
-  await page.getByRole("button", { name: "Connections", exact: true }).first().click();
-  await page.getByRole("button", { name: "More connections", exact: true }).click();
+  await openAdvancedNavigation(page);
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await expect(page.getByPlaceholder("Search apps")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add GraphQL", exact: true })).toBeHidden();
 

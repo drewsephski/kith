@@ -1,7 +1,7 @@
 import { expect, type Route, test } from "@playwright/test";
 import type { McpServer } from "@rakazo/contracts";
 import { MCP_OAUTH_CHANNEL } from "../src/lib/mcp-connect";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test("connects an MCP server through the OAuth popup callback", async ({ page }, testInfo) => {
   const stamp = Date.now();
@@ -86,8 +86,8 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     });
   });
 
-  await page.getByRole("button", { name: "Connections", exact: true }).first().click();
-  await page.getByRole("button", { name: "More connections", exact: true }).click();
+  await openAdvancedNavigation(page);
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await page
     .getByTestId("integrations-advanced")
     .locator('[data-slot="collapsible-trigger"]')

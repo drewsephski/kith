@@ -27,10 +27,21 @@ import {
   showSessionUnavailable,
 } from "./lib/session-gate";
 import { completeSsoCallback, SSO_CALLBACK_PATH } from "./lib/sso-flow";
-import { IntegrationCallbackPage } from "./pages/IntegrationCallback";
-import { IntegrationSetupPage } from "./pages/IntegrationSetup";
-import { LocalSettingsPage } from "./pages/LocalSettings";
-import { McpOAuthCallbackPage } from "./pages/McpOAuthCallback";
+
+const IntegrationCallbackPage = lazy(() =>
+  import("./pages/IntegrationCallback").then((module) => ({
+    default: module.IntegrationCallbackPage,
+  })),
+);
+const IntegrationSetupPage = lazy(() =>
+  import("./pages/IntegrationSetup").then((module) => ({ default: module.IntegrationSetupPage })),
+);
+const LocalSettingsPage = lazy(() =>
+  import("./pages/LocalSettings").then((module) => ({ default: module.LocalSettingsPage })),
+);
+const McpOAuthCallbackPage = lazy(() =>
+  import("./pages/McpOAuthCallback").then((module) => ({ default: module.McpOAuthCallbackPage })),
+);
 
 const ShellPage = lazy(() =>
   import("./pages/Shell").then((module) => ({ default: module.ShellPage })),
@@ -74,15 +85,17 @@ export function App() {
     <RemoteImagesContext.Provider value={loadRemoteImages}>
       <LinkFaviconsContext.Provider value={linkFavicons}>
         <ErrorBoundary fallback={<AppFailed />}>
-          {window.location.pathname === SSO_CALLBACK_PATH ? (
-            <SsoCallbackPage />
-          ) : window.location.pathname === "/integrations/callback" ? (
-            <IntegrationCallbackPage />
-          ) : window.location.pathname === LOCAL_SETTINGS_PAGE ? (
-            <LocalSettingsPage />
-          ) : (
-            <SessionApp />
-          )}
+          <Suspense fallback={<div className="h-full bg-background" />}>
+            {window.location.pathname === SSO_CALLBACK_PATH ? (
+              <SsoCallbackPage />
+            ) : window.location.pathname === "/integrations/callback" ? (
+              <IntegrationCallbackPage />
+            ) : window.location.pathname === LOCAL_SETTINGS_PAGE ? (
+              <LocalSettingsPage />
+            ) : (
+              <SessionApp />
+            )}
+          </Suspense>
         </ErrorBoundary>
       </LinkFaviconsContext.Provider>
     </RemoteImagesContext.Provider>

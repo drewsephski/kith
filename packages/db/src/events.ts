@@ -10,8 +10,10 @@ import {
 import {
   blocksToAgentHistoryText,
   callIdFromClientNonce,
+  completeEmailApprovalPreview,
   isApprovalAskBlock,
   isConversationalRun,
+  isEmailSendTool,
   isSecretAskBlock,
   managedConnectionId,
   managedProviderRef,
@@ -665,6 +667,15 @@ async function commitAnswerRunInput(
       },
     });
     if (!approvalEffect) return null;
+    const emailSend =
+      pendingAsk.approvalAction === "email_send" || isEmailSendTool(approvalEffect.kind ?? "");
+    // Old or incomplete cards remain cancellable, but never grant send authority.
+    if (
+      emailSend &&
+      input.answer !== "deny" &&
+      (input.answer !== "allow" || !completeEmailApprovalPreview(pendingAsk.email))
+    )
+      return null;
     if (input.answer === "always") {
       if (run.userId !== input.answeredByUserId) return null;
       approvalUserId = input.answeredByUserId;

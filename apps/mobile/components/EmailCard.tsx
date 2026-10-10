@@ -128,9 +128,24 @@ export function EmailCard({
   const [error, setError] = useState<string | null>(null);
   const [subject, setSubject] = useState(block.email.subject);
   const [body, setBody] = useState(block.email.body);
+  const action = message.emailActions?.find((state) => state.blockIndex === blockIndex);
+  const accepted = requested || Boolean(action);
+  const statusLabel = action
+    ? {
+        completed: t("Completed"),
+        queued: t("Request queued"),
+        waiting_input: t("Needs attention"),
+        awaiting_approval: t("Awaiting final approval"),
+        sending: t("Sending…"),
+        sent: t("Sent and verified"),
+        failed: t("Failed"),
+        uncertain: t("Verify before retrying"),
+        cancelled: t("Cancelled"),
+      }[action.status]
+    : undefined;
   const changed = subject !== block.email.subject || body !== block.email.body;
   async function act() {
-    if (readOnly || locked.current || requested || !message.botId) return;
+    if (readOnly || locked.current || accepted || !message.botId) return;
     locked.current = true;
     setBusy(true);
     setError(null);
@@ -167,9 +182,9 @@ export function EmailCard({
       }}
     >
       <EmailPreview
-        email={{ ...block.email, subject, body }}
+        email={action?.email ?? { ...block.email, subject, body }}
         onChange={
-          block.mode === "draft" && !readOnly && !busy && !requested && message.botId
+          block.mode === "draft" && !readOnly && !busy && !accepted && message.botId
             ? (edits) => {
                 setSubject(edits.subject);
                 setBody(edits.body);
@@ -179,14 +194,22 @@ export function EmailCard({
       />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
         <NativeActionButton
-          label={requested ? t("Requested") : block.mode === "draft" ? t("Send") : t("Reply")}
+          label={
+            statusLabel ??
+            (requested ? t("Requested") : block.mode === "draft" ? t("Send") : t("Reply"))
+          }
           busy={busy}
-          disabled={readOnly || requested || !message.botId}
+          disabled={readOnly || accepted || !message.botId}
           fill={false}
           size="compact"
           onPress={() => void act()}
         />
       </View>
+      {block.provenance !== "provider" ? (
+        <Text style={{ color: tokens.mutedForeground, fontSize: 12 }}>
+          {t("Unverified email preview")}
+        </Text>
+      ) : null}
       {error ? (
         <Text accessibilityRole="alert" style={{ color: tokens.destructive, fontSize: 13 }}>
           {error}

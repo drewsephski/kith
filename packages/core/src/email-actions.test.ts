@@ -2,7 +2,14 @@ import type { EmailCard } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import { isEmailSendTool } from "./action-approval.js";
 import { blocksToAgentHistoryText } from "./attachments.js";
-import { emailActionNonce, emailActionPrompt, emailSendMatchesCard } from "./email-actions.js";
+import {
+  emailActionIdentity,
+  emailActionNonce,
+  emailActionOutcome,
+  emailActionPrompt,
+  emailActionStatus,
+  emailSendMatchesCard,
+} from "./email-actions.js";
 import { messageReplyPreview } from "./message-quote.js";
 
 const card: EmailCard = {
@@ -49,6 +56,108 @@ describe("email actions", () => {
       "GITHUB_CREATE_ISSUE",
     ])
       expect(isEmailSendTool(name)).toBe(false);
+  });
+});
+
+describe("authoritative email action state", () => {
+  it.each(["approved", "intended", "failed", "uncertain", "executing"])(
+    "binds the displayed outcome to its actual effect when later send B is %s",
+    (status) => {
+      const uncertain = status === "uncertain" || status === "executing";
+      expect(
+        emailActionOutcome({ status: "failed" }, [
+          {
+            id: "send-A",
+            kind: "GMAIL_SEND_DRAFT",
+            status: "completed",
+            result: { emailSendVerified: true },
+          },
+          {
+            id: "send-B",
+            kind: "GMAIL_SEND_DRAFT",
+            status: status === "failed" ? "completed" : status,
+            result: status === "failed" ? { error: "Connection revoked before dispatch" } : null,
+          },
+        ]),
+      ).toEqual({
+        status: uncertain ? "uncertain" : "sent",
+        effectId: uncertain ? "send-B" : "send-A",
+      });
+    },
+  );
+  it("recovers current and legacy edited card identities without merging other cards", () => {
+    expect(emailActionIdentity('email-send:["source",2,"old-revision"]')).toEqual({
+      messageId: "source",
+      blockIndex: 2,
+    });
+    expect(emailActionIdentity(emailActionNonce("source", 2))).toEqual({
+      messageId: "source",
+      blockIndex: 2,
+    });
+    expect(emailActionIdentity('email-send:["source",-1]')).toBeUndefined();
+    expect(emailActionIdentity("malformed")).toBeUndefined();
+  });
+  it.each([
+    ["queued", [], "queued"],
+    ["waiting_input", [], "waiting_input"],
+    [
+      "waiting_input",
+      [{ kind: "GMAIL_SEND_DRAFT", status: "intended", result: null }],
+      "awaiting_approval",
+    ],
+    ["running", [], "queued"],
+    ["completed", [], "failed"],
+    ["failed", [], "failed"],
+    ["cancelled", [], "cancelled"],
+    [
+      "completed",
+      [{ kind: "GMAIL_SEND_DRAFT", status: "completed", result: { id: "provider-id" } }],
+      "uncertain",
+    ],
+    [
+      "completed",
+      [{ kind: "GMAIL_SEND_DRAFT", status: "completed", result: { emailSendVerified: true } }],
+      "sent",
+    ],
+    [
+      "completed",
+      [{ kind: "GMAIL_SEND_DRAFT", status: "completed", result: { error: "Connection revoked" } }],
+      "failed",
+    ],
+    ["failed", [{ kind: "GMAIL_SEND_DRAFT", status: "executing", result: null }], "uncertain"],
+    ["waiting_input", [{ kind: "GMAIL_SEND_DRAFT", status: "denied", result: null }], "cancelled"],
+  ] as const)(
+    "projects %s without equating approval or run completion with delivery",
+    (status, effects, expected) => {
+      expect(emailActionStatus({ status }, effects)).toBe(expected);
+    },
+  );
+  it("keeps provider-confirmed delivery visible even if later narration fails", () => {
+    expect(
+      emailActionStatus({ status: "failed" }, [
+        { kind: "OUTLOOK_SEND_EMAIL", status: "completed", result: { emailSendVerified: true } },
+      ]),
+    ).toBe("sent");
+  });
+  it("recognizes uncertain and executing email sends inside direct and catalog connector batches", () => {
+    const args = { tools: [{ tool_slug: "GMAIL_SEND_DRAFT", arguments: { draftId: "draft-1" } }] };
+    for (const request of [args, ["catalog", "composio_execute_tool", args]]) {
+      expect(
+        emailActionStatus({ status: "completed" }, [
+          { kind: "COMPOSIO_MULTI_EXECUTE_TOOL", request, status: "completed", result: {} },
+        ]),
+      ).toBe("uncertain");
+      expect(
+        emailActionStatus({ status: "failed" }, [
+          { kind: "COMPOSIO_MULTI_EXECUTE_TOOL", request, status: "executing", result: null },
+        ]),
+      ).toBe("uncertain");
+      expect(
+        emailActionStatus({ status: "running" }, [
+          { kind: "COMPOSIO_MULTI_EXECUTE_TOOL", request, status: "executing", result: null },
+        ]),
+      ).toBe("sending");
+    }
   });
 });
 

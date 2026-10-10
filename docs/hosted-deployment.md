@@ -212,15 +212,14 @@ References: [Fly app configuration](https://fly.io/docs/reference/configuration/
 Deploy `apps/www` (Astro) and `apps/web` (Vite) as **separate Vercel projects**. The main
 marketing origin serves `/` as the Astro homepage. The application origin serves `/start`,
 `/sign-up`, `/sign-in`, `/onboarding`, and `/app` and keeps the existing backend proxies.
-Marketing Web links default to `https://kith-agent-app.vercel.app`. Set `PUBLIC_APP_URL`
-to your own application origin when self-hosting, or to an empty value to show the local
-setup-status page instead.
+Marketing Web links require an explicit `PUBLIC_APP_URL`; no hosted application is assumed.
+An unconfigured local build shows the setup-status page. Deployment builds fail closed.
 
 Set these **public, non-secret** environment variables on the marketing project before building:
 
 ```dotenv
 PUBLIC_SITE_URL=https://www.example.test
-PUBLIC_APP_URL=https://kith-agent-app.vercel.app
+PUBLIC_APP_URL=https://app.example.test
 ```
 
 Both must be distinct HTTPS origins: no path, credentials, query, fragment, private IP, or
@@ -228,6 +227,10 @@ internal hostname. Deployment builds fail when either is missing or invalid. Loc
 may use loopback HTTP origins; without site configuration they are unindexed. Environment
 loading follows the shared root `.env` convention;
 only the explicit public configuration is emitted into marketing links and metadata.
+Vercel previews require `PUBLIC_PREVIEW_APP_URL` pointing to an intentional staging application;
+they never fall back to `PUBLIC_APP_URL`. Set `PUBLIC_SITE_URL` for the preview origin as well,
+and scope installer URLs to production until staging assets are deliberately available.
+Verify `/start` and sign-in on the chosen application before publishing the marketing build.
 The configured marketing origin drives Astro's canonical URLs, sitemap, robots and social
 metadata. A `www` alias redirects only when the configured canonical origin is the apex.
 Configure any additional aliases in the hosting project's domain settings.

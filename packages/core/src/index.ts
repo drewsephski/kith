@@ -28,8 +28,19 @@ export * from "./email-actions.js";
 export * from "./events.js";
 export * from "./farewell.js";
 export * from "./featured-connectors.js";
-export type { ForYouCategory, ForYouConversationAttempt, ForYouSuggestion } from "./for-you.js";
-export { FOR_YOU_SUGGESTIONS, startForYouConversation } from "./for-you.js";
+export type {
+  ForYouCategory,
+  ForYouConversationAttempt,
+  ForYouLaunchScope,
+  ForYouSuggestion,
+} from "./for-you.js";
+export {
+  FOR_YOU_SUGGESTIONS,
+  forYouLaunchAttempt,
+  forYouLaunchStorageKey,
+  startForYouConversation,
+} from "./for-you.js";
+export { connectedForYouSuggestions, forYouWork } from "./for-you-work.js";
 export * from "./format-file-size.js";
 export * from "./group-mentions.js";
 export * from "./http-response.js";
