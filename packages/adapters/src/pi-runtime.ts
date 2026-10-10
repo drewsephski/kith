@@ -974,8 +974,7 @@ export function describeToolActivity(toolName: string, args: unknown): string {
   if (toolName === "render_plot") return "Rendering a chart";
   if (toolName === "add_mcp_server") return "Connecting an app…";
   if (toolName === "computer_observe") return "Looking at the screen";
-  if (toolName === "browser_navigate")
-    return "Opening a page…";
+  if (toolName === "browser_navigate") return "Opening a page…";
   if (toolName === "browser_snapshot") return "Reading the page";
   if (toolName === "browser_act") return "Using the page";
   if (toolName === "computer_act") return "Operating the computer";
@@ -987,10 +986,8 @@ export function describeToolActivity(toolName: string, args: unknown): string {
   if (toolName === "web_fetch") return "Reading a page…";
   if (toolName === "skill_read") return "Reading a skill…";
   if (toolName === "skill_create") return "Creating a skill…";
-  if (toolName === "skill_update")
-    return "Updating a skill…";
-  if (toolName === "skill_delete")
-    return "Deleting a skill…";
+  if (toolName === "skill_update") return "Updating a skill…";
+  if (toolName === "skill_delete") return "Deleting a skill…";
   const mcp = toolName.match(/^mcp__(.+?)__(.+)$/);
   if (mcp) return `Using ${mcp[1]}: ${mcp[2]}`;
   return `Using ${toolName}`;

@@ -287,7 +287,6 @@ import { AssistantForYou } from "./shell/assistant-for-you";
 import { AssistantWelcome } from "./shell/assistant-welcome";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
-import { useReplyDraft } from "./shell/reply-draft";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import { ConversationMenu } from "./shell/conversation-menu";
@@ -310,6 +309,7 @@ import {
   ChoiceCard,
   McpApprovalCard,
 } from "./shell/message-cards";
+import { useReplyDraft } from "./shell/reply-draft";
 import { commitSpaceRename, sidebarGroupsForSpaces } from "./shell/space-sidebar";
 import { WindowChrome } from "./WindowChrome";
 
@@ -2362,7 +2362,9 @@ export function ShellPage({
           replyDraft.settle(submittedReply);
           revokePendingAttachmentPreviews(attachments);
           setPendingAttachments((current) =>
-            current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
+            current.filter(
+              (attachment) => !attachments.some((submitted) => submitted.id === attachment.id),
+            ),
           );
           setAttachmentNotice(null);
           if (reroutedToGroup && groupTarget) {
@@ -2430,7 +2432,9 @@ export function ShellPage({
         replyDraft.settle(submittedReply);
         revokePendingAttachmentPreviews(attachments);
         setPendingAttachments((current) =>
-          current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
+          current.filter(
+            (attachment) => !attachments.some((submitted) => submitted.id === attachment.id),
+          ),
         );
         // Refresh sidebar status even when a bot→group reroute navigates away below.
         void refreshBots().catch(() => undefined);

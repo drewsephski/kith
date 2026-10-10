@@ -91,19 +91,19 @@ it("preserves an empty surface when the optional generator is unavailable", asyn
   expect(container.textContent).toBe("");
 });
 
-it("keeps service starters available offline and hides them during active work", async () => {
+it("does not substitute service starters when grounded generation is unavailable", async () => {
   rpc.mockRejectedValue(new Error("Unavailable"));
   await render(false, ["gmail"]);
-  expect(container.textContent).toContain("Draft replies that need your attention");
-  act(() => container.querySelector("button")!.click());
-  expect(select).toHaveBeenCalledWith(expect.stringContaining("Leave responses as drafts"));
+  expect(container.textContent).toBe("");
+  expect(select).not.toHaveBeenCalled();
   await render(true, ["gmail"]);
   expect(container.textContent).toBe("");
 });
 
-it("uses service starters when generation returns no grounded follow-ups", async () => {
+it("keeps the surface empty when generation returns no grounded follow-ups", async () => {
   rpc.mockResolvedValue([]);
   await render(false, ["github"]);
-  expect(container.textContent).toContain("Get pull requests ready to ship");
+  expect(container.textContent).toBe("");
+  expect(select).not.toHaveBeenCalled();
   expect(container.textContent).not.toContain("Draft replies");
 });

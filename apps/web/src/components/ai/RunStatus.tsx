@@ -26,9 +26,14 @@ export function RunStatus({
     return (
       <div data-testid="run-status" className="flex flex-col gap-1">
         {active.map((bot) => {
-          const activity =
-            reconnecting ? t`Reconnecting…` : runActivityText(messages, bot.runId) ??
-            (bot.status === "queued" ? t`Queued…` : bot.status === "leased" ? t`Starting…` : t`Preparing a response…`);
+          const activity = reconnecting
+            ? t`Reconnecting…`
+            : (runActivityText(messages, bot.runId) ??
+              (bot.status === "queued"
+                ? t`Queued…`
+                : bot.status === "leased"
+                  ? t`Starting…`
+                  : t`Preparing a response…`));
           const name = bot.name ?? t`Bot`;
           return (
             <ActiveBotGlyph

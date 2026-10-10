@@ -29,7 +29,6 @@ import {
   ensureAiDataConsent,
   isRunTerminalEvent,
   isSettledRunActivity,
-  settledRunIds,
   mergeThreadHistory,
   prependThreadHistoryPage,
   progressMessageId,
@@ -37,6 +36,7 @@ import {
   reduceLiveMessageBlocks,
   replyMetadata,
   runFailureError,
+  settledRunIds,
   signupRequiresEmailVerification,
   takeLiveMessage,
   updateCloudAgentMessages,
@@ -1081,6 +1081,7 @@ export function blockText(message: MobileMessage) {
 
 type ThreadEvent = {
   id?: string;
+  threadId?: string;
   createdAt?: string;
   botId?: string;
   type: string;
@@ -1153,8 +1154,13 @@ export function applyMobileThreadEvent(
   prev: MobileSnapshot | null,
   event: ThreadEvent,
 ): MobileSnapshot | null {
-  if (!prev || event.type === "heartbeat" || (event.threadId && event.threadId !== prev.threadId) ||
-    (event.seq !== undefined && event.seq <= (prev.cursor ?? -1))) return prev;
+  if (
+    !prev ||
+    event.type === "heartbeat" ||
+    (event.threadId && event.threadId !== prev.threadId) ||
+    (event.seq !== undefined && event.seq <= (prev.cursor ?? -1))
+  )
+    return prev;
   if (isSettledRunActivity(prev, event)) return { ...prev, cursor: event.seq ?? prev.cursor };
   if (event.type === "thread.cleared") {
     return {

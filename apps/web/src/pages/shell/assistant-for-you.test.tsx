@@ -144,7 +144,7 @@ it("shows conversation follow-ups without depending on connected services, and o
   vi.useFakeTimers();
   suggestions.mockResolvedValue(followUps);
   await renderConversation();
-  expect(container.textContent).toContain("Draft important replies");
+  expect(container.textContent).toBe("");
   await act(async () => vi.advanceTimersByTimeAsync(350));
   expect(container.textContent).toContain("Compare milestone options");
   expect(container.textContent).not.toContain("Draft important replies");
@@ -190,16 +190,15 @@ it("ignores late results after a thread or space switch", async () => {
   expect(container.childElementCount).toBe(0);
 });
 
-it("keeps connected-service starters when follow-up generation fails or returns nothing", async () => {
+it("keeps the grounded follow-up surface empty on failure or an empty result", async () => {
   vi.useFakeTimers();
   suggestions.mockRejectedValue(new Error("Offline"));
   await renderConversation();
   await act(async () => vi.advanceTimersByTimeAsync(350));
-  expect(container.textContent).toContain("Draft important replies");
-  act(() => container.querySelector("button")!.click());
-  expect(onSuggest).toHaveBeenCalledWith(expect.stringContaining("Leave the responses as drafts"));
+  expect(container.textContent).toBe("");
+  expect(onSuggest).not.toHaveBeenCalled();
   suggestions.mockResolvedValue([]);
   await renderConversation("reply-2");
   await act(async () => vi.advanceTimersByTimeAsync(350));
-  expect(container.textContent).toContain("Draft important replies");
+  expect(container.textContent).toBe("");
 });

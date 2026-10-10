@@ -117,11 +117,20 @@ describe("Composer", () => {
     function Parent() {
       const [target, setTarget] = useState("A");
       const [suggestion] = useState({ target: "A", text: "Review the interview", nonce: 1 });
-      return <>
-        <button type="button" onClick={() => setTarget(target === "A" ? "B" : "A")}>Switch</button>
-        <Composer {...composerProps} key={target} draftKey={target} drafts={drafts}
-          suggestedDraft={suggestion.target === target ? suggestion : undefined} />
-      </>;
+      return (
+        <>
+          <button type="button" onClick={() => setTarget(target === "A" ? "B" : "A")}>
+            Switch
+          </button>
+          <Composer
+            {...composerProps}
+            key={target}
+            draftKey={target}
+            drafts={drafts}
+            suggestedDraft={suggestion.target === target ? suggestion : undefined}
+          />
+        </>
+      );
     }
     act(() => root?.render(<Parent />));
     const input = () => container!.querySelector("textarea")!;

@@ -4,7 +4,7 @@ import { describeToolActivity } from "./pi-runtime.js";
 describe("describeToolActivity", () => {
   it("describes actual connected-app operations without exposing mail content", () => {
     expect(describeToolActivity("GMAIL_FETCH_EMAILS", { query: "private query" })).toBe(
-      "Checking Gmail",
+      "Searching Gmail…",
     );
     expect(
       describeToolActivity("mcp__mail__GMAIL_CREATE_EMAIL_DRAFT", { body: "private body" }),
@@ -18,38 +18,34 @@ describe("describeToolActivity", () => {
       describeToolActivity("COMPOSIO_MULTI_EXECUTE_TOOL", {
         tools: [{ tool_slug: "GMAIL_FETCH_EMAILS" }, { tool_slug: "GMAIL_GET_THREAD" }],
       }),
-    ).toBe("Checking Gmail");
+    ).toBe("Working across connected apps");
     expect(
       describeToolActivity("COMPOSIO_MULTI_EXECUTE_TOOL", {
         tools: [{ tool_slug: "GMAIL_FETCH_EMAILS" }, { tool_slug: "GOOGLECALENDAR_LIST_EVENTS" }],
       }),
     ).toBe("Working across connected apps");
   });
-  it("summarizes builtin tools with their most informative argument", () => {
+  it("names builtin operations without exposing their arguments", () => {
     expect(describeToolActivity("shell", { command: "pnpm test --filter web" })).toBe(
-      "Running: pnpm test --filter web",
+      "Running a command…",
     );
-    expect(describeToolActivity("read_file", { path: "notes/plan.md" })).toBe(
-      "Reading notes/plan.md",
-    );
+    expect(describeToolActivity("read_file", { path: "notes/plan.md" })).toBe("Reading a file…");
     expect(describeToolActivity("write_file", { path: "out.csv", content: "…" })).toBe(
-      "Writing out.csv",
+      "Writing a file…",
     );
     expect(describeToolActivity("render_plot", { spec: {} })).toBe("Rendering a chart");
-    expect(describeToolActivity("add_mcp_server", { name: "Linear" })).toBe(
-      "Connecting MCP server: Linear",
-    );
+    expect(describeToolActivity("add_mcp_server", { name: "Linear" })).toBe("Connecting an app…");
     expect(describeToolActivity("run_subagent", { name: "scout", task: "…" })).toBe(
-      "Delegating to helper: scout",
+      "Delegating to a helper…",
     );
     expect(describeToolActivity("create_space", { name: "Customer support" })).toBe(
-      "Creating space: Customer support",
+      "Creating a space…",
     );
     expect(describeToolActivity("web_search", { query: "rakazo agents" })).toBe(
-      "Searching the web: rakazo agents",
+      "Searching the web…",
     );
     expect(describeToolActivity("web_fetch", { url: "https://example.com" })).toBe(
-      "Reading page: https://example.com/",
+      "Reading a page…",
     );
   });
 
@@ -58,13 +54,13 @@ describe("describeToolActivity", () => {
     expect(describeToolActivity("mcp__demo-oauth__greet", {})).toBe("Using demo-oauth: greet");
   });
 
-  it("truncates long details and collapses whitespace", () => {
+  it("omits long payloads and embedded whitespace", () => {
     const long = `x${"y".repeat(200)}`;
     const line = describeToolActivity("shell", { command: `a\n\t${long}` });
-    expect(line.length).toBeLessThanOrEqual("Running: ".length + 91);
+    expect(line).toBe("Running a command…");
+    expect(line).not.toContain(long);
     expect(line).toContain("…");
     expect(line).not.toContain("\n");
-    expect(line).toMatch(/^Running: a x/);
   });
 
   it("redacts credentials from activity details", () => {
@@ -73,18 +69,19 @@ describe("describeToolActivity", () => {
       command: `curl -H 'Authorization: Bearer ${token}' https://example.test?api_key=fake-key password=fake-password`,
     });
 
-    expect(line).toContain("Bearer [redacted]");
-    expect(line).toContain("api_key=[redacted]");
+    expect(line).toBe("Running a command…");
+    expect(line).not.toContain("Authorization");
+    expect(line).not.toContain("api_key");
     expect(line).not.toContain(token);
     expect(line).not.toContain("fake-key");
     expect(line).not.toContain("fake-password");
   });
 
-  it("strips signed-URL query and fragment from web_fetch activity", () => {
+  it("omits signed URLs from web_fetch activity", () => {
     const line = describeToolActivity("web_fetch", {
       url: "https://user:secret@cdn.example.test/doc.pdf?X-Amz-Signature=abc123&token=leak#frag",
     });
-    expect(line).toBe("Reading page: https://cdn.example.test/doc.pdf");
+    expect(line).toBe("Reading a page…");
     expect(line).not.toContain("secret");
     expect(line).not.toContain("X-Amz-Signature");
     expect(line).not.toContain("token=");
@@ -96,7 +93,7 @@ describe("describeToolActivity", () => {
     const line = describeToolActivity("web_fetch", {
       url: "https://user:secret@[",
     });
-    expect(line).toBe("Reading page: [invalid URL]");
+    expect(line).toBe("Reading a page…");
     expect(line).not.toContain("secret");
     expect(line).not.toContain("user:");
   });
