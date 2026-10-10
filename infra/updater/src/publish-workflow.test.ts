@@ -130,7 +130,7 @@ describe("server image publish workflow", () => {
         }),
       });
       expect(result.status).not.toBe(0);
-      expect(readFileSync(f.log, "utf8")).not.toContain(":edge");
+      expect(readFileSync(f.log, "utf8")).not.toContain("create -t");
     } finally {
       f.close();
     }
@@ -148,9 +148,105 @@ describe("server image publish workflow", () => {
         FAIL_SOURCE: "computer",
       });
       expect(result.status).not.toBe(0);
-      expect(readFileSync(f.log, "utf8")).not.toContain(":edge");
+      expect(readFileSync(f.log, "utf8")).not.toContain("create -t");
     } finally {
       f.close();
+    }
+  });
+
+  it("restores every prior digest after an ambiguous partial promotion and keeps the job failed", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    const f = publicationFixture();
+    try {
+      const result = f.run(step?.run, {
+        HEAD_SHA: "a".repeat(40),
+        SOURCE_SHA: "a".repeat(40),
+        FAIL_PROMOTION: "updater",
+      });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("Edge recovery completed; promotion remains failed");
+      for (const image of ["app", "updater", "computer"]) {
+        expect(f.state(image)).toBe(`ghcr.io/example/project/${image}@sha256:${"f".repeat(64)}`);
+      }
+    } finally {
+      f.close();
+    }
+  });
+
+  it("reports failed recovery without claiming the old release was restored", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    const f = publicationFixture();
+    try {
+      const result = f.run(step?.run, {
+        HEAD_SHA: "a".repeat(40),
+        SOURCE_SHA: "a".repeat(40),
+        FAIL_PROMOTION: "updater",
+        FAIL_ROLLBACK: "true",
+      });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("Edge recovery failed; operator recovery is required");
+      expect(result.stderr).not.toContain("Edge recovery completed");
+    } finally {
+      f.close();
+    }
+  });
+
+  it("bootstraps only one source and recovers an interrupted first publication", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    for (const [missing, partial, failure] of [
+      ["all", "", ""],
+      ["all", "", "updater"],
+      ["computer", "true", ""],
+    ] as const) {
+      const f = publicationFixture();
+      try {
+        const result = f.run(step?.run, {
+          HEAD_SHA: "a".repeat(40),
+          SOURCE_SHA: "a".repeat(40),
+          MISSING_PRIOR: missing,
+          BOOTSTRAP_PRIOR: partial,
+          FAIL_PROMOTION: failure,
+        });
+        expect(result.status === 0, result.stderr).toBe(failure === "");
+        for (const image of ["app", "updater", "computer"]) {
+          expect(f.state(image)).toBe(`ghcr.io/example/project/${image}@sha256:${"c".repeat(64)}`);
+        }
+      } finally {
+        f.close();
+      }
+    }
+  });
+
+  it("does not mistake a prior lookup error or mixed bootstrap for missing tags", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    const scenarios: Array<Record<string, string>> = [
+      { PRIOR_ERROR: "true" },
+      { MISSING_PRIOR: "computer" },
+    ];
+    for (const overrides of scenarios) {
+      const f = publicationFixture();
+      try {
+        const result = f.run(step?.run, {
+          HEAD_SHA: "a".repeat(40),
+          SOURCE_SHA: "a".repeat(40),
+          ...overrides,
+        });
+        expect(result.status).not.toBe(0);
+        const writes = readFileSync(f.log, "utf8")
+          .split("\n")
+          .filter((line) => line.includes("create -t"));
+        expect(writes).toHaveLength(0);
+      } finally {
+        f.close();
+      }
     }
   });
 
@@ -210,10 +306,31 @@ else echo "$HEAD_SHA"; fi`,
 if [[ "$*" == *inspect* && "$*" == *Platform.OS* ]]; then printf 'linux/amd64\\nlinux/arm64\\n'
 elif [[ "$*" == *inspect* ]]; then
   [[ -n "$FAIL_SOURCE" && "$*" == *"/$FAIL_SOURCE:sha-"* ]] && exit 1
-  echo sha256:${"c".repeat(64)}
-elif [[ "$ADVANCE_MAIN" == true && "$*" == *create* ]]; then
-  echo ${"b".repeat(40)} > "$HEAD_FILE"
-fi`,
+  if [[ "$*" == *:edge* ]]; then
+    if [[ "$PRIOR_ERROR" == true ]]; then echo 'ERROR: registry unavailable' >&2; exit 1; fi
+    if [[ "$MISSING_PRIOR" == all || ("$MISSING_PRIOR" == computer && "$*" == */computer:edge*) ]]; then
+      echo "ERROR: $4: not found" >&2; exit 1
+    fi
+    if [[ "$BOOTSTRAP_PRIOR" == true ]]; then echo sha256:${"c".repeat(64)}
+    else echo sha256:${"f".repeat(64)}; fi
+  else echo sha256:${"c".repeat(64)}; fi
+elif [[ "$*" == *create* ]]; then
+  for name in app updater computer; do
+    if [[ "$*" == *"/$name:edge"* ]]; then
+      echo "\${@: -1}" > "$STATE_DIR/$name"
+      if [[ "$FAIL_PROMOTION" == "$name" && "$*" == *@sha256:${"c".repeat(64)} && ! -f "$STATE_DIR/failed" ]]; then
+        touch "$STATE_DIR/failed"; exit 1
+      fi
+      [[ "$FAIL_ROLLBACK" == true && "$*" == *@sha256:${"f".repeat(64)} ]] && exit 1
+    fi
+  done
+  [[ "$ADVANCE_MAIN" == true ]] && echo ${"b".repeat(40)} > "$HEAD_FILE"
+fi
+exit 0`,
+    timeout: `[[ "$1" == --kill-after=5s ]] || exit 99
+case "$2" in 30s|60s) ;; *) exit 99 ;; esac
+shift 2
+exec "$@"`,
   };
   for (const [name, body] of Object.entries(scripts)) {
     const file = path.join(bin, name);
@@ -223,6 +340,7 @@ fi`,
   return {
     log,
     ghLog,
+    state: (image: string) => readFileSync(path.join(directory, image), "utf8").trim(),
     run(script: string | undefined, overrides: Record<string, string>) {
       expect(script).toBeDefined();
       return spawnSync("bash", ["-c", script!], {
@@ -237,6 +355,7 @@ fi`,
           DOCKER_LOG: log,
           GH_LOG: ghLog,
           HEAD_FILE: path.join(directory, "main-head"),
+          STATE_DIR: directory,
           CI_RUNS: JSON.stringify({
             workflow_runs: [{ status: "completed", conclusion: "success" }],
           }),

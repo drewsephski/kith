@@ -282,7 +282,7 @@ jobs:
     needs: [tested-source, publish]
     if: github.event_name != 'pull_request' && github.ref_type != 'tag'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     # One shared release decision across all images and all triggering refs.
     concurrency:
       group: image-edge-release
@@ -310,23 +310,70 @@ jobs:
           # All immutable manifests and attestations must exist before any edge write.
           for name in "${images[@]}"; do
             image="ghcr.io/${GITHUB_REPOSITORY}/${name}"
-            digest="$(docker buildx imagetools inspect "${image}:sha-${SOURCE_SHA}" --format '{{.Manifest.Digest}}')"
+            digest="$(timeout --kill-after=5s 30s docker buildx imagetools inspect "${image}:sha-${SOURCE_SHA}" --format '{{.Manifest.Digest}}')"
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             sources+=("${image}@${digest}")
           done
+          previous=()
+          missing=0
+          for name in "${images[@]}"; do
+            image="ghcr.io/${GITHUB_REPOSITORY}/${name}"
+            if prior="$(timeout --kill-after=5s 30s docker buildx imagetools inspect "${image}:edge" --format '{{.Manifest.Digest}}' 2>&1)"; then
+              [[ "$prior" =~ ^sha256:[0-9a-f]{64}$ ]]
+              previous+=("${image}@${prior}")
+            elif [[ "$prior" == "ERROR: ${image}:edge: not found" ]]; then
+              previous+=("")
+              missing=$((missing + 1))
+            else
+              echo "Cannot verify prior edge state; no tags were changed." >&2
+              exit 1
+            fi
+          done
+          # First publication has no old release to restore. An interrupted
+          # bootstrap may contain only this same source, never a mixture of releases.
+          if ((missing > 0)); then
+            for index in "${!images[@]}"; do
+              if [[ -n "${previous[$index]}" && "${previous[$index]}" != "${sources[$index]}" ]]; then
+                echo "Prior edge release is incomplete; operator recovery is required." >&2
+                exit 1
+              fi
+            done
+          fi
           # Eligibility can change during builds or the shared promotion queue.
           # Check once at the write boundary, then keep the entire set coherent
           # even if main advances while the registry accepts individual tag writes.
-          head="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          head="$(timeout --kill-after=5s 30s gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
           [[ "$head" =~ ^[0-9a-f]{40}$ ]]
           if [[ "$SOURCE_SHA" != "$head" ]]; then
             echo "Source is no longer main; retaining immutable images without moving edge."
             exit 0
           fi
           # A rerun may have failed while the images were building.
-          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SOURCE_SHA}&event=push&branch=main" \
+          timeout --kill-after=5s 30s gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SOURCE_SHA}&event=push&branch=main" \
             --jq '.workflow_runs[0] | .status == "completed" and .conclusion == "success"' | grep -Fx true
+          recover_edge() {
+            result=$?
+            trap - EXIT
+            if ((result != 0)); then
+              recovery_failed=0
+              for index in "${!images[@]}"; do
+                image="ghcr.io/${GITHUB_REPOSITORY}/${images[$index]}"
+                restore="${previous[$index]}"
+                # With no prior release, finish the same-source bootstrap instead.
+                if ((missing > 0)); then restore="${sources[$index]}"; fi
+                timeout --kill-after=5s 30s docker buildx imagetools create -t "${image}:edge" "$restore" || recovery_failed=1
+              done
+              if ((recovery_failed == 0)); then
+                echo "Edge recovery completed; promotion remains failed." >&2
+              else
+                echo "Edge recovery failed; operator recovery is required." >&2
+              fi
+            fi
+            exit "$result"
+          }
+          # A client can fail after a tag write succeeded: restore the entire set.
+          trap recover_edge EXIT
           for index in "${!images[@]}"; do
             image="ghcr.io/${GITHUB_REPOSITORY}/${images[$index]}"
-            docker buildx imagetools create -t "${image}:edge" "${sources[$index]}"
+            timeout --kill-after=5s 60s docker buildx imagetools create -t "${image}:edge" "${sources[$index]}"
           done
