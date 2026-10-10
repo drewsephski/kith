@@ -37,6 +37,7 @@ import {
   replyAttachment,
   resolveComposerSendPlan,
   resolvePersonaColorDef,
+  runActivityText,
   SLASH_ACTIONS,
   selectedAskActionLabel,
   serializeComposerPrompt,
@@ -117,7 +118,6 @@ import { TaskStarterSetup } from "../components/task-starters/setup";
 import { TaskStarterSuggestions } from "../components/task-starters/suggestions";
 import { TimeSeparator } from "../components/time-separator";
 import { VoiceChatCard } from "../components/VoiceChatCard";
-import { WorkingIndicator } from "../components/WorkingIndicator";
 import type {
   MobileBot,
   MobileGroup,
@@ -653,7 +653,6 @@ function Thread() {
   const assistantResponding = isAssistantResponding(assistantId, [
     { botId, status: currentBotStatus ?? undefined },
   ]);
-  const hasResponseText = hasRunResponseText(visibleMessages, snap?.run?.id);
   const currentRuns = snap?.activeRuns ?? (snap?.run ? [snap.run] : []);
   const workingGroupBots = useMemo(() => {
     if (!inGroup) return [];
@@ -664,18 +663,11 @@ function Thread() {
       const member = snap?.members?.find((candidate) => candidate.botId === run.botId);
       if (!member) return [];
       seen.add(run.botId);
-      return [{ ...member, status: run.status }];
+      return [{ ...member, status: run.status, runId: run.id }];
     });
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
   const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
-  const footerGroupBots = workingGroupBots.filter((bot) =>
-    currentRuns.some(
-      (run) =>
-        run.botId === bot.botId &&
-        isWorkingStatus(run.status) &&
-        !hasRunResponseText(visibleMessages, run.id),
-    ),
-  );
+  const footerGroupBots = workingGroupBots;
 
   const speakFinishedReply = useCallback(() => {
     if (!botId || inGroup || !currentBot) return;
@@ -2292,7 +2284,7 @@ function Thread() {
   }
 
   const workingFooter =
-    !inGroup && currentBot && isWorkingStatus(currentBotStatus) && !hasResponseText ? (
+    !inGroup && currentBot && isWorkingStatus(currentBotStatus) ? (
       <View
         accessibilityLabel={t("{name} is working", { name: currentBot.name })}
         accessibilityRole="text"
@@ -2304,7 +2296,9 @@ function Thread() {
           marginTop: 12,
         }}
       >
-        {assistantResponding ? (
+        {hasRunResponseText(visibleMessages, snap?.run?.id) ? (
+          <ActivityIndicator size="small" color={tokens.mutedForeground} />
+        ) : assistantResponding ? (
           <KithWorkingAvatar active={focused && !threadScrollState.detached} />
         ) : (
           <BotAvatar
@@ -2314,7 +2308,15 @@ function Thread() {
             status={currentBotStatus}
           />
         )}
-        <WorkingIndicator />
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ flex: 1, color: tokens.mutedForeground, fontSize: 13 }}
+        >
+          {runActivityText(visibleMessages, snap?.run?.id) ??
+            (currentBotStatus === "queued" || currentBotStatus === "leased"
+              ? t("Starting…")
+              : t("Working…"))}
+        </Text>
       </View>
     ) : inGroup && footerGroupBots.length > 0 ? (
       <View
@@ -2348,8 +2350,37 @@ function Thread() {
             </View>
           ))}
         </View>
-        <WorkingIndicator />
+        <View style={{ flex: 1, gap: 4 }}>
+          {footerGroupBots.map((bot) => (
+            <Text
+              key={bot.runId}
+              accessibilityLiveRegion="polite"
+              style={{ color: tokens.mutedForeground, fontSize: 13 }}
+            >
+              {bot.name}: {runActivityText(visibleMessages, bot.runId) ?? t("Working…")}
+            </Text>
+          ))}
+        </View>
       </View>
+    ) : snap?.run &&
+      ["waiting_input", "waiting_takeover", "cancelled", "completed", "failed"].includes(
+        snap.run.status,
+      ) &&
+      (snap.run.status !== "completed" || hasRunResponseText(visibleMessages, snap.run.id)) ? (
+      <Text
+        accessibilityLiveRegion="polite"
+        style={{ color: tokens.mutedForeground, fontSize: 13, paddingVertical: 8 }}
+      >
+        {snap.run.status === "waiting_input"
+          ? t("Waiting for your input")
+          : snap.run.status === "waiting_takeover"
+            ? t("Waiting for you")
+            : snap.run.status === "cancelled"
+              ? t("Stopped")
+              : snap.run.status === "failed"
+                ? t("Couldn’t finish")
+                : t("Done")}
+      </Text>
     ) : null;
 
   const loadEarlierControl =

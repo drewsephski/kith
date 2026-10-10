@@ -402,7 +402,16 @@ export function reduceThreadSnapshot(
         endedRun && failure
           ? { ...endedRun, status: "failed", error: failure }
           : primaryEnded
-            ? (activeRuns?.[0] ?? null)
+            ? (activeRuns?.[0] ?? {
+                ...primaryEnded,
+                status:
+                  event.type === "run.cancelled"
+                    ? "cancelled"
+                    : event.type === "run.failed"
+                      ? "failed"
+                      : "completed",
+                completedAt: event.createdAt,
+              })
             : prev.run,
       activeRuns,
     };

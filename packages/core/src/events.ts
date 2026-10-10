@@ -244,6 +244,22 @@ export function reduceLiveMessageBlocks(
   blocks: readonly MessageBlock[],
   update: LiveMessageUpdate,
 ): MessageBlock[] {
+  // Activity is independent of streamed prose. A status update must not replace
+  // an acknowledgement, and a tool audit event must not hide the active label.
+  const narration = blocks.filter((block) => !(block.kind === "progress" && block.activity));
+  if (update.type === "progress" && update.payload?.activity === true) {
+    const text = String(update.payload.text ?? "");
+    return text ? [{ kind: "progress", text, activity: true }, ...narration] : narration;
+  }
+  const next = reduceNarrationBlocks(narration, update);
+  const activity = blocks.find((block) => block.kind === "progress" && block.activity);
+  return update.type === "tool" && activity ? [activity, ...next] : next;
+}
+
+function reduceNarrationBlocks(
+  blocks: readonly MessageBlock[],
+  update: LiveMessageUpdate,
+): MessageBlock[] {
   const tail = blocks.at(-1);
   const segments = tail?.kind === "progress" ? blocks.slice(0, -1) : blocks;
   const priorText = liveMessageText(blocks);
@@ -259,13 +275,8 @@ export function reduceLiveMessageBlocks(
     ...(tail?.kind === "progress" ? (tail.pendingToolNames ?? []) : []),
     ...(update.type === "tool" ? [update.name] : []),
   ];
-  const activity =
-    update.type === "progress"
-      ? update.payload?.activity === true
-      : tail?.kind === "progress" && tail.activity === true;
-
-  if (pendingToolNames.length > 0 && endsSentence(tailText)) {
-    let next = activity ? [...segments] : appendTextSegment(segments, tailText);
+  if (pendingToolNames.length > 0 && (!tailText || endsSentence(tailText))) {
+    let next = appendTextSegment(segments, tailText);
     for (const name of pendingToolNames) next = appendToolCallSegment(next, name);
     return next;
   }
@@ -275,7 +286,6 @@ export function reduceLiveMessageBlocks(
     {
       kind: "progress",
       text: tailText,
-      ...(activity ? { activity: true as const } : {}),
       ...(pendingToolNames.length > 0 ? { pendingToolNames } : {}),
     },
   ];

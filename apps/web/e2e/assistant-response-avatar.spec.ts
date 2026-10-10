@@ -23,7 +23,8 @@ test("the assistant animation stays visible while generating and streaming", asy
   await expect(page.getByTestId("message-bot-bubble")).toContainText("Lisbon is the cap");
   const inlineAvatar = page.locator('[data-message-id^="progress:"] img');
   await expect(inlineAvatar).toHaveAttribute("data-animated", "true");
-  await expect(page.getByTestId("active-bot-glyph")).toHaveCount(0);
+  await expect(page.getByTestId("active-bot-glyph")).toBeVisible();
+  await expect(page.getByTestId("active-bot-glyph").locator("img")).toHaveCount(0);
   const avatarBox = await inlineAvatar.boundingBox();
   const messageBox = await page
     .getByTestId("assistant-response-row")
@@ -54,7 +55,8 @@ test("other bots retain their own avatars", async ({ page }) => {
   await expect(glyph.locator(".rakazo-bot-avatar")).toBeVisible();
   await expect(glyph.locator("img")).toHaveCount(0);
   await page.goto(`${fixture}?stream=on&bot=other`);
-  await expect(glyph).toHaveCount(0);
+  await expect(glyph).toBeVisible();
+  await expect(glyph.locator(".rakazo-bot-avatar")).toHaveCount(0);
 });
 
 test("reduced motion and offscreen loading use the still companion", async ({ page }) => {
@@ -63,7 +65,7 @@ test("reduced motion and offscreen loading use the still companion", async ({ pa
   const avatar = page.getByTestId("active-bot-glyph").locator("img");
   await expect(avatar).toHaveAttribute("data-animated", "false");
   await expect(avatar).toHaveAttribute("src", /kith-companion\.webp/);
-  await expect(page.getByRole("status")).toContainText("Chief is working");
+  await expect(page.getByRole("status")).toContainText("Working…");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(avatar).toHaveAttribute("data-animated", "true");
   await avatar.evaluate((image: HTMLImageElement) => {

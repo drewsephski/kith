@@ -2961,6 +2961,21 @@ describe("mobile thread event reduction", () => {
     expect(next?.cursor).toBe(10);
   });
 
+  it.each(["completed", "cancelled", "failed"])(
+    "retains %s authority after the last active run settles",
+    (status) => {
+      const run = { id: "run", status: "running" };
+      const initial: MobileSnapshot = { ...snapshot([]), run, activeRuns: [run] };
+      const settled = applyMobileThreadEvent(initial, {
+        type: `run.${status}`,
+        runId: run.id,
+        seq: 10,
+      });
+      expect(settled?.run).toMatchObject({ id: run.id, status });
+      expect(settled?.activeRuns).toEqual([]);
+    },
+  );
+
   it("keeps a failed member run's error while another member run is still active", () => {
     const runA = { id: "run-a", status: "running" };
     const runB = { id: "run-b", status: "running" };

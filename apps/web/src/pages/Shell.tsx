@@ -46,7 +46,6 @@ import {
   forYouLaunchAttempt,
   forYouLaunchStorageKey,
   groupVoiceChats,
-  hasRunResponseText,
   inferAttachmentMimeType,
   isActive,
   isAssistantResponding,
@@ -155,11 +154,8 @@ import { createPortal } from "react-dom";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
-import {
-  ActiveBotGlyph,
-  AssistantResponseRow,
-  CollaborationMarker,
-} from "../components/ai/CollaborationMarker";
+import { AssistantResponseRow, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import { RunStatus } from "../components/ai/RunStatus";
 import { CalendarReceipt } from "../components/CalendarReceipt";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
@@ -4129,6 +4125,7 @@ export function ShellPage({
                 answerableAskMessageId={answerableAskMessageId}
                 running={transcriptRunning}
                 workingBots={workingBots}
+                latestRun={activeSnapshot?.run}
                 assistantId={assistantId}
                 onLoadOlder={loadOlder}
                 onOpenBot={openBot}
@@ -5419,6 +5416,7 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId,
   running,
   workingBots,
+  latestRun,
   assistantId,
   onLoadOlder,
   onOpenBot,
@@ -5452,6 +5450,7 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId: string | null;
   running: boolean;
   workingBots: (GroupAvatarMember & { runId: string })[];
+  latestRun?: ThreadSnapshot["run"];
   assistantId: string | null;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
@@ -5504,12 +5503,6 @@ export const Transcript = memo(function Transcript({
     (item) =>
       item.kind === "voiceChat" || messageHasVisibleBlocks(item.message.blocks, showToolActivity),
   );
-  const waitingBots = workingBots.filter((bot) => !hasRunResponseText(messages, bot.runId));
-  const workingBotName = waitingBots.length === 1 ? waitingBots[0]?.name : undefined;
-  const workingLabel =
-    workingBotName != null && workingBotName !== ""
-      ? t`${workingBotName} is working`
-      : t`Kith is working`;
   const assistantResponding = isAssistantResponding(assistantId, workingBots);
   const isLiveAssistantMessage = (message: ThreadMessage) =>
     assistantResponding &&
@@ -5939,9 +5932,14 @@ export const Transcript = memo(function Transcript({
             </Fragment>
           );
         })}
-        {running && waitingBots.length > 0 ? (
+        {workingBots.length > 0 || latestRun ? (
           <div className="kith-conversation-item shrink-0">
-            <ActiveBotGlyph bots={waitingBots} label={workingLabel} assistantId={assistantId} />
+            <RunStatus
+              bots={workingBots}
+              messages={messages}
+              latestRun={latestRun}
+              assistantId={assistantId}
+            />
           </div>
         ) : null}
       </div>

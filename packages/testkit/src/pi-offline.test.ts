@@ -50,6 +50,259 @@ function latestToolResult(request: ModelEmulatorRequest) {
 }
 
 describe("real Pi against an offline model HTTP endpoint", () => {
+  it("continues a promise-only reply into real tool execution and a verified answer", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("Save hello to notes.txt.");
+          },
+          response: { type: "text", text: "I'll prepare the file now." },
+        },
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("Continue the original task now");
+          },
+          response: {
+            type: "tool",
+            id: "recovered-write",
+            name: "write_file",
+            arguments: { path: "notes.txt", content: "hello" },
+          },
+        },
+        {
+          expect(request) {
+            expect(latestToolResult(request)?.tool_call_id).toBe("recovered-write");
+          },
+          response: { type: "text", text: "Saved notes.txt." },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const writes: unknown[] = [];
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          tools: [
+            writeTool,
+            {
+              name: "read_file",
+              description: "Read a file",
+              inputSchema: {
+                type: "object",
+                properties: { path: { type: "string" } },
+                required: ["path"],
+              },
+            },
+          ],
+          executeTool: async (call) => {
+            writes.push(call);
+            return { ok: true };
+          },
+        }),
+      ),
+    );
+    server.assertComplete();
+    expect(writes).toHaveLength(1);
+    expect(events).toContainEqual({ type: "progress", text: "Writing notes.txt", activity: true });
+    expect(events).toContainEqual({ type: "progress", text: "Working…", activity: true });
+    expect(events).toContainEqual({
+      type: "progress",
+      text: "Continuing the task…",
+      activity: true,
+    });
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      text: expect.stringContaining("Saved notes.txt."),
+    });
+  });
+
+  it("recovers a helper's promise-only reply before returning its result to the parent", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect() {},
+          response: {
+            type: "tool",
+            id: "delegate",
+            name: "run_subagent",
+            arguments: { name: "helper", task: "Save hello to notes.txt." },
+          },
+        },
+        {
+          expect(request) {
+            expect(request.tools?.some((tool) => tool.function.name === "run_subagent")).toBe(
+              false,
+            );
+          },
+          response: { type: "text", text: "I'll save the file now." },
+        },
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("Continue the original task now");
+          },
+          response: {
+            type: "tool",
+            id: "helper-write",
+            name: "write_file",
+            arguments: { path: "notes.txt", content: "hello" },
+          },
+        },
+        {
+          expect(request) {
+            expect(latestToolResult(request)?.tool_call_id).toBe("helper-write");
+          },
+          response: { type: "text", text: "Saved notes.txt." },
+        },
+        {
+          expect(request) {
+            expect(latestToolResult(request)?.tool_call_id).toBe("delegate");
+          },
+          response: { type: "text", text: "The helper saved notes.txt." },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let writes = 0;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          tools: [
+            writeTool,
+            {
+              name: "run_subagent",
+              description: "Delegate a task",
+              inputSchema: {
+                type: "object",
+                properties: { name: { type: "string" }, task: { type: "string" } },
+                required: ["task"],
+              },
+            },
+          ],
+          executeTool: async () => {
+            writes += 1;
+            return { ok: true };
+          },
+        }),
+      ),
+    );
+    server.assertComplete();
+    expect(writes).toBe(1);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "subagent",
+        status: "completed",
+        result: expect.stringContaining("Saved notes.txt."),
+      }),
+    );
+    expect(events.at(-1)).toEqual({ type: "done", text: "The helper saved notes.txt." });
+  });
+
+  it("fails repeated promise-only replies after bounded recovery", async () => {
+    const server = await startModelEmulator({
+      steps: Array.from({ length: 3 }, () => ({
+        expect(request) {
+          expect(JSON.stringify(request.messages)).toContain("Save hello to notes.txt.");
+        },
+        response: { type: "text" as const, text: "I'll check the file now." },
+      })),
+    });
+    cleanups.push(() => server.close());
+    const events: AgentRuntimeEvent[] = [];
+    await expect(
+      collect(new PiAgentRuntime().run(runRequest(server.model)), events),
+    ).rejects.toThrow("stopped with a plan");
+    server.assertComplete();
+    expect(events.some((event) => event.type === "done")).toBe(false);
+  });
+
+  it("does not promote the original promise when recovery replies are empty", async () => {
+    const server = await startModelEmulator({
+      steps: ["I'll check the file now.", "", ""].map((text) => ({
+        expect(request) {
+          expect(JSON.stringify(request.messages)).toContain("Save hello to notes.txt.");
+        },
+        response: { type: "text" as const, text },
+      })),
+    });
+    cleanups.push(() => server.close());
+    const events: AgentRuntimeEvent[] = [];
+    await expect(
+      collect(new PiAgentRuntime().run(runRequest(server.model)), events),
+    ).rejects.toThrow("stopped with a plan");
+    server.assertComplete();
+    expect(events.some((event) => event.type === "done")).toBe(false);
+  });
+
+  it.each([
+    "I can help with files and email.",
+    "I'll prepare it once you provide the file.",
+    "Which file should I use?",
+  ])("does not retry a capability answer or concrete blocker: %s", async (text) => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("Save hello to notes.txt.");
+          },
+          response: { type: "text", text },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const events = await collect(new PiAgentRuntime().run(runRequest(server.model)));
+    server.assertComplete();
+    expect(events.at(-1)).toEqual({ type: "done", text });
+  });
+
+  it("does not mark an unfinished post-tool promise complete or replay the successful mutation", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("Save hello to notes.txt.");
+          },
+          response: {
+            type: "tool",
+            id: "write-once",
+            name: "write_file",
+            arguments: { path: "notes.txt", content: "hello" },
+          },
+        },
+        {
+          expect(request) {
+            expect(latestToolResult(request)?.tool_call_id).toBe("write-once");
+          },
+          response: { type: "text", text: "I'll verify the file now." },
+        },
+        {
+          expect(request) {
+            expect(JSON.stringify(request.messages)).toContain("do not repeat successful actions");
+          },
+          response: { type: "text", text: "Saved notes.txt; the tool confirmed success." },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let writes = 0;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          executeTool: async () => {
+            writes += 1;
+            return { ok: true };
+          },
+        }),
+      ),
+    );
+    server.assertComplete();
+    expect(writes).toBe(1);
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      text: expect.stringContaining("confirmed success"),
+    });
+  });
+
   it.each([undefined, "retrieval", "snapshots", "cache-aware"] as const)(
     "bounds actual initial and tool-loop requests with %s context",
     async (contextStrategy) => {

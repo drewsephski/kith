@@ -8,7 +8,8 @@ import {
 } from "@rakazo/core";
 import { DEFAULT_GROK_BOT_COLOR } from "@rakazo/ui-web";
 import { createRoot } from "react-dom/client";
-import { ActiveBotGlyph, AssistantResponseRow } from "../../src/components/ai/CollaborationMarker";
+import { AssistantResponseRow } from "../../src/components/ai/CollaborationMarker";
+import { RunStatus } from "../../src/components/ai/RunStatus";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { setResponseStreamingPreference } from "../../src/lib/response-streaming";
 import { reduceThreadSnapshot } from "../../src/lib/thread-events";
@@ -188,17 +189,10 @@ function MessageRow({ message, responding }: { message: ThreadMessage; respondin
 }
 
 function ThreadFixture({ snapshot }: { snapshot: ThreadSnapshot }) {
-  const running = snapshot.run?.status === "running";
-  const hasLiveProgressText = snapshot.messages.some(
-    (message) =>
-      message.id.startsWith("progress:") &&
-      message.blocks.some(
-        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-      ),
-  );
   const workingBots = [
     {
       botId: "bot-1",
+      runId: "run-1",
       name: "Chief",
       color: DEFAULT_GROK_BOT_COLOR,
       status: snapshot.run?.status,
@@ -220,9 +214,12 @@ function ThreadFixture({ snapshot }: { snapshot: ThreadSnapshot }) {
             }
           />
         ))}
-        {running && !hasLiveProgressText ? (
-          <ActiveBotGlyph bots={workingBots} assistantId={assistantId} label="Chief is working" />
-        ) : null}
+        <RunStatus
+          bots={workingBots}
+          assistantId={assistantId}
+          latestRun={snapshot.run}
+          messages={snapshot.messages}
+        />
       </div>
     </main>
   );

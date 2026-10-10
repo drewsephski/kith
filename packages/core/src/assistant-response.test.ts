@@ -1,6 +1,42 @@
 import type { ThreadMessage } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
-import { hasRunResponseText, isAssistantResponding } from "./assistant-response.js";
+import {
+  hasRunResponseText,
+  isAssistantResponding,
+  runActivityText,
+} from "./assistant-response.js";
+
+describe("current run activity", () => {
+  it("uses only transient activity belonging to the requested run", () => {
+    const messages: Pick<ThreadMessage, "id" | "role" | "runId" | "blocks">[] = [
+      {
+        id: "progress:other",
+        role: "bot" as const,
+        runId: "other",
+        blocks: [{ kind: "progress" as const, text: "Other task", activity: true }],
+      },
+      {
+        id: "progress:current",
+        role: "bot" as const,
+        runId: "current",
+        blocks: [
+          { kind: "progress" as const, text: "Checking Gmail", activity: true },
+          { kind: "text" as const, text: "I'll check now." },
+        ],
+      },
+    ];
+    expect(runActivityText(messages, "current")).toBe("Checking Gmail");
+    expect(runActivityText(messages, "new")).toBeNull();
+    expect(runActivityText(messages, undefined)).toBeNull();
+    expect(runActivityText([{ ...messages[1]!, id: "durable" }], "current")).toBeNull();
+    expect(
+      runActivityText(
+        [{ ...messages[1]!, blocks: [{ kind: "progress", text: "Reply text" }] }],
+        "current",
+      ),
+    ).toBeNull();
+  });
+});
 
 describe("run response text", () => {
   const response: Pick<ThreadMessage, "role" | "runId" | "blocks"> = {

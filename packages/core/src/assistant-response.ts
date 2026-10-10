@@ -16,7 +16,7 @@ export function isAssistantResponding(
   );
 }
 
-/** Response text replaces the waiting indicator even while the run is still active. */
+/** Used to avoid a duplicate response avatar; prose does not imply completion. */
 export function hasRunResponseText(
   messages: readonly Pick<ThreadMessage, "role" | "runId" | "blocks">[],
   runId: string | null | undefined,
@@ -35,4 +35,18 @@ export function hasRunResponseText(
           ),
       ),
   );
+}
+
+/** Only the current run's synthetic row can supply its transient activity. */
+export function runActivityText(
+  messages: readonly Pick<ThreadMessage, "id" | "role" | "runId" | "blocks">[],
+  runId: string | null | undefined,
+): string | null {
+  if (!runId) return null;
+  const live = messages.findLast(
+    (message) =>
+      message.role === "bot" && message.runId === runId && message.id.startsWith("progress:"),
+  );
+  const block = live?.blocks.findLast((block) => block.kind === "progress" && block.activity);
+  return block?.kind === "progress" && block.text.trim() ? block.text.trim() : null;
 }

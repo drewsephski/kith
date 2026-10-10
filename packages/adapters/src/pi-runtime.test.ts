@@ -2,6 +2,29 @@ import { describe, expect, it } from "vitest";
 import { describeToolActivity } from "./pi-runtime.js";
 
 describe("describeToolActivity", () => {
+  it("describes actual connected-app operations without exposing mail content", () => {
+    expect(describeToolActivity("GMAIL_FETCH_EMAILS", { query: "private query" })).toBe(
+      "Checking Gmail",
+    );
+    expect(
+      describeToolActivity("mcp__mail__GMAIL_CREATE_EMAIL_DRAFT", { body: "private body" }),
+    ).toBe("Preparing drafts");
+    expect(
+      describeToolActivity("COMPOSIO_MULTI_EXECUTE_TOOL", {
+        tools: [{ tool_slug: "GMAIL_CREATE_EMAIL_DRAFT", arguments: { body: "private body" } }],
+      }),
+    ).toBe("Preparing drafts");
+    expect(
+      describeToolActivity("COMPOSIO_MULTI_EXECUTE_TOOL", {
+        tools: [{ tool_slug: "GMAIL_FETCH_EMAILS" }, { tool_slug: "GMAIL_GET_THREAD" }],
+      }),
+    ).toBe("Checking Gmail");
+    expect(
+      describeToolActivity("COMPOSIO_MULTI_EXECUTE_TOOL", {
+        tools: [{ tool_slug: "GMAIL_FETCH_EMAILS" }, { tool_slug: "GOOGLECALENDAR_LIST_EVENTS" }],
+      }),
+    ).toBe("Working across connected apps");
+  });
   it("summarizes builtin tools with their most informative argument", () => {
     expect(describeToolActivity("shell", { command: "pnpm test --filter web" })).toBe(
       "Running: pnpm test --filter web",

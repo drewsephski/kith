@@ -1,6 +1,7 @@
 import { isAssistantResponding } from "@rakazo/core";
 import type { GroupAvatarMember } from "@rakazo/ui-web";
 import { BotAvatar, GroupAvatar, KithAvatar } from "@rakazo/ui-web";
+import { LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { LoadingState } from "./primitives";
 
@@ -49,10 +50,12 @@ export function ActiveBotGlyph({
   bots,
   label,
   assistantId,
+  showAvatar = true,
 }: {
   bots: GroupAvatarMember[];
   label: string;
   assistantId?: string | null;
+  showAvatar?: boolean;
 }) {
   const assistantResponding = isAssistantResponding(assistantId, bots);
   return (
@@ -60,12 +63,20 @@ export function ActiveBotGlyph({
       <LoadingState
         indicator={
           <>
-            {assistantResponding ? (
+            {!showAvatar ? (
+              <LoaderCircle
+                aria-hidden="true"
+                className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none text-muted-foreground"
+              />
+            ) : assistantResponding ? (
               <KithAvatar size={36} working />
             ) : (
               <GroupAvatar members={bots} size={28} />
             )}
-            <span aria-hidden="true" className="text-sm text-muted-foreground">
+            <span
+              aria-hidden="true"
+              className="min-w-0 wrap-anywhere text-sm text-muted-foreground"
+            >
               {label}
             </span>
           </>

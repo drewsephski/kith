@@ -1234,7 +1234,15 @@ export function applyMobileThreadEvent(
         endedRun && failure
           ? { ...endedRun, status: "failed", error: failure }
           : primaryEnded
-            ? (activeRuns?.[0] ?? null)
+            ? (activeRuns?.[0] ?? {
+                ...primaryEnded,
+                status:
+                  event.type === "run.cancelled"
+                    ? "cancelled"
+                    : event.type === "run.failed"
+                      ? "failed"
+                      : "completed",
+              })
             : prev.run,
       activeRuns,
     };
