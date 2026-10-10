@@ -86,6 +86,7 @@ export async function openNewGroup(page: Page) {
 }
 
 export async function openNewSpace(page: Page) {
+  await openAdvancedNavigation(page);
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-space").click();
 }

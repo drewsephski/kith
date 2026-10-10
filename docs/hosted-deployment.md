@@ -307,3 +307,7 @@ fly deploy --app kith-api --config infra/fly/fly.toml --image <previous-registry
 ```
 
 Check migration compatibility before restoring older code. Do not reverse migrations automatically, replace the volume, destroy the Machine or rotate app secrets. Verify internal API/worker revision and a harmless persisted-task journey after rollback. Retain the failed rollout diagnostics without publishing secrets.
+
+### Preview configuration blocker
+
+The PR preview build fails because its Preview environment lacks `API_PROXY_TARGET`. An operator must configure that server-only variable to the intended public HTTPS acceptance backend and configure `AUTH_PROXY_SECRET` to match that backend's protected auth handoff. Do not prefix either with `VITE_` or `EXPO_PUBLIC_`, expose the handoff secret to contributor code, or remove the build validation. Use an isolated acceptance backend for previews; the production alias remains separately configured. Rebuild the exact PR SHA after configuration and verify auth proxying before calling the preview ready.

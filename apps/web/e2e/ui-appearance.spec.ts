@@ -21,7 +21,7 @@ test("header appearance toggle persists across app routes and works with collaps
   await captureScreenshot(page, testInfo, "header-theme-light-collapsed");
   await page.reload();
   await expect(toggle).toHaveAccessibleName("Switch to dark mode");
-  await page.getByRole("button", { name: "Show sidebar", exact: true }).click();
+  await page.getByTestId("restore-bots-sidebar").click();
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/artifacts$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -117,7 +117,15 @@ test("account settings appearance control switches to light mode", async ({ page
     .locator("code")
     .filter({ hasText: "shared/PROJECT_CHECKPOINT_WRAPUP.md" });
   await expect(inlinePath).toBeVisible({ timeout: 30_000 });
-  await expect(inlinePath).toHaveCSS("color", "rgb(26, 26, 26)");
+  const foreground = await page.evaluate(() => {
+    const token = document.createElement("span");
+    token.style.color = "var(--foreground)";
+    document.body.append(token);
+    const color = getComputedStyle(token).color;
+    token.remove();
+    return color;
+  });
+  await expect(inlinePath).toHaveCSS("color", foreground);
   await captureScreenshot(page, testInfo, "inline-code-light");
 
   await page.getByTestId("user-menu-trigger").click();

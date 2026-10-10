@@ -48,7 +48,9 @@ No app ID, existing user-data path, session partition hash, signing identity, lo
 compatibility name, or legacy Icon Composer asset filename was renamed. Electron still loads
 one shared React application. Provider credentials stay on the server.
 
-## Evidence
+## Historical implementation evidence
+
+The table below records the original implementation's checks; it does not certify the current reliability patch. Current exact-SHA evidence follows it.
 
 | Check | Result | Scope |
 | --- | --- | --- |
@@ -69,19 +71,25 @@ one shared React application. Provider credentials stay on the server.
 | Feed origin, artifact sizes and SHA-512 hashes | Passed | Actual local package/feed; not signed-update success |
 | Electron tests on this Mac | Skipped | Repository prohibits routine focus-stealing Electron E2E |
 | Native-command shared Web E2E | Passed locally | Real isolated backend; SettingsOverlay, Escape and one new conversation |
-| Packaged Electron acceptance CI checks | Failed | Post-merge Linux sandbox-helper and macOS minimize assertions; follow-up rerun pending |
+| Packaged Electron acceptance CI checks | Historical failure | Superseded by the current exact-SHA checks below |
 | Developer ID, notarization, stapling, Gatekeeper | Requires external verification | Required repository secret names are absent |
 | Signed two-version update | Requires external verification | No signed or published versions exist |
 | Gmail/Calendar consent, reconnect and revocation | Requires external verification | Dedicated provider acceptance account required |
 | Public downloads | Not available | GitHub Releases list is empty; marketing links remain unconfigured |
 
 The initial baseline CI run had Electron smoke failures. The post-merge run reached packaged
-acceptance and failed as recorded above; final CI has not passed. Live browser session restoration
+acceptance and failed as recorded above. Live browser session restoration
 was observed, but preview snapshots failed; no personal account content or screenshots are
 included in release evidence. The focused Web E2E passed against the repository's isolated test harness and captured the
 native settings surface. This is shared renderer/backend proof, not packaged Electron proof.
 Packaged CI records time to its first usable login fixture; actual installed time to usable chat
 still requires the signed acceptance run.
+
+### Current patch evidence
+
+At `bff589c5`, [CI 38059497241](https://github.com/drewsephski/kith/actions/runs/38059497241) passed lint, typecheck, the full unit suite and PostgreSQL journeys. Its 33 desktop fixture tests and sandboxed Linux native minimize/restore acceptance passed. The new shared-frontend journey failed because it expected a sign-in heading while the actual packaged app opened the Kith welcome screen. The test now enters through the actual Sign up button; its complete login, persistence, native commands and crash-recovery assertions remain required.
+
+[macOS packaged acceptance 38059496915](https://github.com/drewsephski/kith/actions/runs/38059496915) passed for that SHA, following the successful previous revision. No signed release workflow, DMG installation, update ZIP installation or public updater rehearsal has been executed. Final main CI and the complete packaged frontend journey remain release gates.
 
 ## Actual local artifacts
 

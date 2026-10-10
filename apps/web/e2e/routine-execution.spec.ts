@@ -105,10 +105,10 @@ test("Korean webhook routine keeps technical field labels in English", async ({
   await openUserSettings(page);
   const settings = page.getByTestId("user-settings");
   await settings.getByTestId("ui-locale-select").click();
-  await settings.getByRole("option", { name: "한국어", exact: true }).click();
+  await page.getByRole("option", { name: "한국어", exact: true }).filter({ visible: true }).click();
   await page.getByRole("button", { name: "계정 설정 닫기" }).click();
 
-  await page.getByTitle("Agent 컴퓨터").click();
+  await page.getByTitle("Agent computer").click();
   await page.getByRole("button", { name: "자동 실행 만들기" }).click();
   await page.getByPlaceholder("이 루틴의 이름을 정하세요").fill("한국어 웹훅 확인");
   await page
@@ -139,7 +139,7 @@ test("routine test-run completes and survives reload", async ({ page }, testInfo
   await page.getByRole("button", { name: "Add trigger" }).click();
   await page.getByRole("menuitem", { name: "On a schedule" }).hover();
   await page.getByRole("menuitem", { name: "Weekdays", exact: true }).click();
-  await expect(page.getByLabel("How often")).toHaveValue("Weekdays");
+  await expect(page.getByLabel("How often")).toHaveAttribute("data-value", "Weekdays");
   await captureScreenshot(page, testInfo, "32-routine-configured");
 
   const saved = page.waitForResponse(
@@ -168,7 +168,7 @@ test("routine test-run completes and survives reload", async ({ page }, testInfo
   await page.getByRole("button", { name: /Daily verification/ }).click();
   const history = page.getByTestId("routine-run-history");
   await expect(history.getByTestId("routine-run-row")).toHaveCount(1);
-  await expect(history.getByText("Done", { exact: true })).toBeVisible();
+  await expect(history.getByText("Completed", { exact: true })).toBeVisible();
   await expect(history.getByText("No runs yet")).toHaveCount(0);
   await expect(history.getByRole("link", { name: "View chat" })).toBeVisible();
   await expect(history.getByRole("button", { name: "Run history" })).toHaveAttribute(

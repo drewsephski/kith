@@ -1,4 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   activeBotId,
   captureScreenshot,
@@ -274,13 +275,13 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await page.getByRole("button", { name: "Add Treg", exact: true }).click();
   await page.getByPlaceholder("Treg token").fill("fake-treg-browser-credential");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
-  await expect(page.getByText(/MCP · https:\/\/treg\.to\/mcp\/ · credential saved/)).toBeVisible();
+  await expect(page.getByText("Treg", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Add MCP server", exact: true }).click();
   await page.getByPlaceholder("Display name").fill("Browser MCP");
   await page.getByPlaceholder("https://example.com/mcp").fill("https://mcp.example.test/mcp");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
-  await expect(page.getByText(/MCP · https:\/\/mcp\.example\.test\/mcp · no auth/)).toBeVisible();
+  await expect(page.getByText("Browser MCP", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Add OpenAPI", exact: true }).click();
   await page.getByPlaceholder("Display name").fill("Browser API");
@@ -301,12 +302,40 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
     .fill("https://executor.example.test/mcp");
   await page.getByPlaceholder("Executor token").fill("fake-executor-browser-credential");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
+  await expect(page.getByText("Executor", { exact: true })).toBeVisible();
+  // Managed MCP connections now live in the server manager, rather than the
+  // legacy tool-source list. Verify their persisted endpoints and auth state.
+  const servers = await rpc<Array<{ name: string; endpoint: string; hasSecret: boolean }>>(
+    page,
+    "mcp/servers/list",
+    {},
+  );
+  expect(servers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "Treg", endpoint: "https://treg.to/mcp/", hasSecret: true }),
+      expect.objectContaining({
+        name: "Browser MCP",
+        endpoint: "https://mcp.example.test/mcp",
+        hasSecret: false,
+      }),
+      expect.objectContaining({
+        name: "Executor",
+        endpoint: "https://executor.example.test/mcp",
+        hasSecret: true,
+      }),
+    ]),
+  );
+  await page.getByRole("button", { name: "Manage", exact: true }).first().click();
+  const manager = page.getByRole("dialog", { name: "MCP servers", exact: true });
+  await expect(manager.getByText("https://treg.to/mcp/", { exact: true })).toBeVisible();
+  await expect(manager.getByText("https://mcp.example.test/mcp", { exact: true })).toBeVisible();
   await expect(
-    page.getByText(/MCP · https:\/\/executor\.example\.test\/mcp · credential saved/),
+    manager.getByText("https://executor.example.test/mcp", { exact: true }),
   ).toBeVisible();
+  await expect(manager.getByText("credential saved", { exact: true })).toHaveCount(2);
   await captureScreenshot(page, testInfo, "11d-provider-emulators");
-
-  await page.getByRole("button", { name: "Close integrations" }).click();
+  await manager.getByRole("button", { name: "Close MCP servers", exact: true }).click();
+  await expect(manager).toBeHidden();
 
   await page.getByTestId("bot-settings-trigger").click();
   await page.getByRole("button", { name: "Conversation actions" }).click();

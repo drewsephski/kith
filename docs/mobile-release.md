@@ -47,3 +47,9 @@ CI retains the full lint/type/build/unit/PostgreSQL/Web gates and adds Android n
 ## External evidence still required
 
 Android compiled/emulator result for the final patch; iOS simulator or internal signed build/runtime result; dedicated production test credentials supplied through ignored local configuration; hosted SMTP recovery delivery; real push/OAuth permissions where configured; store signing and submission approval. None is inferred from dependency checks or screenshots alone.
+
+### Native evidence and current crash blocker
+
+Android release APK compilation passed on `c06d7852` and `bff589c5`. The first emulator run exposed missing Android formSheet header actions; Android now uses a pushed native screen while iOS retains its sheet. The next [native run](https://github.com/drewsephski/kith/actions/runs/38059497241/job/114235628459) failed cold launch with a real SIGSEGV, not an obsolete branding assertion. Retained logcat shows `android_unsafe_frame_pointer_chase`, GWP-ASan's `RecordBacktrace`, and `hoost_make_fcontext+46` in Hermes `250829098.0.17` (build ID `8d927b4d4757e3548fed384ed5666d66ee44c365`). This matches [the upstream defect](https://github.com/facebook/hermes/issues/2225) in that exact binary. Its stable-line [backport](https://github.com/facebook/hermes/pull/2229) is still open. No sanitizer was disabled, failed launch retried into success, or emulator assertion skipped. Native runtime acceptance remains blocked until a compatible engine containing the frame-chain fix is built and verified.
+
+Local iOS native simulator compilation is in progress after successful prebuild, pods and installation of the supported simulator runtime. This is separate from signed device/TestFlight evidence. Dedicated production credentials are available privately; they are never bundled or uploaded in native diagnostics.

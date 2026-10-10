@@ -30,8 +30,8 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     const page = await app.firstWindow();
     // Electron starts its own initial navigation after creating the window.
     // Wait for the shared auth screen before initiating a second navigation.
-    await expect(page.getByRole("heading", { name: "Sign in to Kith", exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "Sign up", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Kith", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Sign up", exact: true }).click();
     await page.getByPlaceholder("Your name").fill("Packaged acceptance");
     await page.getByPlaceholder("Your email address").fill(`packaged-${Date.now()}@example.test`);
     await page.getByPlaceholder("Password").fill("fixture-password-12");

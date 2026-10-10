@@ -1,5 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 async function captureSidebarRoster(
   page: Page,
@@ -32,6 +38,7 @@ test("sidebar roster shows bot title pill below the name", async ({ page }, test
   const stamp = Date.now();
   await signup(page, `roster-title-${stamp}@rakazo.test`, "password12", "Roster Title");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const bot = await rpc<{ id: string; name: string }>(page, "bots/create", {
     name: "Long Research Assistant Name",
@@ -42,6 +49,7 @@ test("sidebar roster shows bot title pill below the name", async ({ page }, test
   });
   await page.goto(`/app/${bot.id}`);
   await page.waitForURL(new RegExp(`/app/${bot.id}$`));
+  await openAdvancedNavigation(page);
 
   const sidebar = page.locator("aside").first();
   const row = sidebar.locator(`[data-roster-bot-id="${bot.id}"]`);

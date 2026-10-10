@@ -100,7 +100,9 @@ test("a new space auto-completes onboarding and can be deleted from its menu", a
   await openNewSpace(page);
   const dialog = page.getByRole("dialog", { name: "New space" });
   await dialog.getByLabel("Name").fill("Temporary");
+  const navigation = page.waitForEvent("framenavigated", (frame) => frame === page.mainFrame());
   await dialog.getByRole("button", { name: "Create space", exact: true }).click();
+  await navigation;
 
   // Model is already connected, so onboarding skips the form and lands in Kith.
   await completeOnboarding(page);
@@ -154,7 +156,9 @@ test("an occupied space can be renamed from its menu", async ({ page }, testInfo
   await openNewSpace(page);
   const createDialog = page.getByRole("dialog", { name: "New space" });
   await createDialog.getByLabel("Name").fill("Typo space");
+  const navigation = page.waitForEvent("framenavigated", (frame) => frame === page.mainFrame());
   await createDialog.getByRole("button", { name: "Create space", exact: true }).click();
+  await navigation;
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
 
@@ -202,7 +206,9 @@ test("deleting the last bot in a space stays in the app after first use", async 
   await openNewSpace(page);
   const dialog = page.getByRole("dialog", { name: "New space" });
   await dialog.getByLabel("Name").fill("Side");
+  const navigation = page.waitForEvent("framenavigated", (frame) => frame === page.mainFrame());
   await dialog.getByRole("button", { name: "Create space", exact: true }).click();
+  await navigation;
   await page.waitForURL(/\/(onboarding|app)/);
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
@@ -226,7 +232,7 @@ test("deleting the last bot in a space stays in the app after first use", async 
   await expect(page).not.toHaveURL(/\/onboarding/);
   await expect(sidebar.getByRole("button", { name: "Open Side" })).toBeVisible();
   await expect(
-    page.locator("main").getByRole("button", { name: "Create new Bot", exact: true }),
+    page.locator("main").getByRole("button", { name: "Set up Kith", exact: true }),
   ).toBeVisible();
 
   await sidebar.getByRole("button", { name: "Actions for Side" }).click();
