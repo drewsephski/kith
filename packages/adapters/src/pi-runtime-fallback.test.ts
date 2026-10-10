@@ -1114,7 +1114,8 @@ describe("Pi runtime ordered model fallback", () => {
   });
 
   it("uses a small-context backup when the actual input and configured output fit", async () => {
-    const smallContextBackup = model("provider-small", "small-context", 2_048);
+    // Include shared activity guidance while still rejecting the old fixed 4K safety margin.
+    const smallContextBackup = model("provider-small", "small-context", 4_096);
     providerState.models.set(
       `${smallContextBackup.provider}/${smallContextBackup.id}`,
       smallContextBackup as unknown as Record<string, unknown>,

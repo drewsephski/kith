@@ -667,7 +667,9 @@ function Thread() {
     });
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
   const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
-  const footerGroupBots = workingGroupBots;
+  const footerGroupBots = workingGroupBots.filter(
+    (bot) => !hasRunResponseText(visibleMessages, bot.runId),
+  );
 
   const speakFinishedReply = useCallback(() => {
     if (!botId || inGroup || !currentBot) return;
@@ -2318,12 +2320,12 @@ function Thread() {
               : t("Working…"))}
         </Text>
       </View>
-    ) : inGroup && footerGroupBots.length > 0 ? (
+    ) : inGroup && workingGroupBots.length > 0 ? (
       <View
         accessibilityLabel={
-          footerGroupBots.length === 1
-            ? t("{name} is working", { name: footerGroupBots[0]?.name ?? t("Agent") })
-            : t("{count} agents working", { count: footerGroupBots.length })
+          workingGroupBots.length === 1
+            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
+            : t("{count} agents working", { count: workingGroupBots.length })
         }
         accessibilityRole="text"
         style={{
@@ -2333,25 +2335,33 @@ function Thread() {
           marginTop: 12,
         }}
       >
-        <View style={{ flexDirection: "row", paddingRight: 8 }}>
-          {footerGroupBots.map((bot, index) => (
-            <View
-              key={bot.botId}
-              style={{
-                marginLeft: index === 0 ? 0 : -8,
-                zIndex: footerGroupBots.length - index,
-              }}
-            >
-              {isAssistantResponding(assistantId, [bot]) ? (
-                <KithWorkingAvatar active={focused && !threadScrollState.detached} />
-              ) : (
-                <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
-              )}
-            </View>
-          ))}
-        </View>
+        {footerGroupBots.length > 0 ? (
+          <View style={{ flexDirection: "row", paddingRight: 8 }}>
+            {footerGroupBots.map((bot, index) => (
+              <View
+                key={bot.botId}
+                style={{
+                  marginLeft: index === 0 ? 0 : -8,
+                  zIndex: footerGroupBots.length - index,
+                }}
+              >
+                {isAssistantResponding(assistantId, [bot]) ? (
+                  <KithWorkingAvatar active={focused && !threadScrollState.detached} />
+                ) : (
+                  <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <ActivityIndicator
+            size="small"
+            color={tokens.mutedForeground}
+            style={{ marginRight: 8 }}
+          />
+        )}
         <View style={{ flex: 1, gap: 4 }}>
-          {footerGroupBots.map((bot) => (
+          {workingGroupBots.map((bot) => (
             <Text
               key={bot.runId}
               accessibilityLiveRegion="polite"

@@ -1003,4 +1003,8 @@ export const RU_MESSAGES: Record<string, string> = {
   "Send approved": "Отправка одобрена",
   Tasks: "Задачи",
   To: "Кому",
+  "Couldn’t finish": "Не удалось завершить",
+  Stopped: "Остановлено",
+  "Waiting for you": "Ожидает вас",
+  "Waiting for your input": "Ожидает вашего ввода",
 };

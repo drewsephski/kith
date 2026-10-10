@@ -179,6 +179,7 @@ describe("Pi usage accounting", () => {
         },
         { signal: AbortSignal.timeout(15000) },
       );
+      expect((await stream.next()).value).toMatchObject({ type: "progress", activity: true });
       expect((await stream.next()).value).toMatchObject({ type: "text" });
       await stream.return!();
       expect(onUsage).toHaveBeenCalledOnce();

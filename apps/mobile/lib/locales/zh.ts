@@ -957,4 +957,8 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Send approved": "已批准发送",
   Tasks: "任务",
   To: "收件人",
+  "Couldn’t finish": "未能完成",
+  Stopped: "已停止",
+  "Waiting for you": "等待你接管",
+  "Waiting for your input": "等待你输入",
 };
