@@ -24,6 +24,7 @@ const workflow = parse(workflowText) as {
     validate: WorkflowJob;
     build: WorkflowJob;
     publish: WorkflowJob;
+    "promote-edge": WorkflowJob;
   };
 };
 
@@ -58,31 +59,98 @@ describe("server image publish workflow", () => {
     expect(workflowText).toContain("actions/attest-build-provenance@");
   });
 
-  it("checks main again at publication and cannot restore edge from a stale source", () => {
+  it("keeps individual manifest publication independent of edge eligibility", () => {
     const step = workflow.jobs.publish.steps?.find(
       (step) => step.name === "Assemble and verify the multi-arch manifest",
     );
+    const f = publicationFixture();
+    try {
+      const result = f.run(step?.run, {});
+      expect(result.status, result.stderr).toBe(0);
+      const commands = readFileSync(f.log, "utf8");
+      expect(commands).not.toContain(":edge");
+      expect(commands).toContain("-t ghcr.io/example/app:sha-fixture");
+      expect(commands).toContain("ghcr.io/example/app@sha256:");
+    } finally {
+      f.close();
+    }
+  });
+
+  it("decides edge eligibility once for the complete image set inside a shared queue", () => {
+    const promotion = workflow.jobs["promote-edge"];
+    expect(promotion.needs).toEqual(["tested-source", "publish"]);
+    expect(promotion.concurrency).toEqual({
+      group: "image-edge-release",
+      "cancel-in-progress": false,
+    });
+    const step = promotion.steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
     const source = "a".repeat(40);
-    for (const [head, refType, edge] of [
-      [source, "branch", true],
-      ["b".repeat(40), "branch", false],
-      [source, "tag", false],
-    ] as const) {
+    for (const head of [source, "b".repeat(40)]) {
       const f = publicationFixture();
       try {
         const result = f.run(step?.run, {
           HEAD_SHA: head,
           SOURCE_SHA: source,
-          GITHUB_REF_TYPE: refType,
+          // Simulate main advancing after the first image tag write.
+          ADVANCE_MAIN: "true",
         });
         expect(result.status, result.stderr).toBe(0);
         const commands = readFileSync(f.log, "utf8");
-        expect(commands.includes("-t ghcr.io/example/app:edge")).toBe(edge);
-        expect(commands).toContain("-t ghcr.io/example/app:sha-fixture");
-        expect(commands).toContain("ghcr.io/example/app@sha256:");
+        const writes = commands.split("\n").filter((line) => line.includes("create -t"));
+        expect(writes).toHaveLength(head === source ? 3 : 0);
+        expect(readFileSync(f.ghLog, "utf8").match(/commits\/main/g)).toHaveLength(1);
+        if (head === source) {
+          for (const [index, image] of ["app", "updater", "computer"].entries()) {
+            expect(writes[index]).toContain(`ghcr.io/example/project/${image}:edge`);
+            expect(writes[index]).toContain(`ghcr.io/example/project/${image}@sha256:`);
+          }
+        }
       } finally {
         f.close();
       }
+    }
+  });
+
+  it("blocks the entire edge set if the latest CI rerun failed during image publication", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    const f = publicationFixture();
+    try {
+      const result = f.run(step?.run, {
+        HEAD_SHA: "a".repeat(40),
+        SOURCE_SHA: "a".repeat(40),
+        CI_RUNS: JSON.stringify({
+          workflow_runs: [
+            { status: "completed", conclusion: "failure" },
+            { status: "completed", conclusion: "success" },
+          ],
+        }),
+      });
+      expect(result.status).not.toBe(0);
+      expect(readFileSync(f.log, "utf8")).not.toContain(":edge");
+    } finally {
+      f.close();
+    }
+  });
+
+  it("preflights every immutable source before writing any edge tag", () => {
+    const step = workflow.jobs["promote-edge"].steps?.find(
+      (step) => step.name === "Promote all edge images from one source decision",
+    );
+    const f = publicationFixture();
+    try {
+      const result = f.run(step?.run, {
+        HEAD_SHA: "a".repeat(40),
+        SOURCE_SHA: "a".repeat(40),
+        FAIL_SOURCE: "computer",
+      });
+      expect(result.status).not.toBe(0);
+      expect(readFileSync(f.log, "utf8")).not.toContain(":edge");
+    } finally {
+      f.close();
     }
   });
 
@@ -115,6 +183,8 @@ describe("server image publish workflow", () => {
     expect(validate.if).toBe("github.event_name == 'pull_request'");
     expect(build.if).toBe("github.event_name != 'pull_request'");
     expect(publish.if).toBe("github.event_name != 'pull_request'");
+    expect(workflow.jobs["promote-edge"].if).toContain("github.event_name != 'pull_request'");
+    expect(workflow.jobs["promote-edge"].if).toContain("github.ref_type != 'tag'");
     expect(workflowText).toContain("push: false");
     for (const match of workflowText.matchAll(/uses:\s+([^\s#]+)/g)) {
       expect(match[1], match[1]).toMatch(/@[0-9a-f]{40}$/);
@@ -134,10 +204,16 @@ function publicationFixture() {
   const scripts = {
     gh: `echo "$*" >> "$GH_LOG"
 if [[ "$*" == *workflows/ci.yml/runs* ]]; then printf '%s' "$CI_RUNS" | jq -r "\${@: -1}"
+elif [[ -f "$HEAD_FILE" ]]; then cat "$HEAD_FILE"
 else echo "$HEAD_SHA"; fi`,
     docker: `echo "$*" >> "$DOCKER_LOG"
 if [[ "$*" == *inspect* && "$*" == *Platform.OS* ]]; then printf 'linux/amd64\\nlinux/arm64\\n'
-elif [[ "$*" == *inspect* ]]; then echo sha256:fixture; fi`,
+elif [[ "$*" == *inspect* ]]; then
+  [[ -n "$FAIL_SOURCE" && "$*" == *"/$FAIL_SOURCE:sha-"* ]] && exit 1
+  echo sha256:${"c".repeat(64)}
+elif [[ "$ADVANCE_MAIN" == true && "$*" == *create* ]]; then
+  echo ${"b".repeat(40)} > "$HEAD_FILE"
+fi`,
   };
   for (const [name, body] of Object.entries(scripts)) {
     const file = path.join(bin, name);
@@ -160,6 +236,10 @@ elif [[ "$*" == *inspect* ]]; then echo sha256:fixture; fi`,
           TAGS: "ghcr.io/example/app:sha-fixture",
           DOCKER_LOG: log,
           GH_LOG: ghLog,
+          HEAD_FILE: path.join(directory, "main-head"),
+          CI_RUNS: JSON.stringify({
+            workflow_runs: [{ status: "completed", conclusion: "success" }],
+          }),
           ...overrides,
         },
         encoding: "utf8",
