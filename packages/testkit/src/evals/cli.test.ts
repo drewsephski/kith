@@ -75,6 +75,7 @@ it("records explicit not-run reasons without live execution", async () => {
   }
 });
 
+// Six sequential CLI launches each retain their own 20-second process limit.
 it("fingerprints a tracked report diff larger than the child-process default buffer", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "eval-large-diff-"));
   const output = path.join(dir, "report.json");
@@ -138,4 +139,4 @@ it("fingerprints a tracked report diff larger than the child-process default buf
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 120_000);
