@@ -44,6 +44,7 @@ export * from "./components/ui/tooltip.js";
 export type { ConnectIconHandle } from "./connect-icon.js";
 export { ConnectIcon } from "./connect-icon.js";
 export { ConnectorIcon } from "./connector-icon.js";
+export { CornerDownLeftIcon, type CornerDownLeftIconHandle } from "./corner-down-left-icon.js";
 export { DatePicker } from "./date-picker.js";
 export type { FoldersIconHandle } from "./folders-icon.js";
 export { FoldersIcon } from "./folders-icon.js";

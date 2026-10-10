@@ -9,6 +9,7 @@ import {
 } from "./attachments.js";
 import { BotSecretMetadata, BotSecretPutInput, StoredBotSecretName } from "./bot-secrets.js";
 import { CalendarOAuthConfigSchema, CalendarReceiptSchema, CalendarTimezone } from "./calendar.js";
+import { ConversationSuggestionsSchema } from "./conversation-suggestions.js";
 import {
   ActionApprovalRuleSchema,
   ActionAutoReviewSettingsSchema,
@@ -346,6 +347,9 @@ export const appContract = {
       .output(BotSectionSchema),
   },
   threads: {
+    suggestions: oc
+      .input(threadTarget.safeExtend({ messageId: Id, locale: z.string().max(35).default("en") }))
+      .output(ConversationSuggestionsSchema),
     head: oc.input(threadTarget).output(
       z.object({
         threadId: Id,

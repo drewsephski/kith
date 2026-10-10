@@ -7,15 +7,22 @@ import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const { list, catalog } = vi.hoisted(() => ({ list: vi.fn(), catalog: vi.fn() }));
+const { list, catalog, suggestions } = vi.hoisted(() => ({
+  list: vi.fn(),
+  catalog: vi.fn(),
+  suggestions: vi.fn(),
+}));
 vi.mock("../../lib/rpc", () => ({
-  rpc: { connections: { list, catalog } },
+  rpc: { connections: { list, catalog }, threads: { suggestions } },
   selectedSpaceId: () => "space-1",
 }));
 vi.mock("@lingui/react/macro", () => {
   const t = (parts: TemplateStringsArray, ...values: unknown[]) =>
     parts.reduce((text, part, index) => `${text}${index > 0 ? values[index - 1] : ""}${part}`, "");
-  return { useLingui: () => ({ t }), Trans: ({ children }: { children: ReactNode }) => children };
+  return {
+    useLingui: () => ({ t, i18n: { locale: "en" } }),
+    Trans: ({ children }: { children: ReactNode }) => children,
+  };
 });
 
 import { AssistantForYou } from "./assistant-for-you";
@@ -46,6 +53,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.useRealTimers();
 });
 async function render() {
   await act(async () => root.render(<AssistantForYou botId="bot-1" onSuggest={onSuggest} />));
@@ -107,4 +115,88 @@ it("reuses confirmed Shell connection discovery without fetching it again", asyn
   expect(container.textContent).toContain("Triage pull requests");
   expect(list).not.toHaveBeenCalled();
   expect(catalog).not.toHaveBeenCalled();
+});
+
+const followUps = [
+  {
+    title: "Compare milestone options",
+    prompt: "Compare onboarding and search for the next milestone.",
+  },
+];
+async function renderConversation(
+  messageId: string | undefined = "reply-1",
+  busy = false,
+  scopeKey = "user:space:thread",
+) {
+  await act(async () =>
+    root.render(
+      <AssistantForYou
+        botId="bot-1"
+        conversation={{ scopeKey, messageId, busy }}
+        onSuggest={onSuggest}
+      />,
+    ),
+  );
+}
+
+it("shows conversation follow-ups without depending on connected services, and only prefills a draft", async () => {
+  vi.useFakeTimers();
+  suggestions.mockResolvedValue(followUps);
+  await renderConversation();
+  expect(container.childElementCount).toBe(0);
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(container.textContent).toContain("Compare milestone options");
+  expect(container.textContent).not.toContain("Draft important replies");
+  expect(list).not.toHaveBeenCalled();
+  expect(suggestions).toHaveBeenCalledWith(
+    { botId: "bot-1", messageId: "reply-1", locale: "en" },
+    expect.objectContaining({ signal: expect.any(AbortSignal) }),
+  );
+  act(() => container.querySelector("button")!.click());
+  expect(onSuggest).toHaveBeenCalledWith(followUps[0]!.prompt);
+});
+
+it("hides old follow-ups as soon as work starts and refreshes after the next reply", async () => {
+  vi.useFakeTimers();
+  suggestions.mockResolvedValue(followUps);
+  await renderConversation();
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  await renderConversation("reply-1", true);
+  expect(container.childElementCount).toBe(0);
+  suggestions.mockResolvedValue([
+    { title: "Review the chosen milestone", prompt: "Review the onboarding milestone." },
+  ]);
+  await renderConversation("reply-2");
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(container.textContent).toContain("Review the chosen milestone");
+  expect(container.textContent).not.toContain("Compare milestone options");
+});
+
+it("ignores late results after a thread or space switch", async () => {
+  vi.useFakeTimers();
+  let resolve!: (value: typeof followUps) => void;
+  suggestions.mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  await renderConversation();
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  const signal = suggestions.mock.calls[0]![1].signal as AbortSignal;
+  await renderConversation(undefined, false, "user:other-space:other-thread");
+  expect(signal.aborted).toBe(true);
+  await act(async () => resolve(followUps));
+  expect(container.childElementCount).toBe(0);
+});
+
+it("hides the row when follow-up generation fails or offers no useful next step", async () => {
+  vi.useFakeTimers();
+  suggestions.mockRejectedValue(new Error("Offline"));
+  await renderConversation();
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(container.childElementCount).toBe(0);
+  suggestions.mockResolvedValue([]);
+  await renderConversation("reply-2");
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(container.childElementCount).toBe(0);
 });

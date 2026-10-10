@@ -47,6 +47,7 @@ export * from "./computer-tools.js";
 export * from "./computer-update.js";
 export * from "./computer-workspace.js";
 export { sanitizeConnectorError } from "./connector-safety.js";
+export * from "./conversation-suggestions.js";
 export * from "./createos-sandbox.js";
 export * from "./current-time.js";
 export * from "./cursor-cloud-agent.js";
