@@ -47,7 +47,7 @@ gh secret set APPLE_API_KEY_P8 < AuthKey_XXXXXXXXXX.p8
    [acceptance matrix](./desktop-acceptance.md). Provision signing credentials and working
    hosted password recovery. Deploy the matching shared Web renderer and obtain passing CI.
 2. Review `version` in `apps/desktop/package.json` on `main` and prepare matching
-   `docs/desktop-release-notes-v<version>.md`. Version 0.1.7 is prepared locally and is unused.
+   `docs/desktop-release-notes-v<version>.md`. Version 0.1.7 is prepared on main and is unused.
 3. Configure a protected `desktop-release` environment requiring operator approval. Set its
    `DESKTOP_ACCEPTANCE_SHA` variable to the exact accepted release commit after manual acceptance.
 4. Obtain explicit operator approval of the release/tag operation.

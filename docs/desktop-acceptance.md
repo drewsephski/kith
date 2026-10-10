@@ -9,8 +9,11 @@ emails, cookies, provider codes, screenshots of personal data, or secret values 
 
 Current evidence: hosted HTTP signup/signin/signout, default model, shared onboarding, persisted
 agent reply, assistant identity after signin, and read-only API surfaces passed. Packaged resources,
-security/unit tests, and artifact hashes passed locally. The focused native-command Web E2E passed locally with the isolated backend. Changed packaged CI
-and real signed Desktop acceptance remain pending. Password recovery is currently unavailable and blocks release.
+security/unit tests, and artifact hashes passed locally. The focused native-command Web E2E passed locally with the isolated backend.
+Post-merge packaged CI ran and failed on Linux sandbox-helper permissions and an immediate
+macOS minimized-state assertion. The local workflow/test follow-up requires a remote rerun;
+real signed Desktop acceptance remains pending. See [release readiness](./desktop-release-readiness.md)
+for the exact failed runs. Password recovery is currently unavailable and blocks release.
 
 | Area | Required journey and expected behavior | Web evidence now | Desktop evidence/gate |
 | --- | --- | --- | --- |

@@ -135,9 +135,11 @@ test("packaged login transport retains its partition across restart and recovers
     });
     await expect.poll(() => restored.evaluate(() => window.__commands)).toEqual(["settings"]);
     await restored.evaluate(() => window.rakazoDesktop!.window.minimize());
-    expect(
-      await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMinimized()),
-    ).toBe(true);
+    await expect
+      .poll(() =>
+        app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMinimized()),
+      )
+      .toBe(true);
     await app.evaluate(({ app }) => app.emit("activate"));
     await expect
       .poll(() =>
