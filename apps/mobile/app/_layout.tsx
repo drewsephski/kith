@@ -192,7 +192,8 @@ export default function Layout() {
                       name="server"
                       options={{
                         title: t("Server"),
-                        presentation: "formSheet",
+                        // Android formSheet hides the native header, including Save/Cancel.
+                        presentation: Platform.OS === "ios" ? "formSheet" : "card",
                         sheetAllowedDetents: [0.6, 1],
                         sheetGrabberVisible: true,
                       }}

@@ -1,5 +1,5 @@
 appId: com.kith.agent
-name: Rakazo mobile screenshots
+name: Kith mobile screenshots
 tags:
   - screenshots
 ---
@@ -10,7 +10,7 @@ tags:
 
 # A cold API 34 emulator can show a launcher ANR over the healthy app.
 - extendedWaitUntil:
-    visible: "Sign up for Rakazo|Pixel Launcher isn't responding"
+    visible: "Sign up for Kith|Pixel Launcher isn't responding"
     timeout: 30000
 - runFlow:
     when:
@@ -18,11 +18,11 @@ tags:
     commands:
       - tapOn: "Close app"
 - extendedWaitUntil:
-    visible: "Sign up for Rakazo"
+    visible: "Sign up for Kith"
     timeout: 30000
 - takeScreenshot: "02-sign-up"
 - tapOn: "Sign in"
-- assertVisible: "Sign in to Rakazo"
+- assertVisible: "Sign in to Kith"
 - takeScreenshot: "01-sign-in"
 
 - tapOn: "Use a custom server"
@@ -90,10 +90,17 @@ tags:
     direction: DOWN
 - takeScreenshot: "11-models"
 - tapOn: "Show more"
+# The complete catalog takes longer to traverse than Maestro's default scroll budget.
 - scrollUntilVisible:
     element: "Show less"
     direction: DOWN
+    timeout: 60000
 - takeScreenshot: "11b-all-providers"
+- tapOn: "Show less"
+- scrollUntilVisible:
+    element: "Show more"
+    direction: UP
+    timeout: 60000
 
 - openLink: "rakazo:///voice"
 - extendedWaitUntil:
@@ -106,8 +113,17 @@ tags:
     visible: "Search apps"
     timeout: 10000
 - takeScreenshot: "13-integrations"
+- scrollUntilVisible:
+    element:
+      id: "integrations-advanced"
+    direction: DOWN
+    timeout: 60000
 - tapOn:
     id: "integrations-advanced"
+- scrollUntilVisible:
+    element: "Add OpenAPI"
+    direction: DOWN
+    timeout: 10000
 - assertVisible: "Add MCP server"
 - takeScreenshot: "14-integrations-advanced"
 

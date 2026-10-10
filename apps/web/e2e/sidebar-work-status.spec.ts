@@ -1,6 +1,13 @@
 import type { Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 async function captureSidebarRoster(page: Page, testInfo: TestInfo, name: string) {
   const aside = page.locator("aside").first();
@@ -29,6 +36,7 @@ test("sidebar roster shows Working… while a run is active", async ({ page }, t
   const stamp = Date.now();
   await signup(page, `work-status-${stamp}@rakazo.test`, "password12", "Work Status");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
 
   const botId = activeBotId(page);
   const sidebar = page.locator("aside").first();

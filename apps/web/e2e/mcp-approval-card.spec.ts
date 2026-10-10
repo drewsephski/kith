@@ -14,10 +14,10 @@ test("keeps the approved MCP card state after the thread remounts", async ({ pag
   const card = page.getByTestId("mcp-approval-card");
   await expect(card).toBeVisible({ timeout: 60_000 });
   await expect(card).toContainText("Fixture MCP");
-  await expect(card.getByRole("button", { name: "Approve", exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Authorize", exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "mcp-approval-card");
 
-  await card.getByRole("button", { name: "Approve", exact: true }).click();
+  await card.getByRole("button", { name: "Authorize", exact: true }).click();
   await expect(card.getByText(/Connected/i)).toBeVisible({ timeout: 15_000 });
 
   // The assignment and the card decision live server-side, so a full remount
@@ -28,5 +28,5 @@ test("keeps the approved MCP card state after the thread remounts", async ({ pag
   const restored = page.getByTestId("mcp-approval-card");
   await expect(restored).toBeVisible({ timeout: 15_000 });
   await expect(restored.getByText(/Connected/i)).toBeVisible();
-  await expect(restored.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
+  await expect(restored.getByRole("button", { name: "Authorize", exact: true })).toHaveCount(0);
 });

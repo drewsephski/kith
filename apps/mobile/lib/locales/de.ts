@@ -1001,4 +1001,8 @@ export const DE_MESSAGES: Record<string, string> = {
   Tasks: "Aufgaben",
   To: "An",
   Show: "Anzeigen",
+  "Couldn’t finish": "Konnte nicht abschließen",
+  Stopped: "Gestoppt",
+  "Waiting for you": "Wartet auf dich",
+  "Waiting for your input": "Wartet auf deine Eingabe",
 };

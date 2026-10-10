@@ -119,7 +119,7 @@ test("aged queued work is marked and an expired wait leaves a status line", asyn
   const row = activityRow(page, "Kith");
   await expect(row).toBeVisible({ timeout: 20_000 });
   await expect(row).toContainText("2d ago");
-  await expect(row.locator(".text-warning").filter({ hasText: "Queued" })).toBeVisible();
+  await expect(row.locator(".text-warning").filter({ hasText: "In progress" })).toBeVisible();
   await captureActivitySidebar(page, testInfo, "stuck-queued-activity");
 
   // A reload paints bootstrap.thread and skips threads/get when that thread is the open bot.

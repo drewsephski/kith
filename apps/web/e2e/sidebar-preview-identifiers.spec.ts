@@ -1,9 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 test("sidebar preview preserves underscores in filenames", async ({ page }, testInfo) => {
   await signup(page, `preview-identifiers-${Date.now()}@rakazo.test`, "password12", "Preview Test");
   await completeOnboarding(page);
+  await openAdvancedNavigation(page);
   const bot = await rpc<{ id: string }>(page, "bots/create", {
     name: "Reports",
     title: "",
@@ -19,6 +26,7 @@ test("sidebar preview preserves underscores in filenames", async ({ page }, test
     });
     await rpc(page, "threads/stop", { botId: bot.id });
     await page.goto(`/app/${bot.id}`);
+    await openAdvancedNavigation(page);
     const row = page.locator(`[data-roster-bot-id="${bot.id}"]`);
     await expect(row).toContainText("monthly_sales_report.csv");
     await expect(row).not.toContainText("**");
@@ -30,6 +38,7 @@ test("sidebar preview preserves underscores in filenames", async ({ page }, test
     });
     await rpc(page, "threads/stop", { botId: bot.id });
     await page.reload();
+    await openAdvancedNavigation(page);
     await expect(row).toContainText("_ops_@example.test");
     await expect(row).not.toContainText("<_ops_");
     await captureScreenshot(page, testInfo, "sidebar-preview-literal-autolink");

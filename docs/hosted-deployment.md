@@ -279,3 +279,37 @@ historical comparisons are explicitly separate from fork releases.
 
 DNS, provider consoles, hosted credentials, signing and release publication require operator
 action. No deployment or public service availability follows from a successful local build.
+
+## Reliability audit and exact-source promotion (2026-10-10)
+
+The inspected production alias is `https://kith-agent-app.vercel.app`; Vercel reported the frontend at `0759b648403a0a67d2031f00756ac939b56f45da`. Its API proxy is backed by the existing Fly `kith-api` application with persistent storage and supervised API/worker processes. Fly's running image predates that frontend and reports a null source revision. A healthy public `/health` response and independently published GHCR image do not prove backend/frontend source compatibility.
+
+The legacy SSH deployment was disabled (`PRODUCTION_DEPLOY_ENABLED` absent). The reliability patch replaces that disabled job with an exact-source Fly deployment, preserving all critical gates and adding Android native acceptance. The protected Production environment must have required reviewers. Before enabling it, an operator must configure `KITH_FLY_APP`, the intended `RAKAZO_SERVICE_URL`, and an app-scoped `FLY_API_TOKEN` in that environment. Keep the token private. Add reviewer protection first, then enable `PRODUCTION_DEPLOY_ENABLED=true`. No credential modification or production rollout was performed by this audit.
+
+The workflow checks the exact current main SHA and every required job in the same run. The Fly image embeds that source SHA. It records the prior immutable image digest, updates the existing persistent Machine, retries internal API/worker readiness within a bound, then validates public proxy liveness and password-recovery capability. If deployment or post-deploy acceptance fails, it restores the prior image on the existing Machine and checks public recovery; the job still fails. Worker source/process checks do not replace a durable task acceptance test. The separate deployment summary distinguishes disabled, blocked and deployed states.
+
+GHCR promotion requires the latest main CI for the exact source to have succeeded; a newer failed or incomplete rerun cannot borrow an older success. Pull requests retain read-only validation without publishing authority. Immutable manifests and attestations complete for every image before a shared serialized job preflights the entire set. That job checks main and the latest exact-source CI once at the write boundary, then promotes all edge tags from the same source decision. A stale source cannot move any edge tag. Individual registry writes are sequential. The job captures every prior edge digest and restores the entire set after an ambiguous or partial failure; recovery remains bounded and never clears the failed result. First publication can only finish the same-source set, while an incomplete prior release containing another source blocks promotion. Failed recovery requires an operator. Pin the same full SHA tag across images for a fixed release. Production Fly builds are source-addressed and do not consume mutable GHCR edge tags.
+
+### Restore password recovery using existing SMTP
+
+At the audit baseline, hosted capabilities reported password recovery disabled and the secret-name inventory lacked `SMTP_URL` and `EMAIL_FROM`. The later preview probe reports `passwordReset=true`; actual mailbox delivery and reset-link acceptance are still unverified. When recovery is disabled, supply the existing SMTP transport and verified sender through an ignored private file or Fly's secret input; never put values in a command committed to Git, public logs, mobile extra or a frontend environment.
+
+For example, prepare a private, untracked file containing `SMTP_URL=<existing SMTP connection>` and `EMAIL_FROM=<verified sender>`, restrict its permissions and confirm `git check-ignore` accepts its path. An authorized operator can import that file with `fly secrets import --app kith-api < <private-file>`. This changes production credentials and requires explicit operator authorization. Do not add another email vendor.
+
+After configuration, verify `/api/auth/capabilities` returns `passwordReset=true`, request recovery for a dedicated test mailbox, inspect actual delivery privately, consume the link once and verify the previous session/reset security behavior. Record only status, timestamps and source SHA in public evidence. No mailbox, reset URL, token or message body belongs in CI artifacts. The deployment preflight blocks rollout while known password-recovery incompatibility remains.
+
+### Rollback without replacing data
+
+The protected Ubuntu deployment uses process deadlines: ten minutes for the new image, thirty seconds per SSH probe, ten seconds per public request, and five minutes to restore the prior image. Five acceptance attempts remain bounded, leaving recovery time within the thirty-minute workflow. A timeout follows the same failed-deployment recovery path.
+
+Use the prior immutable digest recorded in the deployment summary:
+
+```sh
+fly deploy --app kith-api --config infra/fly/fly.toml --image <previous-registry-image@sha256:digest> --ha=false
+```
+
+Check rollback compatibility before approving the protected deployment. Automatic recovery restores application code only and leaves forward-applied migrations in place. Do not reverse migrations, replace the volume, destroy the Machine or rotate app secrets. Verify internal API/worker revision and a harmless persisted-task journey after rollback; public liveness alone is not complete recovery acceptance. Retain failed rollout diagnostics without publishing secrets.
+
+### Preview configuration and acceptance
+
+The branch's Preview environment now has the existing server-only `API_PROXY_TARGET`; the app build succeeds and its auth-capabilities endpoint responds. The marketing branch preview also has explicit public site and app origins. These configuration changes do not alter production. Authenticated preview acceptance remains separate: `AUTH_PROXY_SECRET` must match the intended backend's protected handoff, and an isolated acceptance backend is preferred. Do not prefix server secrets with `VITE_` or `EXPO_PUBLIC_`, expose them to contributor code, or remove build validation. Verify actual auth proxying before calling the preview fully ready.

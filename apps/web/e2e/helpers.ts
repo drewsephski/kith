@@ -86,6 +86,7 @@ export async function openNewGroup(page: Page) {
 }
 
 export async function openNewSpace(page: Page) {
+  await openAdvancedNavigation(page);
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-space").click();
 }
@@ -178,7 +179,7 @@ export async function chooseSelectOption(
   value: string | { index: number },
 ) {
   await trigger.click();
-  const options = page.locator('[data-slot="select-item"]');
+  const options = page.locator('[data-slot="select-item"]:visible');
   if (typeof value === "string") {
     await options.first().waitFor();
     const index = await options.evaluateAll(

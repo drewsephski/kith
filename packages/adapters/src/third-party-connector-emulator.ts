@@ -135,6 +135,8 @@ export class ThirdPartyConnectorEmulator {
   }
 
   private async mcp(url: URL, init?: RequestInit): Promise<Response> {
+    if (init?.method === "GET" || init?.method === "HEAD")
+      return new Response(null, { status: 405 });
     const request = parseBody(init?.body);
     const method = String(request.method ?? "");
     const id = request.id;
@@ -353,7 +355,7 @@ function urlFromPinnedFetch(input: string | URL | Request, init?: RequestInit): 
 
 function parseBody(body: RequestInit["body"] | undefined): Record<string, unknown> {
   if (typeof body === "string") return JSON.parse(body) as Record<string, unknown>;
-  if (body instanceof Uint8Array) {
+  if (body instanceof ArrayBuffer || body instanceof Uint8Array) {
     return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
   }
   return {};

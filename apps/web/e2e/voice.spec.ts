@@ -56,10 +56,11 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   expect(JSON.stringify(credentials)).not.toContain("fake-scripted-voice-key");
 
   await page.getByRole("button", { name: "Close voice settings" }).click();
+  await expect(page.getByTestId("user-settings")).toHaveCount(0);
 
-  const composer = page.getByPlaceholder(/Message/);
+  const composer = page.getByTestId("composer-bar").getByRole("combobox");
   await composer.fill("say hello");
-  await page.keyboard.press("Enter");
+  await composer.press("Enter");
   // A reply can render more than one text bubble; speak the latest one.
   const speakReply = page.getByRole("button", { name: "Speak this reply" }).last();
   await expect(speakReply).toBeVisible({
@@ -76,6 +77,7 @@ test("voice settings connect a key, speak a reply, and open a call", async ({ pa
   await expect(page.getByRole("button", { name: "Replace key" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Disconnect", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close voice settings" }).click();
+  await expect(page.getByTestId("user-settings")).toHaveCount(0);
 
   await page
     .getByTestId("composer-bar")

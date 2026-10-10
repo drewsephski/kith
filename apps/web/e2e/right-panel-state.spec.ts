@@ -1,7 +1,14 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { Bot, Routine } from "@rakazo/contracts";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  openAdvancedNavigation,
+  rpc,
+  signup,
+} from "./helpers";
 
 async function waitForStoredPanel(page: Page, panel: string | null) {
   await expect
@@ -133,9 +140,10 @@ test("reload restores the selected routine and scopes preferences to the chat", 
   // Editing another chat must beat its saved routine panel.
   const originalName = await rpc<Bot>(page, "bots/get", { botId }).then((bot) => bot.name);
   await page.goto(`/app/${other.id}`);
+  await openAdvancedNavigation(page);
   await page
-    .getByRole("button", { name: originalName, exact: false })
-    .first()
+    .locator("[data-roster-bot-id]")
+    .filter({ has: page.locator("[data-roster-bot-name]").filter({ hasText: originalName }) })
     .click({ button: "right" });
   await page.getByRole("menuitem", { name: "Edit Profile", exact: true }).click();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "settings");

@@ -27,5 +27,10 @@ ENV NODE_ENV=production \
     API_PROXY_TARGET=http://127.0.0.1:3100 \
     WEB_PORT=5173
 EXPOSE 5173
+# Embed source identity in the image shared by API and worker. Deployment must
+# supply the exact tested SHA; runtime configuration cannot substitute provenance.
+ARG GIT_SHA
+RUN if [ -n "$GIT_SHA" ]; then echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$'; fi
+ENV GIT_SHA=$GIT_SHA
 # Root is used only to repair the mounted disk's ownership before dropping privileges.
 ENTRYPOINT ["/usr/bin/tini", "-s", "--", "/app/infra/fly/entrypoint.sh"]

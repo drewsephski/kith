@@ -10,6 +10,7 @@ loadRootEnv();
 
 const integration = process.argv.includes("--integration");
 const e2e = process.argv.includes("--e2e");
+const desktop = process.argv.includes("--desktop");
 const sandboxArg = process.argv.find((arg) => arg.startsWith("--sandbox="));
 const specArg = process.argv.find((arg) => arg.startsWith("--spec="));
 const grepArg = process.argv.find((arg) => arg.startsWith("--grep="));
@@ -19,8 +20,8 @@ const e2eSpec = specArg?.slice("--spec=".length);
 const e2eGrep = grepArg?.slice("--grep=".length);
 const agentRuntime = runtimeArg?.slice("--runtime=".length) ?? "scripted";
 
-if (Number(integration) + Number(e2e) !== 1) {
-  throw new Error("Pass exactly one of --integration or --e2e");
+if (Number(integration) + Number(e2e) + Number(desktop) !== 1) {
+  throw new Error("Pass exactly one of --integration, --e2e or --desktop");
 }
 if (!["fake", "e2b", "daytona", "box"].includes(sandboxProvider)) {
   throw new Error('Sandbox must be "fake", "e2b", "daytona", or "box"');
@@ -42,7 +43,7 @@ if (sandboxProvider === "box" && !process.env.BOX_API_KEY) {
 }
 
 async function main() {
-  const mode = integration ? "integration" : "e2e";
+  const mode = integration ? "integration" : desktop ? "desktop" : "e2e";
   const reportDir = path.resolve("test-report", mode);
   await mkdir(reportDir, { recursive: true });
   const container = await new PostgreSqlContainer("postgres:16-alpine").start();
@@ -225,10 +226,11 @@ async function main() {
           "pnpm",
           [
             "--filter",
-            "@rakazo/web",
+            desktop ? "@rakazo/desktop" : "@rakazo/web",
             "exec",
             "playwright",
             "test",
+            ...(desktop ? ["--config", "e2e/frontend.config.ts"] : []),
             ...(e2eSpec ? [e2eSpec] : []),
             ...(e2eGrep ? ["--grep", e2eGrep] : []),
           ],

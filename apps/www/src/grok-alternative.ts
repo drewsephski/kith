@@ -1,5 +1,5 @@
-import { DOCS_URL, GITHUB_URL, SITE_URL } from "./site";
-import { CLAUDE_CHATGPT_SUBSCRIPTION_FAQ } from "./subscription-faq";
+import { DOCS_URL, GITHUB_URL, SITE_URL } from "./site.js";
+import { CLAUDE_CHATGPT_SUBSCRIPTION_FAQ } from "./subscription-faq.js";
 
 export const GROK_ALTERNATIVE_PATH = "/grok-bot-alternative/";
 

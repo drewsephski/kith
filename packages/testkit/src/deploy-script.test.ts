@@ -7,6 +7,26 @@ import { afterEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const temporaryDirectories: string[] = [];
 
+describe("deployment verification scripts", () => {
+  it("checks release gates, Linux window readiness, and hosted recovery offline", () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "scripts/verify-deployment-gates.test.mjs",
+        "scripts/with-linux-window-manager.test.mjs",
+        "scripts/deploy-hosted.test.mjs",
+      ],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+      },
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  });
+});
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });

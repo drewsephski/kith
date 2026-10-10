@@ -1,10 +1,10 @@
-import { ALTERNATIVES, alternativeMarkdown } from "./alternatives";
-import { GROK_ALTERNATIVE_MARKDOWN } from "./grok-alternative";
-import { OPENCLAW_MARKDOWN, SELF_HOST_MARKDOWN } from "./guide";
-import { getHomeCopy } from "./i18n/home";
-import { getJourneyCopy } from "./i18n/journey";
-import { GITHUB_URL, SITE_URL, WEB_START_URL, DESKTOP_URL } from "./site";
-import { roundupMarkdown } from "./roundup";
+import { ALTERNATIVES, alternativeMarkdown } from "./alternatives.js";
+import { GROK_ALTERNATIVE_MARKDOWN } from "./grok-alternative.js";
+import { OPENCLAW_MARKDOWN, SELF_HOST_MARKDOWN } from "./guide.js";
+import { getHomeCopy } from "./i18n/home.js";
+import { getJourneyCopy } from "./i18n/journey.js";
+import { GITHUB_URL, SITE_URL, WEB_START_URL, DESKTOP_URL } from "./site.js";
+import { roundupMarkdown } from "./roundup.js";
 
 export const HOME_MARKDOWN = `# Kith
 

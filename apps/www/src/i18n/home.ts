@@ -1,8 +1,9 @@
-import { DEMO_ROSTER, type RosterBot } from "../demo";
-import { SITE_DESCRIPTION } from "../site";
-import { CLAUDE_CHATGPT_SUBSCRIPTION_FAQ } from "../subscription-faq";
-import { getJourneyCopy } from "./journey";
-import type { Locale } from "./locales";
+import type { RosterBot } from "../demo.js";
+import { DEMO_ROSTER } from "../demo.js";
+import { SITE_DESCRIPTION } from "../site.js";
+import { CLAUDE_CHATGPT_SUBSCRIPTION_FAQ } from "../subscription-faq.js";
+import { getJourneyCopy } from "./journey.js";
+import type { Locale } from "./locales.js";
 
 export type HomeCopy = {
   title: string;

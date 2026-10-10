@@ -3,33 +3,38 @@ import { captureScreenshot } from "./helpers";
 
 const fixture = "/e2e/fixtures/conversation-layout.html";
 
-test("a visible reply hides the working indicator before the run completes", async ({
+test("a visible reply keeps run activity without duplicating the avatar", async ({
   page,
 }, testInfo) => {
   await page.goto(`${fixture}?response=final`);
   await expect(page.locator('[data-message-id="final-reply"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
-  await expect(page.getByTestId("active-bot-glyph")).toHaveCount(0);
+  const activity = page.getByTestId("active-bot-glyph");
+  await expect(activity).toContainText("Working…");
+  await expect(activity.locator("img[data-working]")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "conversation-response-started");
 });
 
-test("loading disappears on the first text and stays hidden when streaming is saved", async ({
+test("the footer avatar disappears on first text and stays hidden when streaming is saved", async ({
   page,
 }, testInfo) => {
   await page.goto(`${fixture}?response=lifecycle`);
   const indicator = page.getByTestId("active-bot-glyph");
   await expect(indicator).toBeVisible();
+  await expect(indicator.locator("img[data-working]")).toHaveCount(1);
   await page.getByRole("button", { name: "Start response" }).click();
   await expect(page.getByTestId("assistant-response-row")).toContainText("I");
-  await expect(indicator).toHaveCount(0);
+  await expect(indicator).toContainText("Working…");
+  await expect(indicator.locator("img[data-working]")).toHaveCount(0);
   await page.getByRole("button", { name: "Save response" }).click();
   await expect(page.locator('[data-message-id="final-reply"]')).toBeVisible();
-  await expect(indicator).toHaveCount(0);
+  await expect(indicator.locator("img[data-working]")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "conversation-response-saved");
   const composer = page.getByRole("combobox", { name: "Message Kith" });
   await composer.fill("What else?");
   await composer.press("Enter");
   await expect(indicator).toBeVisible();
+  await expect(indicator.locator("img[data-working]")).toHaveCount(1);
 });
 
 test("a group reply keeps the loading indicator for a member that has not responded", async ({
@@ -37,7 +42,12 @@ test("a group reply keeps the loading indicator for a member that has not respon
 }) => {
   await page.goto(`${fixture}?response=final&group`);
   await expect(page.locator('[data-message-id="final-reply"]')).toBeVisible();
-  await expect(page.getByTestId("active-bot-glyph")).toContainText("Research is working");
+  const activity = page.getByTestId("active-bot-glyph");
+  await expect(activity).toHaveCount(2);
+  await expect(activity.filter({ hasText: "Kith:" }).locator("img[data-working]")).toHaveCount(0);
+  const research = activity.filter({ hasText: "Research:" });
+  await expect(research).toContainText("Working…");
+  await expect(research.locator(".rakazo-group-avatar")).toBeVisible();
 });
 
 test("the widened composer still sends and clears its draft", async ({ page }) => {
@@ -124,7 +134,9 @@ test("long replies and streaming stay inside narrow and split-panel layouts", as
     );
     await page.goto(`${fixture}?streaming=on`);
     await expect(page.getByTestId("assistant-response-row")).toBeVisible();
-    await expect(page.getByTestId("active-bot-glyph")).toHaveCount(0);
+    const activity = page.getByTestId("active-bot-glyph");
+    await expect(activity).toContainText("Working…");
+    await expect(activity.locator("img[data-working]")).toHaveCount(0);
     await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
     await captureScreenshot(page, testInfo, `conversation-streaming-${width}`);
   }

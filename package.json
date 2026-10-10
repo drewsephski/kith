@@ -36,7 +36,8 @@
     "perf:compare": "tsx packages/testkit/src/cli/compare-performance.ts",
     "compose:up": "docker compose --env-file .env -f infra/compose/docker-compose.yml up --build",
     "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down",
-    "compose:reset": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v"
+    "compose:reset": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v",
+    "test:desktop-packaged": "tsx packages/testkit/src/cli/harness.ts --desktop"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

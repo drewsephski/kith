@@ -18,6 +18,30 @@ test("computer rail resizes its preview and remembers width", async ({ page }, t
   const before = (await page.getByTestId("computer-preview").boundingBox())!;
   const handle = (await separator.boundingBox())!;
   await page.mouse.move(handle.x + 3, handle.y + 100);
+  const resizeHit = await page.evaluate(
+    ({ x, y }) => {
+      const target = document.elementFromPoint(x, y);
+      const separator = document.querySelector('hr[aria-label="Resize panel"]');
+      return {
+        hitSeparator: target === separator,
+        target: target?.tagName,
+        targetClass: target?.getAttribute("class"),
+        bounds: separator?.getBoundingClientRect().toJSON(),
+        style: separator
+          ? {
+              pointerEvents: getComputedStyle(separator).pointerEvents,
+              zIndex: getComputedStyle(separator).zIndex,
+            }
+          : null,
+      };
+    },
+    { x: handle.x + 3, y: handle.y + 100 },
+  );
+  await testInfo.attach("resize-hit-target", {
+    contentType: "application/json",
+    body: JSON.stringify(resizeHit),
+  });
+  expect(resizeHit.hitSeparator).toBe(true);
   await page.mouse.down();
   await page.mouse.move(handle.x - 250, handle.y + 100, { steps: 12 });
   await page.mouse.up();
@@ -38,13 +62,13 @@ test("computer rail resizes its preview and remembers width", async ({ page }, t
     .poll(async () => Math.round((await panel.boundingBox())!.width))
     .toBe(preferredWidth);
   await page.setViewportSize({ width: 1000, height: 1000 });
-  await expect(separator).toHaveAttribute("aria-valuemax", "364");
-  await expect.poll(async () => Math.round((await panel.boundingBox())!.width)).toBe(364);
+  await expect(separator).toHaveAttribute("aria-valuemax", "420");
+  await expect.poll(async () => Math.round((await panel.boundingBox())!.width)).toBe(420);
   expect(await page.evaluate(() => localStorage.getItem("rakazo:right-panel-width"))).toBe(
     String(preferredWidth),
   );
   await page.setViewportSize({ width: 1500, height: 1000 });
-  await expect(separator).toHaveAttribute("aria-valuemax", "864");
+  await expect(separator).toHaveAttribute("aria-valuemax", "920");
   await expect
     .poll(async () => Math.round((await panel.boundingBox())!.width))
     .toBe(preferredWidth);
@@ -74,11 +98,10 @@ test("phone composer menu and settings panel stay tappable", async ({ page }, te
     .getByTestId("bot-settings-advanced")
     .locator('[data-slot="collapsible-trigger"]')
     .click();
-  // Trial clicks fail when another element, like the composer, would receive the tap.
+  await settings.getByRole("button", { name: "Conversation actions", exact: true }).click();
+  // Trial clicks fail when another element would receive the tap.
   for (const name of ["Export", "Clear conversation"]) {
-    await settings
-      .getByRole("button", { name, exact: true })
-      .click({ trial: true, timeout: 5_000 });
+    await page.getByRole("menuitem", { name, exact: true }).click({ trial: true, timeout: 5_000 });
   }
   await captureScreenshot(page, testInfo, "bot-settings-mobile");
 });

@@ -176,6 +176,7 @@ export function CreateBotForm({
           <Trans>Name</Trans>
           <Input
             ref={nameRef}
+            data-autofocus
             id={`${ids}-name`}
             required
             autoComplete="off"

@@ -74,6 +74,10 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const longTitle = `Market researcher ${"and source verifier ".repeat(9)}`;
   const normalizedLongTitle = longTitle.trim();
   expect(longTitle.length).toBeGreaterThan(160);
+  await page
+    .getByTestId("bot-settings-advanced")
+    .getByRole("button", { name: "Advanced", exact: true })
+    .click();
   await nameInput.fill("Researcher");
   await titleInput.fill(longTitle);
   await descriptionInput.fill("Finds reliable sources and turns them into concise briefs.");
@@ -99,9 +103,11 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await expect(studio).toBeVisible();
   await expect(studio.getByRole("button", { name: "Color #EAB308" })).toHaveClass(/ring-2/);
   await studio.getByRole("button", { name: "Done", exact: true }).click();
-  const modelSelect = settings.locator("label:has-text('Model') select");
+  const modelSelect = settings.getByRole("combobox", { name: "Model", exact: true });
   const teamComputer = settings.getByRole("button", { name: "Team" });
   const openWork = settings.getByTestId("bot-scratchpad");
+  // Settings retain disclosure state while editing; close Advanced explicitly.
+  await settings.getByRole("button", { name: "Advanced", exact: true }).click();
   await expect(teamComputer).toBeHidden();
   await expect(modelSelect).toBeHidden();
   await expect(openWork).toBeHidden();
@@ -144,6 +150,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await captureScreenshot(page, testInfo, "27b-computer-panel");
   await page.getByRole("button", { name: "Show settings" }).click();
 
+  await settings.getByRole("button", { name: "Advanced", exact: true }).click();
   await nameInput.fill("Atlas");
   await titleInput.fill("Research lead");
   await descriptionInput.fill("Builds durable, source-backed research briefs.");

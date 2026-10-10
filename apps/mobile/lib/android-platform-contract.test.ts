@@ -233,17 +233,19 @@ describe("Android mobile platform contract", () => {
   it("stacks working agents without duplicating the assistant beside its live reply", () => {
     const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
     expect(thread).toContain("footerGroupBots.map");
-    expect(thread).toContain("inGroup && footerGroupBots.length > 0 ?");
+    expect(thread).toContain("inGroup && workingGroupBots.length > 0 ?");
     expect(thread).toContain("footerGroupBots.length - index");
-    expect(thread).toContain("!hasRunResponseText(visibleMessages, run.id)");
+    expect(thread).toContain("!hasRunResponseText(visibleMessages, bot.runId)");
     expect(thread).toContain("hasRunResponseText(visibleMessages, snap?.run?.id)");
     expect(thread).toContain("agents working");
-    // Visible chrome is avatar-only; copy stays on accessibilityLabel.
+    // Status text remains visible after response text replaces the footer avatar.
+    expect(thread).toContain("workingGroupBots.map((bot)");
+    expect(thread).toContain("runActivityText(visibleMessages, bot.runId)");
     expect(thread).toMatch(
-      /accessibilityLabel=\{\s*footerGroupBots\.length === 1[\s\S]*agents working/,
+      /accessibilityLabel=\{\s*workingGroupBots\.length === 1[\s\S]*agents working/,
     );
     expect(thread).not.toMatch(
-      /footerGroupBots\.length === 1\s*\?[\s\S]*<Text[^>]*>\s*\{t\("\{name\} is working"/,
+      /workingGroupBots\.length === 1\s*\?[\s\S]*<Text[^>]*>\s*\{t\("\{name\} is working"/,
     );
   });
 
