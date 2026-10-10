@@ -70,6 +70,10 @@ jobs:
         run: pnpm --filter @rakazo/desktop exec electron-builder --linux --dir --publish never
       - name: Validate packaged resources
         run: node apps/desktop/scripts/verify-package.mjs linux x64 fixture
+      - name: Configure packaged Chromium sandbox
+        run: |
+          sudo chown root:root apps/desktop/out/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 apps/desktop/out/linux-unpacked/chrome-sandbox
       - name: Packaged Electron acceptance
         env:
           RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo

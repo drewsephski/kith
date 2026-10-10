@@ -2,8 +2,33 @@
 
 Assessment: **BLOCKED**. No public desktop release exists. This implementation prepares the
 next unused stable version, 0.1.7; it does not create or push its tag or publish a release.
-Evidence collected on 2026-10-09 from reviewed baseline
-`494a09500509f4166482a2604a04f1e46494caf2`, plus the local changes described below.
+Initial evidence collected on 2026-10-09 from reviewed baseline
+`494a09500509f4166482a2604a04f1e46494caf2`. The 35-file implementation below was merged
+through PR #11 into `7a1b68a41c4a82c564798e09ea43b39b70e54fcd`; it is no longer local-only.
+The 2026-10-10 audit confirmed no published release, missing repository signing secrets,
+no protected `desktop-release` environment, and password recovery still unavailable.
+
+## Post-merge CI and review follow-up
+
+[Main CI](https://github.com/drewsephski/kith/actions/runs/38033623608) passed lint,
+type checking, unit tests and Postgres journeys. Packaged Linux acceptance failed when
+the direct second-instance launch found `chrome-sandbox` without root ownership and mode
+4755. Web E2E was cancelled; no passing final CI or deployment is claimed.
+[macOS acceptance](https://github.com/drewsephski/kith/actions/runs/38033623372) failed
+at the immediate minimized-state check after requesting minimization.
+
+The local review follow-up configures the packaged Linux sandbox helper on the disposable
+CI runner in both CI and release acceptance, and waits for the native minimized state before
+asserting activation restores the window. It does not disable the sandbox or change app behavior.
+These follow-up changes still require remote packaged execution. Local Electron E2E remains
+excluded under repository instructions. All seven entries in the unsigned artifact SHA256SUMS
+were rechecked successfully on 2026-10-10; these packages predate the test/workflow follow-up.
+
+Follow-up local verification passed: `pnpm lint` (19 existing warnings and 5 informational
+diagnostics), `pnpm check` (22 tasks), all 365 Desktop unit tests, packaged Playwright test
+discovery, and `git diff --check`. The six follow-up files are `.github/workflows/ci.yml`,
+`.github/workflows/release-desktop.yml`, `apps/desktop/e2e/packaged.spec.ts`,
+`docs/desktop-acceptance.md`, `docs/desktop-release-readiness.md`, and `docs/desktop-release.md`.
 
 ## Confirmed and fixed
 
@@ -39,7 +64,7 @@ one shared React application. Provider credentials stay on the server.
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Checkout baseline and dirty-work audit | Passed | Clean initial checkout; changes remain local |
+| Checkout baseline and dirty-work audit | Passed | Initial implementation merged through PR #11; follow-up remains local |
 | Hosted HTTPS document, POST `/rpc/health`, session endpoint | Passed | Verified actual configured application origin |
 | Disposable signup, signin, signout, session restoration | Passed | Hosted HTTP/auth API; fixture account deleted |
 | Shared onboarding and personal assistant | Passed | Deployment reports `needsModel=false`; no API key supplied |
@@ -56,14 +81,14 @@ one shared React application. Provider credentials stay on the server.
 | Feed origin, artifact sizes and SHA-512 hashes | Passed | Actual local package/feed; not signed-update success |
 | Electron tests on this Mac | Skipped | Repository prohibits routine focus-stealing Electron E2E |
 | Native-command shared Web E2E | Passed locally | Real isolated backend; SettingsOverlay, Escape and one new conversation |
-| Packaged Electron acceptance CI checks | Requires CI | Test discovery passes; no remote execution of these local changes |
+| Packaged Electron acceptance CI checks | Failed | Post-merge Linux sandbox-helper and macOS minimize assertions; follow-up rerun pending |
 | Developer ID, notarization, stapling, Gatekeeper | Requires external verification | Required repository secret names are absent |
 | Signed two-version update | Requires external verification | No signed or published versions exist |
 | Gmail/Calendar consent, reconnect and revocation | Requires external verification | Dedicated provider acceptance account required |
 | Public downloads | Not available | GitHub Releases list is empty; marketing links remain unconfigured |
 
-The existing main CI run had Electron smoke failures. This work corrects their identified
-assertions; it does not claim the changed CI run has passed. Live browser session restoration
+The initial baseline CI run had Electron smoke failures. The post-merge run reached packaged
+acceptance and failed as recorded above; final CI has not passed. Live browser session restoration
 was observed, but preview snapshots failed; no personal account content or screenshots are
 included in release evidence. The focused Web E2E passed against the repository's isolated test harness and captured the
 native settings surface. This is shared renderer/backend proof, not packaged Electron proof.
@@ -92,7 +117,7 @@ macOS and Linux names were additionally verified against generated artifacts.
 
 ## Operator gates, in order
 
-1. Review these local changes, deploy the changed shared Web UI to the reviewed hosted origin,
+1. Review the CI follow-up, deploy the changed shared Web UI to the reviewed hosted origin,
    and run CI on the final main commit. Native commands require the deployed shared renderer
    containing the new bridge listener. Obtain the Web E2E native-settings screenshot and the
    native packaged macOS screenshot from that CI run.
@@ -155,7 +180,7 @@ Each recovery sentence identifies the available action or confirms session prese
 persistent explanatory chrome. Menu labels and privacy-prompt text cannot be removed without
 making those native actions inaccessible or misleading.
 
-## Exact files changed
+## Files in the original merged implementation
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/desktop-macos-screenshot.yml`

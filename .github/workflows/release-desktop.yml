@@ -314,7 +314,10 @@ jobs:
         if: runner.os == 'Linux'
         env:
           RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo
-        run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+        run: |
+          sudo chown root:root apps/desktop/out/linux-unpacked/chrome-sandbox
+          sudo chmod 4755 apps/desktop/out/linux-unpacked/chrome-sandbox
+          xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
       - name: Retain installers and updater metadata
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
