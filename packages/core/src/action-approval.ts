@@ -63,6 +63,17 @@ const COMPOUND_CONNECTOR_ACTION_PATTERN = /_(and|or|then)_/i;
 const EMAIL_CONNECTOR_SLUGS = new Set(["gmail", "outlook", "microsoft_outlook"]);
 const PURCHASE_CONNECTOR_SLUGS = new Set(["stripe", "shopify", "paypal", "square"]);
 
+/** Sending mail always retains an explicit final review, even with auto review enabled. */
+export function isEmailSendTool(toolName: string, connectorKind?: string): boolean {
+  const normalized = toolName.replace(/[^a-z0-9]+/gi, "_");
+  const kind = connectorKind ?? connectorKindFromToolName(normalized);
+  return (
+    /(?:^|_)(send|reply|forward)(?:_|$)/i.test(normalized) &&
+    (EMAIL_CONNECTOR_SLUGS.has(kind.toLowerCase()) ||
+      /(?:^|_)(gmail|outlook|email|mail)(?:_|$)/i.test(normalized))
+  );
+}
+
 export type ActionApprovalRule = Pick<
   StoredActionApprovalRule,
   "effect" | "matchKind" | "matchValue"

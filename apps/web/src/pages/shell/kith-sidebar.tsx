@@ -1,20 +1,34 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, Group } from "@rakazo/contracts";
-import type { ArchiveIconHandle } from "@rakazo/ui-web";
-import { ArchiveIcon, Button, KithAvatar, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
+import type {
+  ArchiveIconHandle,
+  BrainIconHandle,
+  ConnectIconHandle,
+  FoldersIconHandle,
+  PanelLeftCloseIconHandle,
+  SettingsIconHandle,
+} from "@rakazo/ui-web";
 import {
-  Brain,
+  ArchiveIcon,
+  BrainIcon,
+  Button,
+  ConnectIcon,
+  FoldersIcon,
+  KithAvatar,
+  NavigationButton,
+  PanelLeftCloseIcon,
+  SelectionGroup,
+  SettingsIcon,
+} from "@rakazo/ui-web";
+import {
   Check,
   CircleAlert,
-  FolderOpen,
+  Lightbulb,
   ListTodo,
   MessageCircle,
   MoreHorizontal,
-  PanelLeftClose,
   Plus,
-  Puzzle,
   Search,
-  Settings,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
@@ -109,7 +123,11 @@ export function KithSidebar({
   onSettings,
   onAdvanced,
   creating,
+  forYouOpen = false,
+  onForYou,
 }: {
+  forYouOpen?: boolean;
+  onForYou?: () => void;
   assistantId: string | null;
   bots: Bot[];
   groups: Group[];
@@ -132,6 +150,11 @@ export function KithSidebar({
   creating: boolean;
 }) {
   const { t } = useLingui();
+  const brainIcon = useRef<BrainIconHandle>(null);
+  const connectIcon = useRef<ConnectIconHandle>(null);
+  const settingsIcon = useRef<SettingsIconHandle>(null);
+  const foldersIcon = useRef<FoldersIconHandle>(null);
+  const collapseIcon = useRef<PanelLeftCloseIconHandle>(null);
   const threads = bots.filter((bot) => bot.id !== assistantId);
   const active = threads.filter((bot) =>
     ["running", "queued", "leased", "waiting_input", "waiting_takeover"].includes(bot.status),
@@ -179,11 +202,15 @@ export function KithSidebar({
             variant="ghost"
             size="icon-sm"
             onClick={onCollapse}
+            onMouseEnter={() => collapseIcon.current?.startAnimation()}
+            onMouseLeave={() => collapseIcon.current?.stopAnimation()}
+            onFocus={() => collapseIcon.current?.startAnimation()}
+            onBlur={() => collapseIcon.current?.stopAnimation()}
             aria-label={t`Collapse sidebar`}
             title={t`Collapse sidebar`}
             className="app-no-drag hidden md:flex"
           >
-            <PanelLeftClose size={16} />
+            <PanelLeftCloseIcon ref={collapseIcon} size={16} />
           </Button>
         </div>
         <nav aria-label={t`Assistant`} className="space-y-1 px-3">
@@ -205,6 +232,17 @@ export function KithSidebar({
               </span>
             </span>
           </NavigationButton>
+          {onForYou ? (
+            <NavigationButton
+              selected={forYouOpen}
+              aria-current={forYouOpen ? "page" : undefined}
+              className="h-10 gap-3 px-3"
+              onClick={onForYou}
+            >
+              <Lightbulb size={16} />
+              <Trans>For you</Trans>
+            </NavigationButton>
+          ) : null}
           <Button
             variant="ghost"
             className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
@@ -276,17 +314,25 @@ export function KithSidebar({
               aria-current={false}
               aria-pressed={activeDetail === "memory"}
               className="h-9 w-full justify-start gap-3 px-3"
+              onMouseEnter={() => brainIcon.current?.startAnimation()}
+              onMouseLeave={() => brainIcon.current?.stopAnimation()}
+              onFocus={() => brainIcon.current?.startAnimation()}
+              onBlur={() => brainIcon.current?.stopAnimation()}
               onClick={onMemory}
             >
-              <Brain size={16} />
+              <BrainIcon ref={brainIcon} size={16} />
               <Trans>Memory</Trans>
             </NavigationButton>
             <Button
               variant="ghost"
               className="h-9 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
               onClick={onArtifacts}
+              onMouseEnter={() => foldersIcon.current?.startAnimation()}
+              onMouseLeave={() => foldersIcon.current?.stopAnimation()}
+              onFocus={() => foldersIcon.current?.startAnimation()}
+              onBlur={() => foldersIcon.current?.stopAnimation()}
             >
-              <FolderOpen size={16} />
+              <FoldersIcon ref={foldersIcon} size={16} />
               <Trans>Files</Trans>
             </Button>
             <NavigationButton
@@ -294,9 +340,13 @@ export function KithSidebar({
               aria-current={false}
               aria-pressed={activeDetail === "connections"}
               className="h-9 w-full justify-start gap-3 px-3"
+              onMouseEnter={() => connectIcon.current?.startAnimation()}
+              onMouseLeave={() => connectIcon.current?.stopAnimation()}
+              onFocus={() => connectIcon.current?.startAnimation()}
+              onBlur={() => connectIcon.current?.stopAnimation()}
               onClick={onIntegrations}
             >
-              <Puzzle size={16} />
+              <ConnectIcon ref={connectIcon} size={16} />
               <Trans>Connections</Trans>
             </NavigationButton>
             <div className="mt-3 flex items-center gap-1 border-t border-sidebar-border pt-3">
@@ -305,9 +355,13 @@ export function KithSidebar({
                 aria-current={false}
                 aria-pressed={activeDetail === "settings"}
                 className="h-9 flex-1 justify-start gap-3 px-3"
+                onMouseEnter={() => settingsIcon.current?.startAnimation()}
+                onMouseLeave={() => settingsIcon.current?.stopAnimation()}
+                onFocus={() => settingsIcon.current?.startAnimation()}
+                onBlur={() => settingsIcon.current?.stopAnimation()}
                 onClick={onSettings}
               >
-                <Settings size={16} />
+                <SettingsIcon ref={settingsIcon} size={16} />
                 <Trans>Settings</Trans>
               </NavigationButton>
               <Button

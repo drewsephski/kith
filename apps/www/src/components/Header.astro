@@ -1,15 +1,15 @@
 ---
 import { getHomeCopy } from "../i18n/home";
 import type { HomeCopy } from "../i18n/home";
+import type { Locale } from "../i18n/locales";
 import {
   DEFAULT_LOCALE,
   localeHashPath,
   localeHomePath,
-  type Locale,
 } from "../i18n/locales";
 import { getJourneyCopy } from "../i18n/journey";
 
-import { GITHUB_URL, SELF_HOST_GUIDE_PATH, SIGN_IN_URL } from "../site";
+import { GITHUB_URL, SELF_HOST_GUIDE_PATH, webStartHref, signInHref } from "../site";
 import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
@@ -20,15 +20,15 @@ type Props = {
   homeHref?: string;
 };
 
-
 const locale = Astro.props.locale ?? DEFAULT_LOCALE;
 const copy = Astro.props.copy ?? getHomeCopy(locale).nav;
 const homeHref = Astro.props.homeHref ?? localeHomePath(locale);
 
 const journey = getJourneyCopy(locale);
+const startHref = webStartHref(locale);
 
 const NAV_LINKS: Array<{ href: string; label: string; external?: boolean }> = [
-  { href: localeHashPath(locale, "demo"), label: copy.product },
+  { href: localeHashPath(locale, "product"), label: copy.product },
   { href: localeHashPath(locale, "how-it-works"), label: journey.how },
   { href: GITHUB_URL, label: "GitHub", external: true },
 ];
@@ -58,13 +58,12 @@ const externalAttrs = { target: "_blank", rel: "noreferrer" };
           </a>
         ))
       }
-
     </nav>
   </div>
   <div class="site-header__right">
-    <a class="journey-sign-in" href={SIGN_IN_URL}>{journey.signIn}</a>
+    <a class="journey-sign-in" href={signInHref(locale)}>{journey.signIn}</a>
     <div class="site-header__cta">
-      <Button href={localeHashPath(locale, "get-started")} size="sm">{journey.start}</Button>
+      <Button href={startHref} size="sm">{journey.start}</Button>
     </div>
     <details class="site-menu" data-site-menu>
       <summary class="site-menu__toggle" aria-label={copy.menu}>
@@ -87,6 +86,7 @@ const externalAttrs = { target: "_blank", rel: "noreferrer" };
             </a>
           ))
         }
+        <Button href={startHref}>{journey.start}</Button>
       </nav>
     </details>
   </div>
@@ -94,28 +94,27 @@ const externalAttrs = { target: "_blank", rel: "noreferrer" };
 
 <script>
   const menu = document.querySelector<HTMLDetailsElement>("[data-site-menu]");
-  const drops = document.querySelectorAll<HTMLDetailsElement>(".nav-drop__menu");
-
   if (menu) {
+    const trigger = menu.querySelector<HTMLElement>("summary");
+    const close = (restoreFocus = false) => {
+      menu.open = false;
+      if (restoreFocus) trigger?.focus();
+    };
     menu.addEventListener("click", (event) => {
-      if ((event.target as HTMLElement).closest("a")) menu.open = false;
+      if ((event.target as HTMLElement).closest("a")) close();
     });
-
     document.addEventListener("click", (event) => {
-      if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+      if (menu.open && !menu.contains(event.target as Node)) close();
     });
-
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        menu.open = false;
-        for (const drop of drops) drop.open = false;
-      }
+      if (event.key === "Escape" && menu.open) close(true);
     });
-
-    document.addEventListener("click", (event) => {
-      for (const drop of drops) {
-        if (drop.open && !drop.parentElement?.contains(event.target as Node)) drop.open = false;
-      }
+    menu.addEventListener("focusout", () => {
+      requestAnimationFrame(() => {
+        if (menu.open && !menu.contains(document.activeElement)) close();
+      });
     });
+    const desktop = matchMedia("(min-width: 960px)");
+    desktop.addEventListener("change", () => { if (desktop.matches) close(); });
   }
 </script>

@@ -6,27 +6,29 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { getJourneyCopy } from "../i18n/journey";
 import { getHomeCopy } from "../i18n/home";
 import type { Locale } from "../i18n/locales";
-import { APP_URL, DESKTOP_DOWNLOADS, GITHUB_URL, SELF_HOST_GUIDE_PATH } from "../site";
+import { APP_URL, webStartHref, DESKTOP_DOWNLOADS, GITHUB_URL, SELF_HOST_GUIDE_PATH } from "../site";
 type Props = { locale?: Locale; platform: "web" | "desktop" };
 const { locale = "en", platform } = Astro.props;
 const copy = getJourneyCopy(locale);
-const webHref = APP_URL ? `${APP_URL}/start` : locale === "en" ? "/start/" : `/${locale}/start/`;
+const webHref = webStartHref(locale);
 const desktopHref = locale === "en" ? "/download/" : `/${locale}/download/`;
 const platforms = [{ name: "macOS", url: DESKTOP_DOWNLOADS.mac }, { name: "Windows", url: DESKTOP_DOWNLOADS.windows }, { name: "Linux", url: DESKTOP_DOWNLOADS.linux }];
+const hasInstallers = platforms.some((item) => item.url);
 ---
 <BaseLayout title={`${platform === "desktop" ? copy.downloadTitle : copy.webUnavailable} · Kith`} description={platform === "desktop" ? copy.downloadBody : copy.webUnavailableBody} locale={locale} index={platform === "desktop"}>
   <div class="container"><Header starsLabel="" locale={locale} />
     <main id="main" class="platform-page">
       <h1>{platform === "desktop" ? copy.downloadTitle : copy.webUnavailable}</h1>
       <p>{platform === "desktop" ? copy.downloadBody : copy.webUnavailableBody}</p>
-      {platform === "desktop" && <div class="platform-list">
-        {platforms.map((item) => <article><div><h2>{item.name}</h2>{!item.url && <p>{copy.unavailable}</p>}</div>{item.url && <Button href={item.url}>{copy.install} · {item.name}</Button>}</article>)}
+      {platform === "desktop" && hasInstallers && <div class="platform-list">
+        {platforms.map((item) => <article class:list={{ "platform-unavailable": !item.url }}><div><h2>{item.name}</h2>{!item.url && <p>{copy.unavailable}</p>}</div>{item.url && <Button href={item.url}>{copy.install} · {item.name}</Button>}</article>)}
       </div>}
+      {platform === "desktop" && !hasInstallers && <p class="platform-availability">{copy.noInstallers}</p>}
       <div class="hero__actions">
         {platform === "desktop" ? <>
-          <Button href={`${GITHUB_URL}/releases`} external>{copy.releases}</Button>
+          <Button href={`${GITHUB_URL}/releases`} variant={APP_URL || hasInstallers ? "secondary" : "primary"} external>{copy.releases}</Button>
           <Button href={`${GITHUB_URL}/blob/main/docs/desktop-release.md#build-from-source`} variant="secondary" external>{copy.source}</Button>
-          <Button href={webHref} variant="secondary">{copy.web}</Button>
+          {APP_URL && <Button href={webHref}>{copy.web}</Button>}
         </> : <>
           <Button href={desktopHref}>{copy.desktop}</Button>
           <Button href={SELF_HOST_GUIDE_PATH} variant="secondary">{getHomeCopy(locale).nav.selfHost}</Button>

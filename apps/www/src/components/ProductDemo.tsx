@@ -290,7 +290,7 @@ function OnboardThread({
 
 export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
   const text: DemoTranslator = (source, values) => demoText(locale, source, values);
-  const [bots, setBots] = useState<LiveBot[]>(() => cloneBots(getDemoBots(locale).map((bot) => bot.id === "inbox" ? { ...bot, name: "Kith" } : bot)));
+  const [bots, setBots] = useState<LiveBot[]>(() => cloneBots(getDemoBots(locale)));
   const [activeId, setActiveId] = useState("inbox");
   const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -301,12 +301,13 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
   const [bootPct, setBootPct] = useState(0);
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
+  const [exploring, setExploring] = useState(false);
   const [extra, setExtra] = useState<ExtraMessages>({});
   const [routineDraft, setRoutineDraft] = useState<RoutineDraft | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const timersRef = useRef<number[]>([]);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const widePanelRef = useRef(true);
+  const widePanelRef = useRef(false);
   const booting = bootPct > 0;
 
   const active = bots.find((bot) => bot.id === activeId) ?? bots[0];
@@ -320,10 +321,12 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) {
-      return bots;
+      return exploring
+        ? [...bots].sort((a, b) => Number(b.id === "inbox") - Number(a.id === "inbox"))
+        : bots.filter((bot) => bot.id === "inbox");
     }
     return bots.filter((bot) => `${bot.name} ${bot.preview}`.toLowerCase().includes(needle));
-  }, [bots, query]);
+  }, [bots, query, exploring]);
 
   const onboardingOpen = Boolean(active?.onboarding && active.answers.length < ONBOARD.length);
 
@@ -336,7 +339,7 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      el.scrollTop = active?.id === "inbox" && !extra[active.id]?.length ? 0 : el.scrollHeight;
     }
   }, [active?.id, messages.length, active?.answers.length]);
 
@@ -668,14 +671,16 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
             </div>
             <span className="product-demo__drawer-title">{text("Bots")}</span>
             <div className="product-demo__chrome-actions">
-              <button
-                type="button"
-                className="product-demo__new"
-                aria-label={text("New bot")}
-                onClick={startNewBot}
-              >
-                +
-              </button>
+              {exploring && (
+                <button
+                  type="button"
+                  className="product-demo__new"
+                  aria-label={text("New bot")}
+                  onClick={startNewBot}
+                >
+                  +
+                </button>
+              )}
               <button
                 type="button"
                 className="product-demo__sidebar-close"
@@ -686,15 +691,17 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
               </button>
             </div>
           </div>
-          <label className="product-demo__search">
-            <span aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={text("Search")}
-            />
-          </label>
+          {exploring && (
+            <label className="product-demo__search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={text("Search")}
+              />
+            </label>
+          )}
           <div className="product-demo__bot-list">
             {filtered.map((bot) => {
               const isActive = bot.id === active.id;
@@ -716,6 +723,14 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
                 </button>
               );
             })}
+            <button
+              type="button"
+              className="product-demo__bot-row"
+              onClick={() => setExploring(!exploring)}
+              aria-expanded={exploring}
+            >
+              {text("Explore examples")}
+            </button>
           </div>
           <div className="product-demo__user">
             <span className="product-demo__user-badge">AK</span>
@@ -765,8 +780,10 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
               type="button"
               className="product-demo__panel-toggle"
               aria-pressed={panelOpen && panelMode === "computer"}
-              aria-label={text("Toggle computer panel")}
-              title={text("Computer")}
+              aria-label={text(
+                active.id === "inbox" ? "View sample sources" : "Toggle computer panel",
+              )}
+              title={text(active.id === "inbox" ? "View sample sources" : "Computer")}
               onClick={toggleComputer}
             >
               <svg
@@ -1222,7 +1239,9 @@ export function ProductDemo({ locale = "en" }: { locale?: Locale }) {
         ) : null}
       </div>
       <p className="product-demo__caption">
-        {text("Live demo. Pick a bot, open its computer, add a routine, or start a new chat.")}
+        {text(
+          "Illustrative demo. Inspect sample sources, try a message, or explore other examples.",
+        )}
       </p>
     </div>
   );

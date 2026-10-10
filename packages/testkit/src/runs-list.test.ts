@@ -77,6 +77,53 @@ describeRunsList("runs.list activity tracker", () => {
     expect(recent.runs.some((run) => run.botName === "Beta")).toBe(false);
   });
 
+  it("targets the latest result or approval, then falls back to the task prompt", async () => {
+    const cookie = await signup(app, `runs-context-${stamp}@rakazo.test`, "Context User");
+    const bot = await rpc<{ id: string }>(app, cookie, "bots/create", {
+      name: "Context",
+      title: "Context",
+      description: "",
+      instructions: "",
+    });
+    const run = await seedRun(prisma, bot.id, "completed", "Prepare tomorrow");
+    const source = await prisma.message.create({
+      data: {
+        threadId: run.threadId,
+        seq: 100,
+        role: "user",
+        blocks: [{ kind: "text", text: "Prepare tomorrow" }],
+      },
+    });
+    await prisma.run.update({ where: { id: run.id }, data: { sourceMessageId: source.id } });
+    const list = () =>
+      rpc<{ runs: RunActivityRow[] }>(app, cookie, "runs/list", { filter: "recent" });
+    expect((await list()).runs.find((item) => item.runId === run.id)?.messageId).toBe(source.id);
+    await prisma.message.create({
+      data: {
+        threadId: run.threadId,
+        seq: 101,
+        role: "bot",
+        runId: run.id,
+        blocks: [{ kind: "text", text: "Sample preparation" }],
+      },
+    });
+    const approval = await prisma.message.create({
+      data: {
+        threadId: run.threadId,
+        seq: 102,
+        role: "bot",
+        runId: run.id,
+        blocks: [{ kind: "text", text: "Please review the draft" }],
+      },
+    });
+    expect((await list()).runs.find((item) => item.runId === run.id)?.messageId).toBe(approval.id);
+    const otherCookie = await signup(app, `runs-context-other-${stamp}@rakazo.test`, "Other User");
+    expect(
+      (await rpc<{ runs: RunActivityRow[] }>(app, otherCookie, "runs/list", { filter: "recent" }))
+        .runs,
+    ).toEqual([]);
+  });
+
   it("never returns runs from another workspace", async () => {
     const ownerCookie = await signup(app, `runs-owner-${stamp}@rakazo.test`, "Owner");
     const ownerBot = await rpc<{ id: string }>(app, ownerCookie, "bots/create", {

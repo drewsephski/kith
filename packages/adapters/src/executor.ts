@@ -65,6 +65,7 @@ import {
   connectorKindFromToolName,
   containsSecret,
   createStreamingRedactor,
+  emailSendMatchesCard,
   endsSentence,
   expandSkillReferencesInPrompt,
   formatSkillRunPrompt,
@@ -72,6 +73,7 @@ import {
   humanizeToolName,
   inferAttachmentMimeType,
   isCallClientNonce,
+  isEmailSendTool,
   isMessagingChannelRun,
   isOneShotRoutineCrons,
   isTerminal,
@@ -242,6 +244,7 @@ import { checkpointRunComputerWorkspace } from "./computer-workspace.js";
 import { redactConnectorPayload, sanitizeConnectorError } from "./connector-safety.js";
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
+import { emailCardFromTool } from "./email-card.js";
 import { handoffToGroupBot, loadGroupContext } from "./group-handoff.js";
 import {
   COMPACTION_BATCH_SIZE,
@@ -3576,6 +3579,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
           run.sourceMessageId,
         );
         const turnBlocks = currentTurnMessage?.blocks;
+        const sourceEmail = currentTurnMessage?.blocks.filter(
+          (block) => block.kind === "email" && block.mode === "draft",
+        );
+        const emailSendIntent =
+          run.trigger === "user" &&
+          currentTurnMessage?.role === "user" &&
+          currentTurnMessage?.id === run.sourceMessageId &&
+          sourceEmail?.length === 1
+            ? sourceEmail[0]
+            : undefined;
+        let authorizedEmailEffectKey: string | undefined;
+
         const allowSilentPeerMessage = botMessageAllowsSilence(
           peerMessage?.intent,
           peerMessage?.repliesToRequest,
@@ -4279,6 +4294,52 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
           const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name);
+          let connectorPreview:
+            | Awaited<ReturnType<NonNullable<ConnectorProvider["approvalPreview"]>>>
+            | undefined;
+          if (viaConnector && deps.connector?.approvalPreview) {
+            try {
+              connectorPreview = await deps.connector.approvalPreview(
+                { ...connectorCall, tool: name, args },
+                context,
+              );
+            } catch (error) {
+              return { error: sanitizeConnectorError(error) };
+            }
+          }
+          let emailSendAuthorized = false;
+          const emailEffectKey = approvalEffectKey(runId, replayEffectToolName, args);
+          if (
+            sourceClientNonce?.startsWith("email-send:") &&
+            emailSendIntent?.kind === "email" &&
+            connectorPreview?.emailSend &&
+            (!authorizedEmailEffectKey || authorizedEmailEffectKey === emailEffectKey)
+          ) {
+            // Completed sends replay without fetching a draft that Gmail has already removed.
+            const previous = await deps.prisma.externalEffect.findUnique({
+              where: { idempotencyKey: emailEffectKey },
+            });
+            if (previous) {
+              const gate = resolveDuplicateEffectGate(previous, name);
+              if (gate.action === "return") return gate.result;
+              if (gate.action === "uncertain")
+                return settleUncertainEffect(deps.prisma, previous.id, name);
+            }
+            try {
+              connectorPreview = await deps.connector?.approvalPreview?.(
+                { ...connectorCall, tool: name, args },
+                context,
+                { includeContent: true },
+              );
+              emailSendAuthorized = Boolean(
+                connectorPreview?.emailSend &&
+                  emailSendMatchesCard(emailSendIntent, connectorPreview),
+              );
+              if (emailSendAuthorized) authorizedEmailEffectKey = emailEffectKey;
+            } catch (error) {
+              return { error: sanitizeConnectorError(error) };
+            }
+          }
           // Declared effect of the operation this call dispatches (installed API method and
           // flag). Install config is immutable per route resource, so it cannot drift before
           // execute; a catalog call uses the tool it was just resolved to.
@@ -4292,10 +4353,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
             declaredReadOnly,
           );
           const requiresApprovalByDefault =
+            connectorPreview?.emailSend ||
+            (viaConnector && isEmailSendTool(name)) ||
             requiresUnattendedApproval ||
             toolRequiresApproval(name, viaConnector, declaredReadOnly);
           const requiresMandatoryApproval =
-            requiresUnattendedApproval || toolRequiresExplicitApproval(name);
+            connectorPreview?.emailSend ||
+            requiresUnattendedApproval ||
+            toolRequiresExplicitApproval(name) ||
+            (viaConnector &&
+              isEmailSendTool(
+                name,
+                connectorKindFromToolName(
+                  name,
+                  connectedPlugins.map((plugin) => plugin.provider),
+                ),
+              ));
           const connectorKind = connectorKindFromToolName(
             name,
             connectedPlugins.map((plugin) => plugin.provider),
@@ -4330,14 +4403,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
                     ),
                   )
                 : false));
-          const plan = requiresMandatoryApproval
-            ? "ask"
-            : planActionGate({
-                resolved: approvalResolved,
-                consequential: requiresApprovalByDefault,
-                autoReviewEnabled: autoReviewPref,
-                checkerConfigured,
-              });
+          const plan = emailSendAuthorized
+            ? "allow"
+            : requiresMandatoryApproval
+              ? "ask"
+              : planActionGate({
+                  resolved: approvalResolved,
+                  consequential: requiresApprovalByDefault,
+                  autoReviewEnabled: autoReviewPref,
+                  checkerConfigured,
+                });
           let reviewReason: string | undefined;
           let gateDecision: "ask" | "allow" = plan === "ask" ? "ask" : "allow";
           const needsApprovalEarly = plan === "ask" || plan === "judge";
@@ -4354,8 +4429,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
             name === "request_secret"
               ? 0
               : nextMutatingEffectOccurrence(replayEffectToolName, args);
-          const effectKey =
-            usesApprovalKey && occurrence === 0
+          const effectKey = emailSendAuthorized
+            ? emailEffectKey
+            : usesApprovalKey && occurrence === 0
               ? approvalEffectKey(runId, replayEffectToolName, args)
               : toolEffectIdempotencyKey(runId, replayEffectToolName, args, occurrence);
           // Connector read-only hints must not bypass approval, review, or replay decisions.
@@ -4555,6 +4631,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
               return pauseForApproval();
             }
             await workspaceCheckpoint.flush();
+            const fullPreview =
+              viaConnector && deps.connector?.approvalPreview
+                ? await deps.connector.approvalPreview(
+                    { ...connectorCall, tool: name, args },
+                    context,
+                    { includeContent: true },
+                  )
+                : connectorPreview;
             const paused = await deps.events.pauseRunForInput({
               spaceId: run.spaceId,
               threadId: run.threadId,
@@ -4566,6 +4650,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
               blocks: [
                 buildApprovalAskBlock(applied!.effect.id, name, args, runSecrets, {
                   reviewReason,
+                  emailSend: fullPreview?.emailSend,
+                  email: fullPreview?.email,
                 }),
               ],
             });
@@ -5280,6 +5366,36 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 args,
               ),
             );
+          }
+          if (name === "show_email") {
+            let block: MessageBlock;
+            try {
+              block = emailCardFromTool(args, runSecrets);
+            } catch {
+              return finish({
+                error:
+                  "Invalid email preview. Include the real account, all recipients, subject, and plain-text body.",
+              });
+            }
+            await publishMidTurnNarration();
+            const clientNonce = `email-preview:${effectKey}`;
+            const committed = await deps.prisma.$transaction(async (tx) => {
+              await tx.$executeRaw`SELECT id FROM threads WHERE id = ${run.threadId} FOR UPDATE`;
+              const existing = await tx.message.findFirst({
+                where: { threadId: run.threadId, clientNonce },
+              });
+              if (existing) return undefined;
+              return persistMessageInTransaction(tx, run, "bot", [block], undefined, clientNonce);
+            });
+            if (committed)
+              await deps.events.notify(run.threadId, committed.eventSeq).catch((error) => {
+                getLogger().error("email preview realtime notification", error);
+              });
+            return finish({
+              status: "displayed",
+              next_step:
+                "The email is in the chat. It has not been sent. Wait for the user's send action.",
+            });
           }
           if (name === "request_app_connection") {
             const result = await appConnectionFromTool(deps.connectors, context, args);
@@ -7819,6 +7935,11 @@ export function userTurnInstructions(parts: {
     parts.pluginLine,
     parts.agentSkillsLine,
     parts.taughtSkillsLine,
+    offeredBuiltinClause(
+      parts.disabledBuiltinTools,
+      "show_email",
+      "Use show_email to display actual email content and every prepared response in the conversation. Fetch full email content with the connected service first; snippets are not full messages. Save requested drafts with the service and show each draft with its real draftId, exact connected account, all recipients, subject, and plain-text body. Never invent mailbox content or IDs. Creating or showing a draft does not authorize sending it: wait for the user's send action. A user email block accompanying a send request is the exact content the user has approved with the Send button. Apply its subject and body to the referenced saved draft, keep the account and recipients unchanged, fetch it again to verify, then send it immediately. Do not ask the user to save or approve the same email again. When sending, use the connected service's tool, preserve the selected account and recipients, and report only its confirmed result.",
+    ),
     offeredBuiltinClause(
       parts.disabledBuiltinTools,
       "request_app_connection",

@@ -217,6 +217,7 @@ export default function Layout() {
                         headerBackVisible: false,
                       }}
                     />
+                    <Stack.Screen name="for-you" options={{ title: t("For you") }} />
                     <Stack.Screen name="artifacts" options={glassHeaderOptions(t("Artifacts"))} />
                     <Stack.Screen name="artifact" options={{ title: t("Artifact") }} />
                     <Stack.Screen name="group-thread" options={{ title: t("Group") }} />

@@ -35,7 +35,7 @@ spacing:
   md: "16px"
   lg: "24px"
   xl: "32px"
-  section: "48px"
+  section: "56–96px"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
@@ -55,7 +55,7 @@ components:
     padding: "26px"
   faq:
     textColor: "{colors.foreground}"
-    padding: "22px 0"
+    padding: "20px 0"
 ---
 # Design System: Kith marketing
 
@@ -101,9 +101,9 @@ Headings use medium weight and restrained negative tracking; paragraphs stay reg
 
 ## Layout
 
-The page uses a centered container (1150px maximum) with 24px side gutters, reducing to 16px at 720px. The hero centers companion, heading, lead, and wrapping platform actions. Its companion is 96px on desktop and 72px below 768px. Benefits and ordered steps use three equal columns with a 56px gap, becoming one column with a 32px gap below 768px. Open sections and fine dividers provide grouping without a card around every passage.
+The page uses a centered container (1150px maximum) with 24px side gutters, reducing to 16px at 720px. The hero centers companion, heading, lead and platform actions. Its companion is 96px on desktop and 72px below 640px. Benefits and ordered steps use three equal columns with fluid 24–48px gaps above 960px, two columns with a full-width final item at 640–959px, and one column below 640px.
 
-Section spacing is generous: the shared top padding is 110px, reducing to 84px at 720px. The hero and divided open section have their own tighter spacing. Below 768px the platform actions stack; hero actions remain at least 48px tall. Below 860px desktop navigation gives way to the existing menu disclosure. Narrow platform lists also stack their text and action vertically. FAQ content caps at 780px; supporting prose uses shorter measures than the full container.
+Consumer sections share fluid 56–96px vertical spacing. Platform actions stack below 640px and stay at least 48px tall. Below 960px desktop navigation gives way to the native menu, including a primary Get started link. The open-source action column becomes a wrapping row at tablet widths. The FAQ pairs a one-third heading column with a two-thirds answer column on desktop and stacks below 960px. Editorial, guide, legal and blog pages share a centered 1056px canvas, with prose capped at 80 characters per line where appropriate. Tables and illustrations use the wider canvas.
 
 ## Elevation & Depth
 
@@ -113,13 +113,13 @@ Depth is primarily tonal and spatial. The recurring soft shadow (`0 2px 16px rgb
 
 ## Shapes
 
-Controls have gently curved corners; repeated feature cards use the card radius. Menus use smaller corners. The original companion silhouette stays in the supplied asset. Hairline dividers and native disclosure markers are part of this world.
+Controls have gently curved corners; repeated feature cards use the card radius. Menus use smaller corners. The original companion silhouette stays in the supplied asset. Hairline dividers and restrained chevrons are part of this world.
 
 ## Components
 
 ### Buttons
 
-Platform links are clear, restrained anchors. The primary variant uses semantic primary and primary foreground; secondary uses a white surface and fine border. Both are 48px minimum height, with 22px horizontal padding, 16px medium text, and the recorded control radius. Small variants reduce to 42px and 14px text. Focus has a 2px ring with a 3px offset; hover preserves restrained shadow and changes the secondary surface subtly. Shared transitions last 180ms; reduced motion suppresses transitions and smooth scrolling.
+Platform links are clear, restrained anchors. The primary variant uses semantic primary and primary foreground; secondary uses a white surface and fine border. Both are 48px minimum height, with 22px horizontal padding, 16px medium text, and the recorded control radius. Small variants reduce to 44px and 14px text. Focus has a 2px ring with a 3px offset; hover preserves restrained shadow and changes the secondary surface subtly. Shared transitions last 180ms; reduced motion suppresses transitions and smooth scrolling.
 
 ### Cards / Containers
 
@@ -131,7 +131,7 @@ Compact text links sit beside the brand. Active interaction strengthens text tow
 
 ### FAQ
 
-Native details and summary preserve familiar disclosure behavior. Each row uses a bottom border and 22px vertical padding; the summary is an 18px medium sentence-case title. Expanded prose uses regular body text and muted foreground. No fabricated answers or decorative accordion controls are required.
+Native details and summary preserve disclosure behavior without JavaScript. Progressive enhancement animates measured answer height and opacity over 240ms in both directions, with one expanded item and a rotating right-aligned chevron. Each question has a 64px minimum row and 20px vertical padding. Answers use regular muted body text and 24px bottom spacing. Closing answers become inert and hidden from assistive technology; reduced motion changes state immediately.
 
 ## Do's and Don'ts
 

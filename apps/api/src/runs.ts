@@ -1,4 +1,5 @@
-import { type Actor, MessageBlock, type RunActivityRow } from "@rakazo/contracts";
+import type { Actor, RunActivityRow } from "@rakazo/contracts";
+import { MessageBlock } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, botMessageContext } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 
@@ -66,6 +67,23 @@ export async function listSpaceRuns(
     take: filter === "recent" ? RECENT_LIMIT : undefined,
   });
 
+  // Fetch one visible context per run in a single space/user-scoped batch.
+  // Latest bot messages include results and approval requests; the source prompt
+  // remains a useful fallback for a run that has not produced a response yet.
+  const messages = rows.length
+    ? await prisma.message.findMany({
+        where: {
+          runId: { in: rows.map((row) => row.id) },
+          threadId: { in: rows.map((row) => row.threadId) },
+          role: "bot",
+          thread: { spaceId: actor.spaceId, userId: actor.userId },
+        },
+        distinct: ["runId"],
+        orderBy: { seq: "desc" },
+        select: { id: true, runId: true },
+      })
+    : [];
+  const targets = new Map(messages.map((message) => [message.runId, message.id]));
   return rows.map((row) => ({
     runId: row.id,
     botId: row.botId,
@@ -73,6 +91,7 @@ export async function listSpaceRuns(
     groupId: row.thread.groupId,
     groupName: row.thread.group?.name ?? null,
     threadId: row.threadId,
+    messageId: targets.get(row.id) ?? row.sourceMessageId,
     status: row.status as RunActivityRow["status"],
     trigger: row.trigger as RunActivityRow["trigger"],
     notificationsEnabled: activityNotificationsEnabled(row.thread.groupId, row.bot.notifyOnFinish),

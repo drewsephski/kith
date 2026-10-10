@@ -479,6 +479,12 @@ export default function Home() {
       unstable_headerRightItems: () => [
         {
           type: "button" as const,
+          accessibilityLabel: t("For you"),
+          icon: { type: "sfSymbol" as const, name: "lightbulb" },
+          onPress: () => router.push("/for-you"),
+        },
+        {
+          type: "button" as const,
           accessibilityLabel: t("Activity"),
           icon: { type: "sfSymbol" as const, name: activityMode ? "bell.fill" : "bell" },
           selected: activityMode,
@@ -588,6 +594,9 @@ export default function Home() {
               }
             >
               <NativeSymbol ios="magnifyingglass" android="search" size={17} />
+            </HeaderButton>
+            <HeaderButton accessibilityLabel={t("For you")} onPress={() => router.push("/for-you")}>
+              <NativeSymbol ios="lightbulb" android="bulb-outline" size={17} />
             </HeaderButton>
             <HeaderButton
               accessibilityLabel={t("Artifacts")}

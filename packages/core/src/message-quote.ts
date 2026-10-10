@@ -144,6 +144,8 @@ export function messageReplyExcerpt(blocks: MessageBlock[], role: string): strin
 
 function replyBlockText(block: MessageBlock): string {
   switch (block.kind) {
+    case "email":
+      return block.email.subject;
     case "calendar_receipt":
       return "Calendar briefing receipt";
     case "task_starter_receipt":

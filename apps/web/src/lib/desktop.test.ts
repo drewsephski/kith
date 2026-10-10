@@ -66,7 +66,14 @@ describe("window chrome", () => {
     expect(shell).toContain('className="app-drag flex items-center justify-between h-16');
     expect(shell).toContain('className="app-no-drag grid h-8 w-8');
     expect(shell).toContain('className="app-no-drag flex min-w-0 items-center gap-3"');
-    expect(shell.match(/className="app-no-drag grid h-\[30px\] w-\[34px\]/g)).toHaveLength(1);
+    // Toolbar actions use the shared Button; their no-drag wrapper keeps
+    // Electron's native drag region from consuming pointer interaction.
+    const toolbar = shell.match(
+      /<div className="app-no-drag flex min-w-0 items-center gap-1">([\s\S]*?)<\/div>/,
+    )?.[1];
+    expect(toolbar).toBeDefined();
+    expect(toolbar).toContain("<ConversationMenu");
+    expect(toolbar).toContain('className="app-no-drag data-active:bg-accent"');
   });
 
   it("moves window chrome into the conversation header when the bots sidebar is collapsed", () => {

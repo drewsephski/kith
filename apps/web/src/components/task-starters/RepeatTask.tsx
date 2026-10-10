@@ -2,7 +2,15 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { TaskStarterReceipt } from "@rakazo/contracts";
 import { CalendarTimezone } from "@rakazo/contracts";
 import { nextCronDateAcrossStrict } from "@rakazo/core";
-import { Button, Input, Label, SelectField } from "@rakazo/ui-web";
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Input,
+  Label,
+  SelectField,
+} from "@rakazo/ui-web";
 import { useId, useState } from "react";
 import { Link } from "react-router-dom";
 import { rpc } from "../../lib/rpc";
@@ -14,7 +22,9 @@ export function RepeatTask({ receipt }: { receipt: TaskStarterReceipt }) {
   const [open, setOpen] = useState(false);
   const [frequency, setFrequency] = useState("daily");
   const [time, setTime] = useState("09:00");
-  const [timezone, setTimezone] = useState(receipt.repeat?.timezone ?? "UTC");
+  const [timezone, setTimezone] = useState(
+    receipt.repeat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
   const [busy, setBusy] = useState(false);
   const [routineId, setRoutineId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,12 +50,12 @@ export function RepeatTask({ receipt }: { receipt: TaskStarterReceipt }) {
       </p>
     );
   return (
-    <div className="space-y-3 border-t border-border pt-3">
-      <Button size="sm" variant="outline" onClick={() => setOpen(!open)} aria-expanded={open}>
+    <Collapsible open={open} onOpenChange={setOpen} className="border-t border-border pt-3">
+      <CollapsibleTrigger className="min-h-11">
         <Trans>Make this a routine</Trans>
-      </Button>
-      {open ? (
-        <div className="space-y-3">
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-4 pt-3">
           <p className="font-medium">{receipt.repeat.name}</p>
           <p className="text-xs text-muted-foreground">{receipt.repeat.sources.join(" · ")}</p>
           <div className="flex flex-wrap items-end gap-3">
@@ -134,7 +144,7 @@ export function RepeatTask({ receipt }: { receipt: TaskStarterReceipt }) {
             </p>
           ) : null}
         </div>
-      ) : null}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

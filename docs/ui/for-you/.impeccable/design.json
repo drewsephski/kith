@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T23:55:15.428470Z",
+  "title": "Design System: Kith — For you",
+  "extensions": {
+    "motion": [
+      {
+        "name": "category-color-transition",
+        "value": "150ms",
+        "purpose": "Shared NavigationButton color changes."
+      },
+      {
+        "name": "category-selection-slide",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Shared scoped selection indicator; immediate under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Prompt row text and states",
+      "kind": "button",
+      "refersTo": "prompt-row",
+      "description": "Catalog title, secondary line, and shared ghost-button states. The decorative SVG remains owned by the source component.",
+      "html": "<button type=\"button\" class=\"ds-prompt\"><span><span class=\"ds-prompt-title\">Draft replies that need your attention</span><span class=\"ds-prompt-description\">Find time-sensitive conversations and leave replies as drafts</span></span></button>",
+      "css": ".ds-prompt{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:var(--radius);font-family:inherit;font-size:14px;line-height:20px;text-align:left;cursor:pointer;transition:background-color 150ms,color 150ms,border-color 150ms,box-shadow 150ms;width:100%;min-height:56px;padding:8px;background:transparent;color:var(--foreground);font-weight:400}.ds-prompt-title{display:block;white-space:normal}.ds-prompt-description{display:block;margin-top:2px;font-size:12px;line-height:20px;color:var(--muted-foreground);white-space:normal}.ds-prompt:hover{background:var(--muted);color:var(--foreground)}:host-context([data-theme=\"dark\"]) .ds-prompt:hover{background:color-mix(in oklab,var(--muted) 50%,transparent)}.ds-prompt:focus-visible{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent);outline:none}.ds-prompt:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-prompt{transition:none}}"
+    },
+    {
+      "name": "Category row",
+      "kind": "nav",
+      "refersTo": "category-row",
+      "description": "An unselected filter button within suggestion categories.",
+      "html": "<button type=\"button\" class=\"ds-category\" aria-pressed=\"false\">Routines</button>",
+      "css": ".ds-category{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:var(--radius);font-family:inherit;font-size:14px;line-height:20px;text-align:left;cursor:pointer;transition:background-color 150ms,color 150ms,border-color 150ms,box-shadow 150ms;height:36px;padding:0 12px;white-space:nowrap;background:transparent;color:var(--muted-foreground);font-weight:400}.ds-category:hover{background:var(--accent);color:var(--foreground)}.ds-category[aria-pressed=\"true\"]{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:500}.ds-category[aria-pressed=\"true\"]:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}.ds-category:focus-visible{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent);outline:none}@media(prefers-reduced-motion:reduce){.ds-category{transition:none}}"
+    },
+    {
+      "name": "Selected category row",
+      "kind": "nav",
+      "refersTo": "category-row-selected",
+      "description": "The tonal selected filter; the source shares its animated indicator through SelectionGroup.",
+      "html": "<button type=\"button\" class=\"ds-category\" aria-pressed=\"true\">All</button>",
+      "css": ".ds-category{display:inline-flex;align-items:center;border:1px solid transparent;border-radius:var(--radius);font-family:inherit;font-size:14px;line-height:20px;text-align:left;cursor:pointer;transition:background-color 150ms,color 150ms,border-color 150ms,box-shadow 150ms;height:36px;padding:0 12px;white-space:nowrap;background:transparent;color:var(--muted-foreground);font-weight:400}.ds-category:hover{background:var(--accent);color:var(--foreground)}.ds-category[aria-pressed=\"true\"]{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:500}.ds-category[aria-pressed=\"true\"]:hover{background:var(--sidebar-accent);color:var(--sidebar-accent-foreground)}.ds-category:focus-visible{border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent);outline:none}@media(prefers-reduced-motion:reduce){.ds-category{transition:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Neutral surfaces, ink, quiet companion",
+    "overview": "This scoped record extends [the web design system](../../../apps/web/DESIGN.md). Its palette, font family, radius scale, spacing scale, and shared control states remain authoritative. For you applies those decisions to a grouped list of starter prompts with a narrow reading column and compact category navigation.\n\nSuggestions are catalog entries, not inferred activity or evidence of connected accounts. The interface keeps the title, a short secondary line, and the action together; selecting a row starts the work in a dedicated assistant conversation.",
+    "keyCharacteristics": [
+      "Monochrome controls and muted secondary text.",
+      "Wrapping prompt rows grouped by modest headings.",
+      "Compact categories beside the list or scrolling above it.",
+      "Shared keyboard focus and reduced-motion behavior."
+    ],
+    "rules": [
+      {
+        "name": "The Ink Controls Rule",
+        "body": "Use semantic primary for actions, neutral tones for navigation, and success, warning, or destructive only for meaningful status. Identity color belongs to avatars.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Labels Rule",
+        "body": "Use sentence case and modest weight for navigation and section labels. Keep long reading content at regular weight.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do inherit semantic tokens and shared control primitives from the parent system.",
+      "Do keep prompt text wrapping and category navigation reachable at narrow widths.",
+      "Do preserve pressed state, keyboard focus, busy state, and contextual retry feedback.",
+      "Do keep suggestions distinguishable from verified activity and connected-account evidence."
+    ],
+    "donts": [
+      "Don't add identity colors to ordinary categories or prompt controls.",
+      "Don't turn secondary details into permanent explanatory chrome.",
+      "Don't replace semantic colors with fixed light-theme or dark-theme colors."
+    ]
+  }
+}

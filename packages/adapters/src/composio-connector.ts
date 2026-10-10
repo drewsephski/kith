@@ -13,6 +13,7 @@ import type {
   TaskPlatform,
 } from "@rakazo/adapter-kit";
 import { CalendarAccessError } from "@rakazo/adapter-kit";
+import { isEmailSendTool } from "@rakazo/core";
 import { getLogger } from "@rakazo/logging";
 import {
   composioToolkitDirectory,
@@ -21,8 +22,13 @@ import {
 } from "./composio-catalog-cache.js";
 import { ComposioTaskPlatform, composioTaskActionData } from "./composio-task-platform.js";
 import { DestinationEmulator } from "./destination-emulator.js";
+import { emailApprovalPreview } from "./email-approval.js";
 import { GoogleCalendarReader } from "./google-calendar.js";
-import { TaskPlatformRejectedError, validateTaskProxyRequest } from "./task-platform.js";
+import {
+  gmailEmailPreview,
+  TaskPlatformRejectedError,
+  validateTaskProxyRequest,
+} from "./task-platform.js";
 import { isVitestRuntime } from "./test-runtime.js";
 
 type ComposioSession = Awaited<ReturnType<Composio["create"]>>;
@@ -561,6 +567,73 @@ export class ComposioConnector implements ComposioProvider {
     return asConnectorTools(raw);
   }
 
+  async approvalPreview(
+    call: ConnectorCall,
+    context: AdapterContext,
+    options?: { includeContent?: boolean },
+  ) {
+    const preview = async (tool: string, args: Record<string, unknown>, account?: string) => {
+      let email = emailApprovalPreview(tool, { ...args, user_id: account ?? args.user_id }, []);
+      if (options?.includeContent && tool.toUpperCase() === "GMAIL_SEND_DRAFT") {
+        if (typeof args.draft_id !== "string" || !args.draft_id.trim())
+          throw new Error("A real Gmail draft ID is required.");
+        const session = await this.sessionForExecute(
+          context.userId,
+          connectedComposioConnections(context),
+        );
+        const result = await session.execute(
+          "GMAIL_GET_DRAFT",
+          { draft_id: args.draft_id, user_id: args.user_id ?? "me", format: "full" },
+          account ? { account } : undefined,
+        );
+        if (result.error)
+          throw new Error(sanitizeComposioError(composioResultError(result.error, result.data)));
+        const data = composioTaskActionData(result.data);
+        const profileResult = await session.execute(
+          "GMAIL_GET_PROFILE",
+          { user_id: args.user_id ?? "me" },
+          account ? { account } : undefined,
+        );
+        if (profileResult.error)
+          throw new Error(
+            sanitizeComposioError(composioResultError(profileResult.error, profileResult.data)),
+          );
+        const profile = composioTaskActionData(profileResult.data);
+        if (typeof profile.emailAddress !== "string" || !profile.emailAddress.trim())
+          throw new Error("Could not verify the sending email account.");
+        email = gmailEmailPreview(data.message, profile.emailAddress);
+      }
+      return {
+        emailSend: isEmailSendTool(tool),
+        email,
+        draftId:
+          tool.toUpperCase() === "GMAIL_SEND_DRAFT" && typeof args.draft_id === "string"
+            ? args.draft_id
+            : undefined,
+      };
+    };
+    if (call.tool !== COMPOSIO_MULTI_EXECUTE_TOOL || !Array.isArray(call.args.tools)) {
+      return preview(call.tool, call.args);
+    }
+    const sends = call.args.tools.filter((item: unknown) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+      const tool = (item as Record<string, unknown>).tool_slug;
+      return typeof tool === "string" && isEmailSendTool(tool);
+    });
+    if (!sends.length) return { emailSend: false };
+    // A compound send must not approve hidden writes, or send several messages after one click.
+    if (call.args.tools.length !== 1)
+      throw new Error("Send each email separately so the user can review it.");
+    const item = sends[0] as Record<string, unknown>;
+    const args = objectArguments(item.arguments);
+    if (!args) throw new Error("Email send arguments must be a JSON object.");
+    return preview(
+      String(item.tool_slug),
+      args,
+      typeof item.account === "string" ? item.account : undefined,
+    );
+  }
+
   async *execute(call: ConnectorCall, context: AdapterContext): AsyncIterable<ConnectorEvent> {
     const executed = [];
     try {
@@ -896,6 +969,21 @@ export class ConnectorRegistry implements ConnectorProvider {
     if (!connectorId) return undefined;
     const provider = this.providers.get(connectorId);
     return provider?.resolveCall?.({ ...call, tool: call.route?.toolName ?? call.tool }, context);
+  }
+
+  async approvalPreview(
+    call: ConnectorCall,
+    context: AdapterContext,
+    options?: { includeContent?: boolean },
+  ) {
+    const provider = this.providers.get(call.route?.connectorId ?? "composio");
+    return (
+      (await provider?.approvalPreview?.(
+        { ...call, tool: call.route?.toolName ?? call.tool },
+        context,
+        options,
+      )) ?? { emailSend: false }
+    );
   }
 }
 

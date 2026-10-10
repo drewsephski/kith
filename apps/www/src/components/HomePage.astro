@@ -6,13 +6,13 @@ import Header from "./Header.astro";
 import { ProductDemo } from "./ProductDemo";
 
 import { getHomeCopy } from "../i18n/home";
+import type { Locale } from "../i18n/locales";
 import {
   DEFAULT_LOCALE,
   LOCALES,
   LOCALE_HTML_LANG,
   isLocale,
   localeHomePath,
-  type Locale,
 } from "../i18n/locales";
 import { fetchGithubStars, formatStarCount } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
@@ -20,7 +20,7 @@ import { homeStructuredData } from "../structured-data";
 import {
   GITHUB_URL,
   SELF_HOST_GUIDE_PATH,
-  APP_URL,
+  webStartHref,
   SITE_URL,
 } from "../site";
 
@@ -30,7 +30,7 @@ const locale: Locale = isLocale(Astro.currentLocale)
 
 const copy = getHomeCopy(locale);
 const journey = getJourneyCopy(locale);
-const WEB_START_URL = APP_URL ? `${APP_URL}/start` : locale === "en" ? "/start/" : `/${locale}/start/`;
+const WEB_START_URL = webStartHref(locale);
 const DESKTOP_URL = locale === "en" ? "/download/" : `/${locale}/download/`;
 const enCopy = getHomeCopy(DEFAULT_LOCALE);
 const availableLanguages = LOCALES.map((supportedLocale) =>
@@ -65,7 +65,7 @@ const structuredData = homeStructuredData({
   <div class="container">
     <Header locale={locale} copy={copy.nav} starsLabel={starsLabel} homeHref={homeHref} />
 
-    <main id="main">
+    <main id="main" class="consumer-home">
       <section class="hero journey-hero" id="get-started">
         <img class="journey-companion" src="/brand/kith-companion.webp" width="96" height="96" alt="" fetchpriority="high" />
         <h1>{journey.heading.split("\n").map((line) => <span>{line}</span>)}</h1>
@@ -100,10 +100,13 @@ const structuredData = homeStructuredData({
         </div>
       </section>
 
-      <section id="faq" class="section" aria-labelledby="faq-heading">
+      <section id="faq" class="section journey-faq-section" aria-labelledby="faq-heading">
         <h2 id="faq-heading" class="section-heading">{copy.faq.heading}</h2>
         <div class="journey-faq">{journey.faq.map((item) => (
-          <details><summary>{item.question}</summary><p>{item.answer}</p></details>
+          <details data-faq-item>
+            <summary>{item.question}<svg class="journey-faq__indicator" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 8 5 5 5-5" /></svg></summary>
+            <div class="journey-faq__answer"><p>{item.answer}</p></div>
+          </details>
         ))}</div>
       </section>
 
@@ -126,3 +129,8 @@ const structuredData = homeStructuredData({
     />
   </div>
 </BaseLayout>
+
+<script>
+  import { enhanceFaq } from "../faq";
+  enhanceFaq();
+</script>

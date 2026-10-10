@@ -34,8 +34,14 @@ mkdirSync(workspace);
 const children: Array<{ kill: () => void }> = [];
 
 function writeExecutable(file: string, body: string) {
-  writeFileSync(file, body);
+  // macOS cold script inspection can exceed the launcher's 200ms quick-exit
+  // bound. Warm the fixture, so these assertions measure launcher behavior.
+  writeFileSync(
+    file,
+    body.replace("#!/bin/sh\n", '#!/bin/sh\nif [ "$1" = "--warmup" ]; then exit 0; fi\n'),
+  );
   chmodSync(file, 0o755);
+  spawnSync(file, ["--warmup"], { stdio: "ignore" });
 }
 
 writeExecutable(

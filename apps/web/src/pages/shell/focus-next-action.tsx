@@ -23,17 +23,19 @@ export function FocusNextAction({
         <CalendarConnection botId={botId} />
       </div>
     );
-  if (focus === "research")
+  if (focus === "research" || focus === "everything")
     return (
-      <p className="mt-3 text-sm text-muted-foreground">
-        <Trans>What are you working on?</Trans>
-      </p>
-    );
-  if (focus === "everything")
-    return (
-      <p className="mt-3 text-sm text-muted-foreground">
-        <Trans>What’s on your mind?</Trans>
-      </p>
+      <Button
+        variant="outline"
+        className="mt-3 h-auto min-h-11 whitespace-normal"
+        onClick={() => window.dispatchEvent(new Event("kith:focus-composer"))}
+      >
+        {focus === "research" ? (
+          <Trans>What are you working on?</Trans>
+        ) : (
+          <Trans>What’s on your mind?</Trans>
+        )}
+      </Button>
     );
   if (focus !== "inbox") return null;
   return (

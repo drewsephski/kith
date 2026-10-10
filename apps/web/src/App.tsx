@@ -31,7 +31,10 @@ import { IntegrationCallbackPage } from "./pages/IntegrationCallback";
 import { IntegrationSetupPage } from "./pages/IntegrationSetup";
 import { LocalSettingsPage } from "./pages/LocalSettings";
 import { McpOAuthCallbackPage } from "./pages/McpOAuthCallback";
-import { ShellPage } from "./pages/Shell";
+
+const ShellPage = lazy(() =>
+  import("./pages/Shell").then((module) => ({ default: module.ShellPage })),
+);
 
 const AuthPage = lazy(() =>
   import("./pages/Auth").then((module) => ({ default: module.AuthPage })),
@@ -125,7 +128,15 @@ function SessionApp() {
   const user = session.data?.user;
   return (
     <div className="h-full" data-rakazo-app-state="ready">
-      <Suspense fallback={<div className="h-full bg-background" />}>
+      <Suspense
+        fallback={
+          location.pathname.startsWith("/app") ? (
+            <ShellSkeleton />
+          ) : (
+            <div className="h-full bg-background" />
+          )
+        }
+      >
         <Routes location={filesOpen ? filesBackground : location}>
           <Route path="/start" element={<Navigate to={user ? "/app" : "/sign-up"} replace />} />
           <Route path="/" element={user ? <Navigate to="/app" replace /> : <WelcomePage />} />
@@ -182,6 +193,7 @@ function SessionApp() {
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/app" element={<ShellPage filesOpen={filesOpen} />} />
             <Route path="/app/g/:groupId" element={<ShellPage filesOpen={filesOpen} />} />
+            <Route path="/app/for-you" element={<ShellPage forYouOpen />} />
             <Route path="/app/:botId" element={<ShellPage filesOpen={filesOpen} />} />
           </Route>
         </Routes>

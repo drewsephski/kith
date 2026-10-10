@@ -39,6 +39,7 @@ vi.mock("react-native", () => {
   }
 
   return {
+    AppState: { currentState: "active", addEventListener: () => ({ remove: () => undefined }) },
     Modal: MockModal,
     Pressable: MockPressable,
     ScrollView: MockView,
@@ -79,10 +80,17 @@ vi.mock("react-native-safe-area-context", () => {
   };
 });
 
-vi.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({ botId: "bot-1", name: "Basil" }),
-  useNavigation: () => ({ setOptions: () => undefined }),
-}));
+vi.mock("expo-router", () => {
+  const navigation = {
+    setOptions: () => undefined,
+    isFocused: () => true,
+    addListener: () => () => undefined,
+  };
+  return {
+    useLocalSearchParams: () => ({ botId: "bot-1", name: "Basil" }),
+    useNavigation: () => navigation,
+  };
+});
 
 vi.mock("expo-screen-orientation", () => ({
   OrientationLock: { DEFAULT: 0, PORTRAIT_UP: 1 },

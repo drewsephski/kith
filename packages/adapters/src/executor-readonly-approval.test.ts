@@ -5,6 +5,7 @@ import type {
   ConnectorTool,
 } from "@rakazo/adapter-kit";
 import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
+import type { EmailCard } from "@rakazo/contracts";
 import type { ActionApprovalRule } from "@rakazo/core";
 import { approvalEffectKey, toolEffectIdempotencyKey } from "@rakazo/core/node/approval-effect-key";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,8 +61,18 @@ function fixture({
   builtin = false,
   disabledBuiltinTools = [],
   existingSharedMemory,
+  emailIntent,
+  emailPreview,
+  sendNonce = 'email-send:["parent",0]',
   advanceRevisionAfterRead = false,
 }: {
+  sendNonce?: string;
+  emailIntent?: EmailCard;
+  emailPreview?: (includeContent: boolean) => {
+    emailSend: boolean;
+    email?: EmailCard["email"];
+    draftId?: string;
+  };
   builtin?: boolean;
   disabledBuiltinTools?: string[];
   existingSharedMemory?: string;
@@ -123,6 +134,7 @@ function fixture({
     status: "queued",
     trigger,
     leaseFence: 0,
+    sourceMessageId: emailIntent ? "source-1" : undefined,
   };
   const externalEffect = {
     findMany: vi.fn(
@@ -164,7 +176,26 @@ function fixture({
       },
     ),
   };
+  const writtenMessages: Array<Record<string, unknown>> = [];
+  const publication = {
+    thread: { update: vi.fn(async () => ({ nextMessageSeq: 1, nextEventSeq: 1 })) },
+    message: {
+      findFirst: vi.fn(
+        async ({ where }: { where: { clientNonce: string } }) =>
+          writtenMessages.find((message) => message.clientNonce === where.clientNonce) ?? null,
+      ),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const message = { ...data, id: `message-${writtenMessages.length + 1}` };
+        writtenMessages.push(message);
+        return message;
+      }),
+    },
+    event: { create: vi.fn(async () => ({ seq: 1 })) },
+    run: { findUnique: vi.fn(async () => run) },
+    $executeRaw: vi.fn(async () => undefined),
+  };
   const prisma = {
+    $transaction: vi.fn(async (fn: (tx: typeof publication) => unknown) => fn(publication)),
     run: {
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
@@ -191,7 +222,32 @@ function fixture({
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     thread: { findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })) },
-    message: { findMany: vi.fn(async () => []) },
+    message: {
+      findFirst: vi.fn(async () => null),
+      findUnique: vi.fn(async () => ({
+        clientNonce: emailIntent ? sendNonce : null,
+      })),
+      findMany: vi.fn(async () =>
+        emailIntent
+          ? [
+              {
+                id: "source-1",
+                threadId: "thread-1",
+                seq: 1,
+                role: "user",
+                botId: null,
+                runId: "run-1",
+                blocks: [{ kind: "text", text: "Send this email draft as shown." }, emailIntent],
+                createdAt: new Date(),
+                clientNonce: sendNonce,
+                replyToMessageId: null,
+                replyQuote: null,
+                replyTo: null,
+              },
+            ]
+          : [],
+      ),
+    },
     task: { findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt })) },
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
@@ -238,6 +294,15 @@ function fixture({
     prisma,
     runtime: { describe: () => ({ capabilities: { scripted: false } }), run: runtimeRun },
     connector: {
+      ...(emailPreview
+        ? {
+            approvalPreview: async (
+              _call: ConnectorCall,
+              _context: unknown,
+              options?: { includeContent?: boolean },
+            ) => emailPreview(Boolean(options?.includeContent)),
+          }
+        : {}),
       discoverTools: async () =>
         builtin
           ? []
@@ -281,13 +346,19 @@ function fixture({
       commit,
     },
     memoryProviders: { resolve: async () => null },
-    events: { append: vi.fn(async () => undefined), pauseRunForInput, finalizeRun },
+    events: {
+      append: vi.fn(async () => undefined),
+      notify: vi.fn(async () => undefined),
+      pauseRunForInput,
+      finalizeRun,
+    },
     jobs: { enqueue: vi.fn(async () => undefined) },
     secrets,
     autoReview: autoReviewProvider,
     shutdownSignal,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
   return {
+    writtenMessages,
     effects,
     results,
     execute,
@@ -326,6 +397,51 @@ describe("disabled builtins", () => {
 describe("connector read-only metadata and approval enforcement", () => {
   beforeEach(() => {
     reviewMock.mockReset();
+  });
+
+  it("requires a send click even with an allow rule, binds the preview, and executes only once on retry", async () => {
+    const name = "GMAIL_SEND_EMAIL";
+    const args = {
+      id: "mail-1",
+      to: "recipient@example.test",
+      subject: "Status",
+      body: "Reviewed message",
+    };
+    const f = fixture({
+      name,
+      autoReview: true,
+      rules: [{ effect: "always_allow", matchKind: "tool", matchValue: name }],
+    });
+    f.setCalls([{ args, executionId: "call-1" }]);
+    await f.run();
+    expect(f.execute).not.toHaveBeenCalled();
+    expect(reviewMock).not.toHaveBeenCalled();
+    expect(f.pauseRunForInput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocks: [
+          expect.objectContaining({
+            approvalAction: "email_send",
+            email: expect.objectContaining({
+              body: "Reviewed message",
+              to: ["recipient@example.test"],
+            }),
+          }),
+        ],
+      }),
+    );
+    f.effects[0]!.status = "approved";
+    f.setCalls([
+      {
+        args: { ...args, body: "Changed by model", to: "wrong@example.test" },
+        executionId: "call-2",
+      },
+    ]);
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
+    expect(f.execute).toHaveBeenCalledWith(expect.objectContaining({ args }), expect.anything());
+    f.setCalls([{ args, executionId: "call-3" }]);
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
   });
 
   it.each(["shell", "write_file"])(
@@ -694,4 +810,123 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect(f.pauseRunForInput).not.toHaveBeenCalled();
     });
   });
+});
+
+describe("email display builtin", () => {
+  it("persists a real actionable card and does not duplicate publication after interrupted execution", async () => {
+    const f = fixture({ name: "show_email", builtin: true });
+    const args = {
+      mode: "draft",
+      draftId: "draft-1",
+      account: "work@example.test",
+      to: ["recipient@example.test"],
+      subject: "Review",
+      body: "Actual saved draft",
+    };
+    f.setCalls([{ args, executionId: "display-1" }]);
+    await f.run();
+    expect(f.writtenMessages).toHaveLength(1);
+    expect(f.writtenMessages[0]).toMatchObject({
+      role: "bot",
+      blocks: [
+        {
+          kind: "email",
+          draftId: "draft-1",
+          email: { subject: "Review", body: "Actual saved draft" },
+        },
+      ],
+    });
+    expect(f.execute).not.toHaveBeenCalled();
+    expect(f.results.at(-1)).toMatchObject({ status: "displayed" });
+    f.effects[0]!.status = "pending";
+    await f.run();
+    expect(f.writtenMessages).toHaveLength(1);
+  });
+  it("rejects malformed cards without publishing an unusable action", async () => {
+    const f = fixture({ name: "show_email", builtin: true });
+    f.setCalls([{ args: { mode: "draft", body: "Incomplete" }, executionId: "display-1" }]);
+    await f.run();
+    expect(f.writtenMessages).toHaveLength(0);
+    expect(f.results.at(-1)).toMatchObject({
+      error: expect.stringContaining("Invalid email preview"),
+    });
+  });
+});
+
+describe("one-click card sending", () => {
+  beforeEach(() => reviewMock.mockClear());
+  const card: EmailCard = {
+    kind: "email",
+    mode: "draft",
+    draftId: "draft-1",
+    email: {
+      account: "mail@example.test",
+      to: ["recipient@example.test"],
+      cc: [],
+      bcc: [],
+      subject: "Edited subject",
+      body: "My inline edits",
+    },
+  };
+  it("uses the card's exact send authorization once without a second ask, including retries", async () => {
+    const full = vi.fn(() => ({ emailSend: true, draftId: card.draftId, email: card.email }));
+    const f = fixture({
+      name: "GMAIL_SEND_DRAFT",
+      readOnly: true,
+      autoReview: true,
+      emailIntent: card,
+      emailPreview: (include) => (include ? full() : { emailSend: true }),
+    });
+    const args = { draft_id: "draft-1" };
+    f.setCalls([
+      { args, executionId: "send-1" },
+      { args, executionId: "send-2" },
+    ]);
+    await f.run();
+    expect(f.pauseRunForInput).not.toHaveBeenCalled();
+    expect(reviewMock).not.toHaveBeenCalled();
+    expect(f.execute).toHaveBeenCalledOnce();
+    expect(f.effects).toHaveLength(1);
+    expect(full).toHaveBeenCalledOnce();
+    full.mockImplementation(() => {
+      throw new Error("Draft no longer exists after sending");
+    });
+    await f.run();
+    expect(f.execute).toHaveBeenCalledOnce();
+    expect(full).toHaveBeenCalledOnce();
+  });
+  it("does not treat an older Save request as consent to send", async () => {
+    const f = fixture({
+      name: "GMAIL_SEND_DRAFT",
+      emailIntent: card,
+      sendNonce: 'email-action:["parent",0,"legacy-save"]',
+      emailPreview: () => ({ emailSend: true, draftId: card.draftId, email: card.email }),
+    });
+    f.setCalls([{ args: { draft_id: "draft-1" }, executionId: "send-1" }]);
+    await f.run();
+    expect(f.execute).not.toHaveBeenCalled();
+    expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+  });
+  it.each(["body", "to", "account", "draftId", "from", "subject", "attachments"])(
+    "does not let the agent change %s after the user clicks Send",
+    async (field) => {
+      const changed = { emailSend: true, draftId: card.draftId, email: { ...card.email } };
+      if (field === "draftId") changed.draftId = "different-draft";
+      else if (field === "to") changed.email.to = ["wrong@example.test"];
+      else if (field === "account") changed.email.account = "wrong@example.test";
+      else if (field === "from") changed.email.from = "wrong@example.test";
+      else if (field === "subject") changed.email.subject = "Different subject";
+      else if (field === "attachments") changed.email.attachments = ["unexpected.pdf"];
+      else changed.email.body = "Different body";
+      const f = fixture({
+        name: "GMAIL_SEND_DRAFT",
+        emailIntent: card,
+        emailPreview: (include) => (include ? changed : { emailSend: true }),
+      });
+      f.setCalls([{ args: { draft_id: "draft-1" }, executionId: "send-1" }]);
+      await f.run();
+      expect(f.execute).not.toHaveBeenCalled();
+      expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+    },
+  );
 });

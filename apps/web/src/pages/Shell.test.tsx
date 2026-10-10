@@ -135,14 +135,11 @@ describe("Composer", () => {
     );
     expect(restored.value).toBe("Find the launch plan in Gmail");
     expect(drafts.get("main")?.starter).toBe("gmail_search");
-    const remove = container?.querySelector<HTMLButtonElement>(
-      'button[aria-label="Remove task starter"]',
-    );
-    if (!remove) throw new Error("remove task starter button not found");
-    act(() => remove.click());
+    expect(container?.textContent).not.toContain("Task starter");
+    rerenderComposer({ suggestedDraft: { text: "Review the outline", nonce: 2 } });
     pressEnter(restored);
     await act(async () => {});
-    expect(send.mock.calls[1]).toEqual(["Find the launch plan in Gmail", [], expect.any(String)]);
+    expect(send.mock.calls[1]).toEqual(["Review the outline", [], expect.any(String)]);
     expect(drafts.get("main")?.starter).toBeUndefined();
   });
 

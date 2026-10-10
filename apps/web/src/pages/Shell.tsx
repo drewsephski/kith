@@ -34,6 +34,7 @@ import {
   type MessageReaction,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
+import type { ForYouConversationAttempt, ForYouSuggestion } from "@rakazo/core";
 import {
   attachmentsForThread,
   buildComposerMentionOptions,
@@ -65,11 +66,13 @@ import {
   searchHitThreadTarget,
   serializeComposerPrompt,
   speechFromBlocks,
+  startForYouConversation,
   timeSeparatorIds,
   truncateSlashDescription,
   userVisibleMessages,
   withLiveStreamingProgress,
 } from "@rakazo/core";
+import type { Maximize2IconHandle } from "@rakazo/ui-web";
 import {
   AvatarStyleProvider,
   BotAvatar,
@@ -87,6 +90,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
   KithAvatar,
+  Maximize2Icon,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -106,7 +110,6 @@ import {
   LayoutGrid,
   Lock,
   LogOut,
-  Maximize2,
   Menu,
   Mic,
   Monitor,
@@ -164,6 +167,7 @@ import { ComputerUpdateProgress } from "../components/ComputerUpdateProgress";
 import { CallCard } from "../components/call/CallCard";
 import { VoiceChatCard } from "../components/call/VoiceChatCard";
 import { ComputerWorkspace } from "../components/computer/ComputerWorkspace";
+import { EmailCard } from "../components/EmailCard";
 import { lazyOverlay } from "../components/ErrorBoundary";
 import { ConnectionsPanel } from "../components/integrations/ConnectionsPanel";
 import { MessageHoverMetadata } from "../components/MessageHoverMetadata";
@@ -263,6 +267,7 @@ import { speaker } from "../lib/tts";
 import { errorText } from "../lib/user-error";
 import { ActivityList } from "./ActivityList";
 import type { ContextMenuPosition } from "./BotContextMenu";
+import { ForYouPage } from "./ForYou";
 import { CreateGroupForm, GroupSettings, memberName } from "./GroupPanel";
 import { HostComputerPrompt } from "./HostComputerPrompt";
 import { PersonalMemoryPanel } from "./PersonalMemoryPanel";
@@ -416,7 +421,18 @@ function readCollapsedRosterParents(userId: string | null | undefined): Set<stri
   return readCollapsedIdSet(collapsedRosterParentsStorageKey(userId));
 }
 
-export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
+export function ShellPage({
+  filesOpen = false,
+  forYouOpen = false,
+}: {
+  filesOpen?: boolean;
+  forYouOpen?: boolean;
+}) {
+  const forYouOpenRef = useRef(forYouOpen);
+  forYouOpenRef.current = forYouOpen;
+  const promptAttempts = useRef(new Map<string, ForYouConversationAttempt>());
+  const [forYouError, setForYouError] = useState<string | null>(null);
+  const maximizeIcon = useRef<Maximize2IconHandle>(null);
   const filesOpenRef = useRef(filesOpen);
   filesOpenRef.current = filesOpen;
   const { t } = useLingui();
@@ -885,7 +901,12 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
   const autoSpokenBotId = useRef<string | null>(null);
 
   const inGroup = Boolean(groupId);
-  const active = inGroup ? undefined : (bots.find((b) => b.id === botId) ?? bots[0]);
+  const lastConversationBotId = useRef(botId);
+  if (botId) lastConversationBotId.current = botId;
+  const selectedConversationBotId = forYouOpen ? lastConversationBotId.current : botId;
+  const active = inGroup
+    ? undefined
+    : (bots.find((b) => b.id === selectedConversationBotId) ?? bots[0]);
   const computerBot =
     (computerBotId ? bots.find((bot) => bot.id === computerBotId) : undefined) ?? active;
   computerOpenRef.current = computerOpen;
@@ -898,7 +919,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
   const activeRoutines = !inGroup && routinesBotId === active?.id ? routines : [];
   const panelTarget = inGroup ? activeGroup?.id : active?.id;
   const panelStorageKey =
-    userId && bootstrapMe?.spaceId && panelTarget
+    !forYouOpen && userId && bootstrapMe?.spaceId && panelTarget
       ? rightPanelStorageKey(userId, bootstrapMe.spaceId, inGroup ? "group" : "bot", panelTarget)
       : null;
   panelStorageKeyRef.current = panelStorageKey;
@@ -1090,7 +1111,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
           return;
         }
         const currentBotId = routeBotId.current;
-        if (!currentBotId && filesOpenRef.current) return;
+        if (!currentBotId && (filesOpenRef.current || forYouOpenRef.current)) return;
         if (!currentBotId || !list.some((bot) => bot.id === currentBotId)) {
           navigate(
             assistant.botId ? `/app/${assistant.botId}` : firstThreadRoute(list, groupList),
@@ -1323,7 +1344,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
           return;
         }
         const selectedBotId = bootstrap.thread?.botId ?? bootstrap.bots[0]?.id;
-        if (!botId && filesOpenRef.current) return;
+        if (!botId && (filesOpenRef.current || forYouOpenRef.current)) return;
         if (selectedBotId && selectedBotId !== botId) {
           navigate(`/app/${selectedBotId}`, { replace: true });
         }
@@ -2910,11 +2931,37 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
   const displayName = active?.name;
   const conversationKey = `${userId}:${bootstrapMe?.spaceId}:${inGroup ? `group:${groupId}` : `bot:${active?.id}`}`;
   const userName = session.data?.user.name ?? t`You`;
-  async function newConversation() {
+  async function newConversation(suggestion?: ForYouSuggestion) {
     if (creatingThreadRef.current || !assistantId) return;
     creatingThreadRef.current = true;
     setCreatingThread(true);
+    setForYouError(null);
     try {
+      if (suggestion) {
+        const launchSpace = selectedSpaceId();
+        const key = `${bootstrapMe?.spaceId}:${assistantId}:${suggestion.id}`;
+        let attempt = promptAttempts.current.get(key);
+        if (!attempt) {
+          attempt = { clientNonce: crypto.randomUUID() };
+          promptAttempts.current.set(key, attempt);
+        }
+        const id = await startForYouConversation(suggestion, assistantId, attempt, {
+          create: async (input) => {
+            const bot = await rpc.bots.create(input);
+            commitCreatedBot(bot);
+            return bot;
+          },
+          send: (input) => {
+            if (selectedSpaceId() !== launchSpace)
+              throw new Error(t`The selected space changed. Try again.`);
+            return rpc.threads.send(input);
+          },
+        });
+        promptAttempts.current.delete(key);
+        if (forYouOpenRef.current && selectedSpaceId() === launchSpace) navigate(`/app/${id}`);
+        setPanel(null);
+        return;
+      }
       const bot = await rpc.bots.create({
         name: t`New conversation`,
         startEmpty: true,
@@ -2928,7 +2975,11 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
       navigate(`/app/${bot.id}`);
       setPanel(null);
     } catch (cause) {
-      setSendError(errorText(cause, t`Could not open a conversation`));
+      if (suggestion)
+        setForYouError(
+          errorText(cause, t`Could not start the conversation. Select the suggestion to retry.`),
+        );
+      else setSendError(errorText(cause, t`Could not open a conversation`));
     } finally {
       creatingThreadRef.current = false;
       setCreatingThread(false);
@@ -3037,7 +3088,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
             assistantId={assistantId}
             bots={bots}
             groups={groups}
-            activeId={active?.id}
+            activeId={forYouOpen ? undefined : active?.id}
             activeGroupId={groupId}
             activeDetail={
               settingsOpen
@@ -3064,6 +3115,12 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
               setCommandPaletteOpen(true);
             }}
             onCollapse={() => setBotsSidebarCollapsedPref(true)}
+            forYouOpen={forYouOpen}
+            onForYou={() => {
+              setMobileSidebarOpen(false);
+              setPanel(null);
+              navigate("/app/for-you");
+            }}
             onNewThread={() => {
               setMobileSidebarOpen(false);
               void newConversation();
@@ -3215,8 +3272,10 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                     <ActivityList
                       onOpenRun={(run) => {
                         setMobileSidebarOpen(false);
-                        if (run.groupId) navigate(`/app/g/${run.groupId}`);
-                        else navigate(`/app/${run.botId}`);
+                        const path = run.groupId ? `/app/g/${run.groupId}` : `/app/${run.botId}`;
+                        navigate(
+                          run.messageId ? `${path}?m=${encodeURIComponent(run.messageId)}` : path,
+                        );
                       }}
                     />
                   ) : null}
@@ -3797,7 +3856,7 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
       <main
         aria-hidden={mobileSidebarOpen || undefined}
         inert={mobileSidebarOpen}
-        className="isolate flex min-w-0 flex-1 flex-col bg-background"
+        className="isolate flex min-h-0 min-w-0 flex-1 flex-col bg-background"
       >
         {/* Inside main so the composer and its menus stay above it. */}
         {!mobileSidebarOpen ? (
@@ -3807,271 +3866,300 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
             className="absolute bottom-20 start-0 top-16 z-20 w-8 touch-none md:hidden"
           />
         ) : null}
-        <div className="app-drag flex items-center justify-between h-16 shrink-0 px-3 md:px-7">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
-            {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
-            <button
-              type="button"
-              data-testid="mobile-navigation-trigger"
-              aria-label={t`Open navigation`}
-              onClick={() => setMobileSidebarOpen(true)}
-              className="app-no-drag grid h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:hidden"
-            >
-              <Menu size={19} strokeWidth={1.7} />
-            </button>
-            {botsSidebarCollapsed ? (
-              <button
-                type="button"
-                data-testid="restore-bots-sidebar"
-                aria-label={t`Show sidebar`}
-                title={t`Show sidebar`}
-                onClick={() => setBotsSidebarCollapsedPref(false)}
-                className="app-no-drag hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:grid"
-              >
-                <PanelLeftOpen size={19} strokeWidth={1.7} aria-hidden="true" />
-              </button>
+        {forYouOpen ? (
+          <ForYouPage
+            onSelect={(suggestion) => void newConversation(suggestion)}
+            busy={creatingThread || !assistantId}
+            error={forYouError}
+            windowChrome={botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : undefined}
+            onOpenNavigation={() => setMobileSidebarOpen(true)}
+            onShowSidebar={
+              botsSidebarCollapsed ? () => setBotsSidebarCollapsedPref(false) : undefined
+            }
+          />
+        ) : (
+          <>
+            <div className="app-drag flex items-center justify-between h-16 shrink-0 px-3 md:px-7">
+              <div className="flex min-w-0 items-center gap-2">
+                {/* Collapsed bots sidebar: this header is the leading edge for window chrome. */}
+                {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
+                <button
+                  type="button"
+                  data-testid="mobile-navigation-trigger"
+                  aria-label={t`Open navigation`}
+                  onClick={() => setMobileSidebarOpen(true)}
+                  className="app-no-drag grid h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:hidden"
+                >
+                  <Menu size={19} strokeWidth={1.7} />
+                </button>
+                {botsSidebarCollapsed ? (
+                  <button
+                    type="button"
+                    data-testid="restore-bots-sidebar"
+                    aria-label={t`Show sidebar`}
+                    title={t`Show sidebar`}
+                    onClick={() => setBotsSidebarCollapsedPref(false)}
+                    className="app-no-drag hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-foreground/75 hover:bg-accent md:grid"
+                  >
+                    <PanelLeftOpen size={19} strokeWidth={1.7} aria-hidden="true" />
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  data-testid="bot-settings-trigger"
+                  onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
+                  className="app-no-drag flex min-w-0 items-center gap-3"
+                >
+                  {inGroup ? (
+                    <GroupAvatar
+                      members={activeSnapshot?.members ?? activeGroup?.members ?? []}
+                      size={26}
+                    />
+                  ) : isMainConversation ? (
+                    <KithAvatar size={30} />
+                  ) : active ? (
+                    <BotAvatar
+                      color={active.color}
+                      identity={active.id}
+                      size={26}
+                      status={active.status}
+                    />
+                  ) : null}
+                  <span className="min-w-0">
+                    <span
+                      className="block truncate text-[16px] font-medium text-foreground"
+                      dir="auto"
+                    >
+                      {inGroup
+                        ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
+                        : (displayName ?? t`Kith`)}
+                    </span>
+                  </span>
+                </button>
+              </div>
+              <div className="app-no-drag flex min-w-0 items-center gap-1">
+                <ThemeToggle />
+                {!inGroup && active ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title={t`Agent computer`}
+                    aria-label={t`Computer`}
+                    aria-pressed={panel === "computer"}
+                    onClick={() => {
+                      const next = panel === "computer" ? null : "computer";
+                      setPanel(next);
+                      if (next === "computer") {
+                        // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
+                        void refreshThread(active.id).catch(() => undefined);
+                      }
+                    }}
+                    data-active={panel === "computer" ? "" : undefined}
+                    className="app-no-drag data-active:bg-accent"
+                  >
+                    <Monitor size={18} strokeWidth={1.6} aria-hidden="true" />
+                  </Button>
+                ) : null}
+                {quickAskMode ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void desktopBridge()?.quickAsk?.expand()}
+                  >
+                    <Trans>Open Kith</Trans>
+                  </Button>
+                ) : null}
+                <ConversationMenu
+                  inGroup={inGroup}
+                  showConnections={Boolean(isMainConversation && assistantId && !quickAskMode)}
+                  onSelect={setPanel}
+                />
+              </div>
+            </div>
+            {!active && !activeGroup && initialBotsLoaded ? (
+              <div className="grid flex-1 place-items-center">
+                <Button onClick={() => setPanel("create")}>
+                  <Plus size={16} aria-hidden="true" />
+                  <Trans>Set up Kith</Trans>
+                </Button>
+              </div>
+            ) : (
+              <Transcript
+                key={conversationKey}
+                conversationKey={conversationKey}
+                scrollPositions={conversationScroll.current}
+                welcome={
+                  shellReady && transcriptMessages.length === 0 && !transcriptRunning ? (
+                    !inGroup ? (
+                      <AssistantWelcome
+                        name={session.data?.user.name}
+                        botId={active?.id}
+                        assistantName={active?.name}
+                        firstRun={isMainConversation}
+                        onChanged={async () => {
+                          await refreshBots();
+                          await refreshActiveThread();
+                        }}
+                        onSuggest={(text, starter) =>
+                          setSuggestedDraft({
+                            text,
+                            starter,
+                            nonce: Date.now(),
+                            target: conversationKey,
+                          })
+                        }
+                      />
+                    ) : (
+                      <div className="m-auto text-center text-muted-foreground">
+                        <p className="text-xl font-medium text-foreground">
+                          {displayName ?? activeGroup?.name}
+                        </p>
+                        <p className="mt-2 text-sm">
+                          <Trans>Start with what you’d like to do.</Trans>
+                        </p>
+                      </div>
+                    )
+                  ) : undefined
+                }
+                scrollRef={messageScroll}
+                scrollRequest={scrollRequest}
+                onScrollRequestHandled={clearScrollRequest}
+                artifactTarget={transcriptArtifactTarget}
+                messages={transcriptMessages}
+                showToolActivity={showToolActivity}
+                olderCursor={activeSnapshot?.olderCursor ?? null}
+                loadingOlder={loadingOlder}
+                answerableAskMessageId={answerableAskMessageId}
+                running={transcriptRunning}
+                workingBots={workingBots}
+                assistantId={assistantId}
+                onLoadOlder={loadOlder}
+                onOpenBot={openBot}
+                onAnswer={answerMessage}
+                onReply={(message) => {
+                  setReplyTarget(message);
+                  setReplyQuote(null);
+                }}
+                onQuote={(message, quote) => {
+                  setReplyTarget(message);
+                  setReplyQuote(quote);
+                }}
+                onReact={reactToMessage}
+                onJumpToMessage={jumpToReplyMessage}
+                onOpenPeerMessages={(peer) => {
+                  setPeerConversation(peer);
+                }}
+                memberName={resolveTranscriptMemberName}
+                peerBot={resolveTranscriptBot}
+                onRefresh={refreshActiveThread}
+                onBotChanged={refreshBots}
+                onAddRoutine={addSkillRoutine}
+                voiceReady={Boolean(voiceStatus?.ready)}
+                speakingMessageId={speakingMessageId}
+                onSpeak={speakMessage}
+                onOpenComputer={onOpenComputer}
+              />
+            )}
+            {isMainConversation && shellReady && transcriptMessages.length > 0 && !quickAskMode ? (
+              <AssistantForYou
+                key={`${userId}:${bootstrapMe?.spaceId}`}
+                botId={active?.id}
+                onSuggest={(text) =>
+                  setSuggestedDraft({
+                    text,
+                    nonce: Date.now(),
+                    target: conversationKey,
+                  })
+                }
+              />
             ) : null}
-            <button
-              type="button"
-              data-testid="bot-settings-trigger"
-              onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
-              className="app-no-drag flex min-w-0 items-center gap-3"
-            >
-              {inGroup ? (
-                <GroupAvatar
-                  members={activeSnapshot?.members ?? activeGroup?.members ?? []}
-                  size={26}
-                />
-              ) : isMainConversation ? (
-                <KithAvatar size={30} />
-              ) : active ? (
-                <BotAvatar
-                  color={active.color}
-                  identity={active.id}
-                  size={26}
-                  status={active.status}
-                />
-              ) : null}
-              <span className="min-w-0">
-                <span className="block truncate text-[16px] font-medium text-foreground" dir="auto">
-                  {inGroup
-                    ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
-                    : (displayName ?? t`Kith`)}
-                </span>
-              </span>
-            </button>
-          </div>
-          <div className="app-no-drag flex min-w-0 items-center gap-1">
-            <ThemeToggle />
-            {!inGroup && active ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                title={t`Agent computer`}
-                aria-label={t`Computer`}
-                aria-pressed={panel === "computer"}
-                onClick={() => {
-                  const next = panel === "computer" ? null : "computer";
-                  setPanel(next);
-                  if (next === "computer") {
-                    // Refresh run/computer so Take control isn't stuck on a stale busyBotName.
-                    void refreshThread(active.id).catch(() => undefined);
+            {taskStarterDraft ? (
+              <TaskStarterSetup
+                draft={taskStarterDraft}
+                onClose={() => setTaskStarterDraft(null)}
+                onStarted={() => {
+                  setSuggestedDraft({
+                    text: "",
+                    nonce: Date.now(),
+                    target: taskStarterDraft.target,
+                  });
+                  setTaskStarterDraft(null);
+                  void refreshActiveThread();
+                }}
+              />
+            ) : null}
+            {recordingSkill ? (
+              <div className="px-6 pb-2 text-center text-[13px] text-destructive">
+                <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
+              </div>
+            ) : null}
+            {active || activeGroup ? (
+              <Composer
+                key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
+                draftKey={conversationKey}
+                drafts={conversationDrafts.current}
+                suggestedDraft={
+                  suggestedDraft?.target === conversationKey ? suggestedDraft : undefined
+                }
+                activeName={
+                  inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : displayName
+                }
+                running={composerRunning}
+                disabled={Boolean(recordingSkill)}
+                pendingAttachments={activePendingAttachments}
+                attachmentNotice={attachmentNotice}
+                sendError={sendError}
+                runError={displayedRunError}
+                runErrorId={displayedRunErrorId}
+                onRunErrorPresented={handleRunErrorPresented}
+                onDismissError={dismissComposerError}
+                sending={sending}
+                fileInputRef={fileInputRef}
+                onAttachmentPick={onAttachmentPick}
+                onRemoveAttachment={removeAttachment}
+                onSend={sendMessage}
+                onStop={stopRun}
+                onVoice={
+                  !inGroup && active
+                    ? () => {
+                        if (!voiceStatus?.ready) {
+                          openSettings("voice");
+                          return;
+                        }
+                        startCall({
+                          botId: active.id,
+                          botName: active.name,
+                          botColor: active.color,
+                          transcribe: Boolean(voiceStatus?.transcribe),
+                        });
+                      }
+                    : undefined
+                }
+                artifactTarget={transcriptArtifactTarget}
+                replyTarget={activeReplyTarget}
+                replyQuote={activeReplyQuote}
+                replyTargetName={replyTargetName}
+                onClearReply={clearReply}
+                mentionTargets={composerMentionTargets}
+                agentSkills={agentSkills}
+                onSlashOpen={refreshAgentSkills}
+                onSlashAction={(action) => {
+                  if (action === "chat-settings") {
+                    setPanel(inGroup ? "group-settings" : "settings");
+                    return;
+                  }
+                  if (action === "settings-general") {
+                    openSettings("general");
+                    return;
+                  }
+                  if (action === "settings-usage") {
+                    openSettings("usage");
                   }
                 }}
-                data-active={panel === "computer" ? "" : undefined}
-                className="app-no-drag data-active:bg-accent"
-              >
-                <Monitor size={18} strokeWidth={1.6} aria-hidden="true" />
-              </Button>
+              />
             ) : null}
-            {quickAskMode ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void desktopBridge()?.quickAsk?.expand()}
-              >
-                <Trans>Open Kith</Trans>
-              </Button>
-            ) : null}
-            <ConversationMenu
-              inGroup={inGroup}
-              showConnections={Boolean(isMainConversation && assistantId && !quickAskMode)}
-              onSelect={setPanel}
-            />
-          </div>
-        </div>
-        {isMainConversation && shellReady && !quickAskMode ? (
-          <AssistantForYou
-            key={`${userId}:${bootstrapMe?.spaceId}`}
-            revision={activeSnapshot?.messages.at(-1)?.id}
-            onOpenRun={(run) => {
-              if (run.groupId) navigate(`/app/g/${run.groupId}`);
-              else navigate(`/app/${run.botId}`);
-            }}
-          />
-        ) : null}
-        {!active && !activeGroup && initialBotsLoaded ? (
-          <div className="grid flex-1 place-items-center">
-            <Button onClick={() => setPanel("create")}>
-              <Plus size={16} aria-hidden="true" />
-              <Trans>Set up Kith</Trans>
-            </Button>
-          </div>
-        ) : (
-          <Transcript
-            key={conversationKey}
-            conversationKey={conversationKey}
-            scrollPositions={conversationScroll.current}
-            welcome={
-              shellReady && transcriptMessages.length === 0 && !transcriptRunning ? (
-                !inGroup ? (
-                  <AssistantWelcome
-                    name={session.data?.user.name}
-                    botId={active?.id}
-                    assistantName={active?.name}
-                    firstRun={isMainConversation}
-                    onChanged={async () => {
-                      await refreshBots();
-                      await refreshActiveThread();
-                    }}
-                    onSuggest={(text, starter) =>
-                      setSuggestedDraft({
-                        text,
-                        starter,
-                        nonce: Date.now(),
-                        target: conversationKey,
-                      })
-                    }
-                  />
-                ) : (
-                  <div className="m-auto text-center text-muted-foreground">
-                    <p className="text-xl font-medium text-foreground">
-                      {displayName ?? activeGroup?.name}
-                    </p>
-                    <p className="mt-2 text-sm">
-                      <Trans>Start with what you’d like to do.</Trans>
-                    </p>
-                  </div>
-                )
-              ) : undefined
-            }
-            scrollRef={messageScroll}
-            scrollRequest={scrollRequest}
-            onScrollRequestHandled={clearScrollRequest}
-            artifactTarget={transcriptArtifactTarget}
-            messages={transcriptMessages}
-            showToolActivity={showToolActivity}
-            olderCursor={activeSnapshot?.olderCursor ?? null}
-            loadingOlder={loadingOlder}
-            answerableAskMessageId={answerableAskMessageId}
-            running={transcriptRunning}
-            workingBots={workingBots}
-            assistantId={assistantId}
-            onLoadOlder={loadOlder}
-            onOpenBot={openBot}
-            onAnswer={answerMessage}
-            onReply={(message) => {
-              setReplyTarget(message);
-              setReplyQuote(null);
-            }}
-            onQuote={(message, quote) => {
-              setReplyTarget(message);
-              setReplyQuote(quote);
-            }}
-            onReact={reactToMessage}
-            onJumpToMessage={jumpToReplyMessage}
-            onOpenPeerMessages={(peer) => {
-              setPeerConversation(peer);
-            }}
-            memberName={resolveTranscriptMemberName}
-            peerBot={resolveTranscriptBot}
-            onRefresh={refreshActiveThread}
-            onBotChanged={refreshBots}
-            onAddRoutine={addSkillRoutine}
-            voiceReady={Boolean(voiceStatus?.ready)}
-            speakingMessageId={speakingMessageId}
-            onSpeak={speakMessage}
-            onOpenComputer={onOpenComputer}
-          />
+          </>
         )}
-        {taskStarterDraft ? (
-          <TaskStarterSetup
-            draft={taskStarterDraft}
-            onClose={() => setTaskStarterDraft(null)}
-            onStarted={() => {
-              setSuggestedDraft({ text: "", nonce: Date.now(), target: taskStarterDraft.target });
-              setTaskStarterDraft(null);
-              void refreshActiveThread();
-            }}
-          />
-        ) : null}
-        {recordingSkill ? (
-          <div className="px-6 pb-2 text-center text-[13px] text-destructive">
-            <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
-          </div>
-        ) : null}
-        {active || activeGroup ? (
-          <Composer
-            key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
-            draftKey={conversationKey}
-            drafts={conversationDrafts.current}
-            suggestedDraft={suggestedDraft?.target === conversationKey ? suggestedDraft : undefined}
-            activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : displayName}
-            running={composerRunning}
-            disabled={Boolean(recordingSkill)}
-            pendingAttachments={activePendingAttachments}
-            attachmentNotice={attachmentNotice}
-            sendError={sendError}
-            runError={displayedRunError}
-            runErrorId={displayedRunErrorId}
-            onRunErrorPresented={handleRunErrorPresented}
-            onDismissError={dismissComposerError}
-            sending={sending}
-            fileInputRef={fileInputRef}
-            onAttachmentPick={onAttachmentPick}
-            onRemoveAttachment={removeAttachment}
-            onSend={sendMessage}
-            onStop={stopRun}
-            onVoice={
-              !inGroup && active
-                ? () => {
-                    if (!voiceStatus?.ready) {
-                      openSettings("voice");
-                      return;
-                    }
-                    startCall({
-                      botId: active.id,
-                      botName: active.name,
-                      botColor: active.color,
-                      transcribe: Boolean(voiceStatus?.transcribe),
-                    });
-                  }
-                : undefined
-            }
-            artifactTarget={transcriptArtifactTarget}
-            replyTarget={activeReplyTarget}
-            replyQuote={activeReplyQuote}
-            replyTargetName={replyTargetName}
-            onClearReply={clearReply}
-            mentionTargets={composerMentionTargets}
-            agentSkills={agentSkills}
-            onSlashOpen={refreshAgentSkills}
-            onSlashAction={(action) => {
-              if (action === "chat-settings") {
-                setPanel(inGroup ? "group-settings" : "settings");
-                return;
-              }
-              if (action === "settings-general") {
-                openSettings("general");
-                return;
-              }
-              if (action === "settings-usage") {
-                openSettings("usage");
-              }
-            }}
-          />
-        ) : null}
       </main>
 
       <CallCard onSettings={() => openSettings("voice")} />
@@ -4159,8 +4247,8 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                 showEmpty
                 onOpenRun={(run) => {
                   setPanel(null);
-                  if (run.groupId) navigate(`/app/g/${run.groupId}`);
-                  else navigate(`/app/${run.botId}`);
+                  const path = run.groupId ? `/app/g/${run.groupId}` : `/app/${run.botId}`;
+                  navigate(run.messageId ? `${path}?m=${encodeURIComponent(run.messageId)}` : path);
                 }}
               />
             ) : null}
@@ -4249,10 +4337,14 @@ export function ShellPage({ filesOpen = false }: { filesOpen?: boolean }) {
                       data-testid="computer-preview-open"
                       className="absolute inset-0 flex cursor-pointer items-center justify-center bg-overlay/40 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                       aria-label={t`Open`}
+                      onMouseEnter={() => maximizeIcon.current?.startAnimation()}
+                      onMouseLeave={() => maximizeIcon.current?.stopAnimation()}
+                      onFocus={() => maximizeIcon.current?.startAnimation()}
+                      onBlur={() => maximizeIcon.current?.stopAnimation()}
                       onClick={() => void openComputer()}
                     >
                       <span className="inline-flex items-center gap-2 rounded-full bg-overlay px-3.5 py-2 text-[14px] text-foreground shadow-md">
-                        <Maximize2 size={15} strokeWidth={1.9} aria-hidden />
+                        <Maximize2Icon ref={maximizeIcon} size={15} />
                         <Trans>Open</Trans>
                       </span>
                     </button>
@@ -6444,7 +6536,7 @@ export const Composer = memo(function Composer({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`kith-composer relative z-30 mx-auto w-full min-w-0 border-0 pb-5 pt-3 md:pb-7 ${
+      className={`kith-composer relative z-30 mx-auto w-full min-w-0 shrink-0 border-0 pb-5 pt-3 md:pb-7 ${
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
@@ -6647,22 +6739,6 @@ export const Composer = memo(function Composer({
             expanded ? "col-span-3 row-start-1 px-1.5" : "col-start-2"
           }`}
         >
-          {starter ? (
-            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[13px] text-foreground">
-              <Trans>Task starter</Trans>
-              <button
-                type="button"
-                aria-label={t`Remove task starter`}
-                onClick={() => {
-                  markEdited();
-                  setStarter(undefined);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={12} />
-              </button>
-            </span>
-          ) : null}
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
@@ -7365,6 +7441,17 @@ const MessageView = memo(function MessageView({
             </div>
           );
         }
+        if (block.kind === "email" && message.role === "bot")
+          return (
+            <EmailCard
+              key={i}
+              block={block}
+              message={message}
+              blockIndex={i}
+              groupId={"groupId" in artifactTarget ? artifactTarget.groupId : undefined}
+              onUpdated={onRefresh}
+            />
+          );
         if (block.kind === "task_starter_receipt")
           return <TaskStarterReceipt key={i} receiptId={block.receiptId} onUpdated={onRefresh} />;
         if (block.kind === "calendar_receipt")

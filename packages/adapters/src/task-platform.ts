@@ -9,7 +9,11 @@ import type {
   TaskMetric,
   TaskPlatform,
 } from "@rakazo/adapter-kit";
-import { TaskAnalyticsPropertySchema, TaskMetricSchema } from "@rakazo/contracts";
+import {
+  EmailContentSchema,
+  TaskAnalyticsPropertySchema,
+  TaskMetricSchema,
+} from "@rakazo/contracts";
 import { JSDOM } from "jsdom";
 import * as z from "zod";
 
@@ -139,7 +143,7 @@ function htmlText(html: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-function mailText(payload: Record<string, unknown>, depth = 0): string {
+function mailText(payload: Record<string, unknown>, depth = 0, maxChars = 30_000): string {
   if (depth > 10) throw new Error("Email MIME nesting exceeds the supported limit");
   const mimeType = str(payload.mimeType).toLowerCase();
   if (str(payload.filename)) return "";
@@ -156,7 +160,7 @@ function mailText(payload: Record<string, unknown>, depth = 0): string {
     } catch {
       throw new Error("Email text encoding is not supported");
     }
-    return (mimeType === "text/html" ? htmlText(decoded) : decoded).slice(0, 30_000);
+    return (mimeType === "text/html" ? htmlText(decoded) : decoded).slice(0, maxChars);
   }
   const parts = items(payload.parts);
   if (parts.length > 50) throw new Error("Email has too many MIME parts");
@@ -164,10 +168,39 @@ function mailText(payload: Record<string, unknown>, depth = 0): string {
   // Multipart alternatives prefer plain text so the same content is not counted twice.
   const chosen = mimeType === "multipart/alternative" && plain.length ? plain : parts;
   return chosen
-    .map((part) => mailText(part, depth + 1))
+    .map((part) => mailText(part, depth + 1, maxChars))
     .filter(Boolean)
     .join("\n")
-    .slice(0, 30_000);
+    .slice(0, maxChars);
+}
+
+/** Shared Gmail MIME decoding for task reads and authoritative send previews. */
+export function gmailEmailPreview(message: unknown, account: string) {
+  const payload = obj(obj(message).payload);
+  const headers = items(payload.headers);
+  const header = (name: string) =>
+    str(headers.find((item) => str(item.name).toLowerCase() === name)?.value);
+  const body = mailText(payload, 0, 50_001);
+  const attachments: string[] = [];
+  const collect = (part: Record<string, unknown>, depth = 0) => {
+    if (str(obj(part.body ?? {}).data).length > 100_000)
+      throw new Error("This email exceeds the complete preview size limit.");
+    if (depth > 10) throw new Error("Email MIME nesting exceeds the supported limit");
+    if (str(part.filename)) attachments.push(str(part.filename));
+    for (const child of items(part.parts)) collect(child, depth + 1);
+  };
+  collect(payload);
+  if (body.length > 50_000) throw new Error("This email is too long for a complete send preview.");
+  return EmailContentSchema.parse({
+    account,
+    from: header("from"),
+    to: [header("to")],
+    cc: header("cc") ? [header("cc")] : [],
+    bcc: header("bcc") ? [header("bcc")] : [],
+    subject: header("subject"),
+    body,
+    attachments,
+  });
 }
 
 /** Deterministic REST operations shared by managed integration adapters. */

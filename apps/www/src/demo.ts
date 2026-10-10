@@ -131,44 +131,41 @@ export const DEMO_BOTS: DemoBot[] = [
   },
   {
     id: "inbox",
-    name: "Inbox Manager",
+    name: "Kith",
     color: "#6A6BF5",
-    time: "12:11 AM",
-    preview: "sent. inbox at zero, 5 drafts parked",
-    routines: [
-      { name: "Morning sweep", when: "Weekdays 6am" },
-      { name: "Reply Zero", when: "Hourly" },
-    ],
+    time: "Today",
+    preview: "Tomorrow, prepared · sample result",
+    routines: [],
     screen: {
-      host: "mail.google.com",
-      title: "Inbox: 5 drafts parked",
-      lines: ["41 threads read", "26 archived · 9 replied", "Nora’s renewal held"],
+      host: "calendar.example",
+      title: "Tomorrow · sample sources",
+      lines: [
+        "Sample calendar · 10:00 project check-in",
+        "Sample email · agenda and notes",
+        "Remembered preference · quiet mornings",
+      ],
     },
     thread: [
-      { type: "time", text: "Yesterday 11:11 PM" },
-      { type: "user", text: "inbox got away from me over the weekend, sweep it?" },
+      { type: "user", text: "Help me prepare for tomorrow." },
       {
         type: "bot",
-        text: "on it. 41 unread since friday. archiving the noise, drafting the rest.",
+        text: "You prefer quiet mornings. Using the sample calendar and email, here’s a little preparation.",
       },
-      { type: "time", text: "12:11 AM" },
       {
         type: "card",
         lines: [
-          { k: "Archived", v: "26 newsletters + receipts" },
-          { k: "Replied", v: "9 routine threads · scheduling and intros" },
-          { k: "Drafted", v: "6 that sound like you · held for your read" },
-          { k: "Flagged", v: "1 from nora · contract question" },
+          { k: "10:00", v: "Project check-in · sample calendar" },
+          { k: "Prepare", v: "Read the agenda · sample email" },
+          { k: "Leave room", v: "Keep the morning clear until your meeting" },
         ],
       },
       {
         type: "bot",
-        text: "nora is asking whether the renewal covers the new seats. her draft answers yes and quotes the contract line. it is at the top of the held pile.",
+        text: "Open the sample sources to inspect the result. I can draft a follow-up; sending it would need your approval.",
       },
-      { type: "user", text: "send nora's, i'll take the rest tomorrow" },
-      { type: "bot", text: "sent. inbox is at zero, with 5 drafts parked for tomorrow." },
     ],
-    reply: "got it. i will handle that on the next sweep and flag anything i am unsure about.",
+    reply:
+      "In this example, I can prepare a draft for you to review. Nothing is sent and no accounts are connected.",
   },
   {
     id: "account",

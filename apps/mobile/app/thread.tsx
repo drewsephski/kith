@@ -94,6 +94,7 @@ import { CalendarReceipt } from "../components/CalendarReceipt";
 import { ChoiceCard } from "../components/ChoiceCard";
 import { ComputerCard } from "../components/ComputerCard";
 import { ComposerReplyPreview } from "../components/composer-reply-preview";
+import { EmailCard, EmailPreview } from "../components/EmailCard";
 import { FailedSendBubble } from "../components/failed-send-bubble";
 import { GlassSurface } from "../components/glass-surface";
 import type { ImageArtifactPreviewTarget } from "../components/image-artifact-viewer";
@@ -3748,22 +3749,27 @@ const MessageBubble = memo(function MessageBubble({
       <View style={{ gap: 8, width: "100%" }}>
         <View
           style={{
-            width: "90%",
-            borderRadius: 18,
+            width: askBlock.email ? "100%" : "90%",
+            borderRadius: askBlock.email ? 12 : 18,
             borderWidth: 1,
             borderColor: tokens.border,
             backgroundColor: tokens.card,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
+            paddingHorizontal: askBlock.email ? 12 : 16,
+            paddingVertical: askBlock.email ? 12 : 14,
           }}
         >
-          {askBlock.text ? (
+          {askBlock.text && !askBlock.email ? (
             <Text
               {...actionProps}
               style={{ color: tokens.foreground, fontSize: 15.5, lineHeight: 23 }}
             >
               {askBlock.text}
             </Text>
+          ) : null}
+          {askBlock.email ? (
+            <View>
+              <EmailPreview email={askBlock.email} />
+            </View>
           ) : null}
           {askBlock.detail ? (
             <Text
@@ -3789,15 +3795,20 @@ const MessageBubble = memo(function MessageBubble({
                 fontWeight: "600",
               }}
             >
-              {formatApprovalAnswer(
-                askBlock.answer,
-                askBlock.actions,
-                isApprovalAskBlock(askBlock),
-              )}
+              {askBlock.email && askBlock.answer === "allow"
+                ? t("Send approved")
+                : askBlock.email && askBlock.answer === "deny"
+                  ? t("Cancelled")
+                  : formatApprovalAnswer(
+                      askBlock.answer,
+                      askBlock.actions,
+                      isApprovalAskBlock(askBlock),
+                    )}
             </Text>
           ) : canAnswer && onAnswer ? (
             <AskActions
               actions={askBlock.actions}
+              emailReview={askBlock.approvalAction === "email_send"}
               accessibilityActions={actionProps.accessibilityActions}
               onAccessibilityAction={actionProps.onAccessibilityAction}
               onAnswer={(answer) => onAnswer(message, answer)}
@@ -4025,11 +4036,19 @@ const MessageBubble = memo(function MessageBubble({
           actionProps={actionProps}
         />
       ))}
-      {message.blocks.map((block) =>
+      {message.blocks.map((block, index) =>
         block.kind === "calendar_receipt" ? (
           <CalendarReceipt key={block.receiptId} receiptId={block.receiptId} />
         ) : block.kind === "task_starter_receipt" ? (
           <TaskStarterReceiptCard key={block.receiptId} receiptId={block.receiptId} />
+        ) : block.kind === "email" && message.role === "bot" ? (
+          <EmailCard
+            key={`email-${index}`}
+            block={block}
+            message={message}
+            blockIndex={index}
+            groupId={groupId}
+          />
         ) : null,
       )}
       {choiceBlocks.map((block, index) => (
