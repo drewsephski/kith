@@ -75,7 +75,10 @@ test("the authenticated For you route sends a prompt in a new chat and survives 
   await expect(page).toHaveURL(/\/app\/for-you$/);
   await page.reload();
   await expect(page.getByTestId("for-you-page")).toBeVisible();
-  await page.getByRole("button", { name: "Make a plan for the week ahead", exact: true }).click();
+  await page
+    .getByTestId("for-you-starter")
+    .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
+    .click();
   await expect(page).not.toHaveURL(/\/app\/for-you$/);
   const botId = page.url().split("/").pop()!;
   const thread = await rpc<{
@@ -222,13 +225,19 @@ test("an uncertain authenticated launch survives reload without another conversa
     await route.abort("failed");
     await page.unroute("**/rpc/bots/launchForYou");
   });
-  await page.getByRole("button", { name: "Make a plan for the week ahead", exact: true }).click();
+  await page
+    .getByTestId("for-you-starter")
+    .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
+    .click();
   await expect(page.getByRole("alert")).toBeVisible();
   const after = await rpc<Array<{ id: string }>>(page, "bots/list");
   const launched = after.filter((bot) => !before.some((existing) => existing.id === bot.id));
   expect(launched).toHaveLength(1);
   await page.reload();
-  await page.getByRole("button", { name: "Make a plan for the week ahead", exact: true }).click();
+  await page
+    .getByTestId("for-you-starter")
+    .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
+    .click();
   await expect(page).toHaveURL(new RegExp(`/app/${launched[0]!.id}$`));
   expect(await rpc(page, "bots/list")).toHaveLength(after.length);
   const thread = await rpc<{

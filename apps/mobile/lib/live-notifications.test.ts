@@ -2,7 +2,7 @@ vi.mock("expo-constants", () => ({ default: { expoConfig: { extra: {} } } }));
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("expo-modules-core", () => ({ requireNativeModule: vi.fn() }));
+vi.mock("expo", () => ({ requireNativeModule: vi.fn() }));
 vi.mock("expo-notifications", () => ({
   setNotificationHandler: vi.fn(),
   getPresentedNotificationsAsync: vi.fn(async () => []),

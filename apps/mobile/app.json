@@ -3,7 +3,7 @@
     "name": "Kith",
     "slug": "kith",
     "scheme": "rakazo",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
@@ -52,7 +52,8 @@
       ],
       "expo-sharing",
       "./plugins/with-worklets-headers",
-      "./plugins/with-scene-lifecycle"
+      "./plugins/with-scene-lifecycle",
+      "expo-asset"
     ],
     "ios": {
       "bundleIdentifier": "com.kith.agent",

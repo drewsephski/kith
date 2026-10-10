@@ -74,16 +74,25 @@ jobs:
         run: |
           sudo chown root:root apps/desktop/out/linux-unpacked/chrome-sandbox
           sudo chmod 4755 apps/desktop/out/linux-unpacked/chrome-sandbox
+          test "$(stat -c '%u:%g:%a' apps/desktop/out/linux-unpacked/chrome-sandbox)" = "0:0:4755"
+      - name: Install native window manager
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y openbox x11-utils
       - name: Packaged Electron acceptance
         env:
           RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo
-        run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+        run: xvfb-run --auto-servernum bash scripts/with-linux-window-manager.sh pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+      - name: Real Kith frontend in packaged Electron
+        env:
+          RAKAZO_E2E_EXECUTABLE: ${{ github.workspace }}/apps/desktop/out/linux-unpacked/rakazo
+        run: xvfb-run --auto-servernum bash scripts/with-linux-window-manager.sh pnpm test:desktop-packaged
       - name: Upload desktop setup screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-e2e-screenshots
-          path: apps/desktop/e2e/screenshots
+          path: |
+            apps/desktop/e2e/screenshots
+            apps/desktop/test-results
           if-no-files-found: ignore
 
   test:
@@ -126,10 +135,14 @@ jobs:
     with:
       upload_artifacts: true
 
+  mobile-native:
+    name: Android native acceptance
+    uses: ./.github/workflows/mobile-android-screenshots.yml
+
   publish-mobile-update:
     name: Publish compatible mobile update
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, check, build, test, test-integration, test-e2e]
+    needs: [lint, check, build, test, test-integration, test-e2e, mobile-native]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
@@ -278,45 +291,37 @@ jobs:
           eas update --platform all --channel production --environment production --message "$GITHUB_SHA" --non-interactive
 
   deploy-production:
+    name: Deploy tested hosted backend
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       vars.PRODUCTION_DEPLOY_ENABLED == 'true'
-    needs: [lint, check, build, test, test-integration, test-e2e]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    concurrency:
-      group: production
-      cancel-in-progress: false
-    environment:
-      name: production
-      url: https://app.rakazo.com
-    steps:
-      - name: Configure production SSH identity
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
-        run: |
-          test -n "$SSH_PRIVATE_KEY"
-          test -n "$SSH_KNOWN_HOSTS"
-          install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/rakazo-production"
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/rakazo-production" "$HOME/.ssh/known_hosts"
-          ssh-keygen -y -f "$HOME/.ssh/rakazo-production" >/dev/null
+    needs: [lint, check, build, test, test-integration, test-e2e, mobile-native]
+    uses: ./.github/workflows/deploy-hosted.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-      - name: Deploy successful main revision
+  deployment-status:
+    name: Hosted deployment status
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, check, build, test, test-integration, test-e2e, mobile-native, deploy-production]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record deploy, blocked, or no-deploy result
         env:
-          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          ENABLED: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
+          GATES: ${{ toJSON(needs) }}
         run: |
-          test -n "$SSH_HOST"
-          test -n "$SSH_USER"
-          ssh -F /dev/null \
-            -i "$HOME/.ssh/rakazo-production" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            "$SSH_USER@$SSH_HOST" deploy-main
+          set -euo pipefail
+          if jq -e 'to_entries | any(.key != "deploy-production" and .value.result != "success")' <<< "$GATES" >/dev/null; then
+            echo "Deployment blocked by required verification. No rollout is claimed." >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$ENABLED" != true ]]; then
+            echo "No deployment: PRODUCTION_DEPLOY_ENABLED is not true." >> "$GITHUB_STEP_SUMMARY"
+          elif jq -e '."deploy-production".result == "success"' <<< "$GATES" >/dev/null; then
+            echo "Exact tested backend revision deployed and verified." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Deployment failed or did not execute." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

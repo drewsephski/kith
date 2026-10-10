@@ -8,27 +8,15 @@ through PR #11 into `7a1b68a41c4a82c564798e09ea43b39b70e54fcd`; it is no longer 
 The 2026-10-10 audit confirmed no published release, missing repository signing secrets,
 no protected `desktop-release` environment, and password recovery still unavailable.
 
-## Post-merge CI and review follow-up
+## Current reliability investigation
 
-[Main CI](https://github.com/drewsephski/kith/actions/runs/38033623608) passed lint,
-type checking, unit tests and Postgres journeys. Packaged Linux acceptance failed when
-the direct second-instance launch found `chrome-sandbox` without root ownership and mode
-4755. Web E2E was cancelled; no passing final CI or deployment is claimed.
-[macOS acceptance](https://github.com/drewsephski/kith/actions/runs/38033623372) failed
-at the immediate minimized-state check after requesting minimization.
+Baseline main `0759b648403a0a67d2031f00756ac939b56f45da`: [Linux CI](https://github.com/drewsephski/kith/actions/runs/38051630314) failed native minimization after successful sandboxed launch. [macOS packaged acceptance](https://github.com/drewsephski/kith/actions/runs/38051630027) passed. These are baseline results, not verification of the current patch.
 
-The local review follow-up configures the packaged Linux sandbox helper on the disposable
-CI runner in both CI and release acceptance, and waits for the native minimized state before
-asserting activation restores the window. It does not disable the sandbox or change app behavior.
-These follow-up changes still require remote packaged execution. Local Electron E2E remains
-excluded under repository instructions. All seven entries in the unsigned artifact SHA256SUMS
-were rechecked successfully on 2026-10-10; these packages predate the test/workflow follow-up.
+Disposable Linux reproduction confirmed the cause: bare Xvfb lacked an EWMH window manager. The exact packaged test failed there and passed with Openbox, preserving the real Chromium sandbox. CI and release acceptance now install Openbox, wait for its supporting window and minimize capability, and verify the helper's root ownership/mode 4755. The test identifies the main window from its renderer and records native events and state. There is no production sandbox or identifier change.
 
-Follow-up local verification passed: `pnpm lint` (19 existing warnings and 5 informational
-diagnostics), `pnpm check` (22 tasks), all 365 Desktop unit tests, packaged Playwright test
-discovery, and `git diff --check`. The six follow-up files are `.github/workflows/ci.yml`,
-`.github/workflows/release-desktop.yml`, `apps/desktop/e2e/packaged.spec.ts`,
-`docs/desktop-acceptance.md`, `docs/desktop-release-readiness.md`, and `docs/desktop-release.md`.
+A separate deterministic packaged frontend journey uses the shared Kith frontend, real API and migrated disposable PostgreSQL. It checks account creation, the assistant, a scripted response, persisted work after restart, Settings, New Conversation and crash recovery. This complements transport/security fixtures; it is not live OAuth, provider delivery, signed installation or production acceptance. Its remote result remains pending until recorded for the patch SHA.
+
+Release remains **BLOCKED**: no release-desktop execution, protected signing environment, signed universal DMG/ZIP installation, notarization/Gatekeeper or signed update proof exists. No tag or public release was created. See [the failure inventory](cross-platform-release-inventory.md) for exact baseline jobs and [hosted deployment](hosted-deployment.md) for the password-recovery blocker.
 
 ## Confirmed and fixed
 

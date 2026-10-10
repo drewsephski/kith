@@ -78,10 +78,10 @@ test("message hover shows beside-bubble actions; reply links to parent", async (
 
   // Empty start: no Fresh-start greeting. Answer the focus card so a plain
   // bot text bubble exists for hover layout checks.
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible({
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible({
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: /Day-to-day work/ }).click();
+  await page.getByRole("button", { name: "Organize my day", exact: true }).click();
   const botText = page.getByText(/Got it\./);
   await expect(botText).toBeVisible({ timeout: 20_000 });
   const botRow = transcript.locator(`[data-message-id]`).filter({ has: botText }).first();
@@ -386,10 +386,10 @@ test("hover time shows the date for a message from an earlier day", async ({ pag
   await signup(page, `hover-date-${stamp}@rakazo.test`, "password12", "Hover Date");
   await completeOnboarding(page);
 
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible({
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible({
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: /Day-to-day work/ }).click();
+  await page.getByRole("button", { name: "Organize my day", exact: true }).click();
   const botText = page.getByText(/Got it\./);
   await expect(botText).toBeVisible({ timeout: 20_000 });
   const row = page
@@ -487,10 +487,12 @@ test.describe("touch message actions", () => {
     expect(
       await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine)").matches),
     ).toBe(false);
-    await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible({
-      timeout: 20_000,
-    });
-    await page.getByRole("button", { name: /Day-to-day work/ }).click();
+    await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible(
+      {
+        timeout: 20_000,
+      },
+    );
+    await page.getByRole("button", { name: "Organize my day", exact: true }).click();
     const botText = page.getByText(/Got it\./);
     await expect(botText).toBeVisible({ timeout: 20_000 });
     const row = page

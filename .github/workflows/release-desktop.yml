@@ -315,9 +315,19 @@ jobs:
         env:
           RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo
         run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y openbox x11-utils
           sudo chown root:root apps/desktop/out/linux-unpacked/chrome-sandbox
           sudo chmod 4755 apps/desktop/out/linux-unpacked/chrome-sandbox
-          xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+          test "$(stat -c '%u:%g:%a' apps/desktop/out/linux-unpacked/chrome-sandbox)" = "0:0:4755"
+          xvfb-run --auto-servernum bash scripts/with-linux-window-manager.sh pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
+      - name: Retain packaged runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: desktop-runtime-${{ matrix.artifact }}-${{ needs.validate.outputs.sha }}
+          path: apps/desktop/test-results
+          if-no-files-found: ignore
       - name: Retain installers and updater metadata
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

@@ -37,6 +37,7 @@ test("model dropdown search and provider group headers", async ({ page }, testIn
 
   await captureScreenshot(page, testInfo, "model-picker-dropdown-filtered");
 
+  await expect(modelSearch).toHaveAttribute("aria-activedescendant", /.+/);
   const firstActive = await modelSearch.getAttribute("aria-activedescendant");
   expect(firstActive).toBeTruthy();
   await modelSearch.press("ArrowDown");

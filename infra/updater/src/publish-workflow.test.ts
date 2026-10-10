@@ -9,7 +9,7 @@ const workflowText = readFileSync(
 );
 interface WorkflowJob {
   if?: string;
-  needs?: string;
+  needs?: string | string[];
   "runs-on"?: string;
   strategy?: { matrix?: { arch?: string[]; include?: Array<Record<string, string>> } };
 }
@@ -34,7 +34,10 @@ describe("server image publish workflow", () => {
 
   it("publishes one verified multi-arch manifest per image after both builds", () => {
     const publish = workflow.jobs.publish;
-    expect(publish.needs).toBe("build");
+    expect(publish.needs).toEqual(["tested-source", "build"]);
+    expect(workflow.jobs.build.needs).toBe("tested-source");
+    expect(workflowText).toContain("event=push");
+    expect(workflowText).toContain('.conclusion == "success"');
     expect(workflowText).toContain("push-by-digest=true");
     expect(workflowText).toContain("docker buildx imagetools create");
     expect(workflowText).toContain("for want in linux/amd64 linux/arm64");

@@ -274,8 +274,8 @@ export function inferScript(
             name: "add_mcp_server",
             args: {
               name: "Fixture MCP",
-              transport: "stdio",
-              command: "echo",
+              transport: "http",
+              endpoint: "https://mcp.example.test/mcp",
               assignToSelf: true,
             },
           },

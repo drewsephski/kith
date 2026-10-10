@@ -11,7 +11,8 @@ import type { WebContents, WebPreferences } from "electron";
 
 // Transport/security fixtures, not a claim of live account or provider acceptance.
 // The production service configuration is checked inside app.asar separately.
-test("packaged login transport retains its partition across restart and recovers a crash", async () => {
+// biome-ignore lint/correctness/noEmptyPattern: Playwright requires a fixture pattern for testInfo.
+test("packaged login transport retains its partition across restart and recovers a crash", async ({}, testInfo) => {
   test.setTimeout(90_000);
   const executable = process.env.RAKAZO_E2E_EXECUTABLE;
   test.skip(!executable, "Packaged acceptance runs against CI's packaged executable.");
@@ -63,8 +64,9 @@ test("packaged login transport retains its partition across restart and recovers
     expect(await app.evaluate(({ app }) => ({ packaged: app.isPackaged, name: app.name }))).toEqual(
       { packaged: true, name: "Kith" },
     );
-    const prefs = await app.evaluate(({ BrowserWindow }) => {
-      const contents = BrowserWindow.getAllWindows()[0]!.webContents as WebContents & {
+    let mainId = await (await app.browserWindow(page)).evaluate((win) => win.id);
+    const prefs = await app.evaluate(({ BrowserWindow }, id) => {
+      const contents = BrowserWindow.fromId(id)!.webContents as WebContents & {
         getLastWebPreferences(): WebPreferences;
       };
       const preferences = contents.getLastWebPreferences();
@@ -73,16 +75,19 @@ test("packaged login transport retains its partition across restart and recovers
         contextIsolation: preferences.contextIsolation,
         sandbox: preferences.sandbox,
       };
-    });
+    }, mainId);
     expect(prefs).toEqual({ nodeIntegration: false, contextIsolation: true, sandbox: true });
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByText("Existing assistant fixture")).toBeVisible();
-    await app.evaluate(async ({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]!.webContents.session.cookies.flushStore(),
+    await app.evaluate(
+      async ({ BrowserWindow }, id) =>
+        BrowserWindow.fromId(id)!.webContents.session.cookies.flushStore(),
+      mainId,
     );
     await app.close();
     app = await launch();
     const restored = await app.firstWindow();
+    mainId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
     await expect(restored.getByText("Existing assistant fixture")).toBeVisible();
     await promisify(execFile)(path.resolve(executable!), [], {
       cwd: path.resolve(import.meta.dirname, ".."),
@@ -134,21 +139,80 @@ test("packaged login transport retains its partition across restart and recovers
       settings.click();
     });
     await expect.poll(() => restored.evaluate(() => window.__commands)).toEqual(["settings"]);
-    await restored.evaluate(() => window.rakazoDesktop!.window.minimize());
-    await expect
-      .poll(() =>
-        app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMinimized()),
-      )
-      .toBe(true);
-    await app.evaluate(({ app }) => app.emit("activate"));
-    await expect
-      .poll(() =>
-        app!.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.isMinimized()),
-      )
-      .toBe(false);
+    await app.evaluate(({ BrowserWindow }, id) => {
+      const win = BrowserWindow.fromId(id)!;
+      const events: Array<Record<string, unknown>> = [];
+      const state = () => ({
+        at: Date.now(),
+        id: win.id,
+        webContentsId: win.webContents.id,
+        visible: win.isVisible(),
+        minimized: win.isMinimized(),
+        focused: win.isFocused(),
+        bounds: win.getBounds(),
+      });
+      const runtime = globalThis as typeof globalThis & {
+        kithWindowDiagnostics?: { before: Record<string, unknown>; events: typeof events };
+      };
+      runtime.kithWindowDiagnostics = { before: state(), events };
+      for (const event of ["minimize", "restore", "focus", "blur", "show", "hide"] as const) {
+        win.on(event, () => events.push({ event, ...state() }));
+      }
+    }, mainId);
+    try {
+      await restored.evaluate(() => window.rakazoDesktop!.window.minimize());
+      await expect
+        .poll(() =>
+          app!.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.isMinimized(), mainId),
+        )
+        .toBe(true);
+      await app.evaluate(({ app }) => app.emit("activate"));
+      await expect
+        .poll(() =>
+          app!.evaluate(
+            ({ BrowserWindow }, id) => ({
+              minimized: BrowserWindow.fromId(id)!.isMinimized(),
+              visible: BrowserWindow.fromId(id)!.isVisible(),
+              focused: BrowserWindow.fromId(id)!.isFocused(),
+            }),
+            mainId,
+          ),
+        )
+        .toEqual({ minimized: false, visible: true, focused: true });
+      const events = await app.evaluate(() => {
+        const runtime = globalThis as typeof globalThis & {
+          kithWindowDiagnostics?: { events: Array<{ event: string }> };
+        };
+        return runtime.kithWindowDiagnostics!.events.map((entry) => entry.event);
+      });
+      expect(events).toContain("minimize");
+      expect(events).toContain("restore");
+      expect(events.indexOf("restore")).toBeGreaterThan(events.indexOf("minimize"));
+    } finally {
+      const diagnostics = await app.evaluate(
+        ({ BrowserWindow }, id) => ({
+          windows: BrowserWindow.getAllWindows().map((win) => ({
+            id: win.id,
+            webContentsId: win.webContents.id,
+            visible: win.isVisible(),
+            minimized: win.isMinimized(),
+            bounds: win.getBounds(),
+          })),
+          targetId: id,
+          state: (globalThis as typeof globalThis & { kithWindowDiagnostics?: unknown })
+            .kithWindowDiagnostics,
+        }),
+        mainId,
+      );
+      await testInfo.attach("native-window-events", {
+        body: JSON.stringify(diagnostics, null, 2),
+        contentType: "application/json",
+      });
+    }
     const recovery = app.waitForEvent("window");
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]!.webContents.forcefullyCrashRenderer(),
+    await app.evaluate(
+      ({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.webContents.forcefullyCrashRenderer(),
+      mainId,
     );
     const setup = await recovery;
     await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();

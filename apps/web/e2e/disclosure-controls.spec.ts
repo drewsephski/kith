@@ -23,6 +23,14 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await expect(stream).toBeVisible();
     // A collapse must animate through intermediate heights, rather than disappear
     // immediately. Reduced motion must omit that animation altogether.
+    await expect
+      .poll(() =>
+        advanced.locator('[data-slot="collapsible-content"]').evaluate((panel) => {
+          const height = panel.getBoundingClientRect().height;
+          return height > 0 && Math.abs(height - panel.scrollHeight) < 1;
+        }),
+      )
+      .toBe(true);
     const heights = await advanced.evaluate(async (root) => {
       const button = root.querySelector<HTMLButtonElement>('[data-slot="collapsible-trigger"]')!;
       const panel = root.querySelector<HTMLElement>('[data-slot="collapsible-content"]')!;

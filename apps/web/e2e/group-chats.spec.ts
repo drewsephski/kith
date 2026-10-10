@@ -3,6 +3,7 @@ import {
   captureScreenshot,
   completeOnboarding,
   createNamedBot,
+  openAdvancedNavigation,
   openNewGroup,
   rpc,
   signup,
@@ -87,6 +88,7 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
     });
   });
   await page.reload();
+  await openAdvancedNavigation(page);
   // Anchor ^ so Now/Recent activity rows ("Bot · Draft team, …") do not match.
   const groupAvatar = page
     .locator("aside")

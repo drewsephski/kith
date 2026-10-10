@@ -123,8 +123,8 @@ test("later bot waits before showing the focus card; sending cancels it", async 
   await signup(page, `focus-delay-${stamp}@rakazo.test`, "password12", "Focus Delay");
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
-  // First bot from onboarding shows the focus card immediately.
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible();
+  // The personal assistant offers its focus choices immediately.
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible();
 
   await page.clock.install();
   await createBotFromPicker(page);

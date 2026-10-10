@@ -79,7 +79,7 @@ async function main() {
 
   try {
     await waitForHealth(`${HOST_API_URL}/health`, 15_000);
-    for (const flow of ["screenshots", "notification-demo"]) {
+    for (const flow of ["screenshots", "notification-demo", "smoke"]) {
       await runProcess(
         "maestro",
         [

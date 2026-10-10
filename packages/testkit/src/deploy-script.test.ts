@@ -7,6 +7,23 @@ import { afterEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const temporaryDirectories: string[] = [];
 
+describe("hosted deployment gates", () => {
+  it("blocks promotion if any required runtime or security job did not pass", () => {
+    execFileSync(
+      process.execPath,
+      [
+        "--test",
+        "scripts/verify-deployment-gates.test.mjs",
+        "scripts/with-linux-window-manager.test.mjs",
+      ],
+      {
+        cwd: repoRoot,
+        stdio: "pipe",
+      },
+    );
+  });
+});
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });

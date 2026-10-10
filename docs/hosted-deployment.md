@@ -279,3 +279,31 @@ historical comparisons are explicitly separate from fork releases.
 
 DNS, provider consoles, hosted credentials, signing and release publication require operator
 action. No deployment or public service availability follows from a successful local build.
+
+## Reliability audit and exact-source promotion (2026-10-10)
+
+The inspected production alias is `https://kith-agent-app.vercel.app`; Vercel reported the frontend at `0759b648403a0a67d2031f00756ac939b56f45da`. Its API proxy is backed by the existing Fly `kith-api` application with persistent storage and supervised API/worker processes. Fly's running image predates that frontend and reports a null source revision. A healthy public `/health` response and independently published GHCR image do not prove backend/frontend source compatibility.
+
+The legacy SSH deployment was disabled (`PRODUCTION_DEPLOY_ENABLED` absent). The reliability patch replaces that disabled job with an exact-source Fly deployment, preserving all critical gates and adding Android native acceptance. The protected Production environment must have required reviewers. Before enabling it, an operator must configure `KITH_FLY_APP`, the intended `RAKAZO_SERVICE_URL`, and an app-scoped `FLY_API_TOKEN` in that environment. Keep the token private. Add reviewer protection first, then enable `PRODUCTION_DEPLOY_ENABLED=true`. No credential modification or production rollout was performed by this audit.
+
+The workflow checks the exact current main SHA and every required job in the same run. The Fly image embeds that source SHA. It records the prior immutable image digest, updates the existing persistent Machine, probes internal API revision/readiness and checks the worker process image revision, then validates public proxy liveness and password-recovery capability. Worker source/process checks do not replace a durable task acceptance test. A blocked rollout remains visibly failed; the separate deployment summary distinguishes disabled, blocked and deployed states.
+
+GHCR promotion now requires successful main CI for the exact source. Pull requests retain read-only validation without publishing authority. Failed revisions cannot move edge. Production Fly builds are source-addressed and do not consume mutable GHCR edge tags.
+
+### Restore password recovery using existing SMTP
+
+Hosted capabilities currently report password authentication enabled and password recovery disabled. Fly's configured secret-name inventory has neither `SMTP_URL` nor `EMAIL_FROM`. Supply the existing SMTP transport and verified sender through an ignored private file or Fly's secret input; never put values in a command committed to Git, public logs, mobile extra or a frontend environment.
+
+For example, prepare a private, untracked file containing `SMTP_URL=<existing SMTP connection>` and `EMAIL_FROM=<verified sender>`, restrict its permissions and confirm `git check-ignore` accepts its path. An authorized operator can import that file with `fly secrets import --app kith-api < <private-file>`. This changes production credentials and requires explicit operator authorization. Do not add another email vendor.
+
+After configuration, verify `/api/auth/capabilities` returns `passwordReset=true`, request recovery for a dedicated test mailbox, inspect actual delivery privately, consume the link once and verify the previous session/reset security behavior. Record only status, timestamps and source SHA in public evidence. No mailbox, reset URL, token or message body belongs in CI artifacts. The deployment preflight blocks rollout while known password-recovery incompatibility remains.
+
+### Rollback without replacing data
+
+Use the prior immutable digest recorded in the deployment summary:
+
+```sh
+fly deploy --app kith-api --config infra/fly/fly.toml --image <previous-registry-image@sha256:digest> --ha=false
+```
+
+Check migration compatibility before restoring older code. Do not reverse migrations automatically, replace the volume, destroy the Machine or rotate app secrets. Verify internal API/worker revision and a harmless persisted-task journey after rollback. Retain the failed rollout diagnostics without publishing secrets.

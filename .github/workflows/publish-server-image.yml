@@ -1,12 +1,14 @@
 name: publish-server-image
 
 # Release tags publish the source-addressed image used by in-app updates plus the human-readable
-# semver tags. Main publishes `edge`. Pull requests build with a read-only token and an isolated
+# semver tags. Successful main CI publishes `edge`. Pull requests build with a read-only token and an isolated
 # cache, so untrusted code can validate the images without receiving package-publish authority.
 on:
   push:
-    branches: [main]
     tags: ["v*"]
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
   pull_request:
     paths:
       - ".dockerignore"
@@ -23,16 +25,42 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   # docker/metadata-action otherwise truncates commit tags to seven collision-prone characters.
   DOCKER_METADATA_SHORT_SHA_LENGTH: 40
+  SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 concurrency:
   group: publish-server-image-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  tested-source:
+    name: Require tested source before image promotion
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    outputs:
+      edge: ${{ steps.source.outputs.edge }}
+    steps:
+      - name: Verify exact successful main CI and promotion order
+        id: source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SOURCE_SHA}&event=push" \
+            --jq '.workflow_runs[0] | .status == "completed" and .conclusion == "success"' | grep -Fx true
+          head="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+          echo "edge=$([[ "$SOURCE_SHA" == "$head" && "$GITHUB_REF_TYPE" != tag ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   installer-smoke:
     name: Compose installer smokes
     if: github.event_name == 'pull_request'
@@ -75,7 +103,7 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          tags: type=sha,prefix=sha-
+          tags: type=raw,value=sha-${{ env.SOURCE_SHA }}
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ${{ matrix.context }}
@@ -91,6 +119,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.name }} ${{ matrix.arch }}
+    needs: tested-source
     if: github.event_name != 'pull_request'
     # Each architecture builds natively on its own runner and pushes by digest only.
     # No QEMU: GitHub hosts native arm64 runners, and emulated arm64 took hours for the
@@ -124,6 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          ref: ${{ env.SOURCE_SHA }}
           persist-credentials: false
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Log in to GHCR
@@ -135,9 +165,10 @@ jobs:
       - id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
+          labels: org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
           # Labels only; the tagged manifest is assembled in the publish job.
           images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          tags: type=sha,prefix=sha-
+          tags: type=raw,value=sha-${{ env.SOURCE_SHA }}
       - id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
@@ -148,7 +179,7 @@ jobs:
           # A fork can publish only to its own namespace; no credential can redirect this value.
           outputs: type=image,name=ghcr.io/${{ github.repository }}/${{ matrix.name }},push-by-digest=true,name-canonical=true,push=true
           # GET /health can report the exact source commit without a deployment-supplied override.
-          build-args: ${{ matrix.name == 'app' && format('GIT_SHA={0}', github.sha) || '' }}
+          build-args: ${{ matrix.name == 'app' && format('GIT_SHA={0}', env.SOURCE_SHA) || '' }}
           cache-from: type=gha,scope=${{ matrix.name }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}-${{ matrix.arch }}
           provenance: mode=max
@@ -170,7 +201,7 @@ jobs:
   publish:
     name: Publish ${{ matrix.name }} image
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: [tested-source, build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -206,8 +237,8 @@ jobs:
           tags: |
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=edge,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=sha-${{ env.SOURCE_SHA }}
+            type=raw,value=edge,enable=${{ needs.tested-source.outputs.edge == 'true' }}
             # Stable releases only: a hyphen marks a prerelease (v1.0.0-rc.1) that must not move latest.
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
       - name: Assemble and verify the multi-arch manifest
