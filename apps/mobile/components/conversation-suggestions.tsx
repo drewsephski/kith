@@ -1,7 +1,6 @@
 import type { SuggestionsRequest } from "@rakazo/chat-ui/suggestions";
 import { useConversationSuggestions } from "@rakazo/chat-ui/suggestions";
 import type { ConversationSuggestion } from "@rakazo/contracts";
-import { connectedForYouSuggestions, FOR_YOU_SUGGESTIONS } from "@rakazo/core";
 import { rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { ScrollView } from "./minimal-scroll";
@@ -15,7 +14,6 @@ export function ConversationSuggestions({
   botId,
   messageId,
   busy,
-  connectedServices = [],
   onSelect,
 }: {
   scopeKey: string;
@@ -25,15 +23,11 @@ export function ConversationSuggestions({
   connectedServices?: string[];
   onSelect: (prompt: string) => void;
 }) {
-  const { locale, t } = useI18n();
-  const starterIds = connectedForYouSuggestions(connectedServices);
+  const { locale } = useI18n();
   const suggestions = useConversationSuggestions({
     scopeKey,
     request: !busy && botId && messageId ? { botId, messageId, locale } : undefined,
     load,
-    fallback: FOR_YOU_SUGGESTIONS.filter((suggestion) => starterIds.includes(suggestion.id))
-      .slice(0, 3)
-      .map(({ title, prompt }) => ({ title: t(title), prompt: t(prompt) })),
   });
   if (!suggestions.length) return null;
   return (

@@ -8,12 +8,10 @@ export function useConversationSuggestions({
   scopeKey,
   request,
   load,
-  fallback = [],
 }: {
   scopeKey: string;
   request?: SuggestionsRequest;
   load: (request: SuggestionsRequest, signal: AbortSignal) => Promise<ConversationSuggestion[]>;
-  fallback?: ConversationSuggestion[];
 }): ConversationSuggestion[] {
   const key = request ? JSON.stringify([scopeKey, request]) : "";
   const [state, setState] = useState<{ key: string; suggestions: ConversationSuggestion[] }>({
@@ -45,5 +43,5 @@ export function useConversationSuggestions({
     };
   }, [key, botId, messageId, locale, load]);
   if (!key) return [];
-  return state.key === key && state.suggestions.length ? state.suggestions : fallback;
+  return state.key === key ? state.suggestions : [];
 }

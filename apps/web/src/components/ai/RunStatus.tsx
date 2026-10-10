@@ -12,11 +12,13 @@ export function RunStatus({
   messages,
   latestRun,
   assistantId,
+  reconnecting = false,
 }: {
   bots: (GroupAvatarMember & { runId: string })[];
   messages: ThreadMessage[];
   latestRun?: StatusRun | null;
   assistantId?: string | null;
+  reconnecting?: boolean;
 }) {
   const { t } = useLingui();
   const active = bots.filter((bot) => ["queued", "leased", "running"].includes(bot.status ?? ""));
@@ -25,8 +27,8 @@ export function RunStatus({
       <div data-testid="run-status" className="flex flex-col gap-1">
         {active.map((bot) => {
           const activity =
-            runActivityText(messages, bot.runId) ??
-            (bot.status === "queued" || bot.status === "leased" ? t`Starting…` : t`Working…`);
+            reconnecting ? t`Reconnecting…` : runActivityText(messages, bot.runId) ??
+            (bot.status === "queued" ? t`Queued…` : bot.status === "leased" ? t`Starting…` : t`Preparing a response…`);
           const name = bot.name ?? t`Bot`;
           return (
             <ActiveBotGlyph
@@ -46,7 +48,7 @@ export function RunStatus({
       ? t`Waiting for your input`
       : latestRun?.status === "waiting_takeover"
         ? t`Waiting for you`
-        : latestRun?.status === "completed" && hasRunResponseText(messages, latestRun.id)
+        : latestRun?.status === "completed"
           ? t`Done`
           : latestRun?.status === "cancelled"
             ? t`Stopped`

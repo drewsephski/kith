@@ -32,20 +32,19 @@ export function AssistantForYou({
         ? { botId, messageId: conversation.messageId, locale: i18n.locale || "en" }
         : undefined,
     load,
-    fallback: starters.slice(0, 3),
   });
   const suggestions = conversation ? followUps : starters.slice(0, 3);
   if (!suggestions.length) return null;
   return (
     <section
       className="kith-for-you mx-auto w-full min-w-0 shrink-0 py-1"
-      aria-label={t`For you`}
+      aria-label={conversation ? t`Follow-ups` : t`Explore`}
       data-testid="assistant-for-you"
     >
       <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
         <h2 className="flex shrink-0 items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground sm:px-0">
           <CornerDownRight aria-hidden="true" className="size-3.5 text-foreground/70" />
-          <Trans>For you</Trans>
+          {conversation ? <Trans>Follow-ups</Trans> : <Trans>Explore</Trans>}
         </h2>
         <div className="rk-scroll flex min-w-0 gap-2 overflow-x-auto p-1 sm:flex-1">
           {suggestions.map((suggestion) => (

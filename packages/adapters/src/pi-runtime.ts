@@ -523,7 +523,7 @@ export class PiAgentRuntime implements AgentRuntime {
               toolActivityShowing = true;
               queue.push({
                 type: "progress",
-                text: [...activeTools.values()].at(-1) ?? "Working…",
+                text: [...activeTools.values()].at(-1) ?? "Preparing a response…",
                 activity: true,
               });
             }
@@ -540,7 +540,7 @@ export class PiAgentRuntime implements AgentRuntime {
               if (toolActivityShowing) {
                 // Real text replaces the activity line instead of appending to it.
                 toolActivityShowing = false;
-                queue.push({ type: "progress", text: "", activity: true });
+                queue.push({ type: "progress", text: "Preparing a response…", activity: true });
               }
               streamed += delta;
               currentMessageStreamed += delta;
@@ -637,7 +637,7 @@ export class PiAgentRuntime implements AgentRuntime {
 
         // Activity is rendered in the run-status row, separately from reply text.
         if (!request.allowSilentEmpty)
-          queue.push({ type: "progress", text: "Thinking…", activity: true });
+          queue.push({ type: "progress", text: "Preparing a response…", activity: true });
         const images = toPiImages([
           ...(request.currentTurnImages ?? []),
           ...initialSteering.flatMap((item) => item.images ?? []),
@@ -949,6 +949,8 @@ export function describeToolActivity(toolName: string, args: unknown): string {
     if (/DRAFT/.test(operation) && /CREATE|UPDATE/.test(operation)) return "Preparing drafts";
     if (/SEND/.test(operation)) return "Sending email";
     if (/DELETE|MODIFY|UPDATE|ADD|REMOVE/.test(operation)) return "Updating Gmail";
+    if (/FETCH|SEARCH|LIST/.test(operation)) return "Searching Gmail…";
+    if (/GET/.test(operation)) return "Reading the selected messages…";
     return "Checking Gmail";
   }
   if (operation.startsWith("GOOGLECALENDAR_"))
@@ -961,38 +963,34 @@ export function describeToolActivity(toolName: string, args: unknown): string {
   if (operation === "COMPOSIO_SEARCH_TOOLS") return "Finding connected app tools";
   if (operation === "COMPOSIO_REMOTE_WORKBENCH" || operation === "COMPOSIO_REMOTE_BASH_TOOL")
     return "Working across connected apps";
-  const detail = (value: unknown): string => {
-    const text = sanitizeSensitiveText(String(value ?? ""))
-      .replaceAll(/\s+/g, " ")
-      .trim();
-    return text.length > ACTIVITY_DETAIL_LIMIT ? `${text.slice(0, ACTIVITY_DETAIL_LIMIT)}…` : text;
-  };
-  if (toolName === "shell") return `Running: ${detail(record.command)}`;
-  if (toolName === "read_file") return `Reading ${detail(record.path)}`;
-  if (toolName === "write_file") return `Writing ${detail(record.path)}`;
-  if (toolName === "list_files") return `Listing ${detail(record.path ?? ".")}`;
-  if (toolName === "attach_file") return `Attaching ${detail(record.path)}`;
-  if (toolName === "open_path") return `Opening ${detail(record.path)}`;
+  // Arguments may contain private source content, credentials, or host commands.
+  // Activity names the operation; it never renders its payload.
+  if (toolName === "shell") return "Running a command…";
+  if (toolName === "read_file") return "Reading a file…";
+  if (toolName === "write_file") return "Writing a file…";
+  if (toolName === "list_files") return "Listing files…";
+  if (toolName === "attach_file") return "Attaching a file…";
+  if (toolName === "open_path") return "Opening a file…";
   if (toolName === "render_plot") return "Rendering a chart";
-  if (toolName === "add_mcp_server") return `Connecting MCP server: ${detail(record.name)}`;
+  if (toolName === "add_mcp_server") return "Connecting an app…";
   if (toolName === "computer_observe") return "Looking at the screen";
   if (toolName === "browser_navigate")
-    return `Opening page: ${detail(redactActivityUrl(record.url))}`;
+    return "Opening a page…";
   if (toolName === "browser_snapshot") return "Reading the page";
   if (toolName === "browser_act") return "Using the page";
   if (toolName === "computer_act") return "Operating the computer";
-  if (toolName === "run_subagent") return `Delegating to helper: ${detail(record.name)}`;
-  if (toolName === "create_space") return `Creating space: ${detail(record.name)}`;
+  if (toolName === "run_subagent") return "Delegating to a helper…";
+  if (toolName === "create_space") return "Creating a space…";
   if (toolName === "remember") return "Saving a note to memory";
-  if (toolName === "save_shared_memory") return `Saving shared memory: ${detail(record.path)}`;
-  if (toolName === "web_search") return `Searching the web: ${detail(record.query)}`;
-  if (toolName === "web_fetch") return `Reading page: ${detail(redactActivityUrl(record.url))}`;
-  if (toolName === "skill_read") return `Reading skill: ${detail(record.name)}`;
-  if (toolName === "skill_create") return `Creating skill: ${detail(record.name ?? "skill")}`;
+  if (toolName === "save_shared_memory") return "Saving shared memory…";
+  if (toolName === "web_search") return "Searching the web…";
+  if (toolName === "web_fetch") return "Reading a page…";
+  if (toolName === "skill_read") return "Reading a skill…";
+  if (toolName === "skill_create") return "Creating a skill…";
   if (toolName === "skill_update")
-    return `Updating skill: ${detail(record.name ?? record.skillId)}`;
+    return "Updating a skill…";
   if (toolName === "skill_delete")
-    return `Deleting skill: ${detail(record.name ?? record.skillId)}`;
+    return "Deleting a skill…";
   const mcp = toolName.match(/^mcp__(.+?)__(.+)$/);
   if (mcp) return `Using ${mcp[1]}: ${mcp[2]}`;
   return `Using ${toolName}`;
@@ -1614,7 +1612,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
         name,
         task,
         status: "running",
-        progress: `using ${toolName}…`,
+        progress: describeToolActivity(toolName, {}),
       });
     }
     if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
@@ -1630,7 +1628,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
             name,
             task,
             status: "running",
-            progress: streamed.slice(-800),
+            progress: "Preparing a result…",
           });
         }
       }

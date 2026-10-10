@@ -287,6 +287,7 @@ import { AssistantForYou } from "./shell/assistant-for-you";
 import { AssistantWelcome } from "./shell/assistant-welcome";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
+import { useReplyDraft } from "./shell/reply-draft";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import { ConversationMenu } from "./shell/conversation-menu";
@@ -539,8 +540,9 @@ export function ShellPage({
     () => true,
   );
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
-  const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
-  const [replyQuote, setReplyQuote] = useState<string | null>(null);
+  const replyDraft = useReplyDraft(`${userId}:${selectedSpaceId()}:${groupId ?? botId ?? "main"}`);
+  const replyTarget = replyDraft.target;
+  const replyQuote = replyDraft.quote;
   const [sending, setSending] = useState(false);
   const sendingRef = useRef(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -1940,10 +1942,7 @@ export function ShellPage({
   // reply instead of failing the send.
   const activeReplyTarget = replyTarget;
   const activeReplyQuote = replyTarget ? replyQuote : null;
-  const clearReply = useCallback(() => {
-    setReplyTarget(null);
-    setReplyQuote(null);
-  }, []);
+  const clearReply = replyDraft.clear;
   const currentRuns = activeThreadRuns(activeSnapshot);
   const answerableAskMessageId = latestAnswerableAskMessageId(activeSnapshot);
   const workingRuns = currentRuns.filter((run) =>
@@ -2295,7 +2294,7 @@ export function ShellPage({
     ) => {
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
-      if ((!initialBotTarget && !initialGroupTarget) || sending) return false;
+      if ((!initialBotTarget && !initialGroupTarget) || sendingRef.current) return false;
       if (starter && initialBotTarget && !initialGroupTarget) {
         if (mentions.length || attachmentsForThread(pendingAttachments, initialBotTarget).length) {
           setSendError(t`Remove attachments and mentions before starting this task.`);
@@ -2311,6 +2310,7 @@ export function ShellPage({
         });
         return false;
       }
+      const submittedReply = replyDraft.current;
       const originThreadKey = initialGroupTarget ?? initialBotTarget;
       const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
       const plan = resolveComposerSendPlan({
@@ -2359,10 +2359,10 @@ export function ShellPage({
         }
         if (!plan.shouldSend) {
           dropDelayedSetup();
-          clearReply();
+          replyDraft.settle(submittedReply);
           revokePendingAttachmentPreviews(attachments);
           setPendingAttachments((current) =>
-            current.filter((attachment) => attachment.threadKey !== originThreadKey),
+            current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
           );
           setAttachmentNotice(null);
           if (reroutedToGroup && groupTarget) {
@@ -2427,10 +2427,10 @@ export function ShellPage({
           }
         }
         dropDelayedSetup();
-        clearReply();
+        replyDraft.settle(submittedReply);
         revokePendingAttachmentPreviews(attachments);
         setPendingAttachments((current) =>
-          current.filter((attachment) => attachment.threadKey !== originThreadKey),
+          current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
         );
         // Refresh sidebar status even when a bot→group reroute navigates away below.
         void refreshBots().catch(() => undefined);
@@ -2460,7 +2460,8 @@ export function ShellPage({
     [
       activeReplyTarget?.id,
       activeReplyQuote,
-      clearReply,
+      replyDraft.current,
+      replyDraft.settle,
       flushPendingBrowserNotifications,
       navigate,
       pendingAttachments,
@@ -4131,12 +4132,10 @@ export function ShellPage({
                 onOpenBot={openBot}
                 onAnswer={answerMessage}
                 onReply={(message) => {
-                  setReplyTarget(message);
-                  setReplyQuote(null);
+                  replyDraft.select(message);
                 }}
                 onQuote={(message, quote) => {
-                  setReplyTarget(message);
-                  setReplyQuote(quote);
+                  replyDraft.select(message, quote);
                 }}
                 onReact={reactToMessage}
                 onJumpToMessage={jumpToReplyMessage}

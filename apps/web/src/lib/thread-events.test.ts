@@ -481,7 +481,7 @@ describe("thread event reduction", () => {
   });
 
   it("event-sources the active run on run.started so Stop does not wait on threads.get", () => {
-    const initial = snapshot([]);
+    const initial = { ...snapshot([]), cursor: 2 };
     const started = reduceThreadSnapshot(
       initial,
       event({
