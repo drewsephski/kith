@@ -38,7 +38,7 @@ if [[ "$*" == *"_NET_SUPPORTING_WM_CHECK"* ]]; then
   count=0
   [[ -f "$WM_FIXTURE/count" ]] && count=$(cat "$WM_FIXTURE/count")
   echo $((count+1)) > "$WM_FIXTURE/count"
-  if ((count < 2)); then echo 'no such atom'; else echo 'window id # 0x123'; fi
+  if ((count < 2)); then echo 'no such atom' >&2; exit 1; else echo 'window id # 0x123'; fi
 elif [[ "$*" == *"_NET_WM_NAME"* ]]; then echo 'Openbox'
 else echo '_NET_WM_STATE_HIDDEN'; fi`,
     `

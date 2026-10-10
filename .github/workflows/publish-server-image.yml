@@ -46,20 +46,17 @@ jobs:
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
-    outputs:
-      edge: ${{ steps.source.outputs.edge }}
     steps:
-      - name: Verify exact successful main CI and promotion order
+      - name: Verify latest main CI for the exact source
         id: source
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SOURCE_SHA}&event=push" \
+          # A newer failed or incomplete rerun must not borrow an older success.
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SOURCE_SHA}&event=push&branch=main" \
             --jq '.workflow_runs[0] | .status == "completed" and .conclusion == "success"' | grep -Fx true
-          head="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
-          echo "edge=$([[ "$SOURCE_SHA" == "$head" && "$GITHUB_REF_TYPE" != tag ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   installer-smoke:
     name: Compose installer smokes
@@ -202,6 +199,10 @@ jobs:
     name: Publish ${{ matrix.name }} image
     if: github.event_name != 'pull_request'
     needs: [tested-source, build]
+    # Serialize mutable tag writes even when tag/manual runs use different refs.
+    concurrency:
+      group: image-promotion-${{ matrix.name }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -238,13 +239,13 @@ jobs:
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}}
             type=raw,value=sha-${{ env.SOURCE_SHA }}
-            type=raw,value=edge,enable=${{ needs.tested-source.outputs.edge == 'true' }}
             # Stable releases only: a hyphen marks a prerelease (v1.0.0-rc.1) that must not move latest.
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-') }}
       - name: Assemble and verify the multi-arch manifest
         id: manifest
         working-directory: /tmp/digests
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.name }}
           TAGS: ${{ steps.meta.outputs.tags }}
         run: |
@@ -260,6 +261,13 @@ jobs:
           if [[ "${#sources[@]}" -ne 2 ]]; then
             echo "Expected one digest per architecture, found ${#sources[@]}." >&2
             exit 1
+          fi
+          # Eligibility can change during the architecture builds or queue wait.
+          # Check it inside the serialized publish job, immediately before writing.
+          if [[ "$GITHUB_REF_TYPE" != tag ]]; then
+            head="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')"
+            [[ "$head" =~ ^[0-9a-f]{40}$ ]]
+            if [[ "$SOURCE_SHA" == "$head" ]]; then tag_args+=(-t "${IMAGE}:edge"); fi
           fi
           docker buildx imagetools create "${tag_args[@]}" "${sources[@]}"
 

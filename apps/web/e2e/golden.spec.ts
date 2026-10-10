@@ -468,7 +468,7 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
 
-  const chief = page.getByRole("button", { name: /Kith/ }).first();
+  const chief = sidebarBotButton(page, /^Kith$/);
   await chief.click({ button: "right" });
   await expect(page.getByRole("menu", { name: "Actions for Kith" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Edit Profile" })).toBeVisible();
@@ -492,7 +492,7 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await expect(page.getByText("Kith copy").first()).toBeVisible();
   await captureScreenshot(page, testInfo, "17-pinned-and-duplicated-bot");
 
-  const copy = page.getByRole("button", { name: /Kith copy/ }).first();
+  const copy = sidebarBotButton(page, /^Kith copy$/);
   await copy.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("alertdialog", { name: "Delete Kith copy?" })).toBeVisible();

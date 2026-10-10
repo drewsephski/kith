@@ -2,7 +2,9 @@ import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 
 const expected = process.argv[2];
 if (!/^[0-9a-f]{40}$/.test(expected ?? "")) throw new Error("Expected an exact source SHA");
-const health = await fetch("http://127.0.0.1:3100/internal/health").then((response) => {
+const health = await fetch("http://127.0.0.1:3100/internal/health", {
+  signal: AbortSignal.timeout(10_000),
+}).then((response) => {
   if (!response.ok) throw new Error("Internal API health unavailable");
   return response.json();
 });

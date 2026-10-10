@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -11,11 +13,18 @@ interface WorkflowJob {
   if?: string;
   needs?: string | string[];
   "runs-on"?: string;
+  concurrency?: { group: string; "cancel-in-progress": boolean };
+  steps?: Array<{ name?: string; run?: string }>;
   strategy?: { matrix?: { arch?: string[]; include?: Array<Record<string, string>> } };
 }
 
 const workflow = parse(workflowText) as {
-  jobs: { validate: WorkflowJob; build: WorkflowJob; publish: WorkflowJob };
+  jobs: {
+    "tested-source": WorkflowJob;
+    validate: WorkflowJob;
+    build: WorkflowJob;
+    publish: WorkflowJob;
+  };
 };
 
 describe("server image publish workflow", () => {
@@ -35,6 +44,11 @@ describe("server image publish workflow", () => {
   it("publishes one verified multi-arch manifest per image after both builds", () => {
     const publish = workflow.jobs.publish;
     expect(publish.needs).toEqual(["tested-source", "build"]);
+    expect(publish.concurrency).toEqual({
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: This is a GitHub Actions expression.
+      group: "image-promotion-${{ matrix.name }}",
+      "cancel-in-progress": false,
+    });
     expect(workflow.jobs.build.needs).toBe("tested-source");
     expect(workflowText).toContain("event=push");
     expect(workflowText).toContain('.conclusion == "success"');
@@ -42,6 +56,56 @@ describe("server image publish workflow", () => {
     expect(workflowText).toContain("docker buildx imagetools create");
     expect(workflowText).toContain("for want in linux/amd64 linux/arm64");
     expect(workflowText).toContain("actions/attest-build-provenance@");
+  });
+
+  it("checks main again at publication and cannot restore edge from a stale source", () => {
+    const step = workflow.jobs.publish.steps?.find(
+      (step) => step.name === "Assemble and verify the multi-arch manifest",
+    );
+    const source = "a".repeat(40);
+    for (const [head, refType, edge] of [
+      [source, "branch", true],
+      ["b".repeat(40), "branch", false],
+      [source, "tag", false],
+    ] as const) {
+      const f = publicationFixture();
+      try {
+        const result = f.run(step?.run, {
+          HEAD_SHA: head,
+          SOURCE_SHA: source,
+          GITHUB_REF_TYPE: refType,
+        });
+        expect(result.status, result.stderr).toBe(0);
+        const commands = readFileSync(f.log, "utf8");
+        expect(commands.includes("-t ghcr.io/example/app:edge")).toBe(edge);
+        expect(commands).toContain("-t ghcr.io/example/app:sha-fixture");
+        expect(commands).toContain("ghcr.io/example/app@sha256:");
+      } finally {
+        f.close();
+      }
+    }
+  });
+
+  it("does not borrow an older CI success after the latest main run fails", () => {
+    const step = workflow.jobs["tested-source"].steps?.[0];
+    for (const conclusion of ["success", "failure"]) {
+      const f = publicationFixture();
+      try {
+        const result = f.run(step?.run, {
+          SOURCE_SHA: "a".repeat(40),
+          CI_RUNS: JSON.stringify({
+            workflow_runs: [
+              { status: "completed", conclusion },
+              { status: "completed", conclusion: "success" },
+            ],
+          }),
+        });
+        expect(result.status === 0, result.stderr).toBe(conclusion === "success");
+        expect(readFileSync(f.ghLog, "utf8")).toContain("&branch=main");
+      } finally {
+        f.close();
+      }
+    }
   });
 
   it("keeps pull requests read-only and every action pinned to a commit", () => {
@@ -57,3 +121,51 @@ describe("server image publish workflow", () => {
     }
   });
 });
+
+function publicationFixture() {
+  const directory = mkdtempSync(path.join(tmpdir(), "image-promotion-"));
+  const bin = path.join(directory, "bin");
+  const digests = path.join(directory, "digests");
+  mkdirSync(bin);
+  mkdirSync(digests);
+  for (const hash of ["c", "d"]) writeFileSync(path.join(digests, hash.repeat(64)), "");
+  const log = path.join(directory, "docker.log");
+  const ghLog = path.join(directory, "gh.log");
+  const scripts = {
+    gh: `echo "$*" >> "$GH_LOG"
+if [[ "$*" == *workflows/ci.yml/runs* ]]; then printf '%s' "$CI_RUNS" | jq -r "\${@: -1}"
+else echo "$HEAD_SHA"; fi`,
+    docker: `echo "$*" >> "$DOCKER_LOG"
+if [[ "$*" == *inspect* && "$*" == *Platform.OS* ]]; then printf 'linux/amd64\\nlinux/arm64\\n'
+elif [[ "$*" == *inspect* ]]; then echo sha256:fixture; fi`,
+  };
+  for (const [name, body] of Object.entries(scripts)) {
+    const file = path.join(bin, name);
+    writeFileSync(file, `#!/bin/bash\n${body}\n`);
+    chmodSync(file, 0o755);
+  }
+  return {
+    log,
+    ghLog,
+    run(script: string | undefined, overrides: Record<string, string>) {
+      expect(script).toBeDefined();
+      return spawnSync("bash", ["-c", script!], {
+        cwd: digests,
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          GITHUB_REPOSITORY: "example/project",
+          GITHUB_OUTPUT: path.join(directory, "outputs"),
+          IMAGE: "ghcr.io/example/app",
+          TAGS: "ghcr.io/example/app:sha-fixture",
+          DOCKER_LOG: log,
+          GH_LOG: ghLog,
+          ...overrides,
+        },
+        encoding: "utf8",
+        timeout: 10000,
+      });
+    },
+    close: () => rmSync(directory, { recursive: true, force: true }),
+  };
+}

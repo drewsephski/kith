@@ -23,7 +23,7 @@ for ((attempt = 0; attempt < 100; attempt++)); do
     echo "Openbox exited before becoming ready." >&2
     exit 1
   fi
-  wm_window="$(xprop -root _NET_SUPPORTING_WM_CHECK | sed -nE 's/.*window id # (0x[0-9a-f]+).*/\1/p')"
+  wm_window="$(xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | sed -nE 's/.*window id # (0x[0-9a-f]+).*/\1/p')" || wm_window=""
   if [[ -n "$wm_window" && "$wm_window" != "0x0" ]] &&
     xprop -id "$wm_window" _NET_WM_NAME | grep -Fq Openbox &&
     xprop -root _NET_SUPPORTED | grep -Fq _NET_WM_STATE_HIDDEN; then

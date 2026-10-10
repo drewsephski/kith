@@ -44,7 +44,13 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
       return heights;
     });
     await expect(stream).toBeHidden();
-    expect(heights.at(-1)).toBe(0);
+    await expect
+      .poll(() =>
+        advanced
+          .locator('[data-slot="collapsible-content"]')
+          .evaluate((panel) => panel.getBoundingClientRect().height),
+      )
+      .toBe(0);
     if (reducedMotion === "no-preference") {
       expect(heights.some((height) => height > 0 && height < heights[0]!)).toBe(true);
     } else {

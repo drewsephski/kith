@@ -15,6 +15,7 @@ describe("hosted deployment gates", () => {
         "--test",
         "scripts/verify-deployment-gates.test.mjs",
         "scripts/with-linux-window-manager.test.mjs",
+        "scripts/deploy-hosted.test.mjs",
       ],
       {
         cwd: repoRoot,

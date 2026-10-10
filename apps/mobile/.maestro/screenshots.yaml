@@ -97,9 +97,10 @@ tags:
     timeout: 60000
 - takeScreenshot: "11b-all-providers"
 - tapOn: "Show less"
-- extendedWaitUntil:
-    visible: "Show more"
-    timeout: 10000
+- scrollUntilVisible:
+    element: "Show more"
+    direction: UP
+    timeout: 60000
 
 - openLink: "rakazo:///voice"
 - extendedWaitUntil:
