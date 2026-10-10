@@ -480,6 +480,7 @@ export class RestTaskPlatform implements TaskPlatform {
     const end = z.iso.datetime({ offset: true }).parse(input.timeMax);
     if (Date.parse(end) <= Date.parse(start) || Date.parse(end) - Date.parse(start) > 8 * 86400_000)
       throw new Error("Choose a meeting window of at most eight days");
+<<<<<<< Updated upstream
     const maxMeetings = z
       .number()
       .int()
@@ -492,10 +493,15 @@ export class RestTaskPlatform implements TaskPlatform {
       .min(1)
       .max(100)
       .parse(input.maxCalendars ?? 100);
+=======
+    const maxMeetings = z.number().int().min(1).max(300).parse(input.maxMeetings ?? 300);
+    const maxCalendars = z.number().int().min(1).max(100).parse(input.maxCalendars ?? 100);
+    const maxPages = z.number().int().min(1).max(MAX_PAGES).parse(input.maxPages ?? MAX_PAGES);
+>>>>>>> Stashed changes
     const calendars: Record<string, unknown>[] = [];
     let cursor = "";
     let complete = false;
-    for (let page = 0; page < MAX_PAGES; page++) {
+    for (let page = 0; page < maxPages; page++) {
       const response = await this.request(
         input.connection,
         url("https://www.googleapis.com", "/calendar/v3/users/me/calendarList", {
@@ -516,7 +522,7 @@ export class RestTaskPlatform implements TaskPlatform {
     for (const calendar of calendars.slice(0, maxCalendars)) {
       cursor = "";
       let calendarComplete = false;
-      for (let page = 0; page < MAX_PAGES; page++) {
+      for (let page = 0; page < maxPages; page++) {
         const response = await this.request(
           input.connection,
           url(

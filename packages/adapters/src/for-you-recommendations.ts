@@ -244,6 +244,7 @@ export class ForYouRecommendations {
           timeMax: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
           maxMeetings: 12,
           maxCalendars: 2,
+            maxPages: 1,
         },
         context,
       );
@@ -339,6 +340,7 @@ export class ForYouRecommendations {
             timeMax: new Date(now.getTime() + 48 * 60 * 60_000).toISOString(),
             maxMeetings: 12,
             maxCalendars: 2,
+            maxPages: 1,
           },
           context,
         );

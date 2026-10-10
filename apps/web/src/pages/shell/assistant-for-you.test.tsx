@@ -144,7 +144,11 @@ it("shows conversation follow-ups without depending on connected services, and o
   vi.useFakeTimers();
   suggestions.mockResolvedValue(followUps);
   await renderConversation();
+<<<<<<< Updated upstream
   expect(container.textContent).toBe("");
+=======
+  expect(container.childElementCount).toBe(0);
+>>>>>>> Stashed changes
   await act(async () => vi.advanceTimersByTimeAsync(350));
   expect(container.textContent).toContain("Compare milestone options");
   expect(container.textContent).not.toContain("Draft important replies");
@@ -190,15 +194,27 @@ it("ignores late results after a thread or space switch", async () => {
   expect(container.childElementCount).toBe(0);
 });
 
+<<<<<<< Updated upstream
 it("keeps the grounded follow-up surface empty on failure or an empty result", async () => {
+=======
+it("preserves abstention and hides failed follow-ups without generic fallback", async () => {
+>>>>>>> Stashed changes
   vi.useFakeTimers();
   suggestions.mockRejectedValue(new Error("Offline"));
   await renderConversation();
   await act(async () => vi.advanceTimersByTimeAsync(350));
+<<<<<<< Updated upstream
   expect(container.textContent).toBe("");
   expect(onSuggest).not.toHaveBeenCalled();
   suggestions.mockResolvedValue([]);
   await renderConversation("reply-2");
   await act(async () => vi.advanceTimersByTimeAsync(350));
   expect(container.textContent).toBe("");
+=======
+  expect(container.childElementCount).toBe(0);
+  suggestions.mockResolvedValue([]);
+  await renderConversation("reply-2");
+  await act(async () => vi.advanceTimersByTimeAsync(350));
+  expect(container.childElementCount).toBe(0);
+>>>>>>> Stashed changes
 });

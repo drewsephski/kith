@@ -1,4 +1,5 @@
-import type { Connection, ConnectionCatalogItem } from "@rakazo/contracts";
+import { useForYouRecommendations } from "@rakazo/chat-ui/suggestions";
+import type { Connection, ConnectionCatalogItem, ForYouDiscovery } from "@rakazo/contracts";
 import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
   availableForYouSuggestions,
@@ -10,10 +11,11 @@ import {
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { ConnectorIcon } from "../components/connector-icon";
 import { MenuPicker } from "../components/menu-picker";
 import { ScrollView } from "../components/minimal-scroll";
+import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import type { MobileMe } from "../lib/api";
 import { currentApiBase, rpc, selectedSpaceId } from "../lib/api";
@@ -21,6 +23,14 @@ import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens, useThemedStyles } from "../lib/native";
 import { currentSessionGeneration } from "../lib/session";
 import { errorText } from "../lib/user-error";
+
+const loadRecommendations = (assistantId: string, signal: AbortSignal) =>
+  rpc<ForYouDiscovery>("forYou/discover", { assistantId }, { signal, timeoutMs: 25_000 });
+const dismissRecommendation = (
+  assistantId: string,
+  recommendationId: string,
+  action: "dismiss" | "snooze",
+) => rpc("forYou/dismiss", { assistantId, recommendationId, action });
 
 export default function ForYou() {
   const { t } = useI18n();
@@ -35,6 +45,7 @@ export default function ForYou() {
     spaceId: string | null;
     session: number;
     services: ConnectedAppService[];
+    assistantId?: string;
   } | null>(null);
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +56,8 @@ export default function ForYou() {
       void Promise.allSettled([
         rpc<Connection[]>("connections/list"),
         rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
-      ]).then(([accounts, catalog]) => {
+        rpc<{ botId: string }>("assistant/get"),
+      ]).then(([accounts, catalog, assistant]) => {
         if (!active || selectedSpaceId() !== spaceId || currentSessionGeneration() !== session)
           return;
         const services = connectedAppServices(
@@ -56,6 +68,7 @@ export default function ForYou() {
           spaceId,
           session,
           services,
+          assistantId: assistant.status === "fulfilled" ? assistant.value.botId : undefined,
         });
       });
       return () => {
@@ -67,6 +80,12 @@ export default function ForYou() {
     context?.spaceId === selectedSpaceId() && context.session === currentSessionGeneration()
       ? context
       : null;
+  const discovery = useForYouRecommendations({
+    scopeKey: `${currentApiBase()}:${selectedSpaceId()}:${currentSessionGeneration()}`,
+    assistantId: currentContext?.assistantId,
+    load: loadRecommendations,
+    dismiss: dismissRecommendation,
+  });
   const services = currentContext?.services ?? [];
   const choices = [
     { key: "all", label: t("All") },
@@ -152,6 +171,86 @@ export default function ForYou() {
           <Text accessibilityRole="alert" style={[styles.error, { color: tokens.destructive }]}>
             {error}
           </Text>
+        ) : null}
+        {currentContext?.assistantId ? (
+          <View style={styles.group}>
+            <Text accessibilityRole="header" style={styles.heading}>
+              {t("Recommended")}
+            </Text>
+            <NativeActionButton
+              label={t("Refresh")}
+              disabled={busy || discovery.loading}
+              onPress={discovery.refresh}
+            />
+            {discovery.loading ? (
+              <ActivityIndicator accessibilityLabel={t("Checking your sources…")} />
+            ) : discovery.unavailable ? (
+              <Text style={styles.description}>
+                {t("Some sources are unavailable. Try refreshing.")}
+              </Text>
+            ) : !discovery.recommendations.length ? (
+              <Text style={styles.description}>{t("No grounded recommendations right now.")}</Text>
+            ) : null}
+            {discovery.recommendations.map((recommendation) => (
+              <View key={recommendation.id} style={styles.group}>
+                <NativeActionButton
+                  label={recommendation.title}
+                  disabled={busy}
+                  onPress={() =>
+                    void select({
+                      id: recommendation.id,
+                      title: recommendation.title,
+                      description: recommendation.description,
+                      category: "tasks",
+                      group: "Recommended",
+                      prompt: "",
+                      recommendation,
+                    })
+                  }
+                />
+                <Text style={styles.description}>{recommendation.description}</Text>
+                {recommendation.startsAt ? (
+                  <Text style={styles.description}>
+                    {new Date(recommendation.startsAt).toLocaleString()}
+                  </Text>
+                ) : null}
+                {recommendation.sources.map((source) =>
+                  source.url ? (
+                    <NativeActionButton
+                      key={source.id}
+                      label={source.title}
+                      onPress={() => void Linking.openURL(source.url!)}
+                    />
+                  ) : (
+                    <Text key={source.id} style={styles.description}>
+                      {source.title}
+                    </Text>
+                  ),
+                )}
+                <Text style={styles.description}>
+                  {new Date(recommendation.discoveredAt).toLocaleTimeString()}
+                </Text>
+                <NativeActionButton
+                  label={t("Tomorrow")}
+                  disabled={busy}
+                  onPress={() =>
+                    void discovery
+                      .dismiss(recommendation.id, "snooze")
+                      .catch(() => setError(t("Could not update this recommendation. Try again.")))
+                  }
+                />
+                <NativeActionButton
+                  label={t("Dismiss")}
+                  disabled={busy}
+                  onPress={() =>
+                    void discovery
+                      .dismiss(recommendation.id, "dismiss")
+                      .catch(() => setError(t("Could not update this recommendation. Try again.")))
+                  }
+                />
+              </View>
+            ))}
+          </View>
         ) : null}
         {services.length ? (
           <View style={styles.group}>

@@ -91,6 +91,7 @@ beforeEach(() => {
   state.rpc.mockImplementation(async (proc: string) => {
     if (proc === "me") return { userId: "user-one", spaceId: "space-one" };
     if (proc === "assistant/get") return { botId: "assistant-one" };
+    if (proc === "forYou/discover") return { recommendations: [], unavailable: false };
     if (proc === "runs/list") return { runs: [] };
     if (proc === "bots/launchForYou") return { id: "child-one" };
     return [];

@@ -25,7 +25,11 @@ describe("describeToolActivity", () => {
       }),
     ).toBe("Working across connected apps");
   });
+<<<<<<< Updated upstream
   it("names builtin operations without exposing their arguments", () => {
+=======
+  it("names builtin operations without echoing private arguments", () => {
+>>>>>>> Stashed changes
     expect(describeToolActivity("shell", { command: "pnpm test --filter web" })).toBe(
       "Running a command…",
     );
@@ -61,6 +65,10 @@ describe("describeToolActivity", () => {
     expect(line).not.toContain(long);
     expect(line).toContain("…");
     expect(line).not.toContain("\n");
+<<<<<<< Updated upstream
+=======
+    expect(line).toBe("Running a command…");
+>>>>>>> Stashed changes
   });
 
   it("redacts credentials from activity details", () => {
@@ -70,8 +78,11 @@ describe("describeToolActivity", () => {
     });
 
     expect(line).toBe("Running a command…");
+<<<<<<< Updated upstream
     expect(line).not.toContain("Authorization");
     expect(line).not.toContain("api_key");
+=======
+>>>>>>> Stashed changes
     expect(line).not.toContain(token);
     expect(line).not.toContain("fake-key");
     expect(line).not.toContain("fake-password");

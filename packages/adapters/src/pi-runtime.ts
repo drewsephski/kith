@@ -927,7 +927,6 @@ export function normalizeAgentToolName(name: string): string {
  * Existing valid names are reserved first so sanitizing a connector cannot
  * rename or shadow a builtin tool with the same valid name.
  */
-const ACTIVITY_DETAIL_LIMIT = 90;
 
 /** One human-readable line describing a tool call, shown live in the thread. */
 export function describeToolActivity(toolName: string, args: unknown): string {
@@ -2216,7 +2215,6 @@ function sanitizeSensitiveText(message: string) {
     .replace(/((?:auth|authorization)\s*[=:]\s*)(?!Bearer\b)[^\s"',;&]+/gi, "$1[redacted]");
 }
 
-/** Origin + path only for activity chips; drop userinfo, query, and fragment. */
 function redactActivityUrl(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return raw;
