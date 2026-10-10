@@ -2860,6 +2860,17 @@ export function ShellPage({
   }, []);
 
   useEffect(() => {
+    return desktopBridge()?.commands?.onCommand((command) => {
+      if (command === "settings") openSettings("general");
+      else {
+        setSettingsOpen(false);
+        setCommandPaletteOpen(false);
+        void newConversation();
+      }
+    });
+  });
+
+  useEffect(() => {
     const heartbeatBotId = computerBot?.id ?? active?.id;
     if ((panel !== "computer" && !computerOpen) || !heartbeatBotId || computer?.state !== "running")
       return;

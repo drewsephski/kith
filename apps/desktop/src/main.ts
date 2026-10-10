@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { DesktopReachability, DesktopSetup } from "@rakazo/contracts";
 import { LOCAL_SETTINGS_PAGE } from "@rakazo/contracts/local-settings";
+import type { Session } from "electron";
 import {
   app,
   BrowserWindow,
@@ -12,7 +13,6 @@ import {
   ipcMain,
   Menu,
   net,
-  type Session,
   screen,
   session,
   shell,
@@ -20,11 +20,8 @@ import {
 import type { AppDocumentState } from "./app-document-state.js";
 import { APP_DOCUMENT_STATE_SCRIPT } from "./app-document-state.js";
 import { createAppOpener } from "./app-opener.js";
-import {
-  DesktopUpdateController,
-  type ElectronAutoUpdater,
-  LAUNCH_CHECK_DELAY_MS,
-} from "./auto-update.js";
+import type { ElectronAutoUpdater } from "./auto-update.js";
+import { DesktopUpdateController, LAUNCH_CHECK_DELAY_MS } from "./auto-update.js";
 import { openBrowserAuth } from "./browser-auth.js";
 import { DOCKER_INSTALL_LINKS, isDesktopSetupLink, runDocker } from "./docker-cli.js";
 import { requestLocalSettings } from "./local-settings.js";
@@ -57,6 +54,7 @@ import {
   parseSetupInput,
   probeFailureMessage,
   readProbeJson,
+  releaseUpdatesEnabled,
   resolveStartupTarget,
   SERVICE_CONFIG_FILE_NAME,
   safeExternalUrl,
@@ -91,6 +89,7 @@ let currentTargetUrl: string | null = null;
 let setupError: string | null = null;
 let setupSaveInProgress = false;
 let serviceUrl: string | null = null;
+let connecting = false;
 const appOpener = createAppOpener(openAppOnce);
 /** Prior app window kept until setup is persisted (or the switch is abandoned). */
 let pendingPreviousWindow: BrowserWindow | null = null;
@@ -106,7 +105,18 @@ const updaterEnvironment = {
   packaged: app.isPackaged,
   version: app.getVersion(),
   disabled: process.env.RAKAZO_DISABLE_AUTO_UPDATE === "1",
+  releaseBuild: bundledReleaseUpdatesEnabled(),
 };
+
+function bundledReleaseUpdatesEnabled() {
+  try {
+    return releaseUpdatesEnabled(
+      readFileSync(path.join(import.meta.dirname, SERVICE_CONFIG_FILE_NAME), "utf8"),
+    );
+  } catch {
+    return false;
+  }
+}
 const desktopUpdater = new DesktopUpdateController(
   updaterEnvironment,
   async () => {
@@ -128,10 +138,16 @@ const preservedUserData = app.isPackaged
   : app.getPath("userData");
 app.setName("Kith");
 if (!PERFORMANCE_USER_DATA) app.setPath("userData", preservedUserData);
-function toggleQuickAsk() {
+async function toggleQuickAsk() {
+  if (setupWindow || appOpener.busy()) return;
+  if ((!mainWindow || mainWindow.isDestroyed()) && currentTargetUrl) {
+    if (!(await appOpener.open(currentTargetUrl))) return;
+    commitPendingAppSwitch();
+  }
   const win = mainWindow;
   if (!win || win.isDestroyed()) return;
-  if (quickAsk.active()) quickAsk.leave(win, true);
+  if (quickAsk.active())
+    quickAsk.leave(win, true, (bounds) => screen.getDisplayMatching(bounds).workArea);
   else quickAsk.enter(win, screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea);
 }
 markOnce("rk:main:module-evaluated");
@@ -139,6 +155,13 @@ if (PERFORMANCE_USER_DATA) {
   app.setPath("userData", PERFORMANCE_USER_DATA);
   app.setPath("sessionData", path.join(PERFORMANCE_USER_DATA, "session"));
 }
+// Acquire after choosing the profile, so isolated acceptance profiles remain independent.
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
+app.on("second-instance", () => {
+  if (app.isReady()) app.emit("activate");
+  else app.once("ready", () => app.emit("activate"));
+});
 app.once("will-finish-launching", () => markOnce("rk:main:will-finish-launching"));
 app.once("ready", () => markOnce("rk:main:ready"));
 // Includes fresh partitions and popup-created sessions, before they load remote content.
@@ -242,6 +265,9 @@ async function defaultSessionHasOriginData(origin: string): Promise<boolean> {
   // Increment only after construction succeeds so a throw cannot leave the
   // counter stuck > 0 and permanently block quit on Windows/Linux.
   liveProbeWindows++;
+  const timeout = setTimeout(() => {
+    if (!probe.isDestroyed()) probe.destroy();
+  }, PROBE_TIMEOUT_MS);
   try {
     await probe.loadURL(origin);
     return (await probe.webContents.executeJavaScript(`(async () => {
@@ -263,6 +289,7 @@ async function defaultSessionHasOriginData(origin: string): Promise<boolean> {
   } catch {
     return false;
   } finally {
+    clearTimeout(timeout);
     if (!probe.isDestroyed()) probe.destroy();
     liveProbeWindows--;
   }
@@ -273,6 +300,7 @@ function createWindow(url: string, partition: string | null) {
   const icon = developmentIcon();
   const win = new BrowserWindow({
     ...browserWindowOptions(process.platform),
+    show: false,
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(import.meta.dirname, "preload.cjs"),
@@ -338,7 +366,8 @@ function createWindow(url: string, partition: string | null) {
       process.env.RAKAZO_DISABLE_WARM_WINDOW !== "1"
     ) {
       event.preventDefault();
-      if (quickAsk.active()) quickAsk.leave(win, true);
+      if (quickAsk.active())
+        quickAsk.leave(win, true, (bounds) => screen.getDisplayMatching(bounds).workArea);
       else win.hide();
       clearTimeout(warmWindowTimer);
       warmWindowTimer = setTimeout(() => {
@@ -415,9 +444,14 @@ function loadAppUrl(win: BrowserWindow, url: string): Promise<AppDocumentState> 
 
   return new Promise<AppDocumentState>((resolve, reject) => {
     let settled = false;
+    const timeout = setTimeout(
+      () => settle(new Error("The server page did not become ready.")),
+      20_000,
+    );
     const settle = (error?: Error) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeout);
       contents.removeListener("did-fail-load", onFail);
       // Keep render-process-gone until document readiness finishes so a crash
       // during mount still fails the switch.
@@ -580,18 +614,22 @@ function createSetupWindow() {
     // Closing setup without saving restores a connected session (Change Server cancel).
     restoreAppWindowAfterSetup();
   });
-  void win.loadFile(path.join(import.meta.dirname, "setup.html"));
+  void win.loadFile(path.join(import.meta.dirname, "setup.html"), {
+    query: { connecting: connecting ? "1" : "0" },
+  });
   markOnce("rk:main:setup-window-created");
   return win;
 }
 
 /** Hide the app while setup is open; do not clear the saved target until a new one opens. */
 function showSetupWindow(error: string | null = null) {
+  const wasConnecting = connecting;
+  connecting = false;
   setupError = error;
 
   let win: BrowserWindow;
   if (setupWindow !== null && !setupWindow.isDestroyed()) {
-    if (error !== null) setupWindow.reload();
+    if (error !== null || wasConnecting) setupWindow.reload();
     win = setupWindow;
   } else {
     win = createSetupWindow();
@@ -689,21 +727,39 @@ function installApplicationMenu() {
   const ask: Electron.MenuItemConstructorOptions = {
     label: "Quick Ask",
     accelerator: "CmdOrCtrl+Shift+Space",
-    click: toggleQuickAsk,
+    click: () => void toggleQuickAsk(),
   };
   const localSettings: Electron.MenuItemConstructorOptions = {
     id: "local-server-settings",
     label: "Local Server Settings…",
-    accelerator: "CmdOrCtrl+,",
     click: () => {
       void showLocalSettings();
     },
+  };
+  const command = (value: "settings" | "new-conversation") => {
+    if (!mainWindow || mainWindow.isDestroyed() || setupWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send("desktop.command", value);
+  };
+  const settings: Electron.MenuItemConstructorOptions = {
+    label: "Settings…",
+    accelerator: "CmdOrCtrl+,",
+    click: () => command("settings"),
+  };
+  const newConversation: Electron.MenuItemConstructorOptions = {
+    label: "New Conversation",
+    accelerator: "CmdOrCtrl+N",
+    click: () => command("new-conversation"),
   };
   const changeServer: Electron.MenuItemConstructorOptions = {
     id: "change-rakazo-server",
     label: "Change Kith Server…",
     accelerator: "CmdOrCtrl+Shift+K",
-    click: () => showSetupWindow(),
+    click: () => {
+      if (!connecting && !appOpener.busy()) showSetupWindow();
+    },
   };
   const stopStack: Electron.MenuItemConstructorOptions = {
     id: "stop-local-stack",
@@ -722,9 +778,9 @@ function installApplicationMenu() {
               { role: "about" },
               { type: "separator" },
               ask,
-              localSettings,
-              changeServer,
-              stopStack,
+              settings,
+              newConversation,
+              { label: "Advanced", submenu: [localSettings, changeServer, stopStack] },
               { type: "separator" },
               { role: "hide" },
               { role: "hideOthers" },
@@ -741,9 +797,9 @@ function installApplicationMenu() {
             label: "File",
             submenu: [
               ask,
-              localSettings,
-              changeServer,
-              stopStack,
+              settings,
+              newConversation,
+              { label: "Advanced", submenu: [localSettings, changeServer, stopStack] },
               { type: "separator" },
               { role: "quit" },
             ],
@@ -876,6 +932,11 @@ async function openAppOnce(targetUrl: string, switching: boolean) {
       throw new Error("The server page did not become ready.");
     }
     currentTargetUrl = targetUrl;
+    win.show();
+    win.webContents.on("render-process-gone", () => {
+      if (mainWindow !== win || quitting || appOpener.busy() || setupSaveInProgress) return;
+      showSetupWindow("Kith stopped responding. Retry to reconnect. Your session is saved.");
+    });
     setupError = null;
     // Keep the previous window until the caller commits (after setup.json is written).
     pendingPreviousWindow =
@@ -946,6 +1007,7 @@ function watchRendererUntilCommitted(win: BrowserWindow) {
 }
 
 function destroySetupWindow() {
+  connecting = false;
   const setup = setupWindow;
   setupWindow = null;
   if (setup !== null && !setup.isDestroyed()) setup.destroy();
@@ -995,6 +1057,7 @@ function safeOrigin(targetUrl: string) {
 }
 
 app.whenReady().then(async () => {
+  if (!primaryInstance) return;
   installSessionPermissions(session.defaultSession, permissionTarget);
   const userDataDir = app.getPath("userData");
   localStack = new LocalStackController({
@@ -1053,13 +1116,15 @@ app.whenReady().then(async () => {
   const icon = developmentIcon();
   if (process.platform === "darwin" && icon) app.dock?.setIcon(icon);
   installApplicationMenu();
-  globalShortcut.register("CommandOrControl+Shift+Space", toggleQuickAsk);
+  globalShortcut.register("CommandOrControl+Shift+Space", () => void toggleQuickAsk());
   ipcMain.handle("desktop.quickAsk.state", (event) => fromMainWindow(event) && quickAsk.active());
   ipcMain.handle("desktop.quickAsk.expand", (event) => {
-    if (fromMainWindow(event) && mainWindow) quickAsk.leave(mainWindow);
+    if (fromMainWindow(event) && mainWindow)
+      quickAsk.leave(mainWindow, false, (bounds) => screen.getDisplayMatching(bounds).workArea);
   });
   ipcMain.handle("desktop.quickAsk.dismiss", (event) => {
-    if (fromMainWindow(event) && mainWindow) quickAsk.leave(mainWindow, true);
+    if (fromMainWindow(event) && mainWindow)
+      quickAsk.leave(mainWindow, true, (bounds) => screen.getDisplayMatching(bounds).workArea);
   });
   const browserAuthAttempts = new Map<string, AbortController>();
   const cancelBrowserAuth = () => {
@@ -1186,6 +1251,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("desktop.setup.state", (event) => {
     if (!fromSetupWindow(event)) return null;
     return {
+      connecting,
       defaultLocalUrl: localStack.webUrl(),
       serviceUrl: serviceUrl ?? undefined,
       saved: currentSetup,
@@ -1311,6 +1377,7 @@ app.whenReady().then(async () => {
     }
     if (mainWindow !== null && !mainWindow.isDestroyed()) {
       clearTimeout(warmWindowTimer);
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
       return;
@@ -1342,6 +1409,10 @@ app.whenReady().then(async () => {
         showSetupWindow();
       }
     } else {
+      if (target.url === serviceUrl) {
+        connecting = true;
+        createSetupWindow();
+      }
       const reachability = await probeServer(target.url);
       if (reachability.ok) {
         if (await appOpener.open(target.url)) {
@@ -1353,6 +1424,8 @@ app.whenReady().then(async () => {
       }
     }
   } else if (target.source === "service") {
+    connecting = true;
+    createSetupWindow();
     const reachability = await probeServer(target.url);
     if (reachability.ok) {
       if (await appOpener.open(target.url)) {

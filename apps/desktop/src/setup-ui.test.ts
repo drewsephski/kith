@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const source = readFileSync(path.join(import.meta.dirname, "setup.js"), "utf8");
 
-function setupScreen(state: DesktopSetupState) {
+function setupScreen(state: DesktopSetupState, search = "") {
   const elements = new Map<string, Element>();
   const radios: Element[] = [];
   class Element {
@@ -64,12 +64,15 @@ function setupScreen(state: DesktopSetupState) {
     },
   };
   runInNewContext(source, {
-    window: { rakazoSetup: bridge },
+    window: { rakazoSetup: bridge, location: { search } },
+    URLSearchParams,
     document: {
       documentElement: { dataset: {} },
       getElementById: element,
       querySelector: (selector: string) =>
-        radios.find((radio) => selector.includes(`value="${radio.value}"`)) ?? null,
+        selector === "h1"
+          ? element("heading")
+          : (radios.find((radio) => selector.includes(`value="${radio.value}"`)) ?? null),
     },
     HTMLInputElement: Element,
     HTMLElement: Element,
@@ -85,6 +88,38 @@ describe("desktop service setup", () => {
     saved: null,
   };
 
+  it("reveals retry after a connecting document reloads into recovery", async () => {
+    const { element } = setupScreen(
+      { ...defaults, error: "Offline", connecting: false },
+      "?connecting=1",
+    );
+    await vi.waitFor(() => expect(element("continue").textContent).toBe("Retry"));
+    expect(element("setup").hidden).toBe(false);
+    expect(element("setup-description").hidden).toBe(false);
+  });
+
+  it("shows progress without infrastructure setup while the hosted app opens", async () => {
+    const { element } = setupScreen({ ...defaults, connecting: true });
+    await vi.waitFor(() => expect(element("setup").hidden).toBe(true));
+    expect(element("heading").textContent).toBe("Opening Kith…");
+  });
+  it("uses hosted retry for a saved hosted installation", async () => {
+    const { element, bridge } = setupScreen({
+      ...defaults,
+      saved: { mode: "existing", serverUrl: defaults.serviceUrl },
+      error: "Offline",
+    });
+    await vi.waitFor(() => expect(element("continue").textContent).toBe("Retry"));
+    expect(element("panel-existing").hidden).toBe(true);
+    element("setup").dispatch("submit");
+    await vi.waitFor(() =>
+      expect(bridge.save).toHaveBeenCalledWith({
+        mode: "existing",
+        serverUrl: defaults.serviceUrl,
+      }),
+    );
+    expect(bridge.stack.start).not.toHaveBeenCalled();
+  });
   it("retries the hosted service without requesting an address or starting Docker", async () => {
     const { element, bridge } = setupScreen(defaults);
     await vi.waitFor(() => expect(element("mode-hosted").checked).toBe(true));

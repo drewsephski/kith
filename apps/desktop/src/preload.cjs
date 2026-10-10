@@ -2,6 +2,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("rakazoDesktop", {
   platform: process.platform,
+  commands: {
+    onCommand: (listener) => {
+      const handler = (_event, command) => {
+        if (command === "settings" || command === "new-conversation") listener(command);
+      };
+      ipcRenderer.on("desktop.command", handler);
+      return () => ipcRenderer.off("desktop.command", handler);
+    },
+  },
   quickAsk: {
     state: () => ipcRenderer.invoke("desktop.quickAsk.state"),
     expand: () => ipcRenderer.invoke("desktop.quickAsk.expand"),

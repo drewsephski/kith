@@ -1,7 +1,7 @@
 {
   "name": "@rakazo/desktop",
   "productName": "Kith",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "license": "Apache-2.0",
   "type": "module",
   "main": "dist/main.js",
@@ -20,12 +20,14 @@
     "electron-updater": "6.8.9"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@playwright/test": "1.63.0",
     "@rakazo/ui-tokens": "workspace:*",
     "electron": "44.3.0",
     "electron-builder": "26.15.3",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "yaml": "2.9.0"
   },
   "build": {
     "appId": "dev.rakazo.desktop",
@@ -61,7 +63,11 @@
         "dmg",
         "zip"
       ],
-      "notarize": true
+      "notarize": true,
+      "hardenedRuntime": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Kith uses your microphone for dictation."
+      }
     },
     "win": {
       "icon": "assets/icon.ico",
@@ -75,7 +81,12 @@
       "icon": "assets/icon.png",
       "target": [
         "AppImage"
-      ]
+      ],
+      "desktop": {
+        "entry": {
+          "Name": "Kith"
+        }
+      }
     },
     "publish": [
       {
@@ -83,6 +94,8 @@
         "owner": "drewsephski",
         "repo": "kith"
       }
-    ]
-  }
+    ],
+    "artifactName": "Kith-${version}-${arch}.${ext}"
+  },
+  "description": "Kith, your personal assistant for desktop."
 }

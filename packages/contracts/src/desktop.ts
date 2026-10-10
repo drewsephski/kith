@@ -37,6 +37,10 @@ export interface RakazoDesktopOAuthCallback {
 }
 
 export interface RakazoDesktop {
+  /** Native menu intent only; no arbitrary navigation or privileged renderer requests. */
+  commands?: {
+    onCommand: (listener: (command: "settings" | "new-conversation") => void) => () => void;
+  };
   /** Only the isolated local settings window is authorized to call this bridge. */
   localSettings?: {
     request: (pathname: string, body: string) => Promise<{ status: number; body: string }>;
@@ -82,6 +86,7 @@ export interface DesktopSetup {
 }
 
 export interface DesktopSetupState {
+  connecting?: boolean;
   defaultLocalUrl: string;
   /** Public hosted service packaged into the release, when configured. */
   serviceUrl?: string;

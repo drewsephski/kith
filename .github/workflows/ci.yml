@@ -66,6 +66,14 @@ jobs:
           ENCRYPTION_KEY: ci-build-encryption-key-at-least-32-characters
       - name: Electron smoke
         run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts
+      - name: Package Linux acceptance executable
+        run: pnpm --filter @rakazo/desktop exec electron-builder --linux --dir --publish never
+      - name: Validate packaged resources
+        run: node apps/desktop/scripts/verify-package.mjs linux x64 fixture
+      - name: Packaged Electron acceptance
+        env:
+          RAKAZO_E2E_EXECUTABLE: out/linux-unpacked/rakazo
+        run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts packaged.spec.ts
       - name: Upload desktop setup screenshots
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

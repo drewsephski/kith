@@ -10,6 +10,19 @@ const workflow = readFileSync(
 const expression = (inner: string) => `\${{ ${inner} }}`;
 
 describe("desktop release workflow", () => {
+  it("selects the verified Kith universal bundle and requires acceptance before publication", () => {
+    expect(workflow).not.toContain("Rakazo.app");
+    expect(workflow).not.toContain('--title "Rakazo');
+    expect(workflow).toContain("verify-package.mjs mac universal");
+    expect(workflow).toContain("RAKAZO_RELEASE_BUILD:");
+    expect(workflow).toContain("verify-service.mjs");
+    expect(workflow).toContain("verify-artifacts.mjs");
+    expect(workflow).toContain("packaged.spec.ts");
+    expect(workflow).toContain("environment: desktop-release");
+    expect(workflow).toContain("vars.DESKTOP_ACCEPTANCE_SHA");
+    expect(workflow).toContain("Independently download and verify draft release assets");
+  });
+
   it("embeds only the configured public service origin for hosted distributions", () => {
     expect(workflow).toContain(`RAKAZO_SERVICE_URL: ${expression("vars.RAKAZO_SERVICE_URL")}`);
     expect(workflow).not.toContain("COMPOSIO_API_KEY");

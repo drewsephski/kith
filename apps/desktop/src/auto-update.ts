@@ -9,9 +9,13 @@ export interface UpdaterEnvironment {
   packaged: boolean;
   version: string;
   disabled?: boolean;
+  releaseBuild?: boolean;
 }
 
 export function updaterSupport(env: UpdaterEnvironment): { supported: boolean; reason: string } {
+  if (env.releaseBuild === false) {
+    return { supported: false, reason: "Automatic updates only run in a release build." };
+  }
   if (env.disabled === true) {
     return { supported: false, reason: "Automatic updates are turned off for this install." };
   }

@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs
 import { createServer, type RequestListener, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { type ElectronApplication, _electron as electron, expect, test } from "@playwright/test";
+import type { ElectronApplication } from "@playwright/test";
+import { _electron as electron, expect, test } from "@playwright/test";
 
 const APP_MARKER = "Local Kith stack ready";
 const IMAGE_TAG = "v9.9.9";
@@ -266,9 +267,8 @@ test("switching to Existing instance while the stack starts keeps that choice", 
   expect(app.windows()).toHaveLength(1);
 
   // Back on This computer, Continue starts (or re-follows) and opens the app.
-  await setup.getByRole("button", { name: "Use this computer" }).click();
   const appWindowPromise = app.waitForEvent("window");
-  await setup.locator("#continue").click();
+  await setup.getByRole("button", { name: "Use this computer" }).click();
   await expect((await appWindowPromise).getByText(APP_MARKER)).toBeVisible();
   await expect.poll(savedSetup).toEqual({ mode: "new", serverUrl });
 });
@@ -474,7 +474,7 @@ test("the native settings menu opens an isolated logged-out settings capability"
   app = await launch("ok");
   const setup = await app.firstWindow();
   const nextWindow = app.waitForEvent("window");
-  await setup.getByRole("button", { name: "Continue", exact: true }).click();
+  await setup.getByRole("button", { name: "Get started", exact: true }).click();
   const main = await nextWindow;
   await expect(main.getByText(APP_MARKER)).toBeVisible();
   await expect.poll(savedSetup).toEqual({ mode: "new", serverUrl });

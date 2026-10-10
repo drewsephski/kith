@@ -24,6 +24,20 @@ function runPreload(file: string, ipc: { invoke?: unknown; on?: unknown; off?: u
 }
 
 describe("desktop preload bridge", () => {
+  it("accepts only known native commands and disposes the listener", () => {
+    const { on, off, exposeInMainWorld } = runPreload("preload.cjs");
+    const [, bridge] = exposeInMainWorld.mock.calls[0] as [string, RakazoDesktop];
+    const received = vi.fn();
+    const unsubscribe = bridge.commands!.onCommand(received);
+    const [, handler] = on.mock.calls[0] as [string, (event: unknown, command: unknown) => void];
+    handler({ sender: "private" }, "settings");
+    handler({}, "new-conversation");
+    handler({}, "https://untrusted.example.com");
+    expect(received.mock.calls).toEqual([["settings"], ["new-conversation"]]);
+    unsubscribe();
+    expect(off).toHaveBeenCalledWith("desktop.command", handler);
+  });
+
   it("exposes the scoped desktop bridges", async () => {
     const { invoke, exposeInMainWorld } = runPreload("preload.cjs");
 
@@ -32,6 +46,7 @@ describe("desktop preload bridge", () => {
     expect(globalName).toBe("rakazoDesktop");
     expect(bridge.platform).toBe("linux");
     expect(Object.keys(bridge).sort()).toEqual([
+      "commands",
       "localSettings",
       "oauth",
       "platform",
@@ -75,6 +90,7 @@ describe("desktop preload bridge", () => {
     const { exposeInMainWorld } = runPreload("preload.cjs");
     const [, bridge] = exposeInMainWorld.mock.calls[0] as [string, Record<string, unknown>];
     expect(Object.keys(bridge).sort()).toEqual([
+      "commands",
       "localSettings",
       "oauth",
       "platform",
