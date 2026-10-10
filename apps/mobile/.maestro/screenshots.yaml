@@ -90,10 +90,16 @@ tags:
     direction: DOWN
 - takeScreenshot: "11-models"
 - tapOn: "Show more"
+# The complete catalog takes longer to traverse than Maestro's default scroll budget.
 - scrollUntilVisible:
     element: "Show less"
     direction: DOWN
+    timeout: 60000
 - takeScreenshot: "11b-all-providers"
+- tapOn: "Show less"
+- extendedWaitUntil:
+    visible: "Show more"
+    timeout: 10000
 
 - openLink: "rakazo:///voice"
 - extendedWaitUntil:

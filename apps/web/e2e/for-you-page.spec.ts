@@ -76,7 +76,7 @@ test("the authenticated For you route sends a prompt in a new chat and survives 
   await page.reload();
   await expect(page.getByTestId("for-you-page")).toBeVisible();
   await page
-    .getByTestId("for-you-starter")
+    .getByTestId("for-you-page")
     .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
     .click();
   await expect(page).not.toHaveURL(/\/app\/for-you$/);
@@ -230,7 +230,7 @@ test("an uncertain authenticated launch survives reload without another conversa
     await page.unroute("**/rpc/bots/launchForYou");
   });
   await page
-    .getByTestId("for-you-starter")
+    .getByTestId("for-you-page")
     .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
     .click();
   await expect(page.getByRole("alert")).toBeVisible();

@@ -211,8 +211,13 @@ test("prompt arrows animate on hover and honor reduced motion without shifting l
   for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await page.emulateMedia({ reducedMotion });
     await page.goto(`${fixture}?followups=1`);
-    const button = page.getByTestId("assistant-for-you").getByRole("button").first();
+    // Reply suggestions replace the initial service starters after loading.
+    const button = page.getByTestId("assistant-for-you").getByRole("button", {
+      name: "Compare milestone options",
+      exact: true,
+    });
     await expect(button).toBeVisible();
+    await page.mouse.move(0, 0);
     const before = (await button.boundingBox())!;
     const sampling = button.locator("svg").evaluate(async (svg) => {
       const frames: string[] = [];
