@@ -291,6 +291,39 @@ describe("inferScript save_shared_memory", () => {
 });
 
 describe("scripted durable steering", () => {
+  it("keeps the original tool intent when initial steering adds context", async () => {
+    const prompt = "write a file called notes/original.txt";
+    const claimSteering = vi.fn(async () => [
+      { id: "steering-1", messageId: "message-1", text: "Keep it concise." },
+    ]);
+    const events: AgentRuntimeEvent[] = [];
+    for await (const event of new ScriptedAgentRuntime().run({
+      botId: "bot-1",
+      threadId: "thread-1",
+      runId: "run-original",
+      prompt,
+      instructions: "",
+      history: [],
+      tools: [],
+      model: { provider: "scripted", id: "scripted" },
+      script: inferScript(prompt),
+      claimSteering,
+    }))
+      events.push(event);
+
+    expect(claimSteering).toHaveBeenCalledExactlyOnceWith([]);
+    const write = events.find((event) => event.type === "tool" && event.name === "write_file");
+    expect(write).toMatchObject({
+      type: "tool",
+      name: "write_file",
+      args: { path: "notes/original.txt" },
+    });
+    if (write?.type !== "tool") throw new Error("Original file-writing intent was lost");
+    expect(write.args.content).toContain(prompt);
+    expect(write.args.content).toContain("Keep it concise.");
+    expect(events.at(-1)?.type).toBe("done");
+  });
+
   it("claims the initial steering once and answers it instead of replaying the old script", async () => {
     const claimSteering = vi.fn(async () => [
       { id: "steering-1", messageId: "message-1", text: "Use revised totals." },

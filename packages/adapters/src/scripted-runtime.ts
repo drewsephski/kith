@@ -47,7 +47,10 @@ export class ScriptedAgentRuntime implements AgentRuntime {
       // Leaving it unclaimed makes finalization requeue the same follow-up forever.
       const steering = (await request.claimSteering?.([])) ?? [];
       const script = steering.length
-        ? inferScript(steering.map((item) => item.text).join("\n\n"), request.resumeFromCheckpoint)
+        ? inferScript(
+            `${request.prompt}\n\nAdditional user context:\n${steering.map((item) => item.text).join("\n")}`,
+            request.resumeFromCheckpoint,
+          )
         : (request.script ?? inferScript(request.prompt, request.resumeFromCheckpoint));
       // Per-run call index so repeated tools (e.g. message_agent) get distinct
       // executionIds — delivery keys and effect replays key off this value.
