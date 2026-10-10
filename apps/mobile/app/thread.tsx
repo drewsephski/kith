@@ -94,6 +94,7 @@ import { CalendarReceipt } from "../components/CalendarReceipt";
 import { ChoiceCard } from "../components/ChoiceCard";
 import { ComputerCard } from "../components/ComputerCard";
 import { ComposerReplyPreview } from "../components/composer-reply-preview";
+import { ConversationSuggestions } from "../components/conversation-suggestions";
 import { EmailCard, EmailPreview } from "../components/EmailCard";
 import { FailedSendBubble } from "../components/failed-send-bubble";
 import { GlassSurface } from "../components/glass-surface";
@@ -186,6 +187,7 @@ import {
 } from "../lib/response-streaming";
 import { secretDestinationLabel } from "../lib/secret-destination";
 import { selectableTextFromMarkdown } from "../lib/selectable-text";
+import { currentSessionGeneration } from "../lib/session";
 import type { ComposerSnapshot, SendAttempt } from "../lib/thread-feedback";
 import { deliverSend, settleComposer, useThreadFeedback } from "../lib/thread-feedback";
 import { ThreadJumpAnchor } from "../lib/thread-jump";
@@ -2613,6 +2615,25 @@ function Thread() {
       >
         {/* Fades messages out above the composer, like the header fade. */}
         <View pointerEvents="none" style={styles.composerFade} />
+        {!readOnly &&
+        !inGroup &&
+        !onCall &&
+        focused &&
+        !showPinnedPage &&
+        !threadScrollState.detached ? (
+          <ConversationSuggestions
+            scopeKey={`${currentApiBase()}:${currentSessionGeneration()}:${selectedSpaceId()}:${snap?.threadId}`}
+            botId={botId}
+            messageId={
+              visibleMessages.at(-1)?.role === "bot" ? visibleMessages.at(-1)?.id : undefined
+            }
+            busy={sending || currentRuns.some((run) => isWorkingStatus(run.status))}
+            onSelect={(prompt) => {
+              setTaskStarterId(null);
+              updateDraft(prompt);
+            }}
+          />
+        ) : null}
         {replyTarget ? (
           <GlassSurface
             style={{

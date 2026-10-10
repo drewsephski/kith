@@ -24,6 +24,7 @@ import {
   ChatSdkMessagingSurface,
   CodexCatalogCache,
   ComposioConnector,
+  ConversationSuggestions,
   createBackgroundJobHandlers,
   createCloudAgentConnection,
   createConnectorStack,
@@ -543,6 +544,11 @@ export async function createApp(
   reconciler?.start();
 
   const router = createRouter({
+    conversationSuggestions: new ConversationSuggestions({
+      prisma,
+      runtime,
+      resolveModel: executor.resolveModel,
+    }),
     taskStarters,
     calendar,
     cloudAgent,

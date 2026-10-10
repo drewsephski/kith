@@ -4146,11 +4146,18 @@ export function ShellPage({
                 onOpenComputer={onOpenComputer}
               />
             )}
-            {isMainConversation && shellReady && transcriptMessages.length > 0 && !quickAskMode ? (
+            {!inGroup && active && shellReady && transcriptMessages.length > 0 && !quickAskMode ? (
               <AssistantForYou
-                apps={connectedForYouApps}
-                key={`${userId}:${bootstrapMe?.spaceId}`}
+                key={`${conversationKey}:${activeSnapshot?.threadId}`}
                 botId={active?.id}
+                conversation={{
+                  scopeKey: `${conversationKey}:${activeSnapshot?.threadId}`,
+                  messageId:
+                    transcriptMessages.at(-1)?.role === "bot"
+                      ? transcriptMessages.at(-1)?.id
+                      : undefined,
+                  busy: composerRunning || sending || Boolean(answerableAskMessageId),
+                }}
                 onSuggest={(text) =>
                   setSuggestedDraft({
                     text,
