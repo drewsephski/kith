@@ -71,7 +71,11 @@ export function ResizableSidePanel({
     if (!open || !closeRef.current) return;
     const trigger = document.activeElement;
     const frame = requestAnimationFrame(() => {
-      panelRef.current?.querySelector<HTMLButtonElement>("button[aria-label]")?.focus();
+      const panel = panelRef.current;
+      (
+        panel?.querySelector<HTMLElement>("[data-autofocus]") ??
+        panel?.querySelector<HTMLButtonElement>("button[aria-label]")
+      )?.focus();
     });
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || document.querySelector('[role="dialog"], [role="alertdialog"]'))

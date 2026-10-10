@@ -75,6 +75,7 @@ it("records explicit not-run reasons without live execution", async () => {
   }
 });
 
+// Six 20-second process limits plus headroom for Git setup, assertions, and cleanup.
 it("fingerprints a tracked report diff larger than the child-process default buffer", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "eval-large-diff-"));
   const output = path.join(dir, "report.json");
@@ -138,4 +139,4 @@ it("fingerprints a tracked report diff larger than the child-process default buf
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 150_000);

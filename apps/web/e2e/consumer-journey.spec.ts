@@ -117,6 +117,17 @@ test("returning home offers concrete connected-service prompts instead of task a
   await composer.press("Enter");
   await expect(page.getByTestId("message-bot-bubble").last()).toBeVisible();
   const prompt = highlights.getByRole("button", { name: "Draft important replies", exact: true });
+  await testInfo.attach("connected-suggestions-state", {
+    contentType: "application/json",
+    body: JSON.stringify(
+      await page.evaluate(() => ({
+        visibility: document.visibilityState,
+        suggestionCount: document.querySelectorAll('[data-testid="assistant-for-you"] button')
+          .length,
+        settingsScope: localStorage.getItem("rakazo:space-id"),
+      })),
+    ),
+  });
   await expect(prompt).toBeVisible();
   await expect(highlights).not.toContainText("Needs attention");
   await expect(highlights).not.toContainText("In progress");

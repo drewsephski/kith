@@ -1,8 +1,8 @@
-import type { Alternative, FaqItem } from "./alternatives";
-import { ALTERNATIVES, ALTERNATIVES_HUB, COMPARED_ON, alternativePath } from "./alternatives";
-import { GROK_ALTERNATIVE_H1, GROK_ALTERNATIVE_PATH } from "./grok-alternative";
-import { OPENCLAW_H1 } from "./guide";
-import { OPENCLAW_ALTERNATIVE_PATH, SELF_HOST_GUIDE_PATH, SITE_URL } from "./site";
+import type { Alternative, FaqItem } from "./alternatives.js";
+import { ALTERNATIVES, ALTERNATIVES_HUB, COMPARED_ON, alternativePath } from "./alternatives.js";
+import { GROK_ALTERNATIVE_H1, GROK_ALTERNATIVE_PATH } from "./grok-alternative.js";
+import { OPENCLAW_H1 } from "./guide.js";
+import { OPENCLAW_ALTERNATIVE_PATH, SELF_HOST_GUIDE_PATH, SITE_URL } from "./site.js";
 
 export const ROUNDUP_TITLE = ALTERNATIVES_HUB.title;
 

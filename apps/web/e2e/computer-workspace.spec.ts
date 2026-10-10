@@ -55,12 +55,15 @@ test("the computer workspace browses, uploads, and downloads files over the scre
   });
   await openComputer(page);
 
-  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await page
+    .getByTestId("computer-viewport")
+    .getByRole("button", { name: "Files", exact: true })
+    .click();
   const files = page.getByRole("region", { name: "Files" });
   await files.getByRole("button", { name: /^reports/ }).click();
   await expect(files.getByText("~/reports", { exact: true })).toBeVisible();
   await expect(files.getByRole("button", { name: /^q3\.txt/ })).toBeVisible();
-  await files.getByRole("button", { name: "Back" }).click();
+  await files.getByRole("button", { name: "Back", exact: true }).click();
   await expect(files.getByText("~/", { exact: true })).toBeVisible();
   // Changes made elsewhere (a shell, the bot) appear without reopening the window.
   await rpc(page, "computer/uploadFile", {
@@ -131,7 +134,10 @@ test("the computer workspace browses, uploads, and downloads files over the scre
   await expect(browser).toHaveAttribute("aria-pressed", "true");
   await expect(files).toBeHidden();
   await expect(page.getByRole("region", { name: "Terminal" })).toBeHidden();
-  await page.getByRole("button", { name: "Files", exact: true }).click();
+  await page
+    .getByTestId("computer-viewport")
+    .getByRole("button", { name: "Files", exact: true })
+    .click();
   await expect(files.getByText("Quarterly numbers checked.")).toBeVisible();
 
   await page.getByRole("button", { name: "Close Files" }).click();

@@ -1,6 +1,6 @@
-import { OPENCLAW_H1 } from "./guide";
-import { GROK_ALTERNATIVE_H1, GROK_ALTERNATIVE_PATH } from "./grok-alternative";
-import { DOCS_URL, GITHUB_URL, OPENCLAW_ALTERNATIVE_PATH } from "./site";
+import { OPENCLAW_H1 } from "./guide.js";
+import { GROK_ALTERNATIVE_H1, GROK_ALTERNATIVE_PATH } from "./grok-alternative.js";
+import { DOCS_URL, GITHUB_URL, OPENCLAW_ALTERNATIVE_PATH } from "./site.js";
 
 /** Public descriptions were read on this date. */
 export const COMPARED_ON = "October 7, 2026";

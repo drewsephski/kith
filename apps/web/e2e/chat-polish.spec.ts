@@ -82,7 +82,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await botTab.click();
     await expect(studio.getByTestId("avatar-studio-bot-tab")).toBeVisible();
     await page.keyboard.press("Escape");
+    await expect(studio).toBeHidden();
     await page.keyboard.press("Escape");
+    await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
 
     await page.emulateMedia({ colorScheme: "dark" });
     await captureScreenshot(page, testInfo, `chat-dark-${reducedMotion}`);

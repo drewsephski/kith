@@ -65,8 +65,11 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     const chipBox = await chip.boundingBox();
     expect(transcriptBox).not.toBeNull();
     expect(chipBox).not.toBeNull();
-    // Transcript padding is 16px mobile / 28px desktop; centering must fail this assertion.
-    expect(chipBox!.x - transcriptBox!.x).toBeLessThanOrEqual(32);
+    // Align with the shared responsive conversation inset; centering must fail.
+    const inset = await transcript.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).paddingInlineStart),
+    );
+    expect(chipBox!.x - transcriptBox!.x).toBeCloseTo(inset, 0);
     // Stay under 75% of the transcript width so the chip cannot become a full-width bar.
     expect(chipBox!.width).toBeLessThan(transcriptBox!.width * 0.75);
   };

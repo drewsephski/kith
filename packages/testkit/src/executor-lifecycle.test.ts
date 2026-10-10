@@ -54,6 +54,34 @@ describeIntegration("run executor lifecycle", () => {
     expect(attempts[0]).toMatchObject({ fence: 1, status: "completed" });
   });
 
+  it("scripted execution consumes steering without requeueing an endless continuation", async () => {
+    const seeded = await seedRun("scripted-steering", "Initial work");
+    await createThreadEvents(handles.prisma).sendUserMessage({
+      spaceId: seeded.me.spaceId,
+      threadId: seeded.thread.id,
+      botId: seeded.bot.id,
+      userId: seeded.me.userId,
+      blocks: [{ kind: "text", text: "Use revised totals." }],
+      prompt: "Use revised totals.",
+      trigger: "follow_up",
+    });
+    const pending = await handles.prisma.steeringMessage.findMany({
+      where: { botId: seeded.bot.id },
+    });
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.claimedAt).toBeNull();
+    await handles.executor.continueRun(seeded.run.id, "scripted-worker");
+    const [runs, steering, messages] = await Promise.all([
+      handles.prisma.run.findMany({ where: { botId: seeded.bot.id } }),
+      handles.prisma.steeringMessage.findMany({ where: { botId: seeded.bot.id } }),
+      handles.prisma.message.findMany({ where: { threadId: seeded.thread.id, role: "bot" } }),
+    ]);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.status).toBe("completed");
+    expect(steering).toHaveLength(0);
+    expect(JSON.stringify(messages)).toContain("Use revised totals.");
+  });
+
   it("reclaims an expired running lease with a higher fence", async () => {
     const seeded = await seedRun("expired", "write a file that says recovered", {
       status: "running",

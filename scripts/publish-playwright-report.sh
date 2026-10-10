@@ -25,6 +25,10 @@ if [[ "$publish_report" != "true" && "$publish_report" != "false" ]]; then
 fi
 
 if [[ "$publish_report" == "true" && ! -f "$report_dir/index.html" ]]; then
+  if [[ "$PLAYWRIGHT_RESULT" == "success" || "$PLAYWRIGHT_RESULT" == "failure" ]]; then
+    echo "Completed Playwright execution is missing its required HTML report." >&2
+    exit 1
+  fi
   echo "::warning::Playwright did not produce an HTML report; publishing the gallery and dashboard entry without it."
   publish_report="false"
 fi

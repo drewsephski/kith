@@ -65,15 +65,15 @@ test("settings shell is two-pane and deep-links Models Memory Voice Usage", asyn
     .click();
   const streamReplies = settings.getByTestId("response-streaming-toggle");
   await expect(streamReplies).toBeVisible();
-  await expect(streamReplies).not.toBeChecked();
+  await expect(streamReplies).toBeChecked();
   await expect(settings.getByText("Stream replies", { exact: true })).toBeVisible();
   await streamReplies.scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "settings-shell-general");
   await streamReplies.click();
-  await expect(streamReplies).toBeChecked();
+  await expect(streamReplies).not.toBeChecked();
   await expect
     .poll(() => page.evaluate(() => window.localStorage.getItem("rakazo.responseStreaming")))
-    .toBe("on");
+    .toBe("off");
 
   await settings.getByTestId("settings-nav-models").click();
   await expect(settings).toHaveAttribute("data-settings-section", "models");

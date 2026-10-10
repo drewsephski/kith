@@ -1,4 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   activeBotId,
   captureScreenshot,
@@ -138,7 +139,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await page.getByRole("button", { name: "Save" }).click();
   await savedRoutine;
   await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByText("Monday briefing")).toBeVisible();
   await captureScreenshot(page, testInfo, "10-routine-created");
 
@@ -164,7 +165,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   const gmailRow = featured
     .getByText("Gmail", { exact: true })
     .locator("xpath=ancestor::*[.//button][1]");
-  await gmailRow.getByRole("button", { name: "Add", exact: true }).click();
+  await gmailRow.getByRole("button", { name: "Connect Gmail", exact: true }).click();
   await expect(gmailRow.getByRole("button", { name: "Added", exact: true })).toBeVisible();
   await expect(page.getByTestId("connection-tile-gmail")).toBeVisible();
   await captureScreenshot(page, testInfo, "11a-connected-plugins");
@@ -204,14 +205,16 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
     .getByTestId("featured-connectors")
     .getByText("Gmail", { exact: true })
     .locator("xpath=ancestor::*[.//button][1]");
-  await expect(gmailRowEmpty.getByRole("button", { name: "Add", exact: true })).toBeVisible();
+  await expect(
+    gmailRowEmpty.getByRole("button", { name: "Connect Gmail", exact: true }),
+  ).toBeVisible();
   await captureScreenshot(page, testInfo, "11b-connected-plugins-empty");
 
   const linearRow = page
     .getByText("Linear", { exact: true })
     .locator("xpath=ancestor::*[.//button][1]");
   const connectPopup = page.waitForEvent("popup");
-  await linearRow.getByRole("button", { name: "Add", exact: true }).click();
+  await linearRow.getByRole("button", { name: "Connect Linear", exact: true }).click();
   const popup = await connectPopup;
   await popup.close();
   await expect(linearRow.getByRole("button", { name: "Added", exact: true })).toBeVisible();
@@ -220,7 +223,9 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(linearDetail).toBeVisible();
   await linearDetail.getByRole("button", { name: "Uninstall", exact: true }).click();
   await expect(page.getByTestId("connection-detail")).toHaveCount(0);
-  await expect(linearRow.getByRole("button", { name: "Add", exact: true })).toBeVisible();
+  await expect(
+    linearRow.getByRole("button", { name: "Connect Linear", exact: true }),
+  ).toBeVisible();
 
   const advanced = page.getByTestId("integrations-advanced");
   await advanced.locator('[data-slot="collapsible-trigger"]').click();
@@ -270,13 +275,13 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await page.getByRole("button", { name: "Add Treg", exact: true }).click();
   await page.getByPlaceholder("Treg token").fill("fake-treg-browser-credential");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
-  await expect(page.getByText(/MCP · https:\/\/treg\.to\/mcp\/ · credential saved/)).toBeVisible();
+  await expect(page.getByText("Treg", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Add MCP server", exact: true }).click();
   await page.getByPlaceholder("Display name").fill("Browser MCP");
   await page.getByPlaceholder("https://example.com/mcp").fill("https://mcp.example.test/mcp");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
-  await expect(page.getByText(/MCP · https:\/\/mcp\.example\.test\/mcp · no auth/)).toBeVisible();
+  await expect(page.getByText("Browser MCP", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Add OpenAPI", exact: true }).click();
   await page.getByPlaceholder("Display name").fill("Browser API");
@@ -297,25 +302,53 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
     .fill("https://executor.example.test/mcp");
   await page.getByPlaceholder("Executor token").fill("fake-executor-browser-credential");
   await page.getByRole("button", { name: "Verify and add", exact: true }).click();
+  await expect(page.getByText("Executor", { exact: true })).toBeVisible();
+  // Managed MCP connections now live in the server manager, rather than the
+  // legacy tool-source list. Verify their persisted endpoints and auth state.
+  const servers = await rpc<Array<{ name: string; endpoint: string; hasSecret: boolean }>>(
+    page,
+    "mcp/servers/list",
+    {},
+  );
+  expect(servers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "Treg", endpoint: "https://treg.to/mcp/", hasSecret: true }),
+      expect.objectContaining({
+        name: "Browser MCP",
+        endpoint: "https://mcp.example.test/mcp",
+        hasSecret: false,
+      }),
+      expect.objectContaining({
+        name: "Executor",
+        endpoint: "https://executor.example.test/mcp",
+        hasSecret: true,
+      }),
+    ]),
+  );
+  await page.getByRole("button", { name: "Manage", exact: true }).first().click();
+  const manager = page.getByRole("dialog", { name: "MCP servers", exact: true });
+  await expect(manager.getByText("https://treg.to/mcp/", { exact: true })).toBeVisible();
+  await expect(manager.getByText("https://mcp.example.test/mcp", { exact: true })).toBeVisible();
   await expect(
-    page.getByText(/MCP · https:\/\/executor\.example\.test\/mcp · credential saved/),
+    manager.getByText("https://executor.example.test/mcp", { exact: true }),
   ).toBeVisible();
+  await expect(manager.getByText("credential saved", { exact: true })).toHaveCount(2);
   await captureScreenshot(page, testInfo, "11d-provider-emulators");
-
-  await page.getByRole("button", { name: "Close integrations" }).click();
+  await manager.getByRole("button", { name: "Close MCP servers", exact: true }).click();
+  await expect(manager).toBeHidden();
 
   await page.getByTestId("bot-settings-trigger").click();
   await page.getByRole("button", { name: "Conversation actions" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "Export", exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/chief-export\.json/i);
+  expect(download.suggestedFilename()).toBe("kith-export.json");
   const settings = page.getByTestId("bot-settings");
   await expect(settings.getByRole("button", { name: "Archive bot" })).toHaveCount(0);
   await expect(settings.getByRole("button", { name: "Delete bot" })).toHaveCount(0);
   await page.getByRole("button", { name: "Close panel" }).click();
 
-  await page.locator("aside").first().getByRole("button", { name: /Kith/ }).first().click({
+  await sidebarBotButton(page, "Kith").click({
     button: "right",
   });
   const botMenu = page.getByRole("menu", { name: "Actions for Kith" });
@@ -421,6 +454,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await page.getByPlaceholder("Password").fill("password12");
   await page.getByRole("button", { name: "Continue with email" }).click();
   await page.waitForURL(/\/app/, { timeout: 20_000 });
+  await openAdvancedNavigation(page);
   await expect(sidebarBotButton(page, /^Kith/)).toBeVisible();
   await expect(sidebarBotButton(page, /Scout/)).toBeVisible();
   await captureScreenshot(page, testInfo, "15-restored-session");
@@ -434,7 +468,7 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
 
-  const chief = page.getByRole("button", { name: /Kith/ }).first();
+  const chief = sidebarBotButton(page, /^Kith$/);
   await chief.click({ button: "right" });
   await expect(page.getByRole("menu", { name: "Actions for Kith" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Edit Profile" })).toBeVisible();
@@ -458,7 +492,7 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await expect(page.getByText("Kith copy").first()).toBeVisible();
   await captureScreenshot(page, testInfo, "17-pinned-and-duplicated-bot");
 
-  const copy = page.getByRole("button", { name: /Kith copy/ }).first();
+  const copy = sidebarBotButton(page, /^Kith copy$/);
   await copy.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await expect(page.getByRole("alertdialog", { name: "Delete Kith copy?" })).toBeVisible();

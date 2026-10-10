@@ -49,7 +49,9 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await openAdvancedNavigation(page);
   await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
   await captureScreenshot(page, testInfo, "create-chat-sidepanel-closed");
 
   await page.getByTestId("minimize-bots-sidebar").click();
@@ -123,21 +125,31 @@ test("later bot waits before showing the focus card; sending cancels it", async 
   await signup(page, `focus-delay-${stamp}@rakazo.test`, "password12", "Focus Delay");
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
-  // First bot from onboarding shows the focus card immediately.
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible();
+  // The personal assistant offers its focus choices immediately.
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible();
 
   await page.clock.install();
+  const started = page.waitForResponse(
+    (response) => response.url().includes("/rpc/onboarding/start") && response.ok(),
+  );
   await createBotFromPicker(page);
+  await started;
   await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
 
   await page.clock.fastForward(9_000);
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
   await page.clock.fastForward(1_500);
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toBeVisible();
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible();
 
   await createBotFromPicker(page, { name: "Later Bot" });
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
   // Closing the create panel can precede the new thread loading; the previous
   // bot's composer must not receive this draft.
   const composer = page.getByRole("combobox", { name: "Message Later Bot", exact: true });
@@ -158,7 +170,9 @@ test("later bot waits before showing the focus card; sending cancels it", async 
       .getByText("I'll set this up myself", { exact: true }),
   ).toBeVisible();
   await page.clock.fastForward(12_000);
-  await expect(page.getByText("What do you want me on first?", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
 });
 
 test("plus picker can create a Private computer bot", async ({ page }, testInfo) => {

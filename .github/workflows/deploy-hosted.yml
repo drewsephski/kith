@@ -1,0 +1,59 @@
+name: deploy hosted Kith
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        required: true
+        type: string
+    secrets:
+      FLY_API_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: Production
+    concurrency:
+      group: kith-hosted-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+      - name: Verify tested main source and configuration
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ inputs.sha }}
+          FLY_APP: ${{ vars.KITH_FLY_APP }}
+          HOSTED_ORIGIN: ${{ vars.RAKAZO_SERVICE_URL }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$FLY_API_TOKEN"
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REF" = refs/heads/main
+          gh api "repos/${GITHUB_REPOSITORY}/environments/Production" --jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length > 0' | grep -Fx true
+          [[ "$FLY_APP" =~ ^kith[a-z0-9-]*$ ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')" = "$EXPECTED_SHA"
+          # This job is in the same run as its required checks. The caller's
+          # needs gate is authoritative; the whole run cannot finish before deploy.
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" > "$RUNNER_TEMP/jobs.json"
+          node scripts/verify-deployment-gates.mjs "$RUNNER_TEMP/jobs.json"
+          node --input-type=module -e 'const u=new URL(process.env.HOSTED_ORIGIN); if(u.protocol!=="https:"||u.username||u.password||u.pathname!=="/"||u.search||u.hash) throw new Error("Invalid hosted origin")'
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master pinned
+      - name: Deploy and verify exact API and worker source
+        env:
+          EXPECTED_SHA: ${{ inputs.sha }}
+          FLY_APP: ${{ vars.KITH_FLY_APP }}
+          HOSTED_ORIGIN: ${{ vars.RAKAZO_SERVICE_URL }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: bash scripts/deploy-hosted.sh

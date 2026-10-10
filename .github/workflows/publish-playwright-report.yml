@@ -20,7 +20,8 @@ jobs:
     if: >-
       (github.event.workflow_run.conclusion == 'success' ||
        github.event.workflow_run.conclusion == 'failure' ||
-       github.event.workflow_run.conclusion == 'timed_out') &&
+       github.event.workflow_run.conclusion == 'timed_out' ||
+       github.event.workflow_run.conclusion == 'cancelled') &&
       (github.event.workflow_run.event == 'pull_request' ||
        (github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_branch == 'main'))
@@ -46,16 +47,8 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
-          result="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
-            --jq '[.jobs[] | select(.name == "Web E2E / Web E2E") | .conclusion] | unique | if length == 1 then .[0] else error("expected exactly one Playwright job") end')"
-          case "$result" in
-            success|failure) ;;
-            timed_out) ;;
-            *) echo "Unexpected Playwright job conclusion: $result" >&2; exit 1 ;;
-          esac
-          echo "job_result=$result" >> "$GITHUB_OUTPUT"
-          if [[ "$result" == "timed_out" ]]; then result="failure"; fi
-          echo "result=$result" >> "$GITHUB_OUTPUT"
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" |
+            node scripts/playwright-job-result.mjs >> "$GITHUB_OUTPUT"
       - name: Resolve pull request
         if: github.event.workflow_run.event == 'pull_request'
         id: pull_request
@@ -81,6 +74,7 @@ jobs:
           ARTIFACT_NAME: playwright-artifacts-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PLAYWRIGHT_JOB_RESULT: ${{ steps.playwright.outputs.job_result }}
+          ARTIFACT_OPTIONAL: ${{ steps.playwright.outputs.artifact_optional }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
@@ -92,13 +86,14 @@ jobs:
           if [[ "$count" == "1" ]]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "id=$(jq -r --arg name "$ARTIFACT_NAME" '.artifacts[] | select(.name == $name and .expired == false) | .id' <<<"$artifacts")" >> "$GITHUB_OUTPUT"
-          elif [[ "$count" == "0" && "$PLAYWRIGHT_JOB_RESULT" == "timed_out" ]]; then
-            echo "::warning::The timed-out Playwright job ended before it uploaded an artifact. Publishing an empty gallery."
+          elif [[ "$count" == "0" && "$ARTIFACT_OPTIONAL" == "true" ]]; then
+            echo "::notice::Playwright result: $PLAYWRIGHT_JOB_RESULT; artifacts unavailable. No successful test execution is claimed."
             echo "exists=false" >> "$GITHUB_OUTPUT"
           else
             echo "Expected exactly one unexpired Playwright artifact; found $count." >&2
             exit 1
           fi
+          echo "Playwright: $PLAYWRIGHT_JOB_RESULT. Retained artifact count: $count." >> "$GITHUB_STEP_SUMMARY"
       - name: Download Playwright artifacts
         if: steps.artifact.outputs.exists == 'true'
         env:
@@ -111,7 +106,36 @@ jobs:
           # and generated dashboard consumed by the comment step.
           python3 scripts/extract-playwright-artifacts.py \
             "$RUNNER_TEMP/playwright-artifacts.zip" "$RUNNER_TEMP/playwright-artifacts"
+      - name: Record interrupted tests without artifacts on the pull request
+        if: >-
+          github.event.workflow_run.event == 'pull_request' &&
+          steps.pull_request.outputs.number != '' &&
+          steps.artifact.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          TEST_RESULT: ${{ steps.playwright.outputs.job_result }}
+        shell: bash
+        run: |
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$SHA" =~ ^[a-f0-9]{40}$ ]]
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          if [[ "$current_sha" != "$SHA" ]]; then
+            echo "Superseded revision; retaining its workflow summary without replacing the current PR report."
+            exit 0
+          fi
+          marker="<!-- rakazo-playwright-screenshots -->"
+          body="$(printf '%s\n\nWeb E2E: **%s** at `%s`.\n\nArtifacts are unavailable; no successful test execution or gallery publication is claimed. [Workflow diagnostics](%s).\n' "$marker" "$TEST_RESULT" "$SHA" "$RUN_URL")"
+          comment_id="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" | jq -r --arg marker "$marker" '[.[][] | select(.user.login == "github-actions[bot]" and (.body | contains($marker)))] | last | .id // empty')"
+          payload="$(jq -n --arg body "$body" '{body: $body}')"
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --input - <<<"$payload"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --input - <<<"$payload"
+          fi
       - name: Publish trusted Playwright screenshot gallery
+        if: steps.artifact.outputs.exists == 'true'
         id: publish
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}

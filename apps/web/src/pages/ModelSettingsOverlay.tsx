@@ -1571,14 +1571,15 @@ function ModelPicker({
   const [query, setQuery] = useState("");
   const groups = useMemo(() => {
     const grouped = new Map<string, ModelCatalogEntry[]>();
-    for (const option of filterModelCatalog(options, query)) {
+    for (const option of options) {
       const key = option.providerName ?? option.provider;
       const entries = grouped.get(key);
       if (entries) entries.push(option);
       else grouped.set(key, [option]);
     }
     return [...grouped].map(([name, entries]) => ({ name, entries }));
-  }, [options, query]);
+  }, [options]);
+  const byValue = new Map(options.map((entry) => [`${entry.provider}:${entry.id}`, entry]));
   return (
     <Popover
       open={open}
@@ -1617,7 +1618,13 @@ function ModelPicker({
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-(--anchor-width) p-0" aria-label={t`Models`}>
-        <Command shouldFilter={false} loop>
+        <Command
+          loop
+          filter={(value, search) => {
+            const entry = byValue.get(value);
+            return entry && filterModelCatalog([entry], search).length ? 1 : 0;
+          }}
+        >
           <CommandInput
             value={query}
             onValueChange={setQuery}
