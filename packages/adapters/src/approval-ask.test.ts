@@ -14,9 +14,8 @@ describe("buildApprovalAskBlock", () => {
       kind: "ask",
       approvalEffectId: "effect-1",
       actions: [
-        { id: "allow", label: "Allow once" },
-        { id: "always", label: "Always allow this tool" },
-        { id: "deny", label: "Deny" },
+        { id: "allow", label: "Send email" },
+        { id: "deny", label: "Cancel" },
       ],
     });
     expect(JSON.stringify(block)).not.toContain("token-secret");
@@ -69,5 +68,43 @@ describe("buildApprovalAskBlock", () => {
     });
     if (block.kind !== "ask") throw new Error("expected ask block");
     expect(block.detail).toContain("stay separate from other spaces");
+  });
+
+  it("shows complete email content, every recipient, and safe HTML without truncating the body", () => {
+    const block = buildApprovalAskBlock(
+      "effect-1",
+      "GMAIL_SEND_EMAIL",
+      {
+        recipient_email: "recipient@example.test",
+        extra_recipients: ["other@example.test"],
+        cc: ["copy@example.test"],
+        bcc: ["hidden@example.test"],
+        subject: "Status",
+        body: "b".repeat(8000),
+      },
+      [],
+    );
+    expect(block).toMatchObject({
+      approvalAction: "email_send",
+      email: {
+        to: ["recipient@example.test", "other@example.test"],
+        cc: ["copy@example.test"],
+        bcc: ["hidden@example.test"],
+        subject: "Status",
+        body: "b".repeat(8000),
+      },
+    });
+    const html = buildApprovalAskBlock(
+      "effect-2",
+      "GMAIL_SEND_EMAIL",
+      {
+        to: "recipient@example.test",
+        subject: "HTML",
+        body: "<script>steal()</script><p>Hello &amp; welcome</p>",
+        is_html: true,
+      },
+      [],
+    );
+    expect(html).toMatchObject({ email: { body: "Hello & welcome" } });
   });
 });

@@ -97,6 +97,8 @@ vi.mock("../lib/i18n", () => ({
 }));
 vi.mock("../lib/ui-appearance", () => ({
   getUiAppearancePreference: () => "system",
+  getResolvedUiAppearance: () => "light",
+  subscribeUiAppearance: () => () => undefined,
   setUiAppearance: vi.fn(),
 }));
 vi.mock("react-router-dom", () => ({ Link: ({ children }: { children?: ReactNode }) => children }));

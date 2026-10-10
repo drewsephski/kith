@@ -222,6 +222,7 @@ msgstr ""
 msgid "Access token (optional)"
 msgstr "Token de acceso (opcional)"
 
+#: src/components/EmailCard.tsx
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Account"
 msgstr "Cuenta"
@@ -430,6 +431,10 @@ msgstr "Agentes:"
 
 #: src/components/CalendarReceipt.tsx
 msgid "AI suggestions"
+msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "All"
 msgstr ""
 
 #: src/pages/Artifacts.tsx
@@ -669,6 +674,10 @@ msgstr ""
 msgid "Attachment"
 msgstr "Archivo adjunto"
 
+#: src/components/EmailCard.tsx
+msgid "Attachments"
+msgstr ""
+
 #: src/components/CalendarReceipt.tsx
 msgid "Attempts"
 msgstr ""
@@ -766,6 +775,10 @@ msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Basic auth ({username})"
+msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Bcc"
 msgstr ""
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
@@ -918,6 +931,10 @@ msgstr "cancelado"
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "Cancelado"
+
+#: src/components/EmailCard.tsx
+msgid "Cc"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1175,6 +1192,10 @@ msgstr "Contraer {0}"
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Collapse sidebar"
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Collect recent receipts"
 msgstr ""
 
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -1849,10 +1870,6 @@ msgstr "No se pudo acceder al servidor del modelo."
 msgid "Could not reach the server"
 msgstr "No se pudo alcanzar el servidor"
 
-#: src/pages/shell/assistant-for-you.tsx
-msgid "Could not refresh tasks. Retry"
-msgstr "No se pudieron actualizar las tareas. Reintentar"
-
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not remove"
 msgstr "No se pudo quitar"
@@ -1896,6 +1913,10 @@ msgstr "No se pudo renombrar el space"
 #: src/pages/shell/message-cards.tsx
 msgid "Could not render chart"
 msgstr "No se pudo renderizar el gráfico"
+
+#: src/components/EmailCard.tsx
+msgid "Could not request email action"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Could not reset password"
@@ -2007,6 +2028,10 @@ msgstr ""
 msgid "Could not start teaching"
 msgstr "No se pudo iniciar la enseñanza"
 
+#: src/pages/Shell.tsx
+msgid "Could not start the conversation. Select the suggestion to retry."
+msgstr ""
+
 #: src/pages/Onboarding.tsx
 msgid "Could not start your assistant"
 msgstr ""
@@ -2073,6 +2098,10 @@ msgstr "Crear"
 #: src/pages/shell/dialogs.tsx
 msgid "Create a section and move {0} into it."
 msgstr "Crea una sección y mueve {0} a ella."
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Create a weekly report"
+msgstr ""
 
 #: src/pages/Auth.tsx
 msgid "Create account"
@@ -2410,6 +2439,14 @@ msgstr ""
 msgid "Downloading…"
 msgstr ""
 
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Draft important replies"
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Draft lead follow-ups"
+msgstr ""
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Draft skill"
 msgstr "Habilidad en borrador"
@@ -2443,6 +2480,7 @@ msgstr "Editar primero"
 msgid "Edit Profile"
 msgstr "Editar perfil"
 
+#: src/components/EmailCard.tsx
 #: src/pages/Auth.tsx
 msgid "Email"
 msgstr "Correo"
@@ -2455,6 +2493,14 @@ msgstr ""
 msgid "Email and follow-ups"
 msgstr "Correo y seguimiento"
 
+#: src/components/EmailCard.tsx
+msgid "Email body"
+msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Email draft"
+msgstr ""
+
 #: src/lib/user-error.ts
 msgid "Email is not allowed to register"
 msgstr "Este correo no está autorizado para registrarse"
@@ -2462,6 +2508,10 @@ msgstr "Este correo no está autorizado para registrarse"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Email search"
 msgstr "Búsqueda de correo"
+
+#: src/components/EmailCard.tsx
+msgid "Email subject"
+msgstr ""
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2635,10 +2685,30 @@ msgstr ""
 msgid "Filters"
 msgstr ""
 
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Find emails I sent over seven days ago that have not received a reply and draft a short follow-up for each conversation that still needs a response. Leave them as drafts and include links to the conversations."
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Find HubSpot leads with no follow-up in the past seven days, prioritize them by deal stage, and draft a personalized follow-up for each using their activity history."
+msgstr ""
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Find models"
 msgstr "Buscar modelos"
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Find my next calendar meeting, review its description and attendees, and prepare a brief with the agenda, questions to ask, and any missing details. Include a link to the event."
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Find overdue tasks"
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Find receipts and invoices in my inbox from the past 30 days. Make a table of vendors, dates, amounts, and currencies, with links to the source emails, and flag any missing amounts or duplicate charges."
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -2680,7 +2750,17 @@ msgstr "Finalizando conexión MCP…"
 msgid "Flag unexpected actions"
 msgstr "Marcar acciones inesperadas"
 
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Follow up unanswered emails"
+msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "For builders"
+msgstr ""
+
+#: src/pages/ForYou.tsx
 #: src/pages/shell/assistant-for-you.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "For you"
 msgstr "Para ti"
 
@@ -2705,6 +2785,7 @@ msgstr "Frecuencia"
 msgid "Friday"
 msgstr ""
 
+#: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "From"
 msgstr ""
@@ -2738,6 +2819,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "Git event"
 msgstr "Evento de Git"
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Go through my inbox from the past seven days, find important emails that still need a reply, and create a draft response for each. Prioritize time-sensitive requests and include links to the original emails. Leave the responses as drafts."
+msgstr ""
 
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Goals"
@@ -3011,6 +3096,10 @@ msgstr ""
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "Leave"
 msgstr "Salir"
+
+#: src/pages/ForYou.tsx
+msgid "Level up Kith"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
@@ -3643,6 +3732,10 @@ msgstr "Aún no hay ejecuciones"
 msgid "No skills yet"
 msgstr "Aún no hay habilidades"
 
+#: src/components/EmailCard.tsx
+msgid "No subject"
+msgstr ""
+
 #: src/pages/ActivityList.tsx
 msgid "No tasks match these filters."
 msgstr ""
@@ -3797,6 +3890,7 @@ msgstr "Abrir en ventana completa"
 msgid "Open Kith"
 msgstr ""
 
+#: src/pages/ForYou.tsx
 #: src/pages/Shell.tsx
 msgid "Open navigation"
 msgstr "Abrir navegación"
@@ -3990,6 +4084,10 @@ msgstr ""
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
 msgstr ""
 
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Prepare my next meeting"
+msgstr ""
+
 #: src/components/CalendarReceipt.tsx
 msgid "Preparing your briefing"
 msgstr "Preparando tu resumen"
@@ -4055,6 +4153,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Publishing replaces this report’s range in the selected spreadsheet."
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Pull last week's GA4 sessions, active users, and page views into a new Google Sheet, compare them with the previous week, and add a short summary of the biggest changes."
 msgstr ""
 
 #: src/components/CloudAgentCard.tsx
@@ -4285,10 +4387,6 @@ msgstr "Quitar horario"
 msgid "Remove skill {0}"
 msgstr "Quitar habilidad {0}"
 
-#: src/pages/Shell.tsx
-msgid "Remove task starter"
-msgstr ""
-
 #: src/pages/RoutineEditor.tsx
 msgid "Remove webhook"
 msgstr "Quitar webhook"
@@ -4353,6 +4451,7 @@ msgstr "Reemplazar clave"
 msgid "Replace value"
 msgstr ""
 
+#: src/components/EmailCard.tsx
 #: src/pages/Shell.tsx
 msgid "Reply"
 msgstr "Responder"
@@ -4380,6 +4479,14 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Report time"
+msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Requested"
+msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Requesting…"
 msgstr ""
 
 #: src/pages/shell/assistant-focus.tsx
@@ -4480,9 +4587,21 @@ msgstr "rev. {0}"
 msgid "Revenue"
 msgstr ""
 
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Review my Notion task pages, find overdue and unfinished tasks assigned to me, and list them by urgency with their due dates and page links."
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Review my open GitHub pull requests, identify failed checks and unresolved reviews, and make a prioritized list of the next action for each with links."
+msgstr ""
+
 #: src/lib/model-connection-preflight.ts
 msgid "Review provider settings and test again."
 msgstr "Revisa la configuración del proveedor y vuelve a probar."
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Review Slack messages from the past 24 hours and summarize decisions, blockers, and follow-ups that need my attention. Include links to the relevant messages."
+msgstr ""
 
 #. placeholder {0}: doc.revision
 #: src/pages/PersonalMemoryPanel.tsx
@@ -4510,6 +4629,7 @@ msgstr "Rotar clave"
 msgid "Routine"
 msgstr "Rutina"
 
+#: src/pages/ForYou.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
@@ -4741,6 +4861,8 @@ msgstr "Buscando…"
 msgid "Select a connected model"
 msgstr "Selecciona un modelo conectado"
 
+#: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 #: src/pages/Shell.tsx
 msgid "Send"
 msgstr "Enviar"
@@ -4752,6 +4874,10 @@ msgstr "Envía <0>{linkCode}</0> a la línea desde tu app de chat en un plazo de
 #: src/components/AskCard.tsx
 msgid "Send answer"
 msgstr "Enviar respuesta"
+
+#: src/components/AskCard.tsx
+msgid "Send approved"
+msgstr ""
 
 #: src/components/AccountAccess.tsx
 msgid "Send deletion code"
@@ -4875,6 +5001,7 @@ msgstr "Mostrar contraseña"
 msgid "Show settings"
 msgstr "Mostrar configuración"
 
+#: src/pages/ForYou.tsx
 #: src/pages/Shell.tsx
 msgid "Show sidebar"
 msgstr ""
@@ -5107,6 +5234,14 @@ msgstr ""
 msgid "Suggested talking points"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Suggestion categories"
+msgstr ""
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Summarize team updates"
+msgstr ""
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Sunday"
 msgstr ""
@@ -5149,10 +5284,7 @@ msgstr ""
 msgid "Task result"
 msgstr ""
 
-#: src/pages/Shell.tsx
-msgid "Task starter"
-msgstr ""
-
+#: src/pages/ForYou.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -5226,6 +5358,10 @@ msgstr "El proveedor está limitando la frecuencia de las solicitudes."
 #: src/pages/MemorySettingsOverlay.tsx
 msgid "The selected memory provider is not available in this build."
 msgstr "El proveedor de memoria seleccionado no está disponible en esta build."
+
+#: src/pages/Shell.tsx
+msgid "The selected space changed. Try again."
+msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
@@ -5358,6 +5494,7 @@ msgstr ""
 msgid "Title"
 msgstr "Título"
 
+#: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "To"
 msgstr ""
@@ -5399,6 +5536,10 @@ msgstr ""
 #: src/pages/PluginsOverlay.tsx
 msgid "Treg token"
 msgstr "Token de Treg"
+
+#: src/pages/shell/assistant-suggestions.ts
+msgid "Triage pull requests"
+msgstr ""
 
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial"

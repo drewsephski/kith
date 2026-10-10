@@ -14,5 +14,7 @@ describeFast("compose installer smoke scripts", () => {
       cwd: repoRoot,
     });
     expect(output).toMatch(/==>/);
-  });
+    // This aggregates all Bash fixture scripts. Measured at ~9s alone and ~40s
+    // during a bounded full-suite run; keep its budget separate from unit tests.
+  }, 60_000);
 });

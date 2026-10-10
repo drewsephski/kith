@@ -12,6 +12,8 @@ export {
   resolvePersonaShape,
   Wordmark,
 } from "./bot-avatar.js";
+export type { BrainIconHandle } from "./brain-icon.js";
+export { BrainIcon } from "./brain-icon.js";
 export * from "./components/ui/alert-dialog.js";
 export * from "./components/ui/badge.js";
 export * from "./components/ui/button.js";
@@ -39,12 +41,22 @@ export * from "./components/ui/tabs.js";
 export * from "./components/ui/textarea.js";
 export * from "./components/ui/toggle.js";
 export * from "./components/ui/tooltip.js";
+export type { ConnectIconHandle } from "./connect-icon.js";
+export { ConnectIcon } from "./connect-icon.js";
 export { ConnectorIcon } from "./connector-icon.js";
 export { DatePicker } from "./date-picker.js";
+export type { FoldersIconHandle } from "./folders-icon.js";
+export { FoldersIcon } from "./folders-icon.js";
 export { GroupAvatar, type GroupAvatarMember, type GroupAvatarProps } from "./group-avatar.js";
 export { KithAvatar } from "./kith-avatar.js";
 export { cn } from "./lib/utils.js";
+export type { Maximize2IconHandle } from "./maximize-2-icon.js";
+export { Maximize2Icon } from "./maximize-2-icon.js";
 export { ModelThinkingOptions } from "./model-thinking-options.js";
 export { NavigationButton } from "./navigation-button.js";
+export type { PanelLeftCloseIconHandle } from "./panel-left-close-icon.js";
+export { PanelLeftCloseIcon } from "./panel-left-close-icon.js";
 export { SelectField } from "./select-field.js";
 export { SelectionGroup, SelectionIndicator } from "./selection-indicator.js";
+export type { SettingsIconHandle } from "./settings-icon.js";
+export { SettingsIcon } from "./settings-icon.js";

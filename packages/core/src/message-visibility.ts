@@ -46,7 +46,8 @@ export function userVisibleMessages<T extends PresentableMessage>(
     // Keep peer-run ask cards, and (unless the caller opts out) the bot's own text reply.
     const includeText = options.includeDelegatedReplyText !== false;
     return message.blocks.some(
-      (block) => block.kind === "ask" || (includeText && block.kind === "text"),
+      (block) =>
+        block.kind === "ask" || block.kind === "email" || (includeText && block.kind === "text"),
     );
   });
 }

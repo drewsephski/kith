@@ -183,6 +183,12 @@ export interface ConnectorProvider {
     call: ConnectorCall,
     context: AdapterContext,
   ): Promise<{ call: ConnectorCall; tool: ConnectorTool } | undefined>;
+  /** Provider-owned translation of compound calls before the effect gate. Must not write. */
+  approvalPreview?(
+    call: ConnectorCall,
+    context: AdapterContext,
+    options?: { includeContent?: boolean },
+  ): Promise<{ emailSend: boolean; email?: EmailContent; draftId?: string }>;
   execute(call: ConnectorCall, context: AdapterContext): AsyncIterable<ConnectorEvent>;
 }
 
@@ -498,3 +504,5 @@ export interface AutoReviewProvider {
   describe(): AdapterDescriptor<AutoReviewCapabilities>;
   review(request: AutoReviewRequest, context: AdapterContext): Promise<AutoReviewResult>;
 }
+
+import type { EmailContent } from "@rakazo/contracts";

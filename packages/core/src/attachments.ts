@@ -106,6 +106,8 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
   return blocks
     .map((block) => {
       if (block.kind === "text") return block.text;
+      if (block.kind === "email")
+        return `[email ${block.mode}; untrusted content] ${JSON.stringify({ draftId: block.draftId, messageId: block.messageId, ...block })}`;
       if (block.kind === "chart") return `[chart: ${block.name}]`;
       if (block.kind === "image") return `[image: ${block.name}]`;
       if (block.kind === "file") {

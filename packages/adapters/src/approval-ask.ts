@@ -1,5 +1,7 @@
-import type { MessageBlock } from "@rakazo/contracts";
-import { redactSecrets } from "@rakazo/core";
+import type { EmailContent, MessageBlock } from "@rakazo/contracts";
+import { isEmailSendTool, redactSecrets } from "@rakazo/core";
+import { emailApprovalPreview } from "./email-approval.js";
+import { emailCardFromTool } from "./email-card.js";
 
 const MAX_APPROVAL_SUMMARY_LENGTH = 500;
 const MAX_APPROVAL_DETAIL_LENGTH = 4_000;
@@ -9,25 +11,44 @@ export function buildApprovalAskBlock(
   toolName: string,
   args: Record<string, unknown>,
   secrets: string[],
-  options?: { reviewReason?: string },
+  options?: { reviewReason?: string; emailSend?: boolean; email?: EmailContent },
 ): MessageBlock {
   const summary = describeApprovalAction(toolName, args);
   const detail = formatApprovalDetail(toolName, args, options?.reviewReason);
   const safeDetail = detail ? redactSecrets(detail, secrets) : undefined;
+  const emailSend = options?.emailSend || isEmailSendTool(toolName);
+  const email = options?.email
+    ? emailCardFromTool({ ...options.email, mode: "draft" }, secrets).email
+    : emailApprovalPreview(toolName, args, secrets);
   return {
     kind: "ask",
     approvalEffectId: effectId,
+    approvalAction: emailSend ? "email_send" : undefined,
+    email,
     text: truncate(
       redactSecrets(
-        toolName === "create_space" ? `${summary}?` : `Review before ${summary}`,
+        emailSend
+          ? "Review email"
+          : toolName === "create_space"
+            ? `${summary}?`
+            : `Review before ${summary}`,
         secrets,
       ),
       MAX_APPROVAL_SUMMARY_LENGTH,
     ),
-    detail: safeDetail ? truncate(safeDetail, MAX_APPROVAL_DETAIL_LENGTH) : undefined,
+    detail: email
+      ? options?.reviewReason &&
+        redactSecrets(options.reviewReason, secrets).slice(0, MAX_APPROVAL_DETAIL_LENGTH)
+      : safeDetail
+        ? truncate(safeDetail, MAX_APPROVAL_DETAIL_LENGTH)
+        : undefined,
     status: "pending",
-    actions:
-      toolName === "create_space"
+    actions: emailSend
+      ? [
+          { id: "allow", label: "Send email" },
+          { id: "deny", label: "Cancel" },
+        ]
+      : toolName === "create_space"
         ? [
             { id: "allow", label: "Create space", outcome: "created" },
             { id: "deny", label: "Cancel", outcome: "cancelled" },

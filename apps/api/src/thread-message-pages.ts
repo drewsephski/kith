@@ -176,6 +176,7 @@ export function shouldForwardPeerThreadEvent(event: {
         (block.kind === "bot_message_received" ||
           block.kind === "bot_message_sent" ||
           block.kind === "ask" ||
+          block.kind === "email" ||
           block.kind === "text"),
     )
   );

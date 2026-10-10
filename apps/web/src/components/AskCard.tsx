@@ -7,6 +7,7 @@ import { isApprovalAskBlock, isSecretAskBlock, selectedAskActionLabel } from "@r
 import { Button, Input } from "@rakazo/ui-web";
 import { useState } from "react";
 import { errorText } from "../lib/user-error";
+import { EmailPreview } from "./EmailCard";
 
 export type AskBlock = Extract<ThreadMessage["blocks"][number], { kind: "ask" }>;
 
@@ -68,6 +69,7 @@ export function AskCard({
   const secretInput = isSecretAskBlock(block);
   const loginInput = secretInput && block.credential?.auth.type === "login";
   const secretLabel = loginInput ? t`Password` : secretFieldLabel(block.purpose);
+  const emailReview = Boolean(block.approvalAction === "email_send" && approvalActions);
 
   async function submitAnswer(value: string) {
     if (submitting) return;
@@ -98,11 +100,22 @@ export function AskCard({
   return (
     <div
       data-testid={secretInput ? "secret-ask-card" : undefined}
-      className="max-w-[74%] rounded-2xl border border-border bg-card px-5 py-4"
+      className={
+        emailReview
+          ? "w-full min-w-0 max-w-lg rounded-xl border border-border bg-card p-3 sm:p-3.5"
+          : "max-w-[74%] rounded-2xl border border-border bg-card px-5 py-4"
+      }
     >
-      <div className="text-[15.5px] leading-[1.5] text-foreground">
-        <ChatMarkdown>{block.text}</ChatMarkdown>
-      </div>
+      {emailReview && block.email ? null : (
+        <div className="text-[15.5px] leading-[1.5] text-foreground">
+          <ChatMarkdown>{block.text}</ChatMarkdown>
+        </div>
+      )}
+      {block.email ? (
+        <div>
+          <EmailPreview email={block.email} />
+        </div>
+      ) : null}
       {secretInput && block.credential ? (
         <div
           data-testid="secret-ask-destination"
@@ -119,33 +132,56 @@ export function AskCard({
         </pre>
       ) : null}
       {block.status === "answered" ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-success">
-          {formatAnsweredState(
-            block.answer,
-            Boolean(approvalActions),
-            secretInput,
-            approvalActions?.find((action) => action.id === block.answer)?.outcome,
-            askActions,
-          )}
+        <div
+          className={
+            emailReview
+              ? "mt-2.5 text-[11px] font-medium text-success"
+              : "mt-3.5 text-[13.5px] font-medium text-success"
+          }
+        >
+          {emailReview && block.answer === "allow"
+            ? t`Send approved`
+            : emailReview && block.answer === "deny"
+              ? t`Cancelled`
+              : formatAnsweredState(
+                  block.answer,
+                  Boolean(approvalActions),
+                  secretInput,
+                  approvalActions?.find((action) => action.id === block.answer)?.outcome,
+                  askActions,
+                )}
         </div>
       ) : !canAnswer ? (
         <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
           <Trans>No longer active</Trans>
         </div>
       ) : askActions?.length ? (
-        <div className="mt-3.5 space-y-1.5">
+        <div className={emailReview ? "mt-2.5 flex flex-wrap gap-2" : "mt-3.5 space-y-1.5"}>
           {askActions.map((action) => (
             <Button
               key={action.id}
               variant={approvalActions && action.id === "allow" ? "default" : "outline"}
-              className="h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal"
+              size={emailReview ? "sm" : "default"}
+              className={
+                emailReview
+                  ? "h-8 px-3 text-xs"
+                  : "h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal"
+              }
               disabled={submitting}
               onClick={() => void submitAnswer(action.id)}
             >
               {pendingAction === action.id ? (
                 <Trans>Sending…</Trans>
               ) : approvalActions ? (
-                approvalActionLabel(action.id, action.label, action.outcome)
+                emailReview ? (
+                  action.id === "allow" ? (
+                    t`Send`
+                  ) : (
+                    t`Cancel`
+                  )
+                ) : (
+                  approvalActionLabel(action.id, action.label, action.outcome)
+                )
               ) : (
                 action.label
               )}

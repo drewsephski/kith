@@ -55,6 +55,7 @@ body,
 
 /* The transcript and composer share one measure and responsive inset. */
 .kith-transcript,
+.kith-for-you,
 .kith-composer {
   --conversation-width: 1120px;
   --conversation-inset: 20px;
@@ -62,11 +63,13 @@ body,
 }
 @media (min-width: 768px) {
   .kith-transcript,
+  .kith-for-you,
   .kith-composer {
     --conversation-inset: 40px;
   }
 }
-.kith-composer {
+.kith-composer,
+.kith-for-you {
   max-width: calc(var(--conversation-width) + 2 * var(--conversation-inset));
 }
 .kith-transcript > .kith-conversation-item {

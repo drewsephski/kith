@@ -53,7 +53,7 @@ test("new conversations offer editable task starters and align navigation with t
   await welcome.getByRole("button", { name: "Search all my Gmail accounts", exact: true }).click();
   await expect(composer).toHaveValue("Search all my connected Gmail accounts for…");
   await expect(composer).toBeFocused();
-  await expect(page.getByRole("button", { name: "Remove task starter" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove task starter" })).toHaveCount(0);
   await composer.press("Enter");
   const setup = page.getByRole("dialog");
   await expect(setup.getByRole("heading", { name: "Choose task sources" })).toBeVisible();
@@ -66,7 +66,7 @@ test("new conversations offer editable task starters and align navigation with t
     .click();
   await expect(page).toHaveURL(new RegExp(`/app/${conversation}$`));
   await expect(composer).toHaveValue("Search all my connected Gmail accounts for…");
-  await expect(page.getByRole("button", { name: "Remove task starter" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove task starter" })).toHaveCount(0);
   await welcome.getByRole("button", { name: "Plan my day", exact: true }).click();
   await expect(page.getByRole("button", { name: "Remove task starter" })).toHaveCount(0);
   await composer.press("Enter");

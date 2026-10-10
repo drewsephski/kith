@@ -360,6 +360,52 @@ export const builtinAgentTools: ConnectorTool[] = [
     },
   },
   {
+    name: "show_email",
+    description:
+      "Display a received email or prepared reply in a chat card. Use real content from connected email tools; convert HTML to plain text. For drafts, save the draft with the email service first and include its real draftId when available. Include the exact connected account and all To, Cc, and Bcc recipients. This only displays content: it never sends email. The user can request a reply or send from the card. Do not call a send tool for a draft-only task; wait for the user's send action.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["received", "draft"] },
+        account: {
+          type: "string",
+          minLength: 1,
+          maxLength: 500,
+          description:
+            "Actual email address of the connected mailbox, verified through the service profile.",
+        },
+        from: { type: "string", maxLength: 500 },
+        to: {
+          type: "array",
+          items: { type: "string", minLength: 1, maxLength: 500 },
+          minItems: 1,
+          maxItems: 100,
+        },
+        cc: {
+          type: "array",
+          items: { type: "string", minLength: 1, maxLength: 500 },
+          maxItems: 100,
+        },
+        bcc: {
+          type: "array",
+          items: { type: "string", minLength: 1, maxLength: 500 },
+          maxItems: 100,
+        },
+        subject: { type: "string", maxLength: 1000 },
+        body: { type: "string", maxLength: 50000 },
+        messageId: { type: "string", minLength: 1, maxLength: 500 },
+        draftId: { type: "string", minLength: 1, maxLength: 500 },
+        attachments: {
+          type: "array",
+          items: { type: "string", maxLength: 500 },
+          maxItems: 20,
+          description: "Attachment filenames returned by the email service, if any.",
+        },
+      },
+      required: ["mode", "account", "to", "subject", "body"],
+    },
+  },
+  {
     name: "message_user",
     description:
       "Post a short progress update to the user in this chat immediately. Does not end your turn. Use sparingly during long work for high-signal beats (what you are checking, then a result). Do not dump tool logs, thinking, or a play-by-play of every call. HARD LIMIT: cut off silently at 500 characters, so never put your final answer, a report, or any long-form content here \u2014 it will arrive mangled and the user will never see the rest. Always write your complete final answer in your normal reply, not here.",

@@ -35,11 +35,16 @@ describe("focus-or-launch desktop helper", () => {
         for (const name of ["xterm", "rakazo-browser"]) {
           writeFileSync(
             path.join(bin, name),
-            `#!/bin/sh\nprintf '${name} %s\\n' "$*" >> "$RAKAZO_TEST_ARGS"\n`,
+            `#!/bin/sh\nif [ "$1" = "--warmup" ]; then exit 0; fi\nprintf '${name} %s\\n' "$*" >> "$RAKAZO_TEST_ARGS"\n`,
           );
         }
         for (const name of ["wmctrl", "xterm", "rakazo-browser"]) {
           chmodSync(path.join(bin, name), 0o755);
+          // Avoid measuring macOS cold executable inspection as launch latency.
+          execFileSync(path.join(bin, name), ["--warmup"], {
+            env: { ...process.env, RAKAZO_TEST_ARGS: argvLog },
+            stdio: "ignore",
+          });
         }
         const run = (listing: string, argv: string[]) => {
           writeFileSync(windows, listing);
@@ -85,6 +90,7 @@ describe("focus-or-launch desktop helper", () => {
           path.join(bin, "rakazo-browser"),
           [
             "#!/bin/sh",
+            'if [ "$1" = "--warmup" ]; then exit 0; fi',
             'printf \'rakazo-browser %s\\n\' "$*" >> "$RAKAZO_TEST_ARGS"',
             `echo $$ >> ${JSON.stringify(pids)}`,
             "exec sleep 30",
@@ -92,6 +98,7 @@ describe("focus-or-launch desktop helper", () => {
           ].join("\n"),
         );
         chmodSync(path.join(bin, "rakazo-browser"), 0o755);
+        execFileSync(path.join(bin, "rakazo-browser"), ["--warmup"], { stdio: "ignore" });
         writeFileSync(pids, "");
         const started = Date.now();
         expect(run(listing, ["rakazo-browser", "https://example.test"])).toEqual([

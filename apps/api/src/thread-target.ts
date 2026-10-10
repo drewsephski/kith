@@ -4,6 +4,7 @@ import { runContinueJob } from "@rakazo/adapter-kit";
 import { cancelComputerRunWork, screenLeaseIdForRun, toComputerRef } from "@rakazo/adapters";
 import type {
   Actor,
+  EmailDraftEdits,
   GroupMember,
   MessageBlock,
   MessageReaction,
@@ -15,6 +16,8 @@ import { GROUP_MEMBER_MIN, MessageBlock as MessageBlockSchema } from "@rakazo/co
 import {
   ACTIVE_RUN_STATUSES,
   callIdFromClientNonce,
+  emailActionNonce,
+  emailActionPrompt,
   isActive,
   isConversationalRun,
   projectMessages,
@@ -607,6 +610,11 @@ export async function sendThreadMessage(
   actor: Actor,
   target: ThreadTarget,
   input: {
+    emailAction?: {
+      messageId: string;
+      blockIndex: number;
+      edits?: EmailDraftEdits;
+    };
     text?: string;
     artifactIds?: string[];
     mentions?: MentionTargetInput[];
@@ -615,6 +623,20 @@ export async function sendThreadMessage(
     clientNonce?: string;
   },
 ) {
+  if (input.emailAction) {
+    const revision = input.emailAction.edits
+      ? createHash("sha256").update(JSON.stringify(input.emailAction.edits)).digest("hex")
+      : undefined;
+    input = {
+      emailAction: input.emailAction,
+      replyToMessageId: input.emailAction.messageId,
+      clientNonce: emailActionNonce(
+        input.emailAction.messageId,
+        input.emailAction.blockIndex,
+        revision,
+      ),
+    };
+  }
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
   if (existing) return existing;
   // Live events carry the call id so a spoken turn joins the call card on first
@@ -627,6 +649,7 @@ export async function sendThreadMessage(
 
   const commit = () =>
     deps.prisma.$transaction(async (tx) => {
+      let editedEmail: MessageBlock | undefined;
       let replyToMessageId: string | undefined;
       let replyQuote: string | undefined;
       let replyPreview: ReplyPreview | null | undefined;
@@ -638,11 +661,42 @@ export async function sendThreadMessage(
         // A missing target must not lose the send or retain an unverified id.
         // The empty server-owned quote preserves the unavailable state after reload.
         if (!reply) {
+          if (input.emailAction)
+            throw new ORPCError("NOT_FOUND", { message: "This email is no longer available." });
           replyQuote = "";
           replyPreview = null;
         } else {
           replyToMessageId = input.replyToMessageId;
           const parsed = MessageBlockSchema.array().safeParse(reply.blocks);
+          if (input.emailAction) {
+            const card = parsed.success ? parsed.data[input.emailAction.blockIndex] : undefined;
+            if (
+              reply.role !== "bot" ||
+              card?.kind !== "email" ||
+              (target.kind === "bot" && reply.botId !== target.botId)
+            )
+              throw new ORPCError("BAD_REQUEST", {
+                message: "This message is not an actionable email.",
+              });
+            if (input.emailAction.edits && card.mode !== "draft")
+              throw new ORPCError("BAD_REQUEST", { message: "Only drafts can be edited." });
+            input.text = emailActionPrompt(card, Boolean(input.emailAction.edits));
+            if (card.mode === "draft")
+              editedEmail = {
+                ...card,
+                email: {
+                  ...card.email,
+                  ...(input.emailAction.edits
+                    ? {
+                        subject: input.emailAction.edits.subject,
+                        body: input.emailAction.edits.body,
+                      }
+                    : {}),
+                },
+              };
+            if (target.kind === "group" && reply.botId)
+              input.mentions = [{ kind: "bot", id: reply.botId }];
+          }
           replyPreview = null;
           if (parsed.success) {
             replyPreview = messageReplyPreview(
@@ -651,7 +705,11 @@ export async function sendThreadMessage(
               reply.botId ?? undefined,
             );
             // Attachment labels stay in the preview; only selected text is persisted as a quote.
-            if (!requestedReplyQuote && !replyPreview.attachment) {
+            if (
+              !requestedReplyQuote &&
+              !replyPreview.attachment &&
+              !parsed.data.some((block) => block.kind === "email")
+            ) {
               replyQuote = replyPreview.text || undefined;
             }
           }
@@ -686,7 +744,8 @@ export async function sendThreadMessage(
           actor,
           mentionTargets.connectorMentionIds,
         );
-        const blocks = buildUserMessageBlocks(input.text, attachmentBlocks);
+        const blocks: MessageBlock[] = buildUserMessageBlocks(input.text, attachmentBlocks);
+        if (editedEmail) blocks.push(editedEmail);
         const message = await createThreadMessageInTransaction(tx, {
           threadId: target.threadId,
           role: "user",
@@ -704,6 +763,14 @@ export async function sendThreadMessage(
           select: { id: true, taskId: true, status: true, trigger: true },
         });
         const waitingRuns = activeRuns.filter((run) => run.status === "waiting_input");
+        if (input.emailAction && waitingRuns.length)
+          throw new ORPCError("CONFLICT", {
+            message: "Answer the pending ask before starting this email action.",
+          });
+        if (input.emailAction && activeRuns.length)
+          throw new ORPCError("CONFLICT", {
+            message: "Wait for the current response to finish before starting this email action.",
+          });
         if (waitingRuns.length && !activeRuns.some(steersUserMessage)) {
           const answerText = input.text?.trim();
           if (!answerText) {
@@ -855,7 +922,8 @@ export async function sendThreadMessage(
         actor,
         mentionTargets.connectorMentionIds,
       );
-      const blocks = buildUserMessageBlocks(input.text, attachmentBlocks);
+      const blocks: MessageBlock[] = buildUserMessageBlocks(input.text, attachmentBlocks);
+      if (editedEmail) blocks.push(editedEmail);
       const message = await createThreadMessageInTransaction(tx, {
         threadId: target.threadId,
         role: "user",
@@ -873,6 +941,10 @@ export async function sendThreadMessage(
         select: { id: true, taskId: true, botId: true, status: true, trigger: true },
       });
       const activeByBotId = new Map<string, (typeof activeRuns)[number]>();
+      if (input.emailAction && activeRuns.length)
+        throw new ORPCError("CONFLICT", {
+          message: "Finish the current response or pending ask before starting this email action.",
+        });
       const answeredByBotId = new Map<string, Array<(typeof activeRuns)[number]>>();
       const conversationalBotIds = new Set(
         activeRuns.filter(steersUserMessage).map((run) => run.botId),
@@ -1236,3 +1308,5 @@ export async function setThreadUnreadState(
   });
   if (result.count > 1) throw new IsolationError();
 }
+
+import { createHash } from "node:crypto";

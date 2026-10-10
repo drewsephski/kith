@@ -8,6 +8,7 @@ export * from "./calendar.js";
 export * from "./cloudflare-ai-gateway.js";
 export * from "./desktop.js";
 export * from "./domain.js";
+export * from "./email.js";
 export * from "./events.js";
 export * from "./history.js";
 export * from "./ids.js";

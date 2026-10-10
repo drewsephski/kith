@@ -1,12 +1,24 @@
-export const SITE_NAME = "Kith";
+import type { Locale } from "./i18n/locales";
 import { resolvePublicConfig } from "../public-config.mjs";
 
-const config = resolvePublicConfig({ ...process.env, ...import.meta.env });
+const env = { ...process.env, ...import.meta.env };
+// An explicit origin overrides the public app; an empty value keeps Web unconfigured.
+const config = resolvePublicConfig({
+  ...env,
+  PUBLIC_APP_URL: env.PUBLIC_APP_URL ?? "https://kith-agent-app.vercel.app",
+});
+export const SITE_NAME = "Kith";
 export const SITE_URL = config.siteUrl;
 export const SITE_INDEXED = config.indexed;
 export const APP_URL = config.appUrl;
-export const WEB_START_URL = APP_URL ? `${APP_URL}/start` : "/start/";
-export const SIGN_IN_URL = APP_URL ? `${APP_URL}/sign-in` : "/start/";
+export function webStartHref(locale: Locale = "en") {
+  return APP_URL ? `${APP_URL}/start` : locale === "en" ? "/start/" : `/${locale}/start/`;
+}
+export function signInHref(locale: Locale = "en") {
+  return APP_URL ? `${APP_URL}/sign-in` : webStartHref(locale);
+}
+export const WEB_START_URL = webStartHref();
+export const SIGN_IN_URL = signInHref();
 export const DESKTOP_URL = "/download/";
 export const DESKTOP_DOWNLOADS = config.downloads;
 export const SITE_DESCRIPTION =

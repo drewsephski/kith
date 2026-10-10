@@ -139,6 +139,108 @@ vi.mock("@composio/core", () => ({
 }));
 
 describe("composio tool mapping", () => {
+  it("fetches a saved Gmail draft for final review without sending anything", async () => {
+    const prior = composioSdkState.executeResult;
+    const start = composioSdkState.executions.length;
+    composioSdkState.executeResult = {
+      error: null,
+      data: {
+        emailAddress: "work@example.test",
+        message: {
+          payload: {
+            mimeType: "text/plain",
+            headers: [
+              { name: "To", value: "recipient@example.test" },
+              { name: "Subject", value: "Current draft" },
+            ],
+            body: { data: Buffer.from("Actual current content").toString("base64url") },
+          },
+        },
+      },
+    };
+    try {
+      const connector = new ComposioConnector();
+      const context = {
+        operationId: "op-1",
+        traceId: "trace-1",
+        spaceId: "space-1",
+        userId: "user-1",
+        connectedProviders: ["gmail"],
+        signal: new AbortController().signal,
+      };
+      const call = {
+        tool: "GMAIL_SEND_DRAFT",
+        args: { draft_id: "draft-1" },
+        executionId: "call-1",
+      };
+      await expect(
+        connector.approvalPreview(call, context, { includeContent: true }),
+      ).resolves.toMatchObject({
+        emailSend: true,
+        draftId: "draft-1",
+        email: {
+          account: "work@example.test",
+          subject: "Current draft",
+          body: "Actual current content",
+        },
+      });
+      expect(composioSdkState.executions.slice(start)).toEqual([
+        { tool: "GMAIL_GET_DRAFT", args: { draft_id: "draft-1", user_id: "me", format: "full" } },
+        { tool: "GMAIL_GET_PROFILE", args: { user_id: "me" } },
+      ]);
+    } finally {
+      composioSdkState.executeResult = prior;
+      composioSdkState.executions.splice(start);
+    }
+  });
+  it("exposes wrapped email sends for explicit review and rejects compound sends with hidden writes", async () => {
+    const connector = new ComposioConnector();
+    const context = {
+      operationId: "op-1",
+      traceId: "trace-1",
+      spaceId: "space-1",
+      userId: "user-1",
+      signal: new AbortController().signal,
+    };
+    const send = {
+      tool_slug: "GMAIL_SEND_EMAIL",
+      arguments: JSON.stringify({
+        recipient_email: "recipient@example.test",
+        subject: "Status",
+        body: "Hello",
+      }),
+      account: "mail@example.test",
+    };
+    const call = {
+      tool: "COMPOSIO_MULTI_EXECUTE_TOOL",
+      args: { tools: [send] },
+      executionId: "call-1",
+    };
+    await expect(connector.approvalPreview(call, context)).resolves.toMatchObject({
+      emailSend: true,
+      email: { account: "mail@example.test", body: "Hello", to: ["recipient@example.test"] },
+    });
+    await expect(
+      connector.approvalPreview(
+        {
+          ...call,
+          args: {
+            tools: [
+              send,
+              { tool_slug: "GMAIL_DELETE_MESSAGE", arguments: { message_id: "mail-1" } },
+            ],
+          },
+        },
+        context,
+      ),
+    ).rejects.toThrow("Send each email separately");
+    await expect(
+      connector.approvalPreview(
+        { ...call, args: { tools: [{ tool_slug: "GMAIL_FETCH_EMAILS", arguments: {} }] } },
+        context,
+      ),
+    ).resolves.toEqual({ emailSend: false });
+  });
   it("maps OpenAI-style session tools and raw slugs", () => {
     const tools = asConnectorTools([
       {

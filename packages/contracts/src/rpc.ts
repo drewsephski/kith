@@ -133,6 +133,14 @@ const structuredMentionTarget = z.discriminatedUnion("kind", [
 
 const threadSendInput = threadTarget
   .safeExtend({
+    /** Reference an authoritative persisted email card, never client-supplied mail/tool args. */
+    emailAction: z
+      .strictObject({
+        messageId: Id,
+        blockIndex: z.number().int().min(0).max(100),
+        edits: EmailDraftEditsSchema.optional(),
+      })
+      .optional(),
     text: z.string().optional(),
     artifactIds: z.array(Id).max(ATTACHMENT_MAX_COUNT).optional(),
     /** Bare bot ids (legacy) or typed mention chips from the composer. */
@@ -147,7 +155,7 @@ const threadSendInput = threadTarget
   .superRefine((input, ctx) => {
     const text = input.text?.trim() ?? "";
     const artifactIds = input.artifactIds ?? [];
-    if (!text && artifactIds.length === 0) {
+    if (!text && artifactIds.length === 0 && !input.emailAction) {
       ctx.addIssue({
         code: "custom",
         message: "Provide text or at least one attachment",
@@ -1041,3 +1049,5 @@ export const appContract = {
 };
 
 export type AppContract = typeof appContract;
+
+import { EmailDraftEditsSchema } from "./email.js";

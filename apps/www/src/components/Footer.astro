@@ -89,28 +89,35 @@ function isCurrentPage(href: string): boolean {
       }
     </nav>
     <nav class="site-footer__links" aria-label={navLabel}>
+      <div class="site-footer__group">
       <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
       <a href={SELF_HOST_GUIDE_PATH} aria-current={isCurrentPage(SELF_HOST_GUIDE_PATH) ? "page" : undefined}>
         {linkLabels.docs}
       </a>
+      <a href={CHANGELOG_URL} target="_blank" rel="noreferrer">{linkLabels.changelog}</a>
+      <a href="/blog/" aria-current={isCurrentPage("/blog/") ? "page" : undefined}>{linkLabels.blog}</a>
+      </div>
+      <div class="site-footer__group">
       <a
         href={OPENCLAW_ALTERNATIVE_PATH}
         aria-current={isCurrentPage(OPENCLAW_ALTERNATIVE_PATH) ? "page" : undefined}
       >
         {linkLabels.openClaw}
       </a>
-      <a href={CHANGELOG_URL} target="_blank" rel="noreferrer">{linkLabels.changelog}</a>
+
       <a href="/alternatives/" aria-current={isCurrentPage("/alternatives/") ? "page" : undefined}>
         {linkLabels.alternatives}
       </a>
       <a href={GROK_ALTERNATIVE_PATH} aria-current={isCurrentPage(GROK_ALTERNATIVE_PATH) ? "page" : undefined}>
         {linkLabels.grokAlternative}
       </a>
-      <a href="/blog/" aria-current={isCurrentPage("/blog/") ? "page" : undefined}>{linkLabels.blog}</a>
+      </div>
+      <div class="site-footer__group">
       <a href="/about/">{linkLabels.about}</a>
       <a href="/support/">{linkLabels.support}</a>
       <a href="/privacy/">{linkLabels.privacy}</a>
       <a href="/terms/">{linkLabels.terms}</a>
+      </div>
     </nav>
   </div>
 </footer>

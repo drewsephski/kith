@@ -194,7 +194,6 @@ test("task starters preserve editable intent and require explicit accounts", asy
     await expect(composer).toHaveValue(`${prompt} Please keep it concise.`);
   }
   expect(starts).toBe(0);
-  await page.getByRole("button", { name: "Remove task starter", exact: true }).click();
   await expect(page.getByRole("button", { name: "Remove task starter", exact: true })).toBeHidden();
   await welcome.getByRole("button", { name: "Search all my Gmail accounts", exact: true }).click();
   await composer.fill("Search all my connected Gmail accounts for launch plan");
@@ -225,10 +224,16 @@ test("task starters preserve editable intent and require explicit accounts", asy
     return route.fulfill({ json: { json: { routineId: "fixture-routine" } } });
   });
   await result.getByRole("button", { name: "Make this a routine", exact: true }).click();
+  await expect(result.getByLabel("Timezone", { exact: true })).toHaveValue("America/Chicago");
   await expect(
     result.getByText("Read-only preparation. It won’t send email or change your accounts."),
   ).toBeVisible();
   await result.getByLabel("Time", { exact: true }).fill("08:00");
+  await result.getByRole("button", { name: "Make this a routine", exact: true }).click();
+  await expect(result.getByLabel("Time", { exact: true })).toBeHidden();
+  await result.getByRole("button", { name: "Make this a routine", exact: true }).click();
+  await expect(result.getByLabel("Time", { exact: true })).toHaveValue("08:00");
+  await expect(result.getByLabel("Timezone", { exact: true })).toHaveValue("America/Chicago");
   expect(scheduled).toBe(0);
   await captureScreenshot(page, testInfo, "task-routine-confirmation-narrow");
   await result.getByRole("button", { name: "Confirm routine", exact: true }).click();

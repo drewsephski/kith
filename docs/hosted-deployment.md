@@ -212,19 +212,21 @@ References: [Fly app configuration](https://fly.io/docs/reference/configuration/
 Deploy `apps/www` (Astro) and `apps/web` (Vite) as **separate Vercel projects**. The main
 marketing origin serves `/` as the Astro homepage. The application origin serves `/start`,
 `/sign-up`, `/sign-in`, `/onboarding`, and `/app` and keeps the existing backend proxies.
-No production Kith domain is assumed by the repository.
+Marketing Web links default to `https://kith-agent-app.vercel.app`. Set `PUBLIC_APP_URL`
+to your own application origin when self-hosting, or to an empty value to show the local
+setup-status page instead.
 
 Set these **public, non-secret** environment variables on the marketing project before building:
 
 ```dotenv
 PUBLIC_SITE_URL=https://www.example.test
-PUBLIC_APP_URL=https://app.example.test
+PUBLIC_APP_URL=https://kith-agent-app.vercel.app
 ```
 
 Both must be distinct HTTPS origins: no path, credentials, query, fragment, private IP, or
 internal hostname. Deployment builds fail when either is missing or invalid. Local builds
-may use loopback HTTP origins; without configuration they are unindexed and Web leads to
-an honest setup-status page. Environment loading follows the shared root `.env` convention;
+may use loopback HTTP origins; without site configuration they are unindexed. Environment
+loading follows the shared root `.env` convention;
 only the explicit public configuration is emitted into marketing links and metadata.
 The configured marketing origin drives Astro's canonical URLs, sitemap, robots and social
 metadata. A `www` alias redirects only when the configured canonical origin is the apex.

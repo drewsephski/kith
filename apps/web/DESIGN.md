@@ -295,11 +295,11 @@ Motion communicates interaction and state: panel width uses a 200ms ease-out tra
 
 ### Focus, returning work, and receipts
 
-Focus choices reuse outline buttons with wrapping, left-aligned labels and a 48px minimum height. They form two columns from the small breakpoint and one below it. Optional assistant naming stays in a disclosure rather than becoming persistent form chrome. Its saved value supplies the sidebar identity, header title, and composer label, with Kith as the default.
+Focus choices reuse outline buttons with wrapping, left-aligned labels and a 56px minimum height. They form two columns from the small breakpoint and one below it. Optional assistant naming uses the shared Base UI Collapsible with a natural-height 220ms transition; typed input stays mounted across close and reopen. Focus choices show restrained saving and selection feedback. Its saved value supplies the sidebar identity, header title, and composer label, with Kith as the default.
 
-Returning work uses a divided, compact region with ghost rows, status dots and human-readable status. Its reading width is 768px; up to three persisted items appear, with the third hidden below the small breakpoint. Labels truncate within the flexible row while status remains visible. Empty work leaves no placeholder dashboard.
+Returning unfinished work sits in a compact row above the composer and shares its centered measure. Up to three persisted tasks retain readable status and truncated titles, with horizontal scrolling on narrow screens. Empty work leaves no reserved region. Selecting a task opens its latest persisted result or approval message through the existing conversation deep link.
 
-Inline receipts are card-colored, bordered rounded surfaces with modest title and status text, verified source labels, and a contextual details control. Calendar receipts use a 576px maximum width and 16px padding. Larger source records, saved outcomes, and optional repeats stay in disclosures or a scrollable dialog. Source evidence and AI suggestions remain visibly distinguishable; errors use destructive text and explicit retry controls.
+Inline receipts are card-colored, bordered rounded surfaces with modest title and status text, verified source labels, and a contextual details control. Calendar receipts use a 576px maximum width and 16px padding. Larger source records, saved outcomes, and optional repeats stay in disclosures or a scrollable dialog. Optional repeat forms reuse the same animated Collapsible and preserve edits across disclosure changes. Scheduling starts with the receipt timezone or the browser IANA timezone and still requires explicit confirmation. Source evidence and AI suggestions remain visibly distinguishable; errors use destructive text and explicit retry controls.
 
 ## Do's and Don'ts
 

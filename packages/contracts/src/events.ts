@@ -1,5 +1,6 @@
 import * as z from "zod";
 import { botSecretDestinationSchema } from "./bot-secrets.js";
+import { EmailCardSchema, EmailContentSchema } from "./email.js";
 import { Id } from "./ids.js";
 import { McpTransportSchema } from "./mcp.js";
 
@@ -93,6 +94,7 @@ export const SecretAskPurpose = z.enum(["otp", "password", "api_key"]);
 export type SecretAskPurpose = z.infer<typeof SecretAskPurpose>;
 
 export const MessageBlock = z.discriminatedUnion("kind", [
+  EmailCardSchema,
   z.object({ kind: z.literal("text"), text: z.string() }),
   z.object({
     kind: z.literal("card"),
@@ -102,6 +104,8 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     kind: z.literal("ask"),
     text: z.string(),
     approvalEffectId: Id.optional(),
+    approvalAction: z.literal("email_send").optional(),
+    email: EmailContentSchema.optional(),
     detail: z.string().optional(),
     input: z.enum(["text", "secret"]).optional(),
     /** Why the secret is needed; drives field label on the masked card. */

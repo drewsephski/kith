@@ -1027,6 +1027,7 @@ export function messagingProviderLabel(provider: string, transport?: string): st
 export function selectableMobileMessageText(message: MobileMessage): string {
   return message.blocks
     .map((block) => {
+      if (block.kind === "email") return `${block.email.subject}\n${block.email.body}`;
       if (block.kind === "channel_message") {
         return `${messagingProviderLabel(block.provider, block.transport)} · ${block.fromLabel}: ${block.text}`;
       }
@@ -1045,6 +1046,7 @@ export function copyableMobileMessageText(message: MobileMessage): string {
 export function blockText(message: MobileMessage) {
   return message.blocks
     .map((block) => {
+      if (block.kind === "email") return block.email.subject;
       if (block.kind === "channel_message") {
         return `${messagingProviderLabel(block.provider, block.transport)} · ${block.fromLabel}: ${block.text}`;
       }

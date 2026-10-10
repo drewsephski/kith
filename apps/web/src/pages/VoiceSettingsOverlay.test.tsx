@@ -38,8 +38,22 @@ vi.mock("@rakazo/ui-web", () => {
       <label htmlFor={htmlFor}>{children}</label>
     ),
     Input: (props: ComponentProps<"input">) => <input {...props} />,
-    NativeSelect: (props: ComponentProps<"select">) => <select {...props} />,
-    NativeSelectOption: (props: ComponentProps<"option">) => <option {...props} />,
+    SelectField: ({
+      items,
+      onValueChange,
+      ...props
+    }: {
+      items: { value: string; label: string }[];
+      onValueChange: (value: string) => void;
+    } & ComponentProps<"select">) => (
+      <select {...props} onChange={(event) => onValueChange(event.target.value)}>
+        {items.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+    ),
   };
 });
 
