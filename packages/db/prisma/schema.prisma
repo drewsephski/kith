@@ -22,6 +22,7 @@ model AiDataConsent {
 }
 
 model User {
+  forYouRecommendations ForYouRecommendation[]
   aiDataConsents AiDataConsent[]
   id                          String                       @id
   name                        String
@@ -193,6 +194,7 @@ model Member {
 }
 
 model Space {
+  forYouRecommendations ForYouRecommendation[]
   aiDataConsents AiDataConsent[]
   id                          String                       @id
   organizationId              String
@@ -385,6 +387,7 @@ model SpaceVoicePreference {
 }
 
 model Bot {
+  forYouRecommendations ForYouRecommendation[]
   personalAssistants PersonalAssistant[]
   screenGeneration Int @default(0)
   id                String            @id @default(cuid())
@@ -1473,4 +1476,28 @@ model TaskStarterExecution {
 
   @@unique([sourceExecutionId, action])
   @@map("task_starter_executions")
+}
+
+/// Advisory evidence and user dispositions, independent of launch response delivery.
+model ForYouRecommendation {
+  id String @id @default(uuid())
+  userId String
+  spaceId String
+  assistantId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  assistant Bot @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  sourceKey String
+  fingerprint String
+  evidence Json
+  state String @default("available")
+  snoozedUntil DateTime?
+  operationId String @default(uuid())
+  launchedBotId String?
+  discoveredAt DateTime @default(now())
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+  @@unique([userId, spaceId, assistantId, sourceKey])
+  @@index([userId, spaceId, assistantId, state])
+  @@map("for_you_recommendations")
 }

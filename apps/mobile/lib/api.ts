@@ -1003,6 +1003,7 @@ export function mergeMobileSnapshot(
   next: MobileSnapshot,
   preserveLoadedHistory = false,
 ): MobileSnapshot {
+  if (prev?.threadId === next.threadId && (prev.cursor ?? -1) > (next.cursor ?? -1)) return prev;
   return mergeThreadHistory(prev, next, preserveLoadedHistory);
 }
 
@@ -1170,6 +1171,16 @@ export function applyMobileThreadEvent(
       olderCursor: null,
       run: null,
       activeRuns: [],
+    };
+  }
+  if (event.type === "run.started" && event.runId) {
+    const run = { id: event.runId, botId: event.botId, status: "running" };
+    const others = (prev.activeRuns ?? (prev.run ? [prev.run] : [])).filter((r) => r.id !== run.id);
+    return {
+      ...prev,
+      cursor: event.seq ?? prev.cursor,
+      run,
+      activeRuns: prev.groupId ? [...others, run] : [run],
     };
   }
   if (event.type === "run.waiting_input" || event.type === "computer.takeover.requested") {

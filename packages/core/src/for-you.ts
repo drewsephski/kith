@@ -1,3 +1,5 @@
+import type { ForYouRecommendation } from "@rakazo/contracts";
+
 export type ForYouCategory = "tasks" | "routines" | "learn" | "builders";
 export type ForYouService = "email" | "calendar" | "github";
 export interface ForYouSuggestion {
@@ -8,6 +10,7 @@ export interface ForYouSuggestion {
   description: string;
   prompt: string;
   services?: readonly ForYouService[];
+  recommendation?: ForYouRecommendation;
 }
 
 /** Starter ideas, not claims about the user's activity or connected accounts. */

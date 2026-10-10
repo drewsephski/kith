@@ -88,6 +88,7 @@ import {
   VoiceStatusSchema,
 } from "./domain.js";
 import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
+import { ForYouDiscoverySchema } from "./for-you.js";
 import { Id, IsoDate } from "./ids.js";
 import {
   IntegrationProviderConfigSchema,
@@ -291,6 +292,18 @@ export const appContract = {
       .output(z.object({ ok: z.literal(true) })),
     disconnect: oc
       .input(z.object({ provider: z.string().trim().min(1) }))
+      .output(z.object({ ok: z.literal(true) })),
+  },
+  forYou: {
+    discover: oc.input(z.object({ assistantId: Id })).output(ForYouDiscoverySchema),
+    dismiss: oc
+      .input(
+        z.object({
+          assistantId: Id,
+          recommendationId: z.string().max(100),
+          action: z.enum(["dismiss", "snooze"]),
+        }),
+      )
       .output(z.object({ ok: z.literal(true) })),
   },
   bots: {

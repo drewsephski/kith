@@ -467,13 +467,15 @@ export class RestTaskPlatform implements TaskPlatform {
   }
 
   async upcomingMeetings(
-    input: { connection: TaskConnection; timeMin: string; timeMax: string },
+    input: { connection: TaskConnection; timeMin: string; timeMax: string; maxMeetings?: number; maxCalendars?: number },
     context: AdapterContext,
   ): Promise<{ meetings: TaskMeeting[]; complete: boolean }> {
     const start = z.iso.datetime({ offset: true }).parse(input.timeMin);
     const end = z.iso.datetime({ offset: true }).parse(input.timeMax);
     if (Date.parse(end) <= Date.parse(start) || Date.parse(end) - Date.parse(start) > 8 * 86400_000)
       throw new Error("Choose a meeting window of at most eight days");
+    const maxMeetings = z.number().int().min(1).max(300).parse(input.maxMeetings ?? 300);
+    const maxCalendars = z.number().int().min(1).max(100).parse(input.maxCalendars ?? 100);
     const calendars: Record<string, unknown>[] = [];
     let cursor = "";
     let complete = false;
@@ -481,7 +483,7 @@ export class RestTaskPlatform implements TaskPlatform {
       const response = await this.request(
         input.connection,
         url("https://www.googleapis.com", "/calendar/v3/users/me/calendarList", {
-          maxResults: "100",
+          maxResults: String(maxCalendars),
           ...(cursor ? { pageToken: cursor } : {}),
         }),
         context,
@@ -492,10 +494,10 @@ export class RestTaskPlatform implements TaskPlatform {
         complete = true;
         break;
       }
-      if (calendars.length >= 100) break;
+      if (calendars.length >= maxCalendars) break;
     }
     const meetings: TaskMeeting[] = [];
-    for (const calendar of calendars.slice(0, 100)) {
+    for (const calendar of calendars.slice(0, maxCalendars)) {
       cursor = "";
       let calendarComplete = false;
       for (let page = 0; page < MAX_PAGES; page++) {
@@ -509,7 +511,7 @@ export class RestTaskPlatform implements TaskPlatform {
               timeMax: end,
               singleEvents: "true",
               orderBy: "startTime",
-              maxResults: "100",
+              maxResults: String(Math.min(100, maxMeetings)),
               ...(cursor ? { pageToken: cursor } : {}),
             },
           ),
@@ -555,16 +557,16 @@ export class RestTaskPlatform implements TaskPlatform {
           calendarComplete = true;
           break;
         }
-        if (meetings.length >= 300) break;
+        if (meetings.length >= maxMeetings) break;
       }
       complete &&= calendarComplete;
-      if (meetings.length >= 300) {
+      if (meetings.length >= maxMeetings) {
         complete = false;
         break;
       }
     }
     return {
-      meetings: meetings.sort((a, b) => Date.parse(a.start) - Date.parse(b.start)).slice(0, 300),
+      meetings: meetings.sort((a, b) => Date.parse(a.start) - Date.parse(b.start)).slice(0, maxMeetings),
       complete,
     };
   }
