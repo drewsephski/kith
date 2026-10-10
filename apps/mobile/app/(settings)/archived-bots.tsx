@@ -1,7 +1,8 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Text, View } from "react-native";
 import { ArchivedBotList } from "../../components/archived-bot-list";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import type { MobileBot } from "../../lib/api";
 import { rpc } from "../../lib/api";

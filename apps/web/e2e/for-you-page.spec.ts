@@ -129,7 +129,7 @@ test("narrow category controls reveal the final category with readable touch tar
   await captureScreenshot(page, testInfo, "for-you-narrow-category-scroll");
 });
 
-test("For you prioritizes persisted approvals and changes connected suggestions by account", async ({
+test("For you shows connected apps and only new suggestions for those services", async ({
   page,
 }, testInfo) => {
   const rows = [
@@ -189,16 +189,20 @@ test("For you prioritizes persisted approvals and changes connected suggestions 
   ]) {
     await page.setViewportSize(viewport);
     await page.goto(`${fixture}?personalized=1`);
-    const work = page.getByTestId("for-you-work");
-    await expect(work.getByRole("button").first()).toContainText("Review reply before sending");
-    await work.getByRole("button").first().click();
-    await expect(page.getByTestId("opened-work")).toHaveText("thread-approval:message-approval");
+    await expect(page.getByTestId("for-you-work")).toHaveCount(0);
+    await expect(page.getByText("Review reply before sending", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Weekly review", { exact: true })).toHaveCount(0);
     const connected = page.getByTestId("for-you-connected");
-    await expect(connected).toContainText(
-      service === "github"
-        ? "Get pull requests ready to ship"
-        : "Draft replies that need your attention",
-    );
+    await expect(connected.getByRole("listitem")).toHaveText(service);
+    await expect(
+      page.getByRole("button", { name: "Get pull requests ready to ship", exact: true }),
+    ).toHaveCount(service === "github" ? 1 : 0);
+    await expect(
+      page.getByRole("button", { name: "Draft replies that need your attention", exact: true }),
+    ).toHaveCount(service === "gmail" ? 1 : 0);
+    await expect(
+      page.getByRole("button", { name: "Prepare for your next meeting", exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
     await captureScreenshot(page, testInfo, `for-you-personalized-${viewport.width}`);
     service = "gmail";

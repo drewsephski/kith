@@ -11,6 +11,14 @@ import type { NativeActionButtonProps } from "./native-controls";
 
 const route = vi.hoisted(() => ({ mode: "in" }));
 
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("expo-router", () => ({
   Redirect: () => null,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),

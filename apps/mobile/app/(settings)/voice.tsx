@@ -1,15 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSwitch } from "../../components/native-switch";
 import { Checkmark } from "../../components/row-accessories";

@@ -1,4 +1,5 @@
 import { I18nProvider } from "@lingui/react";
+import { buildComposerMentionOptions } from "@rakazo/core";
 import { KithAvatar } from "@rakazo/ui-web";
 import { createRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,6 +16,7 @@ window.fetch = async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
   const path = new URL(url, location.origin).pathname;
   if (path === "/rpc/threads/suggestions") {
+    if (params.has("empty-followups")) return Response.json({ json: [] });
     if (params.has("error")) return new Response("Unavailable", { status: 500 });
     const body = JSON.parse(
       String(init?.body ?? (input instanceof Request ? await input.clone().text() : "{}")),
@@ -115,12 +117,34 @@ function Fixture() {
       </div>
       <AssistantForYou
         botId="assistant-fixture"
+        apps={params.has("connected") ? ["gmail"] : undefined}
         conversation={
           params.has("followups") ? { scopeKey: "fixture:thread", messageId, busy } : undefined
         }
         onSuggest={(text) => setSuggestedDraft({ text, nonce: Date.now() })}
       />
       <Composer
+        mentionTargets={buildComposerMentionOptions({
+          query: "",
+          bots: [],
+          groups: [],
+          routines: [],
+          connectors: [
+            ["gmail", "Work inbox"],
+            ["composio", "Composio"],
+            ["github", "GitHub"],
+            ["googlecalendar", "Google Calendar"],
+            ["notion", "Notion"],
+            ["googlesheets", "Google Sheets"],
+            ["slack", "Slack"],
+            ["supabase", "Supabase"],
+          ].map(([brand, name]) => ({
+            id: `catalog:${brand}`,
+            brand,
+            name: name!,
+            authStatus: "needs_auth",
+          })),
+        })}
         suggestedDraft={suggestedDraft}
         activeName="Kith"
         artifactTarget={{ botId: "bot-0" }}

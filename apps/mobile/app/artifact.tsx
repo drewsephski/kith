@@ -5,16 +5,8 @@ import type { File } from "expo-file-system";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeSymbol } from "../components/native-symbol";
 import { SandboxedHtmlPreview } from "../components/sandboxed-html-preview";
 import { formatActivityRelativeTime } from "../lib/activity";

@@ -1,7 +1,8 @@
 import type { AiConsentStatus } from "@rakazo/contracts";
 import { AI_DATA_DISCLOSURES, AI_PRIVACY_URL } from "@rakazo/contracts";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet } from "react-native";
+import { ActivityIndicator, Alert, Linking, StyleSheet } from "react-native";
+import { ScrollView } from "../../components/minimal-scroll";
 import {
   SettingsFooter,
   SettingsGroup,

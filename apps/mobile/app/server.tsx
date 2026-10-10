@@ -1,7 +1,8 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput } from "react-native";
+import { KeyboardAvoidingView, Platform, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { cancelHeaderOptions, trailingHeaderOptions } from "../components/sheet-header";
 import {

@@ -124,7 +124,7 @@ const followUps = [
   },
 ];
 async function renderConversation(
-  messageId: string | undefined = "reply-1",
+  messageId: string | null = "reply-1",
   busy = false,
   scopeKey = "user:space:thread",
 ) {
@@ -132,7 +132,8 @@ async function renderConversation(
     root.render(
       <AssistantForYou
         botId="bot-1"
-        conversation={{ scopeKey, messageId, busy }}
+        apps={["gmail"]}
+        conversation={{ scopeKey, messageId: messageId ?? undefined, busy }}
         onSuggest={onSuggest}
       />,
     ),
@@ -143,7 +144,7 @@ it("shows conversation follow-ups without depending on connected services, and o
   vi.useFakeTimers();
   suggestions.mockResolvedValue(followUps);
   await renderConversation();
-  expect(container.childElementCount).toBe(0);
+  expect(container.textContent).toContain("Draft important replies");
   await act(async () => vi.advanceTimersByTimeAsync(350));
   expect(container.textContent).toContain("Compare milestone options");
   expect(container.textContent).not.toContain("Draft important replies");
@@ -183,20 +184,22 @@ it("ignores late results after a thread or space switch", async () => {
   await renderConversation();
   await act(async () => vi.advanceTimersByTimeAsync(350));
   const signal = suggestions.mock.calls[0]![1].signal as AbortSignal;
-  await renderConversation(undefined, false, "user:other-space:other-thread");
+  await renderConversation(null, false, "user:other-space:other-thread");
   expect(signal.aborted).toBe(true);
   await act(async () => resolve(followUps));
   expect(container.childElementCount).toBe(0);
 });
 
-it("hides the row when follow-up generation fails or offers no useful next step", async () => {
+it("keeps connected-service starters when follow-up generation fails or returns nothing", async () => {
   vi.useFakeTimers();
   suggestions.mockRejectedValue(new Error("Offline"));
   await renderConversation();
   await act(async () => vi.advanceTimersByTimeAsync(350));
-  expect(container.childElementCount).toBe(0);
+  expect(container.textContent).toContain("Draft important replies");
+  act(() => container.querySelector("button")!.click());
+  expect(onSuggest).toHaveBeenCalledWith(expect.stringContaining("Leave the responses as drafts"));
   suggestions.mockResolvedValue([]);
   await renderConversation("reply-2");
   await act(async () => vi.advanceTimersByTimeAsync(350));
-  expect(container.childElementCount).toBe(0);
+  expect(container.textContent).toContain("Draft important replies");
 });

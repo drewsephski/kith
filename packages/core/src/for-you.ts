@@ -1,4 +1,5 @@
 export type ForYouCategory = "tasks" | "routines" | "learn" | "builders";
+export type ForYouService = "email" | "calendar" | "github";
 export interface ForYouSuggestion {
   id: string;
   group: string;
@@ -6,12 +7,14 @@ export interface ForYouSuggestion {
   title: string;
   description: string;
   prompt: string;
+  services?: readonly ForYouService[];
 }
 
 /** Starter ideas, not claims about the user's activity or connected accounts. */
 export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   {
     id: "important-replies",
+    services: ["email"],
     group: "Outreach",
     category: "tasks",
     title: "Draft replies that need your attention",
@@ -21,6 +24,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "follow-ups",
+    services: ["email"],
     group: "Outreach",
     category: "tasks",
     title: "Follow up on unanswered conversations",
@@ -30,6 +34,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "outreach-tracker",
+    services: ["email"],
     group: "Outreach",
     category: "routines",
     title: "Set up a daily reply and bounce tracker",
@@ -39,6 +44,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "pull-requests",
+    services: ["github"],
     group: "Developer tools",
     category: "tasks",
     title: "Get pull requests ready to ship",
@@ -57,6 +63,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "build-digest",
+    services: ["github"],
     group: "Developer tools",
     category: "routines",
     title: "Set up a morning digest of failing builds",
@@ -75,6 +82,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "meeting-brief",
+    services: ["calendar"],
     group: "General",
     category: "tasks",
     title: "Prepare for your next meeting",
@@ -84,6 +92,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "receipts",
+    services: ["email"],
     group: "General",
     category: "tasks",
     title: "Collect recent receipts and invoices",
@@ -147,6 +156,7 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
   },
   {
     id: "lead-replies",
+    services: ["email"],
     group: "For builders",
     category: "builders",
     title: "Triage replies to cold outreach",

@@ -1,8 +1,9 @@
 import { GROUP_MEMBER_MAX, GROUP_MEMBER_MIN } from "@rakazo/contracts";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TextInput } from "react-native";
+import { Text, TextInput } from "react-native";
 import { BotMemberPicker } from "../components/bot-member-picker";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import type { MobileBot } from "../lib/api";
 import { rpc } from "../lib/api";

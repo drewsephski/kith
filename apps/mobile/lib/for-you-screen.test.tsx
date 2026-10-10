@@ -12,6 +12,14 @@ const state = vi.hoisted(() => ({
   generation: 1,
   storage: new Map<string, string>(),
 }));
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("./api", () => ({
   rpc: state.rpc,
   selectedSpaceId: () => state.space,
@@ -41,6 +49,7 @@ vi.mock("expo-router", () => ({
   useRouter: () => ({ push: state.push }),
   useFocusEffect: (callback: () => () => void) => useEffect(callback, [callback]),
 }));
+vi.mock("../components/connector-icon", () => ({ ConnectorIcon: () => null }));
 vi.mock("../components/menu-picker", () => ({ MenuPicker: () => null }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
 vi.mock("react-native", () => {
@@ -154,7 +163,7 @@ it("rejects an old account/space launch while loading the assistant", async () =
   expect(state.rpc.mock.calls.some(([proc]) => proc === "bots/launchForYou")).toBe(false);
   expect(state.push).not.toHaveBeenCalled();
 });
-it("opens persisted approvals at the authoritative message destination", async () => {
+it("does not load or display completed, active, or waiting work", async () => {
   const original = state.rpc.getMockImplementation()!;
   state.rpc.mockImplementation((proc: string, input: unknown) =>
     proc === "runs/list"
@@ -179,19 +188,54 @@ it("opens persisted approvals at the authoritative message destination", async (
       : original(proc, input),
   );
   await render();
-  const work = [...host.querySelectorAll("button")].find((button) =>
-    button.textContent?.includes("Review the draft"),
-  )!;
-  act(() => work.click());
-  expect(state.push).toHaveBeenCalledWith({
-    pathname: "/thread",
-    params: { botId: "bot-1", name: "Draft review", messageId: "approval-1" },
-  });
+  expect(host.textContent).not.toContain("Review the draft");
+  expect(host.textContent).not.toContain("Your work");
+  expect(state.rpc.mock.calls.some(([proc]) => proc === "runs/list")).toBe(false);
 });
 
-it("offers an unconnected conversational starter before the full Explore catalog", async () => {
+it("offers conversational suggestions without unavailable service tasks", async () => {
   await render();
-  expect(host.querySelector("button")?.textContent).toBe("Make a plan for the week ahead");
+  expect(host.querySelector('button[aria-label="Make a plan for the week ahead"]')).not.toBeNull();
+  expect(host.textContent).not.toContain("Draft replies that need your attention");
+  expect(host.textContent).not.toContain("Prepare for your next meeting");
   expect(host.textContent).toContain("Explore");
   expect(host.textContent).not.toContain("Your work");
+});
+
+it("shows actual connected account labels and filters tasks by their service", async () => {
+  const original = state.rpc.getMockImplementation()!;
+  state.rpc.mockImplementation((proc: string, input: unknown) =>
+    proc === "connections/list"
+      ? Promise.resolve([
+          {
+            id: "mail-one",
+            connectorId: "composio",
+            provider: "gmail",
+            displayName: "Gmail · Work",
+            status: "connected",
+          },
+          {
+            id: "mail-two",
+            connectorId: "composio",
+            provider: "gmail",
+            displayName: "Gmail · Personal",
+            status: "connected",
+          },
+          {
+            id: "github",
+            connectorId: "composio",
+            provider: "github",
+            displayName: "GitHub",
+            status: "revoked",
+          },
+        ])
+      : original(proc, input),
+  );
+  await render();
+  expect(host.textContent).toContain("Gmail · Work");
+  expect(host.textContent).toContain("Gmail · Personal");
+  expect(
+    host.querySelector('button[aria-label="Draft replies that need your attention"]'),
+  ).not.toBeNull();
+  expect(host.querySelector('button[aria-label="Get pull requests ready to ship"]')).toBeNull();
 });

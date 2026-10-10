@@ -1,8 +1,9 @@
-import { Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { mobileTokens } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { useThemedStyles } from "../lib/native";
+import { ScrollView } from "./minimal-scroll";
 import { NativeActionButton } from "./native-action-button";
 
 /** A message as one block of plain text, so a selection can span paragraphs. */

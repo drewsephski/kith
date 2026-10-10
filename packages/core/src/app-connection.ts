@@ -1,6 +1,8 @@
 import type { Connection, ConnectionCatalogItem } from "@rakazo/contracts";
 import { abortableDelay } from "./async.js";
 
+export type ConnectedAppService = ReturnType<typeof connectedAppServices>[number];
+
 /** Include provider-connected services even before a local account row exists. */
 export function connectedAppServices(
   connections: readonly Connection[],

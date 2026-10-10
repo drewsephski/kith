@@ -37,7 +37,6 @@ import {
   Keyboard,
   Linking,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -45,6 +44,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConnectorIcon } from "../../components/connector-icon";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSwitch } from "../../components/native-switch";
 import { Checkmark, Chevron } from "../../components/row-accessories";

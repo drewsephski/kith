@@ -34,7 +34,7 @@ import {
   type MessageReaction,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
-import type { ForYouSuggestion } from "@rakazo/core";
+import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
   attachmentsForThread,
   buildComposerMentionOptions,
@@ -83,6 +83,7 @@ import {
   Button,
   Collapsible,
   CollapsibleContent,
+  ConnectorIcon,
   cn,
   DropdownMenu,
   DropdownMenuContent,
@@ -123,7 +124,6 @@ import {
   Paperclip,
   Pencil,
   Plus,
-  Puzzle,
   Reply,
   Search,
   Settings,
@@ -585,7 +585,7 @@ export function ShellPage({
   const [forYouApps, setForYouApps] = useState<{
     scope: string;
     selection: string | null;
-    apps: string[];
+    services: ConnectedAppService[];
   } | null>(null);
   const [mentionConnectors, setMentionConnectors] = useState<
     Array<{
@@ -593,6 +593,8 @@ export function ShellPage({
       name: string;
       authStatus: "connected" | "needs_auth";
       connectionId?: string;
+      brand?: string;
+      logo?: string | null;
     }>
   >([]);
   const [teachBusy, setTeachBusy] = useState(false);
@@ -780,10 +782,13 @@ export function ShellPage({
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
   const forYouScope = `${userId}:${bootstrapMe?.spaceId}`;
-  const connectedForYouApps =
+  const connectedForYouServices =
     forYouApps?.scope === forYouScope && forYouApps.selection === selectedSpaceId()
-      ? forYouApps.apps
+      ? forYouApps.services
       : [];
+  const connectedForYouApps = connectedForYouServices.map(
+    ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  );
 
   const [keepComputerRecovery, setKeepComputerRecovery] = useState(false);
   const recoveryHoldTimer = useRef<number | undefined>(undefined);
@@ -2080,9 +2085,7 @@ export function ShellPage({
         setForYouApps({
           scope: forYouScope,
           selection: spaceId,
-          apps: connectedAppServices(connections, catalog).map(
-            ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
-          ),
+          services: connectedAppServices(connections, catalog),
         });
         const connected = connections.filter((row) => row.status === "connected");
         const options: Array<{
@@ -2090,11 +2093,17 @@ export function ShellPage({
           name: string;
           authStatus: "connected" | "needs_auth";
           connectionId?: string;
+          brand?: string;
+          logo?: string | null;
         }> = connected.map((row) => ({
           id: row.id,
           name: row.displayName,
           authStatus: "connected" as const,
           connectionId: row.id,
+          brand: row.provider,
+          logo: catalog.find(
+            (item) => item.connectorId === row.connectorId && item.slug === row.provider,
+          )?.logo,
         }));
         for (const item of catalog) {
           if (item.connected || item.noAuth) continue;
@@ -2111,6 +2120,8 @@ export function ShellPage({
             id: `catalog:${item.connectorId}:${item.slug}`,
             name: item.name,
             authStatus: "needs_auth",
+            brand: item.slug,
+            logo: item.logo,
           });
         }
         setMentionConnectors(options);
@@ -2124,7 +2135,15 @@ export function ShellPage({
       window.removeEventListener("focus", load);
       document.removeEventListener("visibilitychange", load);
     };
-  }, [initialBotsLoaded, forYouScope, userId, bootstrapMe?.spaceId]);
+  }, [
+    initialBotsLoaded,
+    forYouScope,
+    userId,
+    bootstrapMe?.spaceId,
+    forYouOpen,
+    pluginsOpen,
+    panel,
+  ]);
 
   useLayoutEffect(() => {
     if (initialBotsLoaded) {
@@ -3945,15 +3964,7 @@ export function ShellPage({
         ) : null}
         {forYouOpen ? (
           <ForYouPage
-            workRevision={bots.map((bot) => `${bot.id}:${bot.status}`).join(",")}
-            scopeKey={
-              userId && bootstrapMe?.spaceId ? `${userId}:${bootstrapMe.spaceId}` : undefined
-            }
-            onOpenRun={(run) => {
-              const path = run.groupId ? `/app/g/${run.groupId}` : `/app/${run.botId}`;
-              navigate(run.messageId ? `${path}?m=${encodeURIComponent(run.messageId)}` : path);
-            }}
-            apps={connectedForYouApps}
+            services={connectedForYouServices}
             onSelect={(suggestion) => void newConversation(suggestion)}
             busy={creatingThread || !assistantId}
             error={forYouError}
@@ -4150,6 +4161,7 @@ export function ShellPage({
               <AssistantForYou
                 key={`${conversationKey}:${activeSnapshot?.threadId}`}
                 botId={active?.id}
+                apps={connectedForYouApps}
                 conversation={{
                   scopeKey: `${conversationKey}:${activeSnapshot?.threadId}`,
                   messageId:
@@ -7056,7 +7068,15 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
     return <Clock size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />;
   }
   if (mention.kind === "connector") {
-    return <Puzzle size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />;
+    return (
+      <ConnectorIcon
+        name={mention.name}
+        brand={mention.brand}
+        logo={mention.logo}
+        size={16}
+        className="mt-0.5 rounded-none bg-transparent p-0"
+      />
+    );
   }
   if (mention.kind === "group") {
     return (
@@ -7080,7 +7100,15 @@ function MentionChipIcon({ mention }: { mention: ComposerMention }) {
     return <Clock size={13} strokeWidth={1.7} className="shrink-0 text-muted-foreground/70" />;
   }
   if (mention.kind === "connector") {
-    return <Puzzle size={13} strokeWidth={1.7} className="shrink-0 text-muted-foreground/70" />;
+    return (
+      <ConnectorIcon
+        name={mention.name}
+        brand={mention.brand}
+        logo={mention.logo}
+        size={13}
+        className="rounded-none bg-transparent p-0"
+      />
+    );
   }
   if (mention.kind === "group" || mention.kind === "everyone") {
     return (

@@ -4,7 +4,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,6 +14,7 @@ import { mobileTokens } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { native, useThemedStyles } from "../lib/native";
 import { errorText } from "../lib/user-error";
+import { ScrollView } from "./minimal-scroll";
 import { NativeActionButton } from "./native-action-button";
 import { NativeSymbol } from "./native-symbol";
 

@@ -138,6 +138,73 @@ test("a follow-up provider failure leaves the composer usable without unrelated 
   await expect(page.getByTestId("assistant-for-you")).toHaveCount(0);
 });
 
+test("connected-service starters stay above the composer when follow-ups are empty or unavailable", async ({
+  page,
+}, testInfo) => {
+  for (const mode of ["empty-followups", "error"]) {
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({ width, height: 812 });
+      await page.goto(`${fixture}?followups=1&connected=1&${mode}=1`);
+      const strip = page.getByTestId("assistant-for-you");
+      const starter = strip.getByRole("button", { name: "Draft important replies", exact: true });
+      await expect(starter).toBeVisible();
+      await starter.click();
+      const composer = page.locator('textarea[name="chat-message"]');
+      await expect(composer).toHaveValue(/Go through my inbox.*create a draft response for each/);
+      await expect(composer).toBeFocused();
+      await captureScreenshot(page, testInfo, `composer-starter-fallback-${mode}-${width}`);
+      await page.getByRole("button", { name: "Start response", exact: true }).click();
+      await expect(strip).toHaveCount(0);
+    }
+  }
+});
+
+test("mention menu and selected chips use service logos offline in both themes", async ({
+  page,
+}, testInfo) => {
+  await page.route("https://svgl.app/**", (route) => route.abort());
+  await page.route("https://brand.composio.dev/**", (route) => route.abort());
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({ width, height: 812 });
+      await page.goto(`${fixture}?followups=1&connected=1&empty-followups=1`);
+      const composer = page.locator('textarea[name="chat-message"]');
+      await composer.fill("@");
+      const picker = page.getByTestId("mention-picker");
+      await expect(picker.getByRole("option")).toHaveCount(8);
+      for (const brand of [
+        "gmail",
+        "composio",
+        "github",
+        "googlecalendar",
+        "notion",
+        "googlesheets",
+        "slack",
+        "supabase",
+      ]) {
+        const images = picker.locator(`[data-brand="${brand}"] img:visible`);
+        await expect(images).toHaveCount(1);
+        await expect(images).toHaveAttribute("src", /^data:image\/svg\+xml/);
+        await expect
+          .poll(() =>
+            images.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+          )
+          .toBe(true);
+      }
+      await captureScreenshot(page, testInfo, `composer-mention-logos-${theme}-${width}`);
+      await picker.getByRole("option", { name: "@Work inbox", exact: true }).click();
+      await expect(
+        page.getByTestId("mention-chip").locator('[data-brand="gmail"] img:visible'),
+      ).toBeVisible();
+      await expect(composer).toBeFocused();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
+        false,
+      );
+    }
+  }
+});
+
 test("prompt arrows animate on hover and honor reduced motion without shifting layout", async ({
   page,
 }) => {

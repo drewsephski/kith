@@ -19,6 +19,14 @@ const { rpc, alert, push, closeSettingsSheet, navigation, focus } = vi.hoisted((
   focus: { current: undefined as (() => (() => void) | undefined) | undefined },
 }));
 const bot = { id: "bot-fixture", name: "Fixture" } as MobileBot;
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("./api", () => ({ rpc }));
 vi.mock("./settings-sheet", () => ({ closeSettingsSheet }));
 vi.mock("expo-router", () => ({

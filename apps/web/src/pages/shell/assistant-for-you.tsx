@@ -24,10 +24,7 @@ export function AssistantForYou({
   onSuggest: (text: string) => void;
 }) {
   const { t, i18n } = useLingui();
-  const starters = useAssistantSuggestions(
-    conversation ? undefined : botId,
-    conversation ? [] : apps,
-  );
+  const starters = useAssistantSuggestions(botId, apps);
   const followUps = useConversationSuggestions({
     scopeKey: conversation?.scopeKey ?? "",
     request:
@@ -35,6 +32,7 @@ export function AssistantForYou({
         ? { botId, messageId: conversation.messageId, locale: i18n.locale || "en" }
         : undefined,
     load,
+    fallback: starters.slice(0, 3),
   });
   const suggestions = conversation ? followUps : starters.slice(0, 3);
   if (!suggestions.length) return null;

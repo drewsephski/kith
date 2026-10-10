@@ -35,9 +35,34 @@ it("filters grouped prompts and launches the complete selected suggestion", () =
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
+  const services = [
+    {
+      key: "mail",
+      connectionId: "mail",
+      connectorId: "composio",
+      slug: "gmail",
+      name: "Gmail · Work",
+      logo: null,
+    },
+    {
+      key: "github",
+      connectionId: "github",
+      connectorId: "composio",
+      slug: "github",
+      name: "GitHub",
+      logo: null,
+    },
+  ];
   const onSelect = vi.fn();
   try {
-    act(() => root.render(<ForYouPage onSelect={onSelect} />));
+    act(() => root.render(<ForYouPage services={services} onSelect={onSelect} />));
+    expect(container.querySelector('[data-testid="for-you-connected"]')?.textContent).toContain(
+      "Gmail · Work",
+    );
+    expect(container.querySelector('[data-testid="for-you-work"]')).toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Prepare for your next meeting"]'),
+    ).toBeNull();
     const routines = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Routines",
     )!;
@@ -50,7 +75,11 @@ it("filters grouped prompts and launches the complete selected suggestion", () =
     expect(onSelect).toHaveBeenCalledWith(
       FOR_YOU_SUGGESTIONS.find((suggestion) => suggestion.id === "outreach-tracker"),
     );
-    act(() => root.render(<ForYouPage onSelect={onSelect} busy error="Could not send. Retry." />));
+    act(() =>
+      root.render(
+        <ForYouPage services={services} onSelect={onSelect} busy error="Could not send. Retry." />,
+      ),
+    );
     expect(container.querySelector('[role="alert"]')?.textContent).toBe("Could not send. Retry.");
     expect(
       [...container.querySelectorAll<HTMLButtonElement>("button[aria-label]")].every(

@@ -1,17 +1,10 @@
 import { MenuView } from "@expo/ui/community/menu";
 import type { ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../../lib/i18n";
 import { useMobileTokens } from "../../lib/native";
+import { ScrollView } from "../minimal-scroll";
 import { NativeActionButton } from "../native-action-button";
 import { NativeSwitch } from "../native-switch";
 

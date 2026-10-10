@@ -7,8 +7,9 @@ import {
 } from "@rakazo/contracts";
 import { Stack, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { ComputerModePicker } from "../components/computer-mode-picker";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { Chevron } from "../components/row-accessories";
 import { cancelHeaderOptions } from "../components/sheet-header";

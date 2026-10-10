@@ -1,6 +1,6 @@
 import { ChatMarkdown } from "@rakazo/chat-ui/native";
 import { useEffect, useState } from "react";
-import { Alert, Modal, SafeAreaView, ScrollView, Text, View } from "react-native";
+import { Alert, Modal, SafeAreaView, Text, View } from "react-native";
 import { mobileTokens } from "../lib/appearance";
 import {
   type MobileArtifactTarget,
@@ -12,6 +12,7 @@ import { useResolvedAppearance } from "../lib/native";
 import { iosAtLeast } from "../lib/native-controls";
 import { errorText } from "../lib/user-error";
 import { GlassIconButton } from "./glass-icon-button";
+import { ScrollView } from "./minimal-scroll";
 
 export type MarkdownArtifactPreviewTarget = {
   artifactId: string;

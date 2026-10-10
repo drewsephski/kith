@@ -7,8 +7,16 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ConversationSuggestions } from "../components/conversation-suggestions";
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
+vi.mock("../components/minimal-scroll", async () => {
+  const native = await import("react-native");
+  return {
+    ScrollView: native.ScrollView,
+    ...(Object.hasOwn(native, "FlatList") ? { FlatList: native.FlatList } : {}),
+  };
+});
+
 vi.mock("./api", () => ({ rpc }));
-vi.mock("./i18n", () => ({ useI18n: () => ({ locale: "en" }) }));
+vi.mock("./i18n", () => ({ useI18n: () => ({ locale: "en", t: (text: string) => text }) }));
 vi.mock("react-native", () => ({
   ScrollView: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -39,7 +47,7 @@ afterEach(() => {
   container.remove();
   vi.useRealTimers();
 });
-async function render(busy = false) {
+async function render(busy = false, connectedServices: string[] = []) {
   await act(async () =>
     root.render(
       <ConversationSuggestions
@@ -47,6 +55,7 @@ async function render(busy = false) {
         botId="bot"
         messageId="reply"
         busy={busy}
+        connectedServices={connectedServices}
         onSelect={select}
       />,
     ),
@@ -80,4 +89,21 @@ it("preserves an empty surface when the optional generator is unavailable", asyn
   rpc.mockRejectedValue(new Error("Unavailable"));
   await render();
   expect(container.textContent).toBe("");
+});
+
+it("keeps service starters available offline and hides them during active work", async () => {
+  rpc.mockRejectedValue(new Error("Unavailable"));
+  await render(false, ["gmail"]);
+  expect(container.textContent).toContain("Draft replies that need your attention");
+  act(() => container.querySelector("button")!.click());
+  expect(select).toHaveBeenCalledWith(expect.stringContaining("Leave responses as drafts"));
+  await render(true, ["gmail"]);
+  expect(container.textContent).toBe("");
+});
+
+it("uses service starters when generation returns no grounded follow-ups", async () => {
+  rpc.mockResolvedValue([]);
+  await render(false, ["github"]);
+  expect(container.textContent).toContain("Get pull requests ready to ship");
+  expect(container.textContent).not.toContain("Draft replies");
 });

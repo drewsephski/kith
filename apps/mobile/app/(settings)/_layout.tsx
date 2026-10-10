@@ -1,8 +1,10 @@
 import { Stack, useNavigation } from "expo-router";
 import { HeaderBackButton } from "expo-router/react-navigation";
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { floatingHeaderOptions, glassHeaderOptions } from "../../components/glass-title";
+import { MenuPickerMenu } from "../../components/menu-picker";
+import { NativeSymbol } from "../../components/native-symbol";
 import { useI18n } from "../../lib/i18n";
 import { native, useMobileTokens } from "../../lib/native";
 import { registerSettingsSheet, settingsSheetCloser } from "../../lib/settings-sheet";
@@ -13,6 +15,12 @@ export default function SettingsLayout() {
   const tokens = useMobileTokens();
   const sheet = useNavigation();
   const close = settingsSheetCloser(sheet);
+  const sections = [
+    { name: "account", label: t("Account"), symbol: "person.crop.circle" },
+    { name: "models", label: t("Models"), symbol: "cpu" },
+    { name: "voice", label: t("Voice"), symbol: "speaker.wave.2" },
+    { name: "integrations", label: t("Integrations"), symbol: "link" },
+  ] as const;
 
   useEffect(() => registerSettingsSheet(settingsSheetCloser(sheet)), [sheet]);
 
@@ -24,9 +32,58 @@ export default function SettingsLayout() {
         headerTintColor: tokens.foreground,
         headerShadowVisible: false,
         headerBackButtonDisplayMode: "minimal",
-        // Account has no visible title, so iOS's long-press back menu would list it as a blank entry.
+        // Section navigation lives in the Settings menu instead of the back-button history.
         headerBackButtonMenuEnabled: false,
         contentStyle: { backgroundColor: String(native.page) },
+        ...(Platform.OS === "ios"
+          ? {
+              unstable_headerRightItems: () => [
+                {
+                  type: "menu" as const,
+                  label: t("Settings"),
+                  accessibilityLabel: t("Settings"),
+                  icon: { type: "sfSymbol" as const, name: "list.bullet" },
+                  menu: {
+                    items: sections.map((section) => ({
+                      type: "action" as const,
+                      label: section.label,
+                      icon: { type: "sfSymbol" as const, name: section.symbol },
+                      state: route.name === section.name ? ("on" as const) : ("off" as const),
+                      onPress: () => navigation.navigate(section.name, undefined, { pop: true }),
+                    })),
+                  },
+                },
+              ],
+            }
+          : {
+              headerRight: () => (
+                <MenuPickerMenu
+                  label={t("Settings")}
+                  choices={sections.map((section) => ({ key: section.name, label: section.label }))}
+                  value={route.name}
+                  onChange={(name) => navigation.navigate(name, undefined, { pop: true })}
+                >
+                  <View
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={t("Settings")}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <NativeSymbol
+                      ios="list.bullet"
+                      android="list"
+                      color={tokens.foreground}
+                      size={22}
+                    />
+                  </View>
+                </MenuPickerMenu>
+              ),
+            }),
         // The first page closes the sheet, or returns Home when opened by a cold deep link.
         // The inner stack has no native back arrow on its first page.
         ...(navigation.getState().routes[0]?.key === route.key
@@ -57,11 +114,9 @@ export default function SettingsLayout() {
     >
       <Stack.Screen
         name="account"
-        // The sheet's first page shows only its close button on iOS; "Account" still names it.
-        // A title function returning null would fall back to showing the title text.
         options={{
           ...glassHeaderOptions(t("Account")),
-          ...(Platform.OS === "ios" ? { headerTitle: "" } : null),
+          ...(Platform.OS === "ios" ? { headerTitle: t("Settings") } : null),
           contentStyle: { backgroundColor: native.groupedPage },
         }}
       />

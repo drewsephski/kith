@@ -71,13 +71,11 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  FlatList,
   Image,
   Linking,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -94,6 +92,7 @@ import { CalendarReceipt } from "../components/CalendarReceipt";
 import { ChoiceCard } from "../components/ChoiceCard";
 import { ComputerCard } from "../components/ComputerCard";
 import { ComposerReplyPreview } from "../components/composer-reply-preview";
+import { ConnectorIcon } from "../components/connector-icon";
 import { ConversationSuggestions } from "../components/conversation-suggestions";
 import { EmailCard, EmailPreview } from "../components/EmailCard";
 import { FailedSendBubble } from "../components/failed-send-bubble";
@@ -106,6 +105,7 @@ import type { MarkdownArtifactPreviewTarget } from "../components/markdown-artif
 import { MarkdownArtifactPreview } from "../components/markdown-artifact-preview";
 import { MessageCaption } from "../components/message-caption";
 import { MessageContextMenu } from "../components/message-context-menu";
+import { FlatList, ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import { ReplyDismissButton } from "../components/reply-dismiss-button";
@@ -531,6 +531,8 @@ function Thread() {
       name: string;
       authStatus: "connected" | "needs_auth";
       connectionId?: string;
+      brand?: string;
+      logo?: string | null;
     }>
   >([]);
   const [selectedMentions, setSelectedMentions] = useState<ComposerMention[]>([]);
@@ -787,11 +789,17 @@ function Thread() {
         name: string;
         authStatus: "connected" | "needs_auth";
         connectionId?: string;
+        brand?: string;
+        logo?: string | null;
       }> = connected.map((row) => ({
         id: row.id,
         name: row.displayName,
         authStatus: "connected" as const,
         connectionId: row.id,
+        brand: row.provider,
+        logo: catalog.find(
+          (item) => item.connectorId === row.connectorId && item.slug === row.provider,
+        )?.logo,
       }));
       for (const item of catalog) {
         if (item.connected || item.noAuth) continue;
@@ -808,6 +816,8 @@ function Thread() {
           id: `catalog:${item.connectorId}:${item.slug}`,
           name: item.name,
           authStatus: "needs_auth",
+          brand: item.slug,
+          logo: item.logo,
         });
       }
       setMentionConnectors(options);
@@ -2624,6 +2634,9 @@ function Thread() {
           <ConversationSuggestions
             scopeKey={`${currentApiBase()}:${currentSessionGeneration()}:${selectedSpaceId()}:${snap?.threadId}`}
             botId={botId}
+            connectedServices={mentionConnectors
+              .filter((connector) => connector.authStatus === "connected")
+              .map((connector) => connector.brand ?? connector.name)}
             messageId={
               visibleMessages.at(-1)?.role === "bot" ? visibleMessages.at(-1)?.id : undefined
             }
@@ -3172,11 +3185,12 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   }
   if (mention.kind === "connector") {
     return (
-      <NativeSymbol
-        ios="puzzlepiece.extension"
-        android="extension-puzzle-outline"
+      <ConnectorIcon
+        name={mention.name}
+        brand={mention.brand}
+        logo={mention.logo}
         size={16}
-        color={tokens.mutedForeground}
+        framed={false}
       />
     );
   }
@@ -3322,11 +3336,12 @@ function MentionChipIcon({ mention }: { mention: ComposerMention }) {
   }
   if (mention.kind === "connector") {
     return (
-      <NativeSymbol
-        ios="puzzlepiece.extension"
-        android="extension-puzzle-outline"
+      <ConnectorIcon
+        name={mention.name}
+        brand={mention.brand}
+        logo={mention.logo}
         size={13}
-        color={tokens.mutedForeground}
+        framed={false}
       />
     );
   }

@@ -1,9 +1,10 @@
 import { GROUP_MEMBER_MAX, GROUP_MEMBER_MIN } from "@rakazo/contracts";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, TextInput } from "react-native";
+import { Alert, Text, TextInput } from "react-native";
 import { BotMemberPicker } from "../components/bot-member-picker";
 import { glassHeaderOptions } from "../components/glass-title";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { type MobileBot, type MobileGroup, rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";

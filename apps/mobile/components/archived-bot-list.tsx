@@ -1,8 +1,9 @@
 import { MenuView } from "@expo/ui/community/menu";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import type { MobileBot } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useResolvedAppearance } from "../lib/native";
+import { ScrollView } from "./minimal-scroll";
 import { Chevron } from "./row-accessories";
 
 export type ArchivedBotListProps = {

@@ -16,18 +16,26 @@ type BackButtonProps = {
   onPress: () => void;
 };
 type ScreenOptions = (props: {
-  navigation: { getState: () => { routes: { key: string }[] } };
-  route: { key: string };
+  navigation: {
+    getState: () => { routes: { key: string }[] };
+    navigate: (...args: unknown[]) => void;
+  };
+  route: { key: string; name: string };
 }) => {
   unstable_headerLeftItems?: () => HeaderItem[];
   headerBackVisible?: boolean;
   headerLeft?: (props: { tintColor?: string }) => ReactElement<BackButtonProps>;
+  headerRight?: () => ReactElement<{ value: string; onChange: (name: string) => void }>;
+  unstable_headerRightItems?: () => {
+    menu: { items: { label: string; state: string; onPress: () => void }[] };
+  }[];
 };
 
 const { stack, sheet } = vi.hoisted(() => ({
   stack: { screenOptions: undefined as ScreenOptions | undefined },
   sheet: { canGoBack: vi.fn(), goBack: vi.fn(), dispatch: vi.fn() },
 }));
+const navigate = vi.fn();
 
 vi.mock("expo-router", () => {
   function Stack(props: { screenOptions: ScreenOptions; children?: ReactNode }) {
@@ -37,19 +45,25 @@ vi.mock("expo-router", () => {
   Stack.Screen = () => null;
   return { Stack, useNavigation: () => sheet };
 });
-vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
+vi.mock("react-native", () => ({ Platform: { OS: "ios" }, View: () => null }));
 vi.mock("../components/glass-title", () => ({
   floatingHeaderOptions: () => ({}),
   glassHeaderOptions: (title: string) => ({ title }),
 }));
 vi.mock("expo-router/react-navigation", () => ({ HeaderBackButton: () => null }));
+vi.mock("../components/menu-picker", () => ({ MenuPickerMenu: () => null }));
+vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
 vi.mock("./i18n", () => ({ useI18n: () => ({ t: (text: string) => text }) }));
-vi.mock("./native", () => ({ native: {}, useMobileTokens: () => ({}) }));
+vi.mock("./native", () => ({
+  native: {},
+  useMobileTokens: () => ({}),
+  useResolvedAppearance: () => "dark",
+}));
 
 function headerOptions(page: string, pages: string[]) {
   return stack.screenOptions!({
-    navigation: { getState: () => ({ routes: pages.map((key) => ({ key })) }) },
-    route: { key: page },
+    navigation: { getState: () => ({ routes: pages.map((key) => ({ key })) }), navigate },
+    route: { key: page, name: page },
   });
 }
 
@@ -67,6 +81,28 @@ describe("settings sheet header", () => {
     act(() => root.unmount());
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("offers direct section navigation and marks the current native section", () => {
+    const menu = headerOptions("voice", ["account", "voice"]).unstable_headerRightItems!()[0]!.menu;
+    expect(menu.items.map((item) => item.label)).toEqual([
+      "Account",
+      "Models",
+      "Voice",
+      "Integrations",
+    ]);
+    expect(menu.items.find((item) => item.label === "Voice")?.state).toBe("on");
+    menu.items.find((item) => item.label === "Models")?.onPress();
+    expect(navigate).toHaveBeenCalledWith("models", undefined, { pop: true });
+    expect(sheet.goBack).not.toHaveBeenCalled();
+  });
+
+  it("offers the same section destinations from the Android native menu", () => {
+    Platform.OS = "android";
+    const menu = headerOptions("voice", ["account", "voice"]).headerRight!();
+    expect(menu.props.value).toBe("voice");
+    menu.props.onChange("models");
+    expect(navigate).toHaveBeenCalledWith("models", undefined, { pop: true });
+  });
 
   it("closes the sheet from its first page back to the screen under it", () => {
     sheet.canGoBack.mockReturnValue(true);

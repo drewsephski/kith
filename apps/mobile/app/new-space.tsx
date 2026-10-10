@@ -1,7 +1,8 @@
 import type { Space } from "@rakazo/contracts";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, Text, TextInput } from "react-native";
+import { Alert, Text, TextInput } from "react-native";
+import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { cancelHeaderOptions } from "../components/sheet-header";
 import { rpc, selectSpace } from "../lib/api";

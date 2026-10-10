@@ -7,7 +7,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppMark } from "../../components/app-mark";
 import { useAvatarStyle } from "../../components/avatar-style";
 import { BotAvatar } from "../../components/bot-avatar";
+import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSegmentedControl } from "../../components/native-segmented-control";
 import { NativeSymbol } from "../../components/native-symbol";

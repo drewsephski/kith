@@ -102,6 +102,70 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
     };
   }
 
+  it("uses only the actor's connected inbox accounts and preserves their prompt on retry", async () => {
+    await prisma.connection.createMany({
+      data: [
+        {
+          id: `${actor.spaceId}-mail`,
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          connectorId: "composio",
+          provider: "gmail",
+          displayName: "Work inbox",
+          status: "connected",
+        },
+        {
+          id: `${actor.spaceId}-revoked`,
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          connectorId: "composio",
+          provider: "gmail",
+          displayName: "Revoked inbox",
+          status: "revoked",
+        },
+        {
+          id: `${actor.spaceId}-github`,
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          connectorId: "composio",
+          provider: "github",
+          displayName: "Repositories",
+          status: "connected",
+        },
+      ],
+    });
+    const otherUserId = `${actor.userId}-other`;
+    await prisma.user.create({
+      data: { id: otherUserId, email: `${otherUserId}@example.test`, name: "Other" },
+    });
+    await prisma.connection.create({
+      data: {
+        id: `${actor.spaceId}-other`,
+        spaceId: actor.spaceId,
+        userId: otherUserId,
+        connectorId: "composio",
+        provider: "gmail",
+        displayName: "Other inbox",
+        status: "connected",
+      },
+    });
+    const launch = { ...input, suggestionId: "important-replies" };
+    const bot = await launchForYou({ prisma, jobs }, actor, launch);
+    const before = await prisma.task.findFirstOrThrow({ where: { botId: bot.id } });
+    expect(before.prompt).toContain('"label":"Work inbox"');
+    expect(before.prompt).not.toContain("Revoked inbox");
+    expect(before.prompt).not.toContain("Other inbox");
+    expect(before.prompt).not.toContain("Repositories");
+    await prisma.connection.update({
+      where: { id: `${actor.spaceId}-mail` },
+      data: { status: "revoked" },
+    });
+    expect((await launchForYou({ prisma, jobs }, actor, launch)).id).toBe(bot.id);
+    const after = await prisma.task.findFirstOrThrow({ where: { botId: bot.id } });
+    expect(after.prompt).toBe(before.prompt);
+    expect(await counts()).toEqual({ bots: 1, messages: 1, tasks: 1, runs: 1 });
+  });
+
   it("commits exactly one conversation and initial task under concurrent double-clicks", async () => {
     const bots = await Promise.all(
       Array.from({ length: 4 }, () => launchForYou({ prisma, jobs }, actor, input)),

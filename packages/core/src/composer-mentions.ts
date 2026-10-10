@@ -17,6 +17,9 @@ export type ComposerMention = {
   /** Connected connection row id when kind is connector + connected. */
   connectionId?: string;
   authStatus?: "connected" | "needs_auth";
+  /** Stable service identity and catalog artwork, independent of account display names. */
+  brand?: string;
+  logo?: string | null;
 };
 
 export type MentionPickerBot = { id: string; name: string; color?: string };
@@ -33,6 +36,8 @@ export type MentionPickerConnector = {
   name: string;
   authStatus: "connected" | "needs_auth";
   connectionId?: string;
+  brand?: string;
+  logo?: string | null;
 };
 
 function escapeRegExp(value: string): string {
@@ -216,6 +221,8 @@ export function buildComposerMentionOptions(input: {
       name: connector.name,
       connectionId: connector.connectionId,
       authStatus: connector.authStatus,
+      brand: connector.brand,
+      logo: connector.logo,
       subtitle: connector.authStatus === "connected" ? "Connected" : "Needs auth",
     });
   }
