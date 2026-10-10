@@ -1,4 +1,4 @@
-import type { Locale } from "./locales";
+import type { Locale } from "./locales.js";
 
 type JourneyCopy = {
   heading: string;

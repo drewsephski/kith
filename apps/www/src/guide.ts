@@ -7,7 +7,7 @@ import {
   SELF_HOST_SECRETS_URL,
   SETUP_PROMPT_URL,
   SITE_URL,
-} from "./site";
+} from "./site.js";
 
 export const OPENCLAW_DOCS_URL = "https://docs.openclaw.ai/";
 export const OPENCLAW_GETTING_STARTED_URL = "https://docs.openclaw.ai/start/getting-started";

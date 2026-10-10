@@ -77,8 +77,8 @@ The table below records the original implementation's checks; it does not certif
 | Gmail/Calendar consent, reconnect and revocation | Requires external verification | Dedicated provider acceptance account required |
 | Public downloads | Not available | GitHub Releases list is empty; marketing links remain unconfigured |
 
-The initial baseline CI run had Electron smoke failures. The post-merge run reached packaged
-acceptance and failed as recorded above. Live browser session restoration
+The initial baseline CI run had Electron smoke failures. The historical post-merge run reached packaged
+acceptance and failed its minimize/restore assertion; later macOS acceptance superseded that failure. Live browser session restoration
 was observed, but preview snapshots failed; no personal account content or screenshots are
 included in release evidence. The focused Web E2E passed against the repository's isolated test harness and captured the
 native settings surface. This is shared renderer/backend proof, not packaged Electron proof.

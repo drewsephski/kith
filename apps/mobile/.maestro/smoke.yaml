@@ -83,7 +83,6 @@ name: Kith mobile smoke
     visible: "Sign out"
     timeout: 10000
 - tapOn: "Sign out"
-- tapOn: "Sign out"
 - extendedWaitUntil:
     visible: "Sign in to Kith"
     timeout: 10000

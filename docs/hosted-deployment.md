@@ -300,6 +300,8 @@ After configuration, verify `/api/auth/capabilities` returns `passwordReset=true
 
 ### Rollback without replacing data
 
+The protected Ubuntu deployment uses process deadlines: ten minutes for the new image, thirty seconds per SSH probe, ten seconds per public request, and five minutes to restore the prior image. Five acceptance attempts remain bounded, leaving recovery time within the thirty-minute workflow. A timeout follows the same failed-deployment recovery path.
+
 Use the prior immutable digest recorded in the deployment summary:
 
 ```sh

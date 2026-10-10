@@ -13,6 +13,12 @@ function fixture(failure = "", delayed = false) {
   const scripts = {
     git: `[[ "$1" == rev-parse ]] && echo "$EXPECTED_SHA"; exit 0`,
     sleep: "exit 0",
+    timeout: `
+echo "timeout $1 $2" >> "$FIXTURE/log"
+[[ "$1" == --kill-after=5s ]] || exit 99
+case "$2" in 30s|5m|10m) ;; *) exit 99 ;; esac
+shift 2
+exec "$@"`,
     curl: `
 echo "curl \${*: -1}" >> "$FIXTURE/log"
 if [[ ! -f "$FIXTURE/deployed" && "$FAILURE" == preflight ]]; then exit 1; fi
@@ -44,6 +50,7 @@ case "$1" in
     count=0
     [[ -f "$FIXTURE/attempts" ]] && count=$(cat "$FIXTURE/attempts")
     echo $((count + 1)) > "$FIXTURE/attempts"
+    [[ "$FAILURE" == ssh-timeout ]] && exit 124
     [[ "$FAILURE" == runtime || "$FAILURE" == rollback || "$FAILURE" == rollback-starting ]] && exit 1
     [[ "$DELAYED" == true && "$count" -lt 2 ]] && exit 1 ;;
 esac
@@ -88,7 +95,7 @@ test("waits for supervised startup before reporting exact-source success", () =>
   }
 });
 
-for (const failure of ["runtime", "health", "auth", "deploy", "rollback-starting"]) {
+for (const failure of ["runtime", "health", "auth", "deploy", "rollback-starting", "ssh-timeout"]) {
   test(`restores the immutable prior image after ${failure} failure and keeps the job failed`, () => {
     const f = fixture(failure);
     try {
@@ -98,6 +105,12 @@ for (const failure of ["runtime", "health", "auth", "deploy", "rollback-starting
       assert.ok(f.log().includes("--update-only"));
       assert.match(f.log().split("--image")[1], /curl https:\/\/api\.example\.test\/health/);
       assert.doesNotMatch(f.log(), /migrate|secrets|destroy|volumes/);
+      assert.match(f.log(), /timeout --kill-after=5s 10m/);
+      assert.match(f.log(), /timeout --kill-after=5s 5m/);
+      if (failure === "ssh-timeout") {
+        assert.equal(f.log().match(/flyctl ssh/g)?.length, 5);
+        assert.equal(f.log().match(/timeout --kill-after=5s 30s/g)?.length, 6);
+      }
     } finally {
       f.close();
     }

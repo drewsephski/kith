@@ -1,4 +1,4 @@
-import type { Locale } from "./i18n/locales";
+import type { Locale } from "./i18n/locales.js";
 import { resolvePublicConfig } from "../public-config.mjs";
 
 const env = { ...process.env, ...import.meta.env };

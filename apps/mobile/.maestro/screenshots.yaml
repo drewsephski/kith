@@ -113,8 +113,17 @@ tags:
     visible: "Search apps"
     timeout: 10000
 - takeScreenshot: "13-integrations"
+- scrollUntilVisible:
+    element:
+      id: "integrations-advanced"
+    direction: DOWN
+    timeout: 60000
 - tapOn:
     id: "integrations-advanced"
+- scrollUntilVisible:
+    element: "Add OpenAPI"
+    direction: DOWN
+    timeout: 10000
 - assertVisible: "Add MCP server"
 - takeScreenshot: "14-integrations-advanced"
 

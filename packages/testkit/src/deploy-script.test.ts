@@ -7,9 +7,9 @@ import { afterEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 const temporaryDirectories: string[] = [];
 
-describe("hosted deployment gates", () => {
-  it("blocks promotion if any required runtime or security job did not pass", () => {
-    execFileSync(
+describe("deployment verification scripts", () => {
+  it("checks release gates, Linux window readiness, and hosted recovery offline", () => {
+    const result = spawnSync(
       process.execPath,
       [
         "--test",
@@ -19,9 +19,11 @@ describe("hosted deployment gates", () => {
       ],
       {
         cwd: repoRoot,
-        stdio: "pipe",
+        encoding: "utf8",
       },
     );
+    expect(result.error).toBeUndefined();
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   });
 });
 
