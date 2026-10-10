@@ -13,6 +13,7 @@ import { cn } from "@rakazo/ui-web/lib/utils";
 import { Command as CommandPrimitive } from "cmdk";
 import { CheckIcon, SearchIcon } from "lucide-react";
 import type * as React from "react";
+import { useEffect, useRef } from "react";
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -61,8 +62,34 @@ function CommandInput({
   className,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
+  const wrapper = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const input = wrapper.current?.querySelector("input");
+    const root = input?.closest("[cmdk-root]");
+    if (!input || !root) return;
+    // cmdk 1.1.1 can publish selectedItemId before React commits aria-selected.
+    // Announce the actual selected option after the DOM selection has committed.
+    const syncSelection = () => {
+      const selected = root.querySelector<HTMLElement>('[cmdk-item][aria-selected="true"]');
+      const list = root.querySelector("[cmdk-list]");
+      for (const element of [input, list]) {
+        if (!element) continue;
+        if (selected?.id) element.setAttribute("aria-activedescendant", selected.id);
+        else element.removeAttribute("aria-activedescendant");
+      }
+    };
+    const observer = new MutationObserver(syncSelection);
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-selected"],
+    });
+    syncSelection();
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
+    <div ref={wrapper} data-slot="command-input-wrapper" className="p-1 pb-0">
       <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"

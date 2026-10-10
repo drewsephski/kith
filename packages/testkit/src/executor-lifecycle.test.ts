@@ -65,6 +65,11 @@ describeIntegration("run executor lifecycle", () => {
       prompt: "Use revised totals.",
       trigger: "follow_up",
     });
+    const pending = await handles.prisma.steeringMessage.findMany({
+      where: { botId: seeded.bot.id },
+    });
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.claimedAt).toBeNull();
     await handles.executor.continueRun(seeded.run.id, "scripted-worker");
     const [runs, steering, messages] = await Promise.all([
       handles.prisma.run.findMany({ where: { botId: seeded.bot.id } }),
@@ -73,8 +78,7 @@ describeIntegration("run executor lifecycle", () => {
     ]);
     expect(runs).toHaveLength(1);
     expect(runs[0]?.status).toBe("completed");
-    expect(steering).toHaveLength(1);
-    expect(steering[0]?.claimedAt).toBeInstanceOf(Date);
+    expect(steering).toHaveLength(0);
     expect(JSON.stringify(messages)).toContain("Use revised totals.");
   });
 

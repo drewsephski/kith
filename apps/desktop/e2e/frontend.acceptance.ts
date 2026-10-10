@@ -28,7 +28,10 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
   try {
     app = await launch();
     const page = await app.firstWindow();
-    await page.goto(`${origin}/sign-up`);
+    // Electron starts its own initial navigation after creating the window.
+    // Wait for the shared auth screen before initiating a second navigation.
+    await expect(page.getByRole("heading", { name: "Sign in to Kith", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Sign up", exact: true }).click();
     await page.getByPlaceholder("Your name").fill("Packaged acceptance");
     await page.getByPlaceholder("Your email address").fill(`packaged-${Date.now()}@example.test`);
     await page.getByPlaceholder("Password").fill("fixture-password-12");
@@ -56,6 +59,7 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await app.close();
     app = await launch();
     const restored = await app.firstWindow();
+    await expect(restored.getByRole("combobox", { name: /^Message/ })).toBeVisible();
     await restored.goto(route);
     await expect(
       restored.getByTestId("transcript").getByText(`done. i handled: ${prompt}`, { exact: true }),

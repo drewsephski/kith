@@ -37,6 +37,21 @@ test("model dropdown search and provider group headers", async ({ page }, testIn
 
   await captureScreenshot(page, testInfo, "model-picker-dropdown-filtered");
 
+  await testInfo.attach("model-picker-selection", {
+    contentType: "application/json",
+    body: JSON.stringify(
+      await modelOptions.evaluate((list) => ({
+        options: [...list.querySelectorAll('[role="option"]')].map((option) => ({
+          id: option.id,
+          selected: option.getAttribute("aria-selected"),
+          value: option.getAttribute("data-value"),
+        })),
+        inputActive: document
+          .querySelector('[aria-label="Search models"]')
+          ?.getAttribute("aria-activedescendant"),
+      })),
+    ),
+  });
   await expect(modelSearch).toHaveAttribute("aria-activedescendant", /.+/);
   const firstActive = await modelSearch.getAttribute("aria-activedescendant");
   expect(firstActive).toBeTruthy();
