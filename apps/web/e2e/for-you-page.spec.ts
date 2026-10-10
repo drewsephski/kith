@@ -235,7 +235,7 @@ test("an uncertain authenticated launch survives reload without another conversa
   expect(launched).toHaveLength(1);
   await page.reload();
   await page
-    .getByTestId("for-you-starter")
+    .getByTestId("for-you-page")
     .getByRole("button", { name: "Make a plan for the week ahead", exact: true })
     .click();
   await expect(page).toHaveURL(new RegExp(`/app/${launched[0]!.id}$`));

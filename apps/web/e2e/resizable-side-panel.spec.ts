@@ -74,11 +74,10 @@ test("phone composer menu and settings panel stay tappable", async ({ page }, te
     .getByTestId("bot-settings-advanced")
     .locator('[data-slot="collapsible-trigger"]')
     .click();
-  // Trial clicks fail when another element, like the composer, would receive the tap.
+  await settings.getByRole("button", { name: "Conversation actions", exact: true }).click();
+  // Trial clicks fail when another element would receive the tap.
   for (const name of ["Export", "Clear conversation"]) {
-    await settings
-      .getByRole("button", { name, exact: true })
-      .click({ trial: true, timeout: 5_000 });
+    await page.getByRole("menuitem", { name, exact: true }).click({ trial: true, timeout: 5_000 });
   }
   await captureScreenshot(page, testInfo, "bot-settings-mobile");
 });

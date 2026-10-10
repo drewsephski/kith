@@ -1562,26 +1562,17 @@ function ModelPicker({
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [highlighted, setHighlighted] = useState("");
   const groups = useMemo(() => {
     const grouped = new Map<string, ModelCatalogEntry[]>();
-    for (const option of filterModelCatalog(options, query)) {
+    for (const option of options) {
       const key = option.providerName ?? option.provider;
       const entries = grouped.get(key);
       if (entries) entries.push(option);
       else grouped.set(key, [option]);
     }
     return [...grouped].map(([name, entries]) => ({ name, entries }));
-  }, [options, query]);
-  // Filtering removes cmdk items. Keep keyboard selection on a real surviving
-  // option rather than leaving aria-activedescendant pointing at a removed item.
-  const entries = groups.flatMap((group) => group.entries);
-  const itemValue = (entry: ModelCatalogEntry) => `${entry.provider}:${entry.id}`;
-  const active = entries.some((entry) => itemValue(entry) === highlighted)
-    ? highlighted
-    : entries[0]
-      ? itemValue(entries[0])
-      : "";
+  }, [options]);
+  const byValue = new Map(options.map((entry) => [`${entry.provider}:${entry.id}`, entry]));
   return (
     <Popover
       open={open}
@@ -1620,7 +1611,13 @@ function ModelPicker({
         />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-(--anchor-width) p-0" aria-label={t`Models`}>
-        <Command shouldFilter={false} loop value={active} onValueChange={setHighlighted}>
+        <Command
+          loop
+          filter={(value, search) => {
+            const entry = byValue.get(value);
+            return entry && filterModelCatalog([entry], search).length ? 1 : 0;
+          }}
+        >
           <CommandInput
             value={query}
             onValueChange={setQuery}

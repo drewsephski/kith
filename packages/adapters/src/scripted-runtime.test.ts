@@ -1,5 +1,5 @@
 import type { AgentRuntimeEvent } from "@rakazo/adapter-kit";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { inferScript, ScriptedAgentRuntime } from "./scripted-runtime.js";
 
 describe("inferScript message_bot", () => {
@@ -287,5 +287,37 @@ describe("inferScript save_shared_memory", () => {
         complete: true,
       },
     ]);
+  });
+});
+
+describe("scripted durable steering", () => {
+  it("claims the initial steering once and answers it instead of replaying the old script", async () => {
+    const claimSteering = vi.fn(async () => [
+      { id: "steering-1", messageId: "message-1", text: "Use revised totals." },
+      { id: "steering-2", messageId: "message-2", text: "Keep it concise." },
+    ]);
+    const events: AgentRuntimeEvent[] = [];
+    for await (const event of new ScriptedAgentRuntime().run({
+      botId: "bot-1",
+      threadId: "thread-1",
+      runId: "run-1",
+      prompt: "Respond to the user's steering context.",
+      instructions: "",
+      history: [],
+      tools: [],
+      model: { provider: "scripted", id: "scripted" },
+      script: [{ assistant: "Old result", complete: true }],
+      claimSteering,
+    }))
+      events.push(event);
+    expect(claimSteering).toHaveBeenCalledExactlyOnceWith([]);
+    const text = events
+      .filter((event) => event.type === "text")
+      .map((event) => event.text)
+      .join("\n");
+    expect(text).toContain("Use revised totals.");
+    expect(text).toContain("Keep it concise.");
+    expect(text).not.toContain("Old result");
+    expect(events.at(-1)?.type).toBe("done");
   });
 });

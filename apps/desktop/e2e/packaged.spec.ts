@@ -166,6 +166,21 @@ test("packaged login transport retains its partition across restart and recovers
           app!.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id)!.isMinimized(), mainId),
         )
         .toBe(true);
+      // Native macOS notifications can lag the minimized state. Synchronize the
+      // notification before restoring so earlier activation events cannot cross
+      // this request's event boundary.
+      await expect
+        .poll(() =>
+          app!.evaluate(() => {
+            const runtime = globalThis as typeof globalThis & {
+              kithWindowDiagnostics: { events: Array<{ event: string; minimized: boolean }> };
+            };
+            return runtime.kithWindowDiagnostics.events.some(
+              (event) => event.event === "minimize" && event.minimized,
+            );
+          }),
+        )
+        .toBe(true);
       await app.evaluate(({ app }) => app.emit("activate"));
       await expect
         .poll(() =>
@@ -187,7 +202,9 @@ test("packaged login transport retains its partition across restart and recovers
       });
       expect(events).toContain("minimize");
       expect(events).toContain("restore");
-      expect(events.indexOf("restore")).toBeGreaterThan(events.indexOf("minimize"));
+      expect(events.indexOf("restore", events.indexOf("minimize") + 1)).toBeGreaterThan(
+        events.indexOf("minimize"),
+      );
     } finally {
       const diagnostics = await app.evaluate(
         ({ BrowserWindow }, id) => ({

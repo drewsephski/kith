@@ -178,7 +178,7 @@ export async function chooseSelectOption(
   value: string | { index: number },
 ) {
   await trigger.click();
-  const options = page.locator('[data-slot="select-item"]');
+  const options = page.locator('[data-slot="select-item"]:visible');
   if (typeof value === "string") {
     await options.first().waitFor();
     const index = await options.evaluateAll(

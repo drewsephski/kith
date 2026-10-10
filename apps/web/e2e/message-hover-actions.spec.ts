@@ -81,8 +81,11 @@ test("message hover shows beside-bubble actions; reply links to parent", async (
   await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible({
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: "Organize my day", exact: true }).click();
-  const botText = page.getByText(/Got it\./);
+  await page.getByRole("button", { name: "Just start chatting", exact: true }).click();
+  const setupComposer = page.getByRole("combobox", { name: "Message Kith" });
+  await setupComposer.fill("hover-layout-fixture");
+  await setupComposer.press("Enter");
+  const botText = page.getByText(/done\. i handled: hover-layout-fixture/);
   await expect(botText).toBeVisible({ timeout: 20_000 });
   const botRow = transcript.locator(`[data-message-id]`).filter({ has: botText }).first();
   await expect(botRow).toBeVisible();
@@ -389,8 +392,11 @@ test("hover time shows the date for a message from an earlier day", async ({ pag
   await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible({
     timeout: 20_000,
   });
-  await page.getByRole("button", { name: "Organize my day", exact: true }).click();
-  const botText = page.getByText(/Got it\./);
+  await page.getByRole("button", { name: "Just start chatting", exact: true }).click();
+  const setupComposer = page.getByRole("combobox", { name: "Message Kith" });
+  await setupComposer.fill("hover-layout-fixture");
+  await setupComposer.press("Enter");
+  const botText = page.getByText(/done\. i handled: hover-layout-fixture/);
   await expect(botText).toBeVisible({ timeout: 20_000 });
   const row = page
     .getByTestId("transcript")
@@ -492,8 +498,11 @@ test.describe("touch message actions", () => {
         timeout: 20_000,
       },
     );
-    await page.getByRole("button", { name: "Organize my day", exact: true }).click();
-    const botText = page.getByText(/Got it\./);
+    await page.getByRole("button", { name: "Just start chatting", exact: true }).click();
+    const setupComposer = page.getByRole("combobox", { name: "Message Kith" });
+    await setupComposer.fill("hover-layout-fixture");
+    await setupComposer.press("Enter");
+    const botText = page.getByText(/done\. i handled: hover-layout-fixture/);
     await expect(botText).toBeVisible({ timeout: 20_000 });
     const row = page
       .getByTestId("transcript")

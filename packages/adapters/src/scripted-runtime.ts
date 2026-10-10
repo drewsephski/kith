@@ -43,7 +43,12 @@ export class ScriptedAgentRuntime implements AgentRuntime {
         yield { type: "done", text: "stopped" };
         return;
       }
-      const script = request.script ?? inferScript(request.prompt, request.resumeFromCheckpoint);
+      // Claim durable input at the same initial turn boundary as live runtimes.
+      // Leaving it unclaimed makes finalization requeue the same follow-up forever.
+      const steering = (await request.claimSteering?.([])) ?? [];
+      const script = steering.length
+        ? inferScript(steering.map((item) => item.text).join("\n\n"), request.resumeFromCheckpoint)
+        : (request.script ?? inferScript(request.prompt, request.resumeFromCheckpoint));
       // Per-run call index so repeated tools (e.g. message_agent) get distinct
       // executionIds — delivery keys and effect replays key off this value.
       let toolCallSeq = 0;
@@ -274,7 +279,7 @@ export function inferScript(
             name: "add_mcp_server",
             args: {
               name: "Fixture MCP",
-              transport: "http",
+              transport: "streamable_http",
               endpoint: "https://mcp.example.test/mcp",
               assignToSelf: true,
             },

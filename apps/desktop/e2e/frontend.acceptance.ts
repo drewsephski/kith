@@ -80,18 +80,21 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await expect(restored.getByTestId("transcript").getByText(prompt, { exact: true })).toHaveCount(
       0,
     );
-    await expect(
-      restored.getByRole("combobox", { name: "Message Kith", exact: true }),
-    ).toBeEditable();
+    await expect(restored).not.toHaveURL(route);
+    const newComposer = restored.getByRole("combobox", {
+      name: "Message New conversation",
+      exact: true,
+    });
+    await expect(newComposer).toBeEditable();
     const restoredId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
+    const recovered = restored.waitForEvent("domcontentloaded");
     await app.evaluate(
       ({ BrowserWindow }, windowId) =>
         BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(),
       restoredId,
     );
-    await expect(
-      restored.getByRole("combobox", { name: "Message Kith", exact: true }),
-    ).toBeEditable();
+    await recovered;
+    await expect(newComposer).toBeEditable();
   } finally {
     await app?.close();
     await rm(profile, { recursive: true, force: true });

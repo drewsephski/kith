@@ -325,7 +325,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: desktop-runtime-${{ matrix.artifact }}-${{ needs.validate.outputs.sha }}
+          name: acceptance-runtime-${{ matrix.artifact }}-${{ needs.validate.outputs.sha }}
           path: apps/desktop/test-results
           if-no-files-found: ignore
       - name: Retain installers and updater metadata
