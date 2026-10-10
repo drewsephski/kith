@@ -2,11 +2,7 @@ import type { Locale } from "./i18n/locales";
 import { resolvePublicConfig } from "../public-config.mjs";
 
 const env = { ...process.env, ...import.meta.env };
-// An explicit origin overrides the public app; an empty value keeps Web unconfigured.
-const config = resolvePublicConfig({
-  ...env,
-  PUBLIC_APP_URL: env.PUBLIC_APP_URL ?? "https://kith-agent-app.vercel.app",
-});
+const config = resolvePublicConfig(env);
 export const SITE_NAME = "Kith";
 export const SITE_URL = config.siteUrl;
 export const SITE_INDEXED = config.indexed;

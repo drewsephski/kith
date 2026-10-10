@@ -435,7 +435,7 @@ msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "All"
-msgstr ""
+msgstr "Tümü"
 
 #: src/pages/Artifacts.tsx
 msgid "All conversations"
@@ -676,7 +676,7 @@ msgstr "Ek"
 
 #: src/components/EmailCard.tsx
 msgid "Attachments"
-msgstr ""
+msgstr "Ekler"
 
 #: src/components/CalendarReceipt.tsx
 msgid "Attempts"
@@ -731,6 +731,10 @@ msgstr "Avatar Stüdyosu"
 msgid "Avatars"
 msgstr ""
 
+#: src/components/EmailCard.tsx
+msgid "Awaiting final approval"
+msgstr "Son onay bekleniyor"
+
 #: src/pages/ActivityList.tsx
 msgid "Awaiting reply"
 msgstr ""
@@ -779,7 +783,7 @@ msgstr ""
 
 #: src/components/EmailCard.tsx
 msgid "Bcc"
-msgstr ""
+msgstr "Gizli"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -847,6 +851,11 @@ msgstr ""
 msgid "Briefing receipt"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Bring broken checks across your repositories into one review"
+msgstr "Depolarınızdaki başarısız kontrolleri tek bir incelemede birleştirin"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Browse MCP servers"
 msgstr ""
@@ -858,6 +867,11 @@ msgstr ""
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Build a brief for my next meeting"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Build a repeatable check for replies, bounces, and next steps"
+msgstr "Yanıtları, geri dönen e-postaları ve sonraki adımları düzenli kontrol edin"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
@@ -927,14 +941,30 @@ msgid "cancelled"
 msgstr "iptal edildi"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "İptal edildi"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture reproduction steps, expected behavior, and evidence"
+msgstr "Yeniden üretme adımlarını, beklenen davranışı ve kanıtları kaydedin"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture your tone, follow-up timing, and approval preferences"
+msgstr "Üslubunuzu, takip zamanlamasını ve onay tercihlerinizi kaydedin"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Catch quota limits and service failures before they interrupt work"
+msgstr "İşi kesintiye uğratmadan önce kota sınırlarını ve hizmet hatalarını yakalayın"
+
 #: src/components/EmailCard.tsx
 msgid "Cc"
-msgstr ""
+msgstr "Bilgi"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Change password"
@@ -1059,6 +1089,11 @@ msgstr "Dosya seç"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose task sources"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Choose which accounts would make your assistant more helpful"
+msgstr "Asistanınızı daha yararlı kılacak hesapları seçin"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Choose which connected model Kith uses."
@@ -1198,6 +1233,11 @@ msgstr ""
 msgid "Collect recent receipts"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Collect recent receipts and invoices"
+msgstr "Son makbuzları ve faturaları toplayın"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color"
 msgstr "Renk"
@@ -1224,6 +1264,7 @@ msgstr "Komut değişkeni"
 msgid "Complete"
 msgstr "Tamamlandı"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
@@ -1343,6 +1384,11 @@ msgstr "OAuth ile bağlan"
 msgid "Connect services"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Connect the tools you use every day"
+msgstr "Her gün kullandığınız araçları bağlayın"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect this provider to use it as your personal model."
 msgstr "Kişisel modelin olarak kullanmak için bu sağlayıcıyı bağla."
@@ -1375,6 +1421,10 @@ msgstr "{0} bağlandı."
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connected and using {0}."
 msgstr "Bağlandı, {0} kullanılıyor."
+
+#: src/pages/ForYou.tsx
+msgid "Connected apps"
+msgstr "Bağlı uygulamalar"
 
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Connected services"
@@ -1501,6 +1551,11 @@ msgstr "Kopyala"
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Copy .env example"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Correct outdated details and fill in the gaps"
+msgstr "Eski bilgileri düzeltin ve eksikleri tamamlayın"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1709,8 +1764,9 @@ msgid "Could not load"
 msgstr "Yüklenemedi"
 
 #: src/pages/ActivityList.tsx
+#: src/pages/ForYou.tsx
 msgid "Could not load activity"
-msgstr ""
+msgstr "Etkinlik yüklenemedi"
 
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Could not load all connections."
@@ -1916,7 +1972,7 @@ msgstr "Grafik çizilemedi"
 
 #: src/components/EmailCard.tsx
 msgid "Could not request email action"
-msgstr ""
+msgstr "E-posta işlemi istenemedi"
 
 #: src/pages/Auth.tsx
 msgid "Could not reset password"
@@ -2030,7 +2086,7 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Could not start the conversation. Select the suggestion to retry."
-msgstr ""
+msgstr "Konuşma başlatılamadı. Yeniden denemek için öneriyi seçin."
 
 #: src/pages/Onboarding.tsx
 msgid "Could not start your assistant"
@@ -2335,6 +2391,11 @@ msgstr ""
 msgid "Desktop update"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Developer tools"
+msgstr "Geliştirici araçları"
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Direct MCP"
 msgstr ""
@@ -2447,6 +2508,11 @@ msgstr ""
 msgid "Draft lead follow-ups"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Draft replies that need your attention"
+msgstr "İlginizi gerektiren e-postalara yanıt taslakları hazırlayın"
+
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Draft skill"
 msgstr "Taslak beceri"
@@ -2495,7 +2561,7 @@ msgstr "E-posta ve takip"
 
 #: src/components/EmailCard.tsx
 msgid "Email body"
-msgstr ""
+msgstr "E-posta gövdesi"
 
 #: src/components/EmailCard.tsx
 msgid "Email draft"
@@ -2511,7 +2577,7 @@ msgstr "E-posta araması"
 
 #: src/components/EmailCard.tsx
 msgid "Email subject"
-msgstr ""
+msgstr "E-posta konusu"
 
 #: src/lib/user-error.ts
 msgid "Email verification required"
@@ -2617,6 +2683,10 @@ msgstr "Genişlet"
 msgid "Expand {0}"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Explore"
+msgstr "Keşfet"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "Dışa aktar"
@@ -2644,6 +2714,7 @@ msgstr "Çok yüksek"
 msgid "failed"
 msgstr "başarısız"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -2710,6 +2781,21 @@ msgstr ""
 msgid "Find receipts and invoices in my inbox from the past 30 days. Make a table of vendors, dates, amounts, and currencies, with links to the source emails, and flag any missing amounts or duplicate charges."
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find relevant collaborators and prepare thoughtful first messages"
+msgstr "Uygun iş ortakları bulun ve özenli ilk mesajlar hazırlayın"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find the gaps in onboarding, billing, and support"
+msgstr "Başlangıç deneyimi, faturalandırma ve destekteki eksikleri bulun"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find time-sensitive conversations and leave replies as drafts"
+msgstr "Zamana duyarlı konuşmaları bulun ve yanıtları taslak olarak bırakın"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Finding…"
@@ -2750,13 +2836,23 @@ msgstr "MCP bağlantısı tamamlanıyor…"
 msgid "Flag unexpected actions"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Follow up on unanswered conversations"
+msgstr "Yanıtsız konuşmaları takip edin"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Follow up unanswered emails"
 msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "For builders"
-msgstr ""
+msgstr "Üretenler için"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "For builders"
+msgstr "Üretenler için"
 
 #: src/pages/ForYou.tsx
 #: src/pages/shell/assistant-for-you.tsx
@@ -2788,7 +2884,7 @@ msgstr ""
 #: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "From"
-msgstr ""
+msgstr "Kimden"
 
 #. placeholder {0}: filters.dateRange.from
 #: src/pages/ActivityList.tsx
@@ -2804,13 +2900,28 @@ msgstr "Tam ekran"
 msgid "Gateway ID"
 msgstr "Ağ geçidi kimliği"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Gather the agenda, useful context, and questions to ask"
+msgstr "Gündemi, yararlı bağlamı ve sorulacak soruları toplayın"
+
 #: src/pages/SettingsOverlay.tsx
+msgid "General"
+msgstr "Genel"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
 msgid "General"
 msgstr "Genel"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Get pull requests ready to ship"
+msgstr "Çekme isteklerini yayıma hazırlayın"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3053,9 +3164,19 @@ msgstr "az önce"
 msgid "Just start chatting"
 msgstr "Sohbete başla"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep applications, interviews, and follow-ups in view"
+msgstr "Başvuruları, görüşmeleri ve takipleri göz önünde tutun"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
 msgstr "Hafızayı koru"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep promising introductions and partnerships moving"
+msgstr "Umut vadeden tanışmaları ve ortaklıkları ilerletin"
 
 #: src/pages/RoutineEditor.tsx
 msgid "key"
@@ -3099,7 +3220,12 @@ msgstr ""
 
 #: src/pages/ForYou.tsx
 msgid "Level up Kith"
-msgstr ""
+msgstr "Kith'i geliştirin"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Level up Kith"
+msgstr "Kith'i geliştirin"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Light"
@@ -3244,6 +3370,11 @@ msgstr ""
 #: src/pages/shell/bot-credentials.tsx
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Make a plan for the week ahead"
+msgstr "Gelecek haftayı planlayın"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
@@ -3509,6 +3640,10 @@ msgstr "Aylık"
 msgid "More"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "More categories"
+msgstr "Diğer kategoriler"
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr ""
@@ -3571,6 +3706,7 @@ msgstr "Asistanınıza ad verin"
 msgid "Needs assistance"
 msgstr ""
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
@@ -3734,7 +3870,7 @@ msgstr "Henüz beceri yok"
 
 #: src/components/EmailCard.tsx
 msgid "No subject"
-msgstr ""
+msgstr "Konu yok"
 
 #: src/pages/ActivityList.tsx
 msgid "No tasks match these filters."
@@ -3958,6 +4094,11 @@ msgstr "Kuruluş API anahtarı"
 msgid "Organize my day"
 msgstr "Günümü düzenle"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Organize vendors, dates, amounts, and source links"
+msgstr "Satıcıları, tarihleri, tutarları ve kaynak bağlantılarını düzenleyin"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "Orijinal mesaj kullanılamıyor"
@@ -3966,6 +4107,11 @@ msgstr "Orijinal mesaj kullanılamıyor"
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
 msgstr "Başka model…"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Outreach"
+msgstr "İletişim"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Page views"
@@ -4056,6 +4202,11 @@ msgstr "Listeden bir model seç veya bu uç noktanın sunduğu bir model kimliğ
 msgid "Pin"
 msgstr "Sabitle"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Plan infrastructure and usage alerts"
+msgstr "Altyapı ve kullanım uyarılarını planlayın"
+
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Plan my day"
 msgstr "Günümü planla"
@@ -4079,6 +4230,11 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Preferences"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Prepare for your next meeting"
+msgstr "Bir sonraki toplantınıza hazırlanın"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
@@ -4108,6 +4264,10 @@ msgstr ""
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Preview report"
 msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "Previous categories"
+msgstr "Önceki kategoriler"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
@@ -4482,8 +4642,12 @@ msgid "Report time"
 msgstr ""
 
 #: src/components/EmailCard.tsx
+msgid "Request queued"
+msgstr "İstek sıraya alındı"
+
+#: src/components/EmailCard.tsx
 msgid "Requested"
-msgstr ""
+msgstr "İstendi"
 
 #: src/components/EmailCard.tsx
 msgid "Requesting…"
@@ -4492,6 +4656,11 @@ msgstr ""
 #: src/pages/shell/assistant-focus.tsx
 msgid "Research and projects"
 msgstr "Araştırma ve projeler"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Research partners and draft introductions"
+msgstr "Ortakları araştırın ve tanışma taslakları hazırlayın"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4587,6 +4756,11 @@ msgstr "rev {0}"
 msgid "Revenue"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review failed checks, open feedback, and the next fix"
+msgstr "Başarısız kontrolleri, açık geri bildirimleri ve sonraki düzeltmeyi inceleyin"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review my Notion task pages, find overdue and unfinished tasks assigned to me, and list them by urgency with their due dates and page links."
 msgstr ""
@@ -4602,6 +4776,21 @@ msgstr "Sağlayıcı ayarlarını gözden geçir ve yeniden test et."
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review Slack messages from the past 24 hours and summarize decisions, blockers, and follow-ups that need my attention. Include links to the relevant messages."
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review unfinished work and prepare for the coming week"
+msgstr "Bitmemiş işleri inceleyin ve gelecek haftaya hazırlanın"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review what Kith remembers about you"
+msgstr "Kith'in sizinle ilgili hatırladıklarını inceleyin"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review your launch readiness"
+msgstr "Lansmana hazırlığınızı inceleyin"
 
 #. placeholder {0}: doc.revision
 #: src/pages/PersonalMemoryPanel.tsx
@@ -4877,7 +5066,7 @@ msgstr "Yanıtı gönder"
 
 #: src/components/AskCard.tsx
 msgid "Send approved"
-msgstr ""
+msgstr "Gönderim onaylandı"
 
 #: src/components/AccountAccess.tsx
 msgid "Send deletion code"
@@ -4892,12 +5081,22 @@ msgid "Send reset link"
 msgstr "Sıfırlama bağlantısı gönder"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 msgid "Sending…"
 msgstr "Gönderiliyor…"
+
+#: src/components/EmailCard.tsx
+msgid "Sent and verified"
+msgstr "Gönderildi ve doğrulandı"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Sentry alert"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Separate interested leads, questions, and declines"
+msgstr "İlgilenen adayları, soruları ve retleri ayırın"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Serenity endpoint is required."
@@ -4928,6 +5127,26 @@ msgstr "Sunucu URL'si"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Sessions"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a daily reply and bounce tracker"
+msgstr "Günlük yanıt ve geri dönen e-posta takibi ayarlayın"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a morning digest of failing builds"
+msgstr "Başarısız derlemelerin sabah özetini ayarlayın"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a Sunday evening weekly review"
+msgstr "Pazar akşamı haftalık değerlendirme ayarlayın"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a weekly job search review"
+msgstr "Haftalık iş arama değerlendirmesi ayarlayın"
 
 #: src/components/CalendarConnection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -4963,6 +5182,11 @@ msgstr "Kurulum yardımı"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
 msgstr "Şekil"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Share the preferences that make everyday help more useful"
+msgstr "Günlük yardımı daha yararlı kılan tercihlerinizi paylaşın"
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -5289,11 +5513,21 @@ msgstr ""
 #: src/pages/shell/conversation-menu.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
-msgstr ""
+msgstr "Görevler"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Teach a task"
 msgstr "Görev öğret"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith how you like to work"
+msgstr "Kith'e çalışma tercihlerinizi öğretin"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith your outreach process"
+msgstr "Kith'e iletişim sürecinizi öğretin"
 
 #: src/pages/Shell.tsx
 msgid "Teaching in progress. Stop teaching before sending a new message."
@@ -5361,7 +5595,7 @@ msgstr "Seçilen hafıza sağlayıcısı bu sürümde kullanılamıyor."
 
 #: src/pages/Shell.tsx
 msgid "The selected space changed. Try again."
-msgstr ""
+msgstr "Seçilen alan değişti. Tekrar deneyin."
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
@@ -5497,7 +5731,7 @@ msgstr "Başlık"
 #: src/components/EmailCard.tsx
 #: src/pages/ActivityList.tsx
 msgid "To"
-msgstr ""
+msgstr "Kime"
 
 #. placeholder {0}: filters.dateRange.to
 #: src/pages/ActivityList.tsx
@@ -5541,6 +5775,11 @@ msgstr "Treg token'ı"
 msgid "Triage pull requests"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Triage replies to cold outreach"
+msgstr "İlk iletişimlere gelen yanıtları sınıflandırın"
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial"
 msgstr ""
@@ -5571,6 +5810,16 @@ msgstr ""
 #: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr ""
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn rough notes into a useful bug report"
+msgstr "Dağınık notları yararlı bir hata raporuna dönüştürün"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn your priorities and commitments into a manageable week"
+msgstr "Önceliklerinizi ve sorumluluklarınızı uygulanabilir bir haftaya dönüştürün"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
@@ -5624,6 +5873,10 @@ msgstr "Desteklenmeyen dosya türü: {0}"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Untitled email"
 msgstr ""
+
+#: src/components/EmailCard.tsx
+msgid "Unverified email preview"
+msgstr "Doğrulanmamış e-posta önizlemesi"
 
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -5757,6 +6010,10 @@ msgstr "Doğrulanmış kaynaklar"
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Doğrula ve ekle"
+
+#: src/components/EmailCard.tsx
+msgid "Verify before retrying"
+msgstr "Yeniden denemeden önce doğrulayın"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verifying…"
@@ -5932,3 +6189,7 @@ msgstr "E-posta adresin"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Adın"
+
+#: src/pages/ForYou.tsx
+msgid "Your work"
+msgstr "İşleriniz"

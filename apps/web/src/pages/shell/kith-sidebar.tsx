@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef } from "react";
+import { desktopBridge } from "../../lib/desktop";
 import type { ContextMenuPosition } from "../BotContextMenu";
 
 type ConversationTarget = { kind: "bot" | "group"; id: string };
@@ -150,6 +151,10 @@ export function KithSidebar({
   creating: boolean;
 }) {
   const { t } = useLingui();
+  const platform =
+    desktopBridge()?.platform ??
+    (typeof navigator === "undefined" ? "" : navigator.platform || navigator.userAgent);
+  const modifier = /darwin|Mac|iPhone|iPad|iPod/i.test(platform) ? "⌘" : "Ctrl+";
   const brainIcon = useRef<BrainIconHandle>(null);
   const connectIcon = useRef<ConnectIconHandle>(null);
   const settingsIcon = useRef<SettingsIconHandle>(null);
@@ -250,7 +255,7 @@ export function KithSidebar({
           >
             <Search size={16} />
             <Trans>Search</Trans>
-            <kbd className="ms-auto text-xs">⌘K</kbd>
+            <kbd className="ms-auto text-xs">{modifier}K</kbd>
           </Button>
           <Button
             variant="ghost"

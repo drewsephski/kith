@@ -1,6 +1,6 @@
 import * as z from "zod";
 import { botSecretDestinationSchema } from "./bot-secrets.js";
-import { EmailCardSchema, EmailContentSchema } from "./email.js";
+import { EmailActionStateSchema, EmailCardSchema, EmailContentSchema } from "./email.js";
 import { Id } from "./ids.js";
 import { McpTransportSchema } from "./mcp.js";
 
@@ -106,6 +106,8 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     approvalEffectId: Id.optional(),
     approvalAction: z.literal("email_send").optional(),
     email: EmailContentSchema.optional(),
+    /** Provider revision fingerprint binding final approval to the inspected payload. */
+    emailRevision: z.string().max(128).optional(),
     detail: z.string().optional(),
     input: z.enum(["text", "secret"]).optional(),
     /** Why the secret is needed; drives field label on the masked card. */
@@ -373,6 +375,7 @@ export const ThreadMessageSchema = z.object({
   runId: Id.optional(),
   /** Set when the message was sent from a live voice call; groups one call's transcript. */
   callId: z.string().optional(),
+  emailActions: z.array(EmailActionStateSchema).optional(),
   createdAt: z.string(),
 });
 export type ThreadMessage = z.infer<typeof ThreadMessageSchema>;

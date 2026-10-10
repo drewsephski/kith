@@ -297,6 +297,17 @@ export const appContract = {
     listArchived: oc.output(z.array(BotSchema)),
     get: oc.input(botId).output(BotSchema),
     create: oc.input(CreateBotInput).output(BotSchema),
+    launchForYou: oc
+      .input(
+        z.object({
+          suggestionId: z.string().min(1).max(100),
+          assistantId: Id,
+          spaceId: Id,
+          userId: Id,
+          operationId: z.uuid(),
+        }),
+      )
+      .output(BotSchema),
     duplicate: oc.input(botId).output(BotSchema),
     reorder: oc.input(ReorderBotsInput).output(z.object({ ok: z.literal(true) })),
     update: oc.input(UpdateBotInput).output(BotSchema),

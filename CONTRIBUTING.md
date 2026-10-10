@@ -1,6 +1,6 @@
-# Contributing to Rakazo
+# Contributing to Kith
 
-Thanks for helping improve Rakazo. Keep changes focused and testable.
+Thanks for helping improve Kith. Keep changes focused and testable.
 
 ## Run locally
 
@@ -8,8 +8,8 @@ You need Node.js 22.22.2 or newer in the 22.x line, Node.js 24.x, or Node.js 26+
 pnpm 9; and Docker. Node.js 23.x and 25.x are not supported.
 
 ```bash
-git clone https://github.com/elie222/rakazo.git
-cd rakazo
+git clone https://github.com/drewsephski/kith.git
+cd kith
 cp .env.example .env
 ```
 
@@ -38,7 +38,7 @@ docker compose --env-file .env \
   -f infra/compose/docker-compose.yml \
   -f infra/compose/docker-compose.postgres-host.yml \
   up postgres -d
-pnpm install
+pnpm install --frozen-lockfile
 pnpm db:generate
 pnpm db:migrate
 pnpm sandbox:build

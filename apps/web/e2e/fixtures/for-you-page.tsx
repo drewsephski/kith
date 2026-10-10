@@ -1,6 +1,6 @@
 import { I18nProvider } from "@lingui/react";
-import type { ForYouConversationAttempt, ForYouSuggestion } from "@rakazo/core";
-import { startForYouConversation } from "@rakazo/core";
+import type { ForYouSuggestion } from "@rakazo/core";
+import { forYouLaunchAttempt, forYouLaunchStorageKey, startForYouConversation } from "@rakazo/core";
 import { KithAvatar } from "@rakazo/ui-web";
 import { createRef, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -25,40 +25,54 @@ if (desktopFixture) {
   });
 }
 function Fixture() {
+  const [openedWork, setOpenedWork] = useState("");
+  const personalized = new URLSearchParams(location.search).has("personalized");
   const [sent, setSent] = useState<{ botId: string; text: string; clientNonce: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(desktopFixture);
-  const [creates, setCreates] = useState(0);
+  const [creates, setCreates] = useState(
+    () => Object.keys(JSON.parse(localStorage.getItem("fixture-launches") ?? "{}")).length,
+  );
   const pending = useRef(false);
-  const failOnce = useRef(new URLSearchParams(location.search).has("send-error"));
-  const attempts = useRef(new Map<string, ForYouConversationAttempt>());
   async function select(suggestion: ForYouSuggestion) {
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
     setError(null);
-    let attempt = attempts.current.get(suggestion.id);
-    if (!attempt) {
-      attempt = { clientNonce: crypto.randomUUID() };
-      attempts.current.set(suggestion.id, attempt);
-    }
+    const scope = {
+      userId: "fixture-user",
+      spaceId: "fixture-space",
+      assistantId: "assistant-fixture",
+    };
+    const key = forYouLaunchStorageKey(scope, suggestion.id);
+    const attempt = forYouLaunchAttempt(localStorage.getItem(key), () => crypto.randomUUID());
+    localStorage.setItem(key, attempt.operationId);
     try {
-      await startForYouConversation(suggestion, "assistant-fixture", attempt, {
-        create: async () => {
-          setCreates((count) => count + 1);
-          return { id: "conversation-fixture" };
-        },
-        send: async (input) => {
+      await startForYouConversation(suggestion, scope, attempt, {
+        launch: async (input) => {
+          const launches: Record<string, { id: string; text: string }> = JSON.parse(
+            localStorage.getItem("fixture-launches") ?? "{}",
+          );
+          launches[input.operationId] ??= { id: "conversation-fixture", text: suggestion.prompt };
+          localStorage.setItem("fixture-launches", JSON.stringify(launches));
+          setCreates(Object.keys(launches).length);
           await new Promise((resolve) => setTimeout(resolve, 100));
-          if (failOnce.current) {
-            failOnce.current = false;
+          const failureKey = `fixture-failure:${input.operationId}`;
+          if (
+            new URLSearchParams(location.search).has("send-error") &&
+            !sessionStorage.getItem(failureKey)
+          ) {
+            sessionStorage.setItem(failureKey, "failed");
             throw new Error("Could not send. Select the suggestion to retry.");
           }
-          setSent(input);
+          const launch = launches[input.operationId]!;
+          setSent({ botId: launch.id, text: launch.text, clientNonce: input.operationId });
+          return launch;
         },
       });
+      localStorage.removeItem(key);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not send.");
     } finally {
@@ -132,6 +146,10 @@ function Fixture() {
           </>
         ) : (
           <ForYouPage
+            scopeKey={personalized ? "fixture-user:fixture-space" : undefined}
+            onOpenRun={
+              personalized ? (run) => setOpenedWork(`${run.threadId}:${run.messageId}`) : undefined
+            }
             onSelect={(suggestion) => void select(suggestion)}
             busy={busy}
             error={error}
@@ -140,6 +158,9 @@ function Fixture() {
             windowChrome={sidebarCollapsed && desktopFixture ? <WindowChrome /> : undefined}
           />
         )}
+        <output data-testid="opened-work" className="sr-only">
+          {openedWork}
+        </output>
         <output data-testid="created-count" className="sr-only">
           {creates}
         </output>

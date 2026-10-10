@@ -290,6 +290,21 @@ describe("model setup gate", () => {
     });
   });
 
+  it("refuses a For you launch before creating a conversation when no model is configured", async () => {
+    const { actor, handler } = modelGateDeps({ agentRuntime: "pi" });
+    const response = await call(handler, actor, "bots/launchForYou", {
+      userId: actor.userId,
+      spaceId: actor.spaceId,
+      assistantId: "assistant",
+      suggestionId: "weekly-plan",
+      operationId: "00000000-0000-4000-8000-000000000001",
+    });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      json: { code: "BAD_REQUEST", message: "Connect a model to start a run." },
+    });
+  });
+
   it("does not require a model credential for the scripted test runtime", async () => {
     const { actor, handler } = modelGateDeps({ agentRuntime: "scripted" });
 

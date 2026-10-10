@@ -90,6 +90,8 @@ describe("foreground AI consent", () => {
     expect(prompt).not.toHaveBeenCalled();
     expect(aiDataUsesForProcedure("threads/get")).toEqual([]);
     expect(aiDataUsesForProcedure("threads/send")).toEqual(["model", "memory"]);
+    expect(aiDataUsesForProcedure("bots.launchForYou")).toEqual(["model", "memory"]);
+    expect(aiConsentTarget({ assistantId: "assistant" })).toEqual({ botId: "assistant" });
     expect(aiDataUsesForProcedure("voice/prepare")).toEqual(["voice"]);
     expect(
       aiDataUsesForProcedure("routines/update", { routineId: "routine", active: false }),

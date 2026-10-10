@@ -1,6 +1,5 @@
 import type { EmailContent, MessageBlock } from "@rakazo/contracts";
-import { isEmailSendTool, redactSecrets } from "@rakazo/core";
-import { emailApprovalPreview } from "./email-approval.js";
+import { completeEmailApprovalPreview, isEmailSendTool, redactSecrets } from "@rakazo/core";
 import { emailCardFromTool } from "./email-card.js";
 
 const MAX_APPROVAL_SUMMARY_LENGTH = 500;
@@ -11,7 +10,12 @@ export function buildApprovalAskBlock(
   toolName: string,
   args: Record<string, unknown>,
   secrets: string[],
-  options?: { reviewReason?: string; emailSend?: boolean; email?: EmailContent },
+  options?: {
+    reviewReason?: string;
+    emailSend?: boolean;
+    email?: EmailContent;
+    emailRevision?: string;
+  },
 ): MessageBlock {
   const summary = describeApprovalAction(toolName, args);
   const detail = formatApprovalDetail(toolName, args, options?.reviewReason);
@@ -19,12 +23,18 @@ export function buildApprovalAskBlock(
   const emailSend = options?.emailSend || isEmailSendTool(toolName);
   const email = options?.email
     ? emailCardFromTool({ ...options.email, mode: "draft" }, secrets).email
-    : emailApprovalPreview(toolName, args, secrets);
+    : undefined;
+  if (emailSend && !completeEmailApprovalPreview(email)) {
+    throw new Error(
+      "Could not verify the complete email. Fetch its account, recipients, body, and attachments before requesting approval.",
+    );
+  }
   return {
     kind: "ask",
     approvalEffectId: effectId,
     approvalAction: emailSend ? "email_send" : undefined,
     email,
+    emailRevision: options?.emailRevision,
     text: truncate(
       redactSecrets(
         emailSend

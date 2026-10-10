@@ -905,4 +905,102 @@ export const RU_MESSAGES: Record<string, string> = {
   "Every day": "Каждый день",
   Frequency: "Частота",
   "Scheduled.": "Запланировано.",
+  // Shared For You catalog.
+  Outreach: "Деловые контакты",
+  "Draft replies that need your attention": "Подготовить ответы на письма, требующие внимания",
+  "Find time-sensitive conversations and leave replies as drafts":
+    "Найти срочные переписки и сохранить ответы как черновики",
+  "Follow up on unanswered conversations": "Напомнить о себе в переписках без ответа",
+  "Keep promising introductions and partnerships moving":
+    "Продвинуть перспективные знакомства и партнёрства",
+  "Set up a daily reply and bounce tracker":
+    "Настроить ежедневное отслеживание ответов и недоставленных писем",
+  "Build a repeatable check for replies, bounces, and next steps":
+    "Регулярно проверять ответы, недоставленные письма и следующие шаги",
+  "Developer tools": "Инструменты разработчика",
+  "Get pull requests ready to ship": "Подготовить пул-реквесты к выпуску",
+  "Review failed checks, open feedback, and the next fix":
+    "Проверить сбои проверок, открытые замечания и следующие исправления",
+  "Turn rough notes into a useful bug report": "Превратить заметки в полезный отчёт об ошибке",
+  "Capture reproduction steps, expected behavior, and evidence":
+    "Собрать шаги воспроизведения, ожидаемое поведение и доказательства",
+  "Set up a morning digest of failing builds": "Настроить утреннюю сводку неудачных сборок",
+  "Bring broken checks across your repositories into one review":
+    "Собрать неудачные проверки репозиториев в одном обзоре",
+  General: "Общее",
+  "Make a plan for the week ahead": "Составить план на следующую неделю",
+  "Turn your priorities and commitments into a manageable week":
+    "Распределить приоритеты и обязательства на посильную неделю",
+  "Prepare for your next meeting": "Подготовиться к следующей встрече",
+  "Gather the agenda, useful context, and questions to ask":
+    "Собрать повестку, полезный контекст и вопросы",
+  "Collect recent receipts and invoices": "Собрать недавние чеки и счета",
+  "Organize vendors, dates, amounts, and source links":
+    "Упорядочить поставщиков, даты, суммы и ссылки на источники",
+  "Set up a Sunday evening weekly review": "Настроить еженедельный обзор в воскресенье вечером",
+  "Review unfinished work and prepare for the coming week":
+    "Проверить незавершённую работу и подготовиться к новой неделе",
+  "Set up a weekly job search review": "Настроить еженедельный обзор поиска работы",
+  "Keep applications, interviews, and follow-ups in view":
+    "Следить за откликами, собеседованиями и дальнейшими шагами",
+  "Level up Kith": "Улучшить Kith",
+  "Teach Kith how you like to work": "Научить Kith вашему стилю работы",
+  "Share the preferences that make everyday help more useful":
+    "Поделиться предпочтениями для более полезной ежедневной помощи",
+  "Review what Kith remembers about you": "Проверить, что Kith помнит о вас",
+  "Correct outdated details and fill in the gaps":
+    "Исправить устаревшие сведения и заполнить пробелы",
+  "Teach Kith your outreach process": "Научить Kith вашему процессу общения с контактами",
+  "Capture your tone, follow-up timing, and approval preferences":
+    "Зафиксировать тон, сроки повторных обращений и правила согласования",
+  "Connect the tools you use every day":
+    "Подключить инструменты, которыми вы пользуетесь каждый день",
+  "Choose which accounts would make your assistant more helpful":
+    "Выбрать аккаунты, которые сделают помощника полезнее",
+  "For builders": "Для создателей",
+  "Triage replies to cold outreach": "Разобрать ответы на холодные обращения",
+  "Separate interested leads, questions, and declines":
+    "Отделить заинтересованных клиентов, вопросы и отказы",
+  "Research partners and draft introductions": "Найти партнёров и подготовить знакомства",
+  "Find relevant collaborators and prepare thoughtful first messages":
+    "Найти подходящих партнёров и подготовить продуманные первые сообщения",
+  "Review your launch readiness": "Проверить готовность к запуску",
+  "Find the gaps in onboarding, billing, and support":
+    "Найти пробелы в знакомстве с продуктом, оплате и поддержке",
+  "Plan infrastructure and usage alerts":
+    "Спланировать оповещения об инфраструктуре и использовании",
+  "Catch quota limits and service failures before they interrupt work":
+    "Выявлять ограничения квот и сбои сервисов до остановки работы",
+  // Shared For You catalog.
+  // Work, launch recovery, and email review.
+  "Your work": "Ваша работа",
+  "Connected apps": "Подключённые приложения",
+  Explore: "Обзор идей",
+  "Could not load activity": "Не удалось загрузить активность",
+  "Request queued": "Запрос в очереди",
+  "Awaiting final approval": "Ожидается окончательное одобрение",
+  "Sent and verified": "Отправлено и подтверждено",
+  "Verify before retrying": "Проверьте перед повторной попыткой",
+  "Unverified email preview": "Непроверенный предпросмотр письма",
+  "For you": "Для вас",
+  "Your assistant is not available. Try again.": "Ваш помощник недоступен. Попробуйте ещё раз.",
+  "The selected space changed. Try again.":
+    "Выбранное пространство изменилось. Попробуйте ещё раз.",
+  "Could not start the conversation. Select the suggestion to retry.":
+    "Не удалось начать беседу. Выберите предложение, чтобы повторить попытку.",
+  "Opening conversation": "Открытие беседы",
+  "Could not request email action": "Не удалось запросить действие с письмом",
+  All: "Все",
+  Attachments: "Вложения",
+  Bcc: "Скрытая копия",
+  Cc: "Копия",
+  "Email body": "Текст письма",
+  "Email subject": "Тема письма",
+  From: "От",
+  "No subject": "Без темы",
+  Requested: "Запрошено",
+  Routines: "Регулярные задачи",
+  "Send approved": "Отправка одобрена",
+  Tasks: "Задачи",
+  To: "Кому",
 };

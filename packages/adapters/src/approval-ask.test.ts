@@ -2,17 +2,51 @@ import { describe, expect, it } from "vitest";
 import { buildApprovalAskBlock } from "./approval-ask.js";
 
 describe("buildApprovalAskBlock", () => {
-  it("binds the approval to its effect and redacts secrets", () => {
+  it("rejects an incomplete send rather than offering an allow action", () => {
+    expect(() =>
+      buildApprovalAskBlock(
+        "effect-1",
+        "gmail_send_email",
+        { to: "person@example.test", body: "token-secret" },
+        ["token-secret"],
+      ),
+    ).toThrow("Could not verify the complete email");
+  });
+
+  it("requires an authoritative preview, even when model arguments look complete", () => {
+    expect(() =>
+      buildApprovalAskBlock(
+        "effect-1",
+        "GMAIL_SEND_EMAIL",
+        { user_id: "me", to: "person@example.test", subject: "Hi", body: "Hello" },
+        [],
+      ),
+    ).toThrow("Could not verify the complete email");
+  });
+
+  it("binds the approval to its effect and redacts a complete verified preview", () => {
     const block = buildApprovalAskBlock(
       "effect-1",
-      "gmail_send_email",
-      { to: "person@example.test", body: "token-secret" },
+      "GMAIL_SEND_DRAFT",
+      { draft_id: "draft-1" },
       ["token-secret"],
+      {
+        email: {
+          account: "mail@example.test",
+          to: ["person@example.test"],
+          cc: [],
+          bcc: [],
+          subject: "Hi",
+          body: "token-secret",
+          attachments: [],
+        },
+        emailRevision: "revision-1",
+      },
     );
-
     expect(block).toMatchObject({
       kind: "ask",
       approvalEffectId: "effect-1",
+      emailRevision: "revision-1",
       actions: [
         { id: "allow", label: "Send email" },
         { id: "deny", label: "Cancel" },
@@ -38,7 +72,7 @@ describe("buildApprovalAskBlock", () => {
   it("includes an optional review reason as the first detail line", () => {
     const block = buildApprovalAskBlock(
       "effect-1",
-      "gmail_send_email",
+      "destination.write",
       { to: "person@example.test", subject: "Hi" },
       [],
       { reviewReason: "Sends email outside the draft-only task." },
@@ -70,41 +104,23 @@ describe("buildApprovalAskBlock", () => {
     expect(block.detail).toContain("stay separate from other spaces");
   });
 
-  it("shows complete email content, every recipient, and safe HTML without truncating the body", () => {
+  it("does not truncate a verified email body or omit Cc and Bcc", () => {
+    const email = {
+      account: "mail@example.test",
+      to: ["recipient@example.test", "other@example.test"],
+      cc: ["copy@example.test"],
+      bcc: ["hidden@example.test"],
+      subject: "Status",
+      body: "b".repeat(8000),
+      attachments: ["report.pdf"],
+    };
     const block = buildApprovalAskBlock(
       "effect-1",
-      "GMAIL_SEND_EMAIL",
-      {
-        recipient_email: "recipient@example.test",
-        extra_recipients: ["other@example.test"],
-        cc: ["copy@example.test"],
-        bcc: ["hidden@example.test"],
-        subject: "Status",
-        body: "b".repeat(8000),
-      },
+      "GMAIL_SEND_DRAFT",
+      { draft_id: "draft-1" },
       [],
+      { email },
     );
-    expect(block).toMatchObject({
-      approvalAction: "email_send",
-      email: {
-        to: ["recipient@example.test", "other@example.test"],
-        cc: ["copy@example.test"],
-        bcc: ["hidden@example.test"],
-        subject: "Status",
-        body: "b".repeat(8000),
-      },
-    });
-    const html = buildApprovalAskBlock(
-      "effect-2",
-      "GMAIL_SEND_EMAIL",
-      {
-        to: "recipient@example.test",
-        subject: "HTML",
-        body: "<script>steal()</script><p>Hello &amp; welcome</p>",
-        is_html: true,
-      },
-      [],
-    );
-    expect(html).toMatchObject({ email: { body: "Hello & welcome" } });
+    expect(block).toMatchObject({ approvalAction: "email_send", email });
   });
 });

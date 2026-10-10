@@ -3,7 +3,7 @@ import { captureScreenshot } from "./helpers";
 
 const fixture = "/e2e/fixtures/assistant-for-you.html";
 
-test("prefilled prompts fit above the composer without scrolling or covering the transcript", async ({
+test("readable prompt suggestions fit above the composer without covering the transcript", async ({
   page,
 }, testInfo) => {
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
@@ -41,9 +41,20 @@ test("prefilled prompts fit above the composer without scrolling or covering the
     );
     await expect(suggestions).toHaveJSProperty("scrollWidth", Math.round(suggestionsBox.width));
     for (const button of await suggestions.getByRole("button").all()) {
-      const box = (await button.boundingBox())!;
-      expect(box.x).toBeGreaterThanOrEqual(suggestionsBox.x);
-      expect(box.x + box.width).toBeLessThanOrEqual(suggestionsBox.x + suggestionsBox.width);
+      if (viewport.width < 640) {
+        await button.focus();
+        await expect(button).toBeInViewport();
+        expect(
+          await button
+            .locator("span")
+            .evaluate((span) => Number.parseFloat(getComputedStyle(span).fontSize)),
+        ).toBeGreaterThanOrEqual(14);
+        expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      } else {
+        const box = (await button.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(suggestionsBox.x);
+        expect(box.x + box.width).toBeLessThanOrEqual(suggestionsBox.x + suggestionsBox.width);
+      }
     }
     const composer = page.locator('textarea[name="chat-message"]');
     const gmail = suggestions.getByRole("button", {

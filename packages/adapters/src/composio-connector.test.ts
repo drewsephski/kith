@@ -9,6 +9,7 @@ import {
   collectLogIds,
   collectPages,
   composioResultError,
+  confirmedGmailSend,
   executeSessionKey,
   expandComposioMultiExecute,
   filterCatalog,
@@ -25,6 +26,8 @@ import { DestinationEmulator } from "./destination-emulator.js";
 const composioSdkState = vi.hoisted(() => ({
   created: [] as Array<{ userId: string; config: Record<string, unknown> }>,
   directoryFails: false,
+  proxyResults: new Map<string, { status: number; data: Record<string, unknown> }>(),
+  proxyRequests: [] as string[],
   executions: [] as Array<{ tool: string; args: Record<string, unknown> }>,
   executeResult: null as null | { data: Record<string, unknown>; error: string | null },
   failTools: null as null | string[],
@@ -64,6 +67,12 @@ const composioSdkState = vi.hoisted(() => ({
 
 vi.mock("@composio/core", () => ({
   Composio: class {
+    readonly tools = {
+      proxyExecute: async (request: { endpoint: string }) => {
+        composioSdkState.proxyRequests.push(request.endpoint);
+        return composioSdkState.proxyResults.get(request.endpoint) ?? { status: 404, data: {} };
+      },
+    };
     readonly sessions = {
       use: async (sessionId: string) => {
         const session = composioSdkState.sessions.get(sessionId);
@@ -145,6 +154,7 @@ describe("composio tool mapping", () => {
     composioSdkState.executeResult = {
       error: null,
       data: {
+        id: "draft-1",
         emailAddress: "work@example.test",
         message: {
           payload: {
@@ -185,8 +195,8 @@ describe("composio tool mapping", () => {
         },
       });
       expect(composioSdkState.executions.slice(start)).toEqual([
-        { tool: "GMAIL_GET_DRAFT", args: { draft_id: "draft-1", user_id: "me", format: "full" } },
         { tool: "GMAIL_GET_PROFILE", args: { user_id: "me" } },
+        { tool: "GMAIL_GET_DRAFT", args: { draft_id: "draft-1", user_id: "me", format: "full" } },
       ]);
     } finally {
       composioSdkState.executeResult = prior;
@@ -216,10 +226,10 @@ describe("composio tool mapping", () => {
       args: { tools: [send] },
       executionId: "call-1",
     };
-    await expect(connector.approvalPreview(call, context)).resolves.toMatchObject({
-      emailSend: true,
-      email: { account: "mail@example.test", body: "Hello", to: ["recipient@example.test"] },
-    });
+    await expect(connector.approvalPreview(call, context)).resolves.toEqual({ emailSend: true });
+    await expect(
+      connector.approvalPreview(call, context, { includeContent: true }),
+    ).rejects.toThrow("Reconnect");
     await expect(
       connector.approvalPreview(
         {
@@ -240,6 +250,293 @@ describe("composio tool mapping", () => {
         context,
       ),
     ).resolves.toEqual({ emailSend: false });
+  });
+  it("rejects cached account access after local disconnect even while the provider remains ACTIVE", async () => {
+    const priorList = composioSdkState.connectedAccounts.list;
+    const priorResult = composioSdkState.executeResult;
+    composioSdkState.connectedAccounts.list = async () => ({
+      items: [{ id: "active-remote-account" }],
+    });
+    composioSdkState.executeResult = {
+      error: null,
+      data: {
+        id: "draft-1",
+        emailAddress: "mail@example.test",
+        message: {
+          payload: {
+            mimeType: "text/plain",
+            headers: [
+              { name: "To", value: "recipient@example.test" },
+              { name: "Subject", value: "Draft" },
+            ],
+            body: { data: Buffer.from("Body").toString("base64url") },
+          },
+        },
+      },
+    };
+    let locallyConnected = true;
+    const localCheck = vi.fn(async () => {
+      if (!locallyConnected) throw new Error("Reconnect the sending account before continuing.");
+    });
+    const context: AdapterContext = {
+      operationId: "op-1",
+      traceId: "trace-1",
+      spaceId: "space-1",
+      userId: "user-1",
+      signal: new AbortController().signal,
+      connectedConnections: [
+        {
+          id: "connection-1",
+          connectorId: "composio",
+          externalId: "gmail",
+          displayName: "Gmail",
+          providerRef: "active-remote-account",
+        },
+      ],
+      assertConnectionActive: localCheck,
+    };
+    const connector = new ComposioConnector();
+    const call = { tool: "GMAIL_SEND_DRAFT", args: { draft_id: "draft-1" }, executionId: "send-1" };
+    try {
+      await expect(
+        connector.approvalPreview(call, context, { includeContent: true }),
+      ).resolves.toMatchObject({ draftId: "draft-1" });
+      locallyConnected = false;
+      const start = composioSdkState.executions.length;
+      await expect(
+        connector.approvalPreview(call, context, { includeContent: true }),
+      ).rejects.toThrow("Reconnect");
+      const events: ConnectorEvent[] = [];
+      for await (const event of connector.execute(call, context)) events.push(event);
+      expect(events).toEqual([
+        expect.objectContaining({ type: "error", message: expect.stringContaining("Reconnect") }),
+      ]);
+      expect(events[0]).not.toHaveProperty("uncertain");
+      expect(composioSdkState.executions).toHaveLength(start);
+      expect(localCheck).toHaveBeenLastCalledWith(context.connectedConnections![0]);
+    } finally {
+      composioSdkState.connectedAccounts.list = priorList;
+      composioSdkState.executeResult = priorResult;
+    }
+  });
+  it("fails closed for a revoked pinned sending account", async () => {
+    const connector = new ComposioConnector();
+    const context: AdapterContext = {
+      operationId: "op-1",
+      traceId: "trace-1",
+      spaceId: "space-1",
+      userId: "user-1",
+      signal: new AbortController().signal,
+      connectedConnections: [
+        {
+          id: "connection-1",
+          connectorId: "composio",
+          externalId: "gmail",
+          displayName: "Gmail",
+          providerRef: "revoked-account",
+        },
+      ],
+    };
+    const start = composioSdkState.executions.length;
+    await expect(
+      connector.approvalPreview(
+        { tool: "GMAIL_SEND_DRAFT", args: { draft_id: "draft-1" }, executionId: "call-1" },
+        context,
+        { includeContent: true },
+      ),
+    ).rejects.toThrow("Reconnect");
+    expect(composioSdkState.executions).toHaveLength(start);
+  });
+  it("rejects a returned draft identity different from the requested draft", async () => {
+    const prior = composioSdkState.executeResult;
+    composioSdkState.executeResult = {
+      error: null,
+      data: { id: "wrong-draft", emailAddress: "mail@example.test" },
+    };
+    try {
+      const connector = new ComposioConnector();
+      await expect(
+        connector.approvalPreview(
+          { tool: "GMAIL_SEND_DRAFT", args: { draft_id: "draft-1" }, executionId: "call-1" },
+          {
+            operationId: "op-1",
+            traceId: "trace-1",
+            spaceId: "space-1",
+            userId: "user-1",
+            connectedProviders: ["gmail"],
+            signal: new AbortController().signal,
+          },
+          { includeContent: true },
+        ),
+      ).rejects.toThrow("different or unverified draft");
+    } finally {
+      composioSdkState.executeResult = prior;
+    }
+  });
+  it("dispatches a single approved wrapped email directly and records provider confirmation", async () => {
+    const args = {
+      tools: [
+        {
+          tool_slug: "GMAIL_SEND_EMAIL",
+          account: "mail@example.test",
+          arguments: JSON.stringify({
+            to: "recipient@example.test",
+            subject: "Subject",
+            body: "Body",
+          }),
+        },
+      ],
+    };
+    expect(expandComposioMultiExecute("COMPOSIO_MULTI_EXECUTE_TOOL", args)).toEqual([
+      {
+        tool: "GMAIL_SEND_EMAIL",
+        account: "mail@example.test",
+        args: { to: "recipient@example.test", subject: "Subject", body: "Body" },
+      },
+    ]);
+    const prior = composioSdkState.executeResult;
+    composioSdkState.executeResult = {
+      error: null,
+      data: { id: "message-1", threadId: "thread-1" },
+    };
+    try {
+      const connector = new ComposioConnector();
+      const events: ConnectorEvent[] = [];
+      for await (const event of connector.execute(
+        { tool: "COMPOSIO_MULTI_EXECUTE_TOOL", args, executionId: "call-1" },
+        {
+          operationId: "op-1",
+          traceId: "trace-1",
+          spaceId: "space-1",
+          userId: "user-1",
+          connectedConnections: [
+            {
+              id: "connection-1",
+              connectorId: "composio",
+              externalId: "gmail",
+              displayName: "mail@example.test",
+            },
+          ],
+          signal: new AbortController().signal,
+        },
+      ))
+        events.push(event);
+      expect(events).toEqual([
+        expect.objectContaining({
+          type: "result",
+          data: expect.objectContaining({ emailSendVerified: true }),
+        }),
+      ]);
+    } finally {
+      composioSdkState.executeResult = prior;
+    }
+  });
+  it("requires a provider message identity before marking delivery as verified", () => {
+    expect(confirmedGmailSend({ id: "message-1", threadId: "thread-1" })).toBe(true);
+    for (const value of [
+      { ok: true },
+      { id: "message-1" },
+      { id: "message-1", threadId: "thread-1", successful: false },
+      { id: "message-1", threadId: "thread-1", error: "failed" },
+    ])
+      expect(confirmedGmailSend(value)).toBe(false);
+  });
+  it("hydrates complete Outlook drafts including all recipients and attachments without sending", async () => {
+    const priorList = composioSdkState.connectedAccounts.list;
+    composioSdkState.connectedAccounts.list = async () => ({ items: [{ id: "outlook-account" }] });
+    const profileUrl = "https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName";
+    const draftUrl = "https://graph.microsoft.com/v1.0/me/messages/draft-1";
+    composioSdkState.proxyResults.set(profileUrl, {
+      status: 200,
+      data: { mail: "mail@example.test" },
+    });
+    composioSdkState.proxyResults.set(draftUrl, {
+      status: 200,
+      data: {
+        id: "draft-1",
+        isDraft: true,
+        subject: "Current draft",
+        body: { contentType: "text", content: "Current body" },
+        toRecipients: [{ emailAddress: { address: "recipient@example.test" } }],
+        ccRecipients: [{ emailAddress: { address: "copy@example.test" } }],
+        bccRecipients: [{ emailAddress: { address: "blind@example.test" } }],
+      },
+    });
+    composioSdkState.proxyResults.set(
+      `${draftUrl}/attachments?$select=id,name,contentType,size,isInline`,
+      {
+        status: 200,
+        data: {
+          value: [
+            { id: "attachment-1", name: "report.pdf", contentType: "application/pdf", size: 100 },
+          ],
+        },
+      },
+    );
+    try {
+      const connector = new ComposioConnector();
+      const context: AdapterContext = {
+        operationId: "op-1",
+        traceId: "trace-1",
+        spaceId: "space-1",
+        userId: "user-1",
+        signal: new AbortController().signal,
+        connectedConnections: [
+          {
+            id: "connection-1",
+            connectorId: "composio",
+            externalId: "outlook",
+            displayName: "Outlook",
+            providerRef: "outlook-account",
+          },
+        ],
+      };
+      const call = {
+        tool: "OUTLOOK_SEND_DRAFT",
+        args: { message_id: "draft-1" },
+        executionId: "call-1",
+      };
+      await expect(
+        connector.approvalPreview(call, context, { includeContent: true }),
+      ).resolves.toMatchObject({
+        draftId: "draft-1",
+        emailRevision: expect.any(String),
+        email: {
+          account: "mail@example.test",
+          to: ["recipient@example.test"],
+          cc: ["copy@example.test"],
+          bcc: ["blind@example.test"],
+          body: "Current body",
+          attachments: ["report.pdf"],
+        },
+      });
+      await expect(
+        connector.approvalPreview(
+          {
+            ...call,
+            tool: "OUTLOOK_SEND_EMAIL",
+            args: {
+              to_email: "recipient@example.test",
+              cc_emails: ["copy@example.test"],
+              bcc_emails: ["blind@example.test"],
+              subject: "Hello",
+              body: "World",
+            },
+          },
+          context,
+          { includeContent: true },
+        ),
+      ).resolves.toMatchObject({
+        email: {
+          to: ["recipient@example.test"],
+          cc: ["copy@example.test"],
+          bcc: ["blind@example.test"],
+        },
+      });
+    } finally {
+      composioSdkState.connectedAccounts.list = priorList;
+      composioSdkState.proxyResults.clear();
+    }
   });
   it("maps OpenAI-style session tools and raw slugs", () => {
     const tools = asConnectorTools([

@@ -1,5 +1,3 @@
-import { PERSONAL_ASSISTANT_GUIDANCE } from "./personal-assistant.js";
-
 export type ForYouCategory = "tasks" | "routines" | "learn" | "builders";
 export interface ForYouSuggestion {
   id: string;
@@ -186,44 +184,43 @@ export const FOR_YOU_SUGGESTIONS: readonly ForYouSuggestion[] = [
 ];
 
 export interface ForYouConversationAttempt {
-  clientNonce: string;
-  botId?: string;
+  operationId: string;
 }
 
-/** Retain the created thread and nonce when sending fails, so retry cannot duplicate the prompt. */
+export interface ForYouLaunchScope {
+  userId: string;
+  spaceId: string;
+  assistantId: string;
+}
+
+/** Store only an opaque pending identity. All launch content and state stay server-owned. */
+export function forYouLaunchStorageKey(scope: ForYouLaunchScope, suggestionId: string): string {
+  return `kith.for-you.launch:${JSON.stringify([scope.userId, scope.spaceId, scope.assistantId, suggestionId])}`;
+}
+
+export function forYouLaunchAttempt(
+  stored: string | null,
+  createId: () => string,
+): ForYouConversationAttempt {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return { operationId: stored && uuid.test(stored) ? stored : createId() };
+}
+
+/** One authoritative operation atomically creates the conversation and its first task. */
 export async function startForYouConversation(
   suggestion: ForYouSuggestion,
-  assistantId: string,
+  scope: ForYouLaunchScope,
   attempt: ForYouConversationAttempt,
   actions: {
-    create: (input: {
-      name: string;
-      startEmpty: true;
-      title: string;
-      description: string;
-      instructions: string;
-      notifyOnFinish: true;
-      parentBotId: string;
-    }) => Promise<{ id: string }>;
-    send: (input: { botId: string; text: string; clientNonce: string }) => Promise<unknown>;
+    launch: (
+      input: ForYouLaunchScope & { suggestionId: string; operationId: string },
+    ) => Promise<{ id: string }>;
   },
 ): Promise<string> {
-  if (!attempt.botId) {
-    const bot = await actions.create({
-      name: suggestion.title,
-      startEmpty: true,
-      title: "",
-      description: "",
-      instructions: PERSONAL_ASSISTANT_GUIDANCE,
-      notifyOnFinish: true,
-      parentBotId: assistantId,
-    });
-    attempt.botId = bot.id;
-  }
-  await actions.send({
-    botId: attempt.botId,
-    text: suggestion.prompt,
-    clientNonce: attempt.clientNonce,
+  const bot = await actions.launch({
+    ...scope,
+    suggestionId: suggestion.id,
+    operationId: attempt.operationId,
   });
-  return attempt.botId;
+  return bot.id;
 }

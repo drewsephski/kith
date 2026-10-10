@@ -73,6 +73,7 @@ export function AskCard({
 
   async function submitAnswer(value: string) {
     if (submitting) return;
+    if (emailReview && !block.email && value === "allow") return;
     if (secretInput ? value.length === 0 : !value.trim()) return;
     const submitUsername = loginInput ? username.trim() : undefined;
     if (loginInput && !submitUsername) return;
@@ -167,7 +168,7 @@ export function AskCard({
                   ? "h-8 px-3 text-xs"
                   : "h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal"
               }
-              disabled={submitting}
+              disabled={submitting || (emailReview && !block.email && action.id === "allow")}
               onClick={() => void submitAnswer(action.id)}
             >
               {pendingAction === action.id ? (

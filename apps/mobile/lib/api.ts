@@ -5,6 +5,7 @@ import type {
   Bot,
   BotSection,
   ComputerMode,
+  EmailActionState,
   Group,
   Me,
   MessageBlock,
@@ -916,6 +917,7 @@ export type MobileMessage = {
   replyPreview?: ReplyPreview | null;
   createdAt?: string;
   blocks: MessageBlock[];
+  emailActions?: EmailActionState[];
 };
 
 export type MobileGroup = Pick<

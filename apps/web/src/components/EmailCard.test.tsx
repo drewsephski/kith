@@ -56,6 +56,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 function click() {
   container.querySelector<HTMLButtonElement>("button")!.click();
@@ -182,4 +183,87 @@ it("offers one Send action without a save or edit step", () => {
     "Send",
   ]);
   expect(container.querySelector<HTMLTextAreaElement>("textarea")!.readOnly).toBe(false);
+});
+
+it("restores authoritative edited content and action state after remount instead of enabling the original Send", async () => {
+  const email = { ...block.email, subject: "Accepted revision", body: "Persisted edits" };
+  for (const status of [
+    "queued",
+    "awaiting_approval",
+    "sending",
+    "sent",
+    "failed",
+    "uncertain",
+    "cancelled",
+  ] as const) {
+    act(() =>
+      root.render(
+        <EmailCard
+          block={block}
+          message={{ ...message, emailActions: [{ blockIndex: 0, runId: "run-1", status, email }] }}
+          blockIndex={0}
+        />,
+      ),
+    );
+    expect(container.querySelector<HTMLTextAreaElement>("textarea")!.value).toBe("Persisted edits");
+    expect(container.querySelector<HTMLButtonElement>("button")!.disabled).toBe(true);
+    await act(async () => click());
+    expect(send).not.toHaveBeenCalled();
+    expect(container.textContent?.includes("Sent and verified")).toBe(status === "sent");
+  }
+});
+
+it("identifies model-supplied mailbox content as an unverified preview", () => {
+  act(() =>
+    root.render(
+      <EmailCard block={{ ...block, mode: "received" }} message={message} blockIndex={0} />,
+    ),
+  );
+  expect(container.textContent).toContain("Unverified email preview");
+});
+
+it("does not enable legacy email send approvals without inspectable mail content", async () => {
+  const onAnswer = vi.fn();
+  act(() =>
+    root.render(
+      <AskCard
+        block={{
+          kind: "ask",
+          text: "Review email",
+          approvalEffectId: "effect-legacy",
+          approvalAction: "email_send",
+          status: "pending",
+          actions: [
+            { id: "allow", label: "Send email" },
+            { id: "deny", label: "Cancel" },
+          ],
+        }}
+        canAnswer
+        onAnswer={onAnswer}
+      />,
+    ),
+  );
+  expect(container.querySelector<HTMLButtonElement>("button")!.disabled).toBe(true);
+  await act(async () => click());
+  expect(onAnswer).not.toHaveBeenCalled();
+});
+
+it("keeps one width observer while editing a long email body", () => {
+  const observe = vi.fn();
+  const disconnect = vi.fn();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe = observe;
+      disconnect = disconnect;
+    },
+  );
+  act(() => root.render(<EmailCard block={block} message={message} blockIndex={0} />));
+  const body = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Email body"]')!;
+  const longBody = "A full paragraph. ".repeat(2000);
+  act(() => change(body, longBody));
+  act(() => change(body, `${longBody}\nFinal line.`));
+  expect(body.value).toBe(`${longBody}\nFinal line.`);
+  expect(observe).toHaveBeenCalledOnce();
+  expect(disconnect).not.toHaveBeenCalled();
 });

@@ -131,6 +131,25 @@ describe("mobile i18n", () => {
     }
   });
 
+  it("translates the shared For You catalog in every supported mobile locale", async () => {
+    const { FOR_YOU_SUGGESTIONS } = await import("@rakazo/core");
+    const { resetI18nForTests, t } = await import("./i18n");
+    const messages = new Set(
+      FOR_YOU_SUGGESTIONS.flatMap(({ group, title, description }) => [group, title, description]),
+    );
+    for (const locale of ["en", "zh-CN", "ru", "de"] as const) {
+      resetI18nForTests(locale);
+      for (const message of messages) {
+        const translated = t(message);
+        expect(translated, `${locale}: ${message}`).toBeTruthy();
+        if (locale === "en") expect(translated).toBe(message);
+        else expect(translated, `${locale}: ${message}`).not.toBe(message);
+        expect(translated).not.toMatch(/\{[A-Za-z0-9_]+\}/);
+      }
+    }
+    resetI18nForTests();
+  });
+
   it("prefers the stored locale, then activates and persists a new choice", async () => {
     const { getItemAsync, setItemAsync } = await import("expo-secure-store");
     vi.mocked(getItemAsync).mockResolvedValue("zh-CN");

@@ -989,6 +989,80 @@ describe("pauseRunForTakeover", () => {
 });
 
 describe("answerRunInput", () => {
+  it.each(["allow", "always", "deny"])(
+    "never approves incomplete legacy email reviews with %s, but keeps cancellation available",
+    async (answer) => {
+      const fanout = new TestFanout();
+      const tx = {
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        message: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "message-1",
+            blocks: [
+              {
+                kind: "ask",
+                approvalEffectId: "effect-1",
+                approvalAction: "email_send",
+                text: "Review email",
+                status: "pending",
+                actions: [
+                  { id: "allow", label: "Send email" },
+                  { id: "always", label: "Always" },
+                  { id: "deny", label: "Cancel" },
+                ],
+              },
+            ],
+          }),
+          update: vi.fn().mockResolvedValue({ id: "message-1" }),
+        },
+        run: {
+          findFirst: vi.fn().mockResolvedValue({ botId: "bot-1", userId: "user-1" }),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findUnique: vi.fn().mockResolvedValue({ status: "queued" }),
+        },
+        externalEffect: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: "effect-1", kind: "GMAIL_SEND_DRAFT", status: "intended" }),
+          update: vi.fn(),
+        },
+        thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 10 }) },
+        event: {
+          create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
+            ...event(data.seq),
+            type: data.type,
+          })),
+        },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+      } as unknown as PrismaClient;
+      await expect(
+        answerRunInput(
+          prisma,
+          {
+            spaceId: "workspace-1",
+            threadId: "thread-1",
+            runId: "run-1",
+            messageId: "message-1",
+            answeredByUserId: "user-1",
+            answer,
+          },
+          fanout,
+        ),
+      ).resolves.toBe(answer === "deny");
+      if (answer === "deny")
+        expect(tx.externalEffect.update).toHaveBeenCalledWith({
+          where: { id: "effect-1" },
+          data: { status: "denied" },
+        });
+      else {
+        expect(tx.externalEffect.update).not.toHaveBeenCalled();
+        expect(tx.run.updateMany).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("answers only the selected pending prompt and publishes its update", async () => {
     const fanout = new TestFanout();
     const publish = vi.spyOn(fanout, "publish");

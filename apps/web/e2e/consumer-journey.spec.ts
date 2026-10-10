@@ -36,7 +36,7 @@ test("Web handoff safely resumes one assistant across sign-up, concurrent tabs a
   await page.getByRole("button", { name: "Research and projects", exact: true }).click();
   const nextAction = page.getByRole("button", { name: "What are you working on?", exact: true });
   await expect(nextAction).toBeVisible();
-  const composer = page.getByPlaceholder("Message Juniper");
+  const composer = page.getByRole("combobox", { name: "Message Juniper", exact: true });
   await composer.fill("Compare these ideas for my project");
   await nextAction.click();
   await expect(composer).toBeFocused();
@@ -110,6 +110,9 @@ test("returning home offers concrete connected-service prompts instead of task a
       },
     }),
   );
+  // Returning to the app revalidates connected services; task rendering does not rediscover accounts.
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp(`/app/${primary}$`));
   await composer.fill("Remember that I prefer morning meetings.");
   await composer.press("Enter");
   await expect(page.getByTestId("message-bot-bubble").last()).toBeVisible();
@@ -119,14 +122,27 @@ test("returning home offers concrete connected-service prompts instead of task a
   await expect(highlights).not.toContainText("In progress");
   for (const width of [1280, 375]) {
     await page.setViewportSize({ width, height: 812 });
-    const transcriptBox = (await page.getByTestId("transcript").boundingBox())!;
-    const highlightsBox = (await highlights.boundingBox())!;
-    const composerBox = (await page
-      .getByRole("group", { name: "Message composer" })
-      .boundingBox())!;
-    expect(transcriptBox.y + transcriptBox.height).toBeLessThanOrEqual(highlightsBox.y);
-    expect(highlightsBox.y + highlightsBox.height).toBeLessThanOrEqual(composerBox.y);
-    expect(highlightsBox.height).toBeLessThanOrEqual(width < 640 ? 80 : 64);
+    // Measure siblings together so a responsive layout change cannot mix different frames.
+    await expect
+      .poll(() =>
+        page.getByRole("group", { name: "Message composer" }).evaluate(
+          (composer, maxHeight) => {
+            const transcript = document.querySelector('[data-testid="transcript"]');
+            const suggestions = document.querySelector('[data-testid="assistant-for-you"]');
+            if (!transcript || !suggestions) return Number.POSITIVE_INFINITY;
+            const transcriptBox = transcript.getBoundingClientRect();
+            const suggestionsBox = suggestions.getBoundingClientRect();
+            const composerBox = composer.getBoundingClientRect();
+            return Math.max(
+              transcriptBox.bottom - suggestionsBox.top,
+              suggestionsBox.bottom - composerBox.top,
+              suggestionsBox.height - maxHeight,
+            );
+          },
+          width < 640 ? 80 : 64,
+        ),
+      )
+      .toBeLessThanOrEqual(0);
     await captureScreenshot(page, testInfo, `consumer-prompt-suggestions-${width}`);
   }
   await prompt.click();

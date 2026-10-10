@@ -7,7 +7,203 @@ import {
   shouldForwardPeerThreadEvent,
 } from "./thread-message-pages.js";
 
+it.each(["selected", "approved", "pending"] as const)(
+  "projects persisted send state across reloads using the %s content",
+  async (reviewState) => {
+    const email = {
+      account: "mail@example.test",
+      to: ["recipient@example.test"],
+      cc: [],
+      bcc: [],
+      subject: "Original",
+      body: "Original body",
+    };
+    const row = {
+      id: "email-source",
+      threadId: "thread-1",
+      seq: 1,
+      role: "bot",
+      botId: "bot-1",
+      runId: null,
+      replyToMessageId: null,
+      replyQuote: null,
+      blocks: [{ kind: "email", mode: "draft", draftId: "draft-1", email }],
+      createdAt: new Date(),
+    };
+    const revisedEmail = { ...email, subject: "Accepted revision", body: "Edited body" };
+    const approvedEmail = {
+      ...revisedEmail,
+      to: ["approved-recipient@example.test"],
+      subject: "Final provider draft",
+      body: "Final reviewed content",
+    };
+    const review = {
+      kind: "ask",
+      text: "Review email",
+      approvalAction: "email_send",
+      approvalEffectId: "send-effect",
+      status: "answered",
+      answer: "allow",
+      email: approvedEmail,
+      actions: [
+        { id: "allow", label: "Send email" },
+        { id: "deny", label: "Cancel" },
+      ],
+    };
+    const findMany = vi
+      .fn()
+      .mockResolvedValueOnce([row])
+      .mockResolvedValueOnce([
+        {
+          clientNonce: 'email-send:["email-source",0,"legacy-revision"]',
+          blocks: [{ kind: "email", mode: "draft", email: revisedEmail }],
+          sourceRuns: [
+            {
+              id: "send-run",
+              status: "completed",
+              effects: [
+                {
+                  id: "send-effect",
+                  kind: "GMAIL_SEND_DRAFT",
+                  status: "completed",
+                  result: { emailSendVerified: true },
+                },
+              ],
+            },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce(
+        reviewState === "selected"
+          ? []
+          : reviewState === "approved"
+            ? [{ blocks: [review] }]
+            : [
+                { blocks: [{ ...review, status: "pending", answer: undefined }] },
+                { blocks: [review] },
+              ],
+      );
+    const prisma = { message: { findMany } } as unknown as PrismaClient;
+    const page = await loadMessagePage(prisma, "thread-1", undefined, 100);
+    expect(page.messages[0]?.emailActions).toEqual([
+      {
+        blockIndex: 0,
+        runId: "send-run",
+        status: "sent",
+        email: reviewState === "approved" ? approvedEmail : revisedEmail,
+      },
+    ]);
+    expect(findMany.mock.calls[1]?.[0].where).toEqual({
+      threadId: "thread-1",
+      role: "user",
+      replyToMessageId: { in: ["email-source"] },
+      clientNonce: { startsWith: "email-send:" },
+    });
+    expect(page.messages[0]?.blocks).toEqual(row.blocks);
+    expect(findMany.mock.calls[2]?.[0].where).toEqual({
+      threadId: "thread-1",
+      role: "bot",
+      runId: { in: ["send-run"] },
+      blocks: { array_contains: [{ kind: "ask", approvalAction: "email_send" }] },
+    });
+  },
+);
+
 describe("thread message pages", () => {
+  it.each(["approved", "intended", "failed", "uncertain", "executing"])(
+    "never pairs confirmed email A's Sent status with later email B when B is %s",
+    async (status) => {
+      const emailA = {
+        account: "mail@example.test",
+        to: ["first@example.test"],
+        cc: [],
+        bcc: [],
+        subject: "Email A",
+        body: "Confirmed content A",
+      };
+      const emailB = {
+        ...emailA,
+        to: ["second@example.test"],
+        subject: "Email B",
+        body: "Later content B",
+      };
+      const review = (id: string, email: typeof emailA) => ({
+        kind: "ask",
+        text: "Review email",
+        approvalAction: "email_send",
+        approvalEffectId: id,
+        status: "answered",
+        answer: "allow",
+        email,
+        actions: [
+          { id: "allow", label: "Send email" },
+          { id: "deny", label: "Cancel" },
+        ],
+      });
+      const findMany = vi
+        .fn()
+        .mockResolvedValueOnce([
+          {
+            id: "source",
+            threadId: "thread-1",
+            seq: 1,
+            role: "bot",
+            botId: "bot-1",
+            runId: null,
+            replyToMessageId: null,
+            replyQuote: null,
+            blocks: [{ kind: "email", mode: "draft", email: emailA }],
+            createdAt: new Date(),
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            clientNonce: 'email-send:["source",0]',
+            blocks: [{ kind: "email", mode: "draft", email: emailA }],
+            sourceRuns: [
+              {
+                id: "send-run",
+                status: "failed",
+                effects: [
+                  {
+                    id: "send-A",
+                    kind: "GMAIL_SEND_DRAFT",
+                    status: "completed",
+                    result: { emailSendVerified: true },
+                  },
+                  {
+                    id: "send-B",
+                    kind: "GMAIL_SEND_DRAFT",
+                    status: status === "failed" ? "completed" : status,
+                    result:
+                      status === "failed" ? { error: "Connection revoked before dispatch" } : null,
+                  },
+                ],
+              },
+            ],
+          },
+        ])
+        .mockResolvedValueOnce([
+          { blocks: [review("send-B", emailB)] },
+          { blocks: [review("send-A", emailA)] },
+        ]);
+      const page = await loadMessagePage(
+        { message: { findMany } } as unknown as PrismaClient,
+        "thread-1",
+        undefined,
+        100,
+      );
+      const uncertain = status === "uncertain" || status === "executing";
+      expect(page.messages[0]?.emailActions).toEqual([
+        {
+          blockIndex: 0,
+          runId: "send-run",
+          status: uncertain ? "uncertain" : "sent",
+          email: uncertain ? emailB : emailA,
+        },
+      ]);
+    },
+  );
   it("caches peer-run classification for live events", async () => {
     const findUnique = vi.fn(async () => ({ trigger: "bot_message" }));
     const prisma = { run: { findUnique } } as unknown as PrismaClient;

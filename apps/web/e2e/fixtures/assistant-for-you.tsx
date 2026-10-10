@@ -61,7 +61,10 @@ function Fixture() {
           ))}
         </div>
       </div>
-      <AssistantForYou onSuggest={(text) => setSuggestedDraft({ text, nonce: Date.now() })} />
+      <AssistantForYou
+        botId="assistant-fixture"
+        onSuggest={(text) => setSuggestedDraft({ text, nonce: Date.now() })}
+      />
       <Composer
         suggestedDraft={suggestedDraft}
         activeName="Kith"

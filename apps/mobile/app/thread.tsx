@@ -1368,7 +1368,11 @@ function Thread() {
                 readVisibleTarget.current = null;
                 markReadIfVisible();
               }
-              if (isRunTerminalEvent(event)) {
+              if (
+                isRunTerminalEvent(event) ||
+                event.type === "run.waiting_input" ||
+                event.type === "run.started"
+              ) {
                 void refreshMentionBots();
                 if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
                   void refresh().catch(() => undefined);
@@ -3809,6 +3813,7 @@ const MessageBubble = memo(function MessageBubble({
             <AskActions
               actions={askBlock.actions}
               emailReview={askBlock.approvalAction === "email_send"}
+              emailPreviewAvailable={Boolean(askBlock.email)}
               accessibilityActions={actionProps.accessibilityActions}
               onAccessibilityAction={actionProps.onAccessibilityAction}
               onAnswer={(answer) => onAnswer(message, answer)}

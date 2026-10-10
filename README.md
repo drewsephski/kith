@@ -18,8 +18,14 @@ Kith is open source and in beta, with web, desktop, and mobile apps.
 
 ## Get started
 
-Follow the [setup guide](./docs/self-host.md#published-images-no-checkout) to run Kith on your
-computer. Create an account, connect an AI model, and start a conversation.
+Follow the [source setup guide](./CONTRIBUTING.md#run-locally) to run Kith on your
+computer, or [run without Docker](./docs/host-deployment.md). Create an account and complete
+the assistant setup. Connect a model if the operator has not configured one.
+
+Desktop installers are available only when listed in [Kith releases](https://github.com/drewsephski/kith/releases).
+Until then, [build Desktop from source](./docs/desktop-release.md#build-from-source).
+The [upstream published images](./docs/self-host.md#published-images-no-checkout) run Rakazo,
+and do not contain Kith fork changes.
 
 [Watch the demo](https://github.com/user-attachments/assets/dccdeddb-2134-4a56-8eed-b2e591736b1c)
 · [Run without Docker](./docs/host-deployment.md)

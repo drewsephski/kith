@@ -1,6 +1,6 @@
 # Docker-free host deployment
 
-Run Rakazo's web app, API, and worker directly with Node and pnpm. PostgreSQL can be a native
+Run Kith's web app, API, and worker directly with Node and pnpm. PostgreSQL can be a native
 installation or a managed service such as Neon. Bot computers can use an existing remote
 provider, or be disabled. This deployment does not start Docker or the sandbox supervisor.
 
@@ -54,7 +54,7 @@ at startup. Host mode refuses `SANDBOX_PROVIDER=docker`; use `pnpm dev` for the 
 Create a PostgreSQL database and copy its connection URLs into `.env`. For Neon, the Connect
 dialog supplies a pooled URL and a direct URL when you toggle connection pooling. Retain the TLS
 options supplied by the provider. Both URLs must point at the same database and use a role with
-permission to apply Rakazo and Graphile migrations.
+permission to apply the application and Graphile migrations.
 
 | Setting | Use |
 | --- | --- |

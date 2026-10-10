@@ -900,4 +900,105 @@ export const DE_MESSAGES: Record<string, string> = {
   "Every day": "Jeden Tag",
   Frequency: "Häufigkeit",
   "Scheduled.": "Geplant.",
+  // Shared For You catalog.
+  Outreach: "Kontaktpflege",
+  "Draft replies that need your attention": "Antworten auf wichtige Nachrichten entwerfen",
+  "Find time-sensitive conversations and leave replies as drafts":
+    "Zeitkritische Gespräche finden und Antworten als Entwürfe speichern",
+  "Follow up on unanswered conversations": "Bei unbeantworteten Gesprächen nachfassen",
+  "Keep promising introductions and partnerships moving":
+    "Vielversprechende Kontakte und Partnerschaften voranbringen",
+  "Set up a daily reply and bounce tracker":
+    "Tägliche Prüfung von Antworten und unzustellbaren E-Mails einrichten",
+  "Build a repeatable check for replies, bounces, and next steps":
+    "Antworten, unzustellbare E-Mails und nächste Schritte regelmäßig prüfen",
+  "Developer tools": "Entwicklertools",
+  "Get pull requests ready to ship": "Pull Requests für die Veröffentlichung vorbereiten",
+  "Review failed checks, open feedback, and the next fix":
+    "Fehlgeschlagene Prüfungen, offenes Feedback und nächste Korrekturen prüfen",
+  "Turn rough notes into a useful bug report":
+    "Aus groben Notizen einen hilfreichen Fehlerbericht erstellen",
+  "Capture reproduction steps, expected behavior, and evidence":
+    "Schritte zur Reproduktion, erwartetes Verhalten und Belege erfassen",
+  "Set up a morning digest of failing builds":
+    "Morgendliche Übersicht fehlgeschlagener Builds einrichten",
+  "Bring broken checks across your repositories into one review":
+    "Fehlgeschlagene Prüfungen aller Repositorys gemeinsam durchsehen",
+  General: "Allgemein",
+  "Make a plan for the week ahead": "Die kommende Woche planen",
+  "Turn your priorities and commitments into a manageable week":
+    "Prioritäten und Verpflichtungen in eine machbare Woche verwandeln",
+  "Prepare for your next meeting": "Das nächste Meeting vorbereiten",
+  "Gather the agenda, useful context, and questions to ask":
+    "Agenda, hilfreichen Kontext und Fragen zusammentragen",
+  "Collect recent receipts and invoices": "Aktuelle Belege und Rechnungen sammeln",
+  "Organize vendors, dates, amounts, and source links":
+    "Anbieter, Daten, Beträge und Quellenlinks ordnen",
+  "Set up a Sunday evening weekly review": "Wöchentlichen Rückblick am Sonntagabend einrichten",
+  "Review unfinished work and prepare for the coming week":
+    "Offene Arbeit prüfen und die kommende Woche vorbereiten",
+  "Set up a weekly job search review": "Wöchentliche Überprüfung der Jobsuche einrichten",
+  "Keep applications, interviews, and follow-ups in view":
+    "Bewerbungen, Vorstellungsgespräche und Nachfragen im Blick behalten",
+  "Level up Kith": "Kith verbessern",
+  "Teach Kith how you like to work": "Kith deine Arbeitsweise beibringen",
+  "Share the preferences that make everyday help more useful":
+    "Vorlieben teilen, die tägliche Unterstützung hilfreicher machen",
+  "Review what Kith remembers about you": "Prüfen, was Kith über dich gespeichert hat",
+  "Correct outdated details and fill in the gaps":
+    "Veraltete Angaben korrigieren und Lücken ergänzen",
+  "Teach Kith your outreach process": "Kith deinen Kontaktprozess beibringen",
+  "Capture your tone, follow-up timing, and approval preferences":
+    "Ton, Nachfassintervalle und Freigabevorlieben festhalten",
+  "Connect the tools you use every day": "Deine täglichen Tools verbinden",
+  "Choose which accounts would make your assistant more helpful":
+    "Konten auswählen, die deinen Assistenten hilfreicher machen",
+  "For builders": "Für Entwickler",
+  "Triage replies to cold outreach": "Antworten auf Erstkontakte sortieren",
+  "Separate interested leads, questions, and declines":
+    "Interessierte Kontakte, Fragen und Absagen unterscheiden",
+  "Research partners and draft introductions":
+    "Partner recherchieren und Kontaktentwürfe erstellen",
+  "Find relevant collaborators and prepare thoughtful first messages":
+    "Passende Partner finden und durchdachte erste Nachrichten vorbereiten",
+  "Review your launch readiness": "Deine Startbereitschaft prüfen",
+  "Find the gaps in onboarding, billing, and support":
+    "Lücken bei Onboarding, Abrechnung und Support finden",
+  "Plan infrastructure and usage alerts": "Infrastruktur- und Nutzungswarnungen planen",
+  "Catch quota limits and service failures before they interrupt work":
+    "Kontingentgrenzen und Dienstausfälle erkennen, bevor sie die Arbeit unterbrechen",
+  // Shared For You catalog.
+  // Work, launch recovery, and email review.
+  "Your work": "Deine Arbeit",
+  "Connected apps": "Verbundene Apps",
+  Explore: "Entdecken",
+  "Could not load activity": "Aktivität konnte nicht geladen werden",
+  "Request queued": "Anfrage in der Warteschlange",
+  "Awaiting final approval": "Endgültige Freigabe ausstehend",
+  "Sent and verified": "Gesendet und bestätigt",
+  "Verify before retrying": "Vor erneutem Versuch prüfen",
+  "Unverified email preview": "Unbestätigte E-Mail-Vorschau",
+  "For you": "Für dich",
+  "Your assistant is not available. Try again.":
+    "Dein Assistent ist nicht verfügbar. Versuche es erneut.",
+  "The selected space changed. Try again.":
+    "Der ausgewählte Bereich hat sich geändert. Versuche es erneut.",
+  "Could not start the conversation. Select the suggestion to retry.":
+    "Die Unterhaltung konnte nicht gestartet werden. Wähle den Vorschlag erneut aus.",
+  "Opening conversation": "Unterhaltung wird geöffnet",
+  "Could not request email action": "E-Mail-Aktion konnte nicht angefragt werden",
+  All: "Alle",
+  Attachments: "Anhänge",
+  Bcc: "Bcc",
+  Cc: "Cc",
+  "Email body": "E-Mail-Text",
+  "Email subject": "E-Mail-Betreff",
+  From: "Von",
+  "No subject": "Kein Betreff",
+  Requested: "Angefragt",
+  Routines: "Routinen",
+  "Send approved": "Senden freigegeben",
+  Tasks: "Aufgaben",
+  To: "An",
+  Show: "Anzeigen",
 };

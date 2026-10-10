@@ -20,8 +20,13 @@ function publicUrl(value, name, { origin = false, local = false } = {}) {
 /** Local builds are unindexed; deployment builds must name their public origins. */
 export function resolvePublicConfig(env) {
   const deployed = Boolean(env.VERCEL || env.KITH_PUBLIC_DEPLOYMENT === "1");
+  const preview = env.VERCEL_ENV === "preview";
   const siteUrl = publicUrl(env.PUBLIC_SITE_URL, "PUBLIC_SITE_URL", { origin: true, local: !deployed });
-  const appUrl = publicUrl(env.PUBLIC_APP_URL, "PUBLIC_APP_URL", { origin: true, local: !deployed });
+  // A separate setting prevents an inherited production app origin from becoming
+  // the preview CTA. Operators must explicitly choose the preview backend.
+  const appSetting = preview ? "PUBLIC_PREVIEW_APP_URL" : "PUBLIC_APP_URL";
+  const appUrl = publicUrl(env[appSetting], appSetting, { origin: true, local: !deployed });
+  if (preview && !appUrl) throw new Error("Set PUBLIC_PREVIEW_APP_URL before deploying a marketing preview");
   if (deployed && (!siteUrl || !appUrl)) throw new Error("Set PUBLIC_SITE_URL and PUBLIC_APP_URL before deploying marketing");
   if (siteUrl && appUrl && siteUrl === appUrl) throw new Error("Marketing and application origins must be different");
   const downloads = Object.fromEntries(["MAC", "WINDOWS", "LINUX"].map((platform) => [

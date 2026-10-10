@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { captureScreenshot, completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, openAdvancedNavigation, signup } from "./helpers";
 
 test("setup exposes all integration choices and saves only the selected provider", async ({
   page,
@@ -266,7 +266,7 @@ test("configured server owners manage providers from settings", async ({ page },
   await completeOnboarding(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
-  const link = settings.getByRole("link", { name: "Server integrations", exact: true });
+  const link = settings.getByRole("button", { name: "Server integrations", exact: true });
   await expect(link).toBeVisible();
   await captureScreenshot(page, testInfo, "server-integrations-settings");
   await link.click();
@@ -370,8 +370,8 @@ test("blocked popups expose a browser link and checking resumes the same app sig
   await page.evaluate(() => {
     window.open = () => null;
   });
-  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
-  await page.getByRole("button", { name: "Add connection", exact: true }).click();
+  await openAdvancedNavigation(page);
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await page.getByRole("button", { name: "Connect Gmail", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Continue in browser", exact: true }),

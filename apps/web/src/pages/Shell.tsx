@@ -34,14 +34,17 @@ import {
   type MessageReaction,
   normalizeCreateBotProfile,
 } from "@rakazo/contracts";
-import type { ForYouConversationAttempt, ForYouSuggestion } from "@rakazo/core";
+import type { ForYouSuggestion } from "@rakazo/core";
 import {
   attachmentsForThread,
   buildComposerMentionOptions,
   type ComposerMention,
   clampMentionHighlightIndex,
+  connectedAppServices,
   cronFromPreset,
   formatMessageTime,
+  forYouLaunchAttempt,
+  forYouLaunchStorageKey,
   groupVoiceChats,
   hasRunResponseText,
   inferAttachmentMimeType,
@@ -67,6 +70,7 @@ import {
   serializeComposerPrompt,
   speechFromBlocks,
   startForYouConversation,
+  taskStarterApp,
   timeSeparatorIds,
   truncateSlashDescription,
   userVisibleMessages,
@@ -430,7 +434,6 @@ export function ShellPage({
 }) {
   const forYouOpenRef = useRef(forYouOpen);
   forYouOpenRef.current = forYouOpen;
-  const promptAttempts = useRef(new Map<string, ForYouConversationAttempt>());
   const [forYouError, setForYouError] = useState<string | null>(null);
   const maximizeIcon = useRef<Maximize2IconHandle>(null);
   const filesOpenRef = useRef(filesOpen);
@@ -447,6 +450,8 @@ export function ShellPage({
   searchParamsRef.current = searchParams;
   const session = authClient.useSession();
   const userId = session.data?.user.id;
+  const forYouUserRef = useRef(userId);
+  forYouUserRef.current = userId;
   const [quickAskMode, setQuickAskMode] = useState(false);
   const [assistantId, setAssistantId] = useState<string | null>(null);
   useEffect(() => {
@@ -577,6 +582,11 @@ export function ShellPage({
   const [taughtSkillsBotId, setTaughtSkillsBotId] = useState<string | null>(null);
   const [agentSkills, setAgentSkills] = useState<AgentSkillCatalogEntry[]>([]);
   const [mentionRoutines, setMentionRoutines] = useState<Array<Routine & { botName?: string }>>([]);
+  const [forYouApps, setForYouApps] = useState<{
+    scope: string;
+    selection: string | null;
+    apps: string[];
+  } | null>(null);
   const [mentionConnectors, setMentionConnectors] = useState<
     Array<{
       id: string;
@@ -769,6 +779,12 @@ export function ShellPage({
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [initialBotsLoaded, setInitialBotsLoaded] = useState(false);
   const [bootstrapMe, setBootstrapMe] = useState<Me | null>();
+  const forYouScope = `${userId}:${bootstrapMe?.spaceId}`;
+  const connectedForYouApps =
+    forYouApps?.scope === forYouScope && forYouApps.selection === selectedSpaceId()
+      ? forYouApps.apps
+      : [];
+
   const [keepComputerRecovery, setKeepComputerRecovery] = useState(false);
   const recoveryHoldTimer = useRef<number | undefined>(undefined);
   const showComputerRecoveryHint =
@@ -1545,6 +1561,7 @@ export function ShellPage({
         if (
           isRunTerminalEvent(event) ||
           event.type === "run.waiting_input" ||
+          event.type === "run.started" ||
           event.type === "skill.teaching.stopped"
         ) {
           // waiting_input: reconcile ask cards if a stale post-send refresh raced SSE.
@@ -1641,7 +1658,11 @@ export function ShellPage({
         ) {
           void refreshBots().catch(() => undefined);
         }
-        if (isRunTerminalEvent(event) || event.type === "run.waiting_input") {
+        if (
+          isRunTerminalEvent(event) ||
+          event.type === "run.waiting_input" ||
+          event.type === "run.started"
+        ) {
           // waiting_input: reconcile ask cards if a stale post-send refresh raced SSE.
           void refreshGroupThread(groupId).catch(() => undefined);
         }
@@ -2015,7 +2036,6 @@ export function ShellPage({
     const bots = botsForMentionsRef.current;
     if (!initialBotsLoaded || bots.length === 0) {
       setMentionRoutines([]);
-      setMentionConnectors([]);
       return;
     }
     let cancelled = false;
@@ -2035,46 +2055,76 @@ export function ShellPage({
     ).then((lists) => {
       if (!cancelled) setMentionRoutines(lists.flat());
     });
-    void Promise.all([
-      rpc.connections.list().catch(() => [] as Connection[]),
-      rpc.connections.catalog({}).catch(() => [] as ConnectionCatalogItem[]),
-    ]).then(([connections, catalog]) => {
-      if (cancelled) return;
-      const connected = connections.filter((row) => row.status === "connected");
-      const options: Array<{
-        id: string;
-        name: string;
-        authStatus: "connected" | "needs_auth";
-        connectionId?: string;
-      }> = connected.map((row) => ({
-        id: row.id,
-        name: row.displayName,
-        authStatus: "connected" as const,
-        connectionId: row.id,
-      }));
-      for (const item of catalog) {
-        if (item.connected || item.noAuth) continue;
-        if (
-          connected.some(
-            (row) =>
-              row.provider.toLowerCase() === item.slug.toLowerCase() ||
-              row.displayName.toLowerCase() === item.name.toLowerCase(),
-          )
-        ) {
-          continue;
-        }
-        options.push({
-          id: `catalog:${item.connectorId}:${item.slug}`,
-          name: item.name,
-          authStatus: "needs_auth",
-        });
-      }
-      setMentionConnectors(options);
-    });
     return () => {
       cancelled = true;
     };
-  }, [initialBotsLoaded, mentionBotsKey]);
+  }, [initialBotsLoaded, mentionBotsKey, forYouScope]);
+
+  useEffect(() => {
+    setMentionConnectors([]);
+    if (!initialBotsLoaded || !userId || !bootstrapMe?.spaceId) return;
+    let cancelled = false;
+    let pending = false;
+    const spaceId = selectedSpaceId();
+    const load = () => {
+      if (pending || document.visibilityState !== "visible") return;
+      pending = true;
+      void Promise.all([
+        rpc.connections.list(undefined, { context: { spaceId } }).catch(() => [] as Connection[]),
+        rpc.connections
+          .catalog({}, { context: { spaceId } })
+          .catch(() => [] as ConnectionCatalogItem[]),
+      ]).then(([connections, catalog]) => {
+        pending = false;
+        if (cancelled || selectedSpaceId() !== spaceId) return;
+        setForYouApps({
+          scope: forYouScope,
+          selection: spaceId,
+          apps: connectedAppServices(connections, catalog).map(
+            ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
+          ),
+        });
+        const connected = connections.filter((row) => row.status === "connected");
+        const options: Array<{
+          id: string;
+          name: string;
+          authStatus: "connected" | "needs_auth";
+          connectionId?: string;
+        }> = connected.map((row) => ({
+          id: row.id,
+          name: row.displayName,
+          authStatus: "connected" as const,
+          connectionId: row.id,
+        }));
+        for (const item of catalog) {
+          if (item.connected || item.noAuth) continue;
+          if (
+            connected.some(
+              (row) =>
+                row.provider.toLowerCase() === item.slug.toLowerCase() ||
+                row.displayName.toLowerCase() === item.name.toLowerCase(),
+            )
+          ) {
+            continue;
+          }
+          options.push({
+            id: `catalog:${item.connectorId}:${item.slug}`,
+            name: item.name,
+            authStatus: "needs_auth",
+          });
+        }
+        setMentionConnectors(options);
+      });
+    };
+    load();
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", load);
+    };
+  }, [initialBotsLoaded, forYouScope, userId, bootstrapMe?.spaceId]);
 
   useLayoutEffect(() => {
     if (initialBotsLoaded) {
@@ -2939,26 +2989,42 @@ export function ShellPage({
     try {
       if (suggestion) {
         const launchSpace = selectedSpaceId();
-        const key = `${bootstrapMe?.spaceId}:${assistantId}:${suggestion.id}`;
-        let attempt = promptAttempts.current.get(key);
-        if (!attempt) {
-          attempt = { clientNonce: crypto.randomUUID() };
-          promptAttempts.current.set(key, attempt);
-        }
-        const id = await startForYouConversation(suggestion, assistantId, attempt, {
-          create: async (input) => {
-            const bot = await rpc.bots.create(input);
-            commitCreatedBot(bot);
+        if (
+          !userId ||
+          !bootstrapMe?.spaceId ||
+          (launchSpace && bootstrapMe.spaceId !== launchSpace)
+        )
+          throw new Error(t`The selected space changed. Try again.`);
+        const scope = { userId, spaceId: bootstrapMe.spaceId, assistantId };
+        const key = forYouLaunchStorageKey(scope, suggestion.id);
+        const attempt = forYouLaunchAttempt(localStorage.getItem(key), () => crypto.randomUUID());
+        // Persist before the request. Storage failure must not create an unrecoverable launch.
+        localStorage.setItem(key, attempt.operationId);
+        const id = await startForYouConversation(suggestion, scope, attempt, {
+          launch: async (input) => {
+            if (selectedSpaceId() !== launchSpace || forYouUserRef.current !== scope.userId)
+              throw new Error(t`The selected space changed. Try again.`);
+            let bot: Bot;
+            try {
+              bot = await rpc.bots.launchForYou(input);
+            } catch (error) {
+              // Another tab may have received the same launch successfully and
+              // cleared its key while this response was lost. Preserve recovery.
+              if (!localStorage.getItem(key)) localStorage.setItem(key, attempt.operationId);
+              throw error;
+            }
+            if (selectedSpaceId() === launchSpace && forYouUserRef.current === scope.userId)
+              commitCreatedBot(bot);
             return bot;
           },
-          send: (input) => {
-            if (selectedSpaceId() !== launchSpace)
-              throw new Error(t`The selected space changed. Try again.`);
-            return rpc.threads.send(input);
-          },
         });
-        promptAttempts.current.delete(key);
-        if (forYouOpenRef.current && selectedSpaceId() === launchSpace) navigate(`/app/${id}`);
+        if (localStorage.getItem(key) === attempt.operationId) localStorage.removeItem(key);
+        if (
+          forYouOpenRef.current &&
+          selectedSpaceId() === launchSpace &&
+          forYouUserRef.current === scope.userId
+        )
+          navigate(`/app/${id}`);
         setPanel(null);
         return;
       }
@@ -3868,6 +3934,15 @@ export function ShellPage({
         ) : null}
         {forYouOpen ? (
           <ForYouPage
+            workRevision={bots.map((bot) => `${bot.id}:${bot.status}`).join(",")}
+            scopeKey={
+              userId && bootstrapMe?.spaceId ? `${userId}:${bootstrapMe.spaceId}` : undefined
+            }
+            onOpenRun={(run) => {
+              const path = run.groupId ? `/app/g/${run.groupId}` : `/app/${run.botId}`;
+              navigate(run.messageId ? `${path}?m=${encodeURIComponent(run.messageId)}` : path);
+            }}
+            apps={connectedForYouApps}
             onSelect={(suggestion) => void newConversation(suggestion)}
             busy={creatingThread || !assistantId}
             error={forYouError}
@@ -4062,6 +4137,7 @@ export function ShellPage({
             )}
             {isMainConversation && shellReady && transcriptMessages.length > 0 && !quickAskMode ? (
               <AssistantForYou
+                apps={connectedForYouApps}
                 key={`${userId}:${bootstrapMe?.spaceId}`}
                 botId={active?.id}
                 onSuggest={(text) =>

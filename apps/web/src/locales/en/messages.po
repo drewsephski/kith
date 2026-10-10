@@ -731,6 +731,10 @@ msgstr "Avatar Studio"
 msgid "Avatars"
 msgstr "Avatars"
 
+#: src/components/EmailCard.tsx
+msgid "Awaiting final approval"
+msgstr "Awaiting final approval"
+
 #: src/pages/ActivityList.tsx
 msgid "Awaiting reply"
 msgstr "Awaiting reply"
@@ -847,6 +851,11 @@ msgstr "Briefing preferences"
 msgid "Briefing receipt"
 msgstr "Briefing receipt"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Bring broken checks across your repositories into one review"
+msgstr "Bring broken checks across your repositories into one review"
+
 #: src/pages/PluginsOverlay.tsx
 msgid "Browse MCP servers"
 msgstr "Browse MCP servers"
@@ -858,6 +867,11 @@ msgstr "Browser"
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Build a brief for my next meeting"
 msgstr "Build a brief for my next meeting"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Build a repeatable check for replies, bounces, and next steps"
+msgstr "Build a repeatable check for replies, bounces, and next steps"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Built-in"
@@ -927,10 +941,26 @@ msgid "cancelled"
 msgstr "cancelled"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Cancelled"
 msgstr "Cancelled"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture reproduction steps, expected behavior, and evidence"
+msgstr "Capture reproduction steps, expected behavior, and evidence"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Capture your tone, follow-up timing, and approval preferences"
+msgstr "Capture your tone, follow-up timing, and approval preferences"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Catch quota limits and service failures before they interrupt work"
+msgstr "Catch quota limits and service failures before they interrupt work"
 
 #: src/components/EmailCard.tsx
 msgid "Cc"
@@ -1059,6 +1089,11 @@ msgstr "Choose file"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Choose task sources"
 msgstr "Choose task sources"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Choose which accounts would make your assistant more helpful"
+msgstr "Choose which accounts would make your assistant more helpful"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Choose which connected model Kith uses."
@@ -1198,6 +1233,11 @@ msgstr "Collapse sidebar"
 msgid "Collect recent receipts"
 msgstr "Collect recent receipts"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Collect recent receipts and invoices"
+msgstr "Collect recent receipts and invoices"
+
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Color"
 msgstr "Color"
@@ -1224,6 +1264,7 @@ msgstr "Command variable"
 msgid "Complete"
 msgstr "Complete"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Completed"
@@ -1343,6 +1384,11 @@ msgstr "Connect OAuth"
 msgid "Connect services"
 msgstr "Connect services"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Connect the tools you use every day"
+msgstr "Connect the tools you use every day"
+
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connect this provider to use it as your personal model."
 msgstr "Connect this provider to use it as your personal model."
@@ -1375,6 +1421,10 @@ msgstr "Connected {0}."
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "Connected and using {0}."
 msgstr "Connected and using {0}."
+
+#: src/pages/ForYou.tsx
+msgid "Connected apps"
+msgstr "Connected apps"
 
 #: src/components/integrations/ConnectionsPanel.tsx
 msgid "Connected services"
@@ -1501,6 +1551,11 @@ msgstr "Copy"
 #: src/components/ComputersUnavailableHint.tsx
 msgid "Copy .env example"
 msgstr "Copy .env example"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Correct outdated details and fill in the gaps"
+msgstr "Correct outdated details and fill in the gaps"
 
 #: src/pages/ScratchpadSection.tsx
 msgid "Could not add"
@@ -1709,6 +1764,7 @@ msgid "Could not load"
 msgstr "Could not load"
 
 #: src/pages/ActivityList.tsx
+#: src/pages/ForYou.tsx
 msgid "Could not load activity"
 msgstr "Could not load activity"
 
@@ -2335,6 +2391,11 @@ msgstr "Desktop app"
 msgid "Desktop update"
 msgstr "Desktop update"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Developer tools"
+msgstr "Developer tools"
+
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Direct MCP"
 msgstr "Direct MCP"
@@ -2446,6 +2507,11 @@ msgstr "Draft important replies"
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Draft lead follow-ups"
 msgstr "Draft lead follow-ups"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Draft replies that need your attention"
+msgstr "Draft replies that need your attention"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "Draft skill"
@@ -2617,6 +2683,10 @@ msgstr "Expand"
 msgid "Expand {0}"
 msgstr "Expand {0}"
 
+#: src/pages/ForYou.tsx
+msgid "Explore"
+msgstr "Explore"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Export"
 msgstr "Export"
@@ -2644,6 +2714,7 @@ msgstr "Extra high"
 msgid "failed"
 msgstr "failed"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Failed"
@@ -2710,6 +2781,21 @@ msgstr "Find overdue tasks"
 msgid "Find receipts and invoices in my inbox from the past 30 days. Make a table of vendors, dates, amounts, and currencies, with links to the source emails, and flag any missing amounts or duplicate charges."
 msgstr "Find receipts and invoices in my inbox from the past 30 days. Make a table of vendors, dates, amounts, and currencies, with links to the source emails, and flag any missing amounts or duplicate charges."
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find relevant collaborators and prepare thoughtful first messages"
+msgstr "Find relevant collaborators and prepare thoughtful first messages"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find the gaps in onboarding, billing, and support"
+msgstr "Find the gaps in onboarding, billing, and support"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Find time-sensitive conversations and leave replies as drafts"
+msgstr "Find time-sensitive conversations and leave replies as drafts"
+
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
 msgid "Finding…"
@@ -2750,11 +2836,21 @@ msgstr "Finishing MCP connection…"
 msgid "Flag unexpected actions"
 msgstr "Flag unexpected actions"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Follow up on unanswered conversations"
+msgstr "Follow up on unanswered conversations"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Follow up unanswered emails"
 msgstr "Follow up unanswered emails"
 
 #: src/pages/ForYou.tsx
+msgid "For builders"
+msgstr "For builders"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
 msgid "For builders"
 msgstr "For builders"
 
@@ -2804,13 +2900,28 @@ msgstr "Fullscreen"
 msgid "Gateway ID"
 msgstr "Gateway ID"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Gather the agenda, useful context, and questions to ask"
+msgstr "Gather the agenda, useful context, and questions to ask"
+
 #: src/pages/SettingsOverlay.tsx
+msgid "General"
+msgstr "General"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
 msgid "General"
 msgstr "General"
 
 #: src/components/integrations/IntegrationSetup.tsx
 msgid "Get credentials"
 msgstr "Get credentials"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Get pull requests ready to ship"
+msgstr "Get pull requests ready to ship"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Getting ready"
@@ -3053,9 +3164,19 @@ msgstr "just now"
 msgid "Just start chatting"
 msgstr "Just start chatting"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep applications, interviews, and follow-ups in view"
+msgstr "Keep applications, interviews, and follow-ups in view"
+
 #: src/pages/shell/dialogs.tsx
 msgid "Keep memories"
 msgstr "Keep memories"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Keep promising introductions and partnerships moving"
+msgstr "Keep promising introductions and partnerships moving"
 
 #: src/pages/RoutineEditor.tsx
 msgid "key"
@@ -3098,6 +3219,11 @@ msgid "Leave"
 msgstr "Leave"
 
 #: src/pages/ForYou.tsx
+msgid "Level up Kith"
+msgstr "Level up Kith"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
 msgid "Level up Kith"
 msgstr "Level up Kith"
 
@@ -3244,6 +3370,11 @@ msgstr "Low priority"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
 msgstr "Lowercase letters, numbers, hyphens and underscores, starting with a letter."
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Make a plan for the week ahead"
+msgstr "Make a plan for the week ahead"
 
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Make sure nothing is still running on this computer."
@@ -3509,6 +3640,10 @@ msgstr "Monthly"
 msgid "More"
 msgstr "More"
 
+#: src/pages/ForYou.tsx
+msgid "More categories"
+msgstr "More categories"
+
 #: src/components/ComputerMaintenanceActions.tsx
 msgid "More computer actions"
 msgstr "More computer actions"
@@ -3571,6 +3706,7 @@ msgstr "Name your assistant"
 msgid "Needs assistance"
 msgstr "Needs assistance"
 
+#: src/components/EmailCard.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/pages/ActivityList.tsx
 msgid "Needs attention"
@@ -3958,6 +4094,11 @@ msgstr "Organization API key"
 msgid "Organize my day"
 msgstr "Organize my day"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Organize vendors, dates, amounts, and source links"
+msgstr "Organize vendors, dates, amounts, and source links"
+
 #: src/pages/shell/chat-context.tsx
 msgid "Original message unavailable"
 msgstr "Original message unavailable"
@@ -3966,6 +4107,11 @@ msgstr "Original message unavailable"
 #: src/pages/Onboarding.tsx
 msgid "Other model…"
 msgstr "Other model…"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Outreach"
+msgstr "Outreach"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Page views"
@@ -4056,6 +4202,11 @@ msgstr "Pick a model from the list or enter a model id served by this endpoint."
 msgid "Pin"
 msgstr "Pin"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Plan infrastructure and usage alerts"
+msgstr "Plan infrastructure and usage alerts"
+
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Plan my day"
 msgstr "Plan my day"
@@ -4079,6 +4230,11 @@ msgstr "Preference sources"
 #: src/pages/PersonalMemoryPanel.tsx
 msgid "Preferences"
 msgstr "Preferences"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Prepare for your next meeting"
+msgstr "Prepare for your next meeting"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Prepare me for my next meeting using my calendar, relevant emails, and HubSpot."
@@ -4108,6 +4264,10 @@ msgstr "Preview isn't available for this file type — download it to view it."
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Preview report"
 msgstr "Preview report"
+
+#: src/pages/ForYou.tsx
+msgid "Previous categories"
+msgstr "Previous categories"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
@@ -4482,6 +4642,10 @@ msgid "Report time"
 msgstr "Report time"
 
 #: src/components/EmailCard.tsx
+msgid "Request queued"
+msgstr "Request queued"
+
+#: src/components/EmailCard.tsx
 msgid "Requested"
 msgstr "Requested"
 
@@ -4492,6 +4656,11 @@ msgstr "Requesting…"
 #: src/pages/shell/assistant-focus.tsx
 msgid "Research and projects"
 msgstr "Research and projects"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Research partners and draft introductions"
+msgstr "Research partners and draft introductions"
 
 #: src/components/ComputerMaintenanceActions.tsx
 #: src/pages/shell/avatar-studio-popover.tsx
@@ -4587,6 +4756,11 @@ msgstr "rev {0}"
 msgid "Revenue"
 msgstr "Revenue"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review failed checks, open feedback, and the next fix"
+msgstr "Review failed checks, open feedback, and the next fix"
+
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review my Notion task pages, find overdue and unfinished tasks assigned to me, and list them by urgency with their due dates and page links."
 msgstr "Review my Notion task pages, find overdue and unfinished tasks assigned to me, and list them by urgency with their due dates and page links."
@@ -4602,6 +4776,21 @@ msgstr "Review provider settings and test again."
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Review Slack messages from the past 24 hours and summarize decisions, blockers, and follow-ups that need my attention. Include links to the relevant messages."
 msgstr "Review Slack messages from the past 24 hours and summarize decisions, blockers, and follow-ups that need my attention. Include links to the relevant messages."
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review unfinished work and prepare for the coming week"
+msgstr "Review unfinished work and prepare for the coming week"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review what Kith remembers about you"
+msgstr "Review what Kith remembers about you"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Review your launch readiness"
+msgstr "Review your launch readiness"
 
 #. placeholder {0}: doc.revision
 #: src/pages/PersonalMemoryPanel.tsx
@@ -4892,12 +5081,22 @@ msgid "Send reset link"
 msgstr "Send reset link"
 
 #: src/components/AskCard.tsx
+#: src/components/EmailCard.tsx
 msgid "Sending…"
 msgstr "Sending…"
+
+#: src/components/EmailCard.tsx
+msgid "Sent and verified"
+msgstr "Sent and verified"
 
 #: src/pages/RoutineEditor.tsx
 msgid "Sentry alert"
 msgstr "Sentry alert"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Separate interested leads, questions, and declines"
+msgstr "Separate interested leads, questions, and declines"
 
 #: src/pages/memory-providers/SerenitySettingsForm.tsx
 msgid "Serenity endpoint is required."
@@ -4928,6 +5127,26 @@ msgstr "Server URL"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Sessions"
 msgstr "Sessions"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a daily reply and bounce tracker"
+msgstr "Set up a daily reply and bounce tracker"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a morning digest of failing builds"
+msgstr "Set up a morning digest of failing builds"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a Sunday evening weekly review"
+msgstr "Set up a Sunday evening weekly review"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Set up a weekly job search review"
+msgstr "Set up a weekly job search review"
 
 #: src/components/CalendarConnection.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -4963,6 +5182,11 @@ msgstr "Setup help"
 #: src/pages/shell/avatar-studio-popover.tsx
 msgid "Shape"
 msgstr "Shape"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Share the preferences that make everyday help more useful"
+msgstr "Share the preferences that make everyday help more useful"
 
 #: src/pages/MemorySettingsOverlay.tsx
 #: src/pages/shell/bot-panel.tsx
@@ -5295,6 +5519,16 @@ msgstr "Tasks"
 msgid "Teach a task"
 msgstr "Teach a task"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith how you like to work"
+msgstr "Teach Kith how you like to work"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Teach Kith your outreach process"
+msgstr "Teach Kith your outreach process"
+
 #: src/pages/Shell.tsx
 msgid "Teaching in progress. Stop teaching before sending a new message."
 msgstr "Teaching in progress. Stop teaching before sending a new message."
@@ -5541,6 +5775,11 @@ msgstr "Treg token"
 msgid "Triage pull requests"
 msgstr "Triage pull requests"
 
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Triage replies to cold outreach"
+msgstr "Triage replies to cold outreach"
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Trial"
 msgstr "Trial"
@@ -5571,6 +5810,16 @@ msgstr "Turn emails from the past seven days into a prioritized to-do list, with
 #: src/pages/shell/focus-next-action.tsx
 msgid "Turn my inbox into a to-do list"
 msgstr "Turn my inbox into a to-do list"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn rough notes into a useful bug report"
+msgstr "Turn rough notes into a useful bug report"
+
+#. js-lingui-explicit-id
+#: src/lib/for-you-messages.ts
+msgid "Turn your priorities and commitments into a manageable week"
+msgstr "Turn your priorities and commitments into a manageable week"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Type"
@@ -5624,6 +5873,10 @@ msgstr "Unsupported file type: {0}"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Untitled email"
 msgstr "Untitled email"
+
+#: src/components/EmailCard.tsx
+msgid "Unverified email preview"
+msgstr "Unverified email preview"
 
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
@@ -5757,6 +6010,10 @@ msgstr "Verified sources"
 #: src/pages/PluginsOverlay.tsx
 msgid "Verify and add"
 msgstr "Verify and add"
+
+#: src/components/EmailCard.tsx
+msgid "Verify before retrying"
+msgstr "Verify before retrying"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Verifying…"
@@ -5932,3 +6189,7 @@ msgstr "Your email address"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Your name"
+
+#: src/pages/ForYou.tsx
+msgid "Your work"
+msgstr "Your work"

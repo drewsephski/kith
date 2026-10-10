@@ -1,13 +1,26 @@
-import type { ForYouConversationAttempt, ForYouSuggestion } from "@rakazo/core";
-import { FOR_YOU_SUGGESTIONS, startForYouConversation } from "@rakazo/core";
-import { Stack, useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import type { Connection, ConnectionCatalogItem, RunActivityRow } from "@rakazo/contracts";
+import type { ForYouSuggestion } from "@rakazo/core";
+import {
+  connectedAppServices,
+  connectedForYouSuggestions,
+  FOR_YOU_SUGGESTIONS,
+  forYouLaunchAttempt,
+  forYouLaunchStorageKey,
+  forYouWork,
+  startForYouConversation,
+} from "@rakazo/core";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MenuPicker } from "../components/menu-picker";
 import { NativeSymbol } from "../components/native-symbol";
-import { rpc, selectedSpaceId } from "../lib/api";
+import { activityStatusLabel, fetchSpaceActivity } from "../lib/activity";
+import type { MobileMe } from "../lib/api";
+import { currentApiBase, rpc, selectedSpaceId } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens, useThemedStyles } from "../lib/native";
+import { currentSessionGeneration } from "../lib/session";
 import { errorText } from "../lib/user-error";
 
 export default function ForYou() {
@@ -19,7 +32,67 @@ export default function ForYou() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
-  const attempts = useRef(new Map<string, ForYouConversationAttempt>());
+  const [context, setContext] = useState<{
+    spaceId: string | null;
+    session: number;
+    runs: RunActivityRow[];
+    suggestions: string[];
+    failed: boolean;
+  } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const spaceId = selectedSpaceId();
+      const session = currentSessionGeneration();
+      setContext(null);
+      void Promise.allSettled([
+        fetchSpaceActivity(),
+        rpc<Connection[]>("connections/list"),
+        rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
+      ]).then(([work, accounts, catalog]) => {
+        if (!active || selectedSpaceId() !== spaceId || currentSessionGeneration() !== session)
+          return;
+        const services = connectedAppServices(
+          accounts.status === "fulfilled" ? accounts.value : [],
+          catalog.status === "fulfilled" ? catalog.value : [],
+        );
+        setContext({
+          spaceId,
+          session,
+          runs:
+            work.status === "fulfilled"
+              ? forYouWork([...work.value.active, ...work.value.recent])
+              : [],
+          suggestions: connectedForYouSuggestions(services.map((service) => service.slug)),
+          failed: work.status === "rejected",
+        });
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+  const currentContext =
+    context?.spaceId === selectedSpaceId() && context.session === currentSessionGeneration()
+      ? context
+      : null;
+  const connected = FOR_YOU_SUGGESTIONS.filter((suggestion) =>
+    currentContext?.suggestions.includes(suggestion.id),
+  );
+  const starters = connected.length
+    ? connected
+    : currentContext && !currentContext.runs.length
+      ? FOR_YOU_SUGGESTIONS.filter((suggestion) => suggestion.id === "weekly-plan")
+      : [];
+  function openWork(run: RunActivityRow) {
+    const params = {
+      name: run.groupName ?? run.botName,
+      ...(run.messageId ? { messageId: run.messageId } : {}),
+    };
+    if (run.groupId)
+      router.push({ pathname: "/group-thread", params: { ...params, groupId: run.groupId } });
+    else router.push({ pathname: "/thread", params: { ...params, botId: run.botId } });
+  }
   const choices = [
     { key: "all", label: t("All") },
     { key: "tasks", label: t("Tasks") },
@@ -38,31 +111,42 @@ export default function ForYou() {
     setBusy(true);
     setError(null);
     try {
-      const spaceId = selectedSpaceId();
-      const assistant = await rpc<{ botId: string }>("assistant/get");
+      const selection = selectedSpaceId();
+      const session = currentSessionGeneration();
+      const endpoint = currentApiBase();
+      const [me, assistant] = await Promise.all([
+        rpc<MobileMe>("me"),
+        rpc<{ botId: string }>("assistant/get"),
+      ]);
       if (!assistant.botId) throw new Error(t("Your assistant is not available. Try again."));
-      if (spaceId !== selectedSpaceId()) return;
-      const key = `${spaceId}:${assistant.botId}:${suggestion.id}`;
-      let attempt = attempts.current.get(key);
-      if (!attempt) {
-        attempt = {
-          clientNonce:
-            globalThis.crypto?.randomUUID?.() ??
-            `for-you-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        };
-        attempts.current.set(key, attempt);
-      }
-      const botId = await startForYouConversation(suggestion, assistant.botId, attempt, {
-        create: (input) => rpc<{ id: string }>("bots/create", input),
-        send: (input) => {
-          if (spaceId !== selectedSpaceId())
-            throw new Error(t("The selected space changed. Try again."));
-          return rpc("threads/send", input);
+      const isCurrent = () =>
+        selection === selectedSpaceId() &&
+        session === currentSessionGeneration() &&
+        endpoint === currentApiBase();
+      if (!isCurrent()) return;
+      const scope = { userId: me.userId, spaceId: me.spaceId, assistantId: assistant.botId };
+      const rawKey = `${endpoint}:${forYouLaunchStorageKey(scope, suggestion.id)}`;
+      const key = `kith.for-you.${Array.from(rawKey, (char) => char.codePointAt(0)!.toString(16)).join("-")}`;
+      const attempt = forYouLaunchAttempt(
+        await SecureStore.getItemAsync(key),
+        () =>
+          globalThis.crypto?.randomUUID?.() ??
+          "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+            const value = Math.floor(Math.random() * 16);
+            return (char === "x" ? value : (value & 3) | 8).toString(16);
+          }),
+      );
+      await SecureStore.setItemAsync(key, attempt.operationId);
+      if (!isCurrent()) return;
+      const botId = await startForYouConversation(suggestion, scope, attempt, {
+        launch: (input) => {
+          if (!isCurrent()) throw new Error(t("The selected space changed. Try again."));
+          return rpc<{ id: string }>("bots/launchForYou", input);
         },
       });
-      attempts.current.delete(key);
-      if (spaceId === selectedSpaceId())
-        router.push({ pathname: "/thread", params: { botId, name: suggestion.title } });
+      await SecureStore.deleteItemAsync(key);
+      if (isCurrent())
+        router.push({ pathname: "/thread", params: { botId, name: t(suggestion.title) } });
     } catch (cause) {
       setError(
         errorText(cause, t("Could not start the conversation. Select the suggestion to retry.")),
@@ -94,6 +178,57 @@ export default function ForYou() {
             {error}
           </Text>
         ) : null}
+        {currentContext?.runs.length ? (
+          <View style={styles.group}>
+            <Text accessibilityRole="header" style={styles.heading}>
+              {t("Your work")}
+            </Text>
+            {currentContext.runs.map((run) => (
+              <Pressable
+                key={run.runId}
+                accessibilityRole="button"
+                onPress={() => openWork(run)}
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+              >
+                <View style={styles.copy}>
+                  <Text style={styles.title}>{run.promptSnippet || run.botName}</Text>
+                  <Text style={styles.description}>
+                    {run.botName} · {activityStatusLabel(run.status)}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        {currentContext?.failed ? (
+          <Text accessibilityRole="alert" style={styles.description}>
+            {t("Could not load activity")}
+          </Text>
+        ) : null}
+        {starters.length ? (
+          <View style={styles.group}>
+            {connected.length ? (
+              <Text accessibilityRole="header" style={styles.heading}>
+                {t("Connected apps")}
+              </Text>
+            ) : null}
+            {starters.map((suggestion) => (
+              <Pressable
+                key={suggestion.id}
+                accessibilityRole="button"
+                disabled={busy}
+                accessibilityState={{ disabled: busy }}
+                onPress={() => void select(suggestion)}
+                style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+              >
+                <Text style={styles.title}>{t(suggestion.title)}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <Text accessibilityRole="header" style={[styles.heading, styles.group]}>
+          {t("Explore")}
+        </Text>
         {groups.map((group) => (
           <View key={group} style={styles.group}>
             <Text accessibilityRole="header" style={styles.heading}>

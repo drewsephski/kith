@@ -9,6 +9,7 @@ import {
 import { userVisibleMessages } from "@rakazo/core";
 import type { PrismaClient } from "./client.js";
 import { type ComputerMode, ensureComputerRecord, parseComputerMode } from "./computers.js";
+import { appendEventInTransaction } from "./events.js";
 import { createThreadMessageInTransaction } from "./messages.js";
 import { BotSectionNameConflictError, IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
@@ -387,6 +388,14 @@ export function createRepos(prisma: PrismaClient) {
         parentBotId?: string | null;
         computerMode?: ComputerMode;
         spawnKey?: string;
+        /** Launch retries must not revive an archived conversation. */
+        rejectArchivedSpawnKey?: boolean;
+        /** Commit the first user task with its conversation; no empty launch window. */
+        initialTask?: {
+          prompt: string;
+          clientNonce: string;
+          launchIdentity?: { suggestionId: string; assistantId: string; operationId: string };
+        };
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: string | null;
@@ -474,6 +483,52 @@ export function createRepos(prisma: PrismaClient) {
               userId: actor.userId,
             },
           });
+          if (input.initialTask) {
+            const blocks: MessageBlock[] = [{ kind: "text", text: input.initialTask.prompt }];
+            const message = await createThreadMessageInTransaction(tx, {
+              threadId: thread.id,
+              role: "user",
+              blocks,
+              clientNonce: input.initialTask.clientNonce,
+            });
+            const task = await tx.task.create({
+              data: {
+                spaceId: actor.spaceId,
+                userId: actor.userId,
+                botId: created.id,
+                threadId: thread.id,
+                prompt: input.initialTask.prompt,
+                status: "queued",
+              },
+            });
+            const run = await tx.run.create({
+              data: {
+                spaceId: actor.spaceId,
+                userId: actor.userId,
+                botId: created.id,
+                threadId: thread.id,
+                taskId: task.id,
+                sourceMessageId: message.id,
+                clientNonce: input.initialTask.clientNonce,
+                trigger: "user",
+                status: "queued",
+              },
+            });
+            await tx.message.update({ where: { id: message.id }, data: { runId: run.id } });
+            await appendEventInTransaction(tx, {
+              spaceId: actor.spaceId,
+              botId: created.id,
+              threadId: thread.id,
+              runId: run.id,
+              type: "thread.message.created",
+              payload: {
+                messageId: message.id,
+                role: "user",
+                blocks,
+                forYouLaunch: input.initialTask.launchIdentity,
+              },
+            });
+          }
           if (input.initialMessage) {
             await createThreadMessageInTransaction(tx, {
               threadId: thread.id,
@@ -536,6 +591,7 @@ export function createRepos(prisma: PrismaClient) {
         if (!existing.archivedAt) {
           bot = existing;
         } else {
+          if (input.rejectArchivedSpawnKey) throw new IsolationError();
           // Free the key from the archived bot so empty-space onboarding
           // creates a fresh first bot (stale thread/runtime must not return).
           await prisma.bot.update({

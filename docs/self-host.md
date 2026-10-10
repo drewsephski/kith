@@ -1,4 +1,4 @@
-# Self-hosting Rakazo
+# Self-hosting Kith
 
 The signed-in product is a long-running API, a Graphile Worker, Postgres, and a computer provider (Docker supervisor, E2B, Daytona, CreateOS, or Box). It is not a static site. The marketing site in `apps/www` can be hosted separately.
 
@@ -11,6 +11,10 @@ For source development in WSL, keep the checkout and `data` directory in the Lin
 Compose bot homes mount only their own subdirectory of the application volume using Docker volume semantics. Docker's internal volume paths are never used as host bind mounts.
 
 ## Published images (no checkout)
+
+These are upstream Rakazo images and do not include Kith fork changes. For Kith,
+use the source-checkout instructions above or [Docker-free host deployment](./host-deployment.md).
+No Kith image or Desktop installer availability is implied by this path.
 
 Pull Postgres and `ghcr.io/elie222/rakazo/app` into any empty folder. No clone or image build.
 Requires Docker Engine 26+ (API 1.45+ for bot home volume subpaths), the Compose plugin, curl, and OpenSSL.

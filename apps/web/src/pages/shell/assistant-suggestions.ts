@@ -1,32 +1,39 @@
 import { useLingui } from "@lingui/react/macro";
 import { connectedAppServices, taskStarterApp } from "@rakazo/core";
 import { useEffect, useState } from "react";
-import { rpc } from "../../lib/rpc";
+import { rpc, selectedSpaceId } from "../../lib/rpc";
 
-export function useAssistantSuggestions(botId?: string) {
-  const { t } = useLingui();
-  const [apps, setApps] = useState<string[]>([]);
+export function useConnectedApps(scopeKey?: string) {
+  const [state, setState] = useState<{ scope?: string; spaceId?: string | null; apps: string[] }>({
+    apps: [],
+  });
   useEffect(() => {
     let alive = true;
     let generation = 0;
-    setApps([]);
+    let pending = false;
+    if (!scopeKey) return;
+    const spaceId = selectedSpaceId();
     async function load() {
-      if (document.visibilityState !== "visible") return;
+      if (pending || document.visibilityState !== "visible") return;
+      pending = true;
       const request = ++generation;
       const [connections, catalog] = await Promise.allSettled([
-        rpc.connections.list(),
-        rpc.connections.catalog({}),
+        rpc.connections.list(undefined, { context: { spaceId } }),
+        rpc.connections.catalog({}, { context: { spaceId } }),
       ]);
-      if (!alive || request !== generation) return;
+      pending = false;
+      if (!alive || request !== generation || selectedSpaceId() !== spaceId) return;
       const services = connectedAppServices(
         connections.status === "fulfilled" ? connections.value : [],
         catalog.status === "fulfilled" ? catalog.value : [],
       );
-      setApps(
-        services.map(
+      setState({
+        scope: scopeKey,
+        spaceId,
+        apps: services.map(
           ({ slug }) => taskStarterApp(slug) ?? slug.toLowerCase().replace(/[^a-z0-9]/g, ""),
         ),
-      );
+      });
     }
     const refresh = () => void load();
     refresh();
@@ -37,7 +44,14 @@ export function useAssistantSuggestions(botId?: string) {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [botId]);
+  }, [scopeKey]);
+  return state.scope === scopeKey && state.spaceId === selectedSpaceId() ? state.apps : [];
+}
+
+export function useAssistantSuggestions(botId?: string, connectedApps?: string[]) {
+  const { t } = useLingui();
+  const discoveredApps = useConnectedApps(connectedApps === undefined ? botId : undefined);
+  const apps = connectedApps ?? discoveredApps;
   return [
     {
       title: t`Draft important replies`,

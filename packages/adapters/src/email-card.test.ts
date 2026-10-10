@@ -18,6 +18,12 @@ describe("email cards", () => {
     expect(MessageBlock.parse(card)).toEqual(card);
     expect(EmailCardSchema.parse(card)).toEqual(card);
     expect(card.draftId).toBe("draft-123");
+    expect(card.provenance).toBe("unverified");
+  });
+  it("does not let a model claim provider-confirmed provenance", () => {
+    expect(emailCardFromTool({ ...args, provenance: "provider" }, []).provenance).toBe(
+      "unverified",
+    );
   });
   it("rejects missing recipients and unbounded content", () => {
     expect(() => emailCardFromTool({ ...args, to: [] }, [])).toThrow();
