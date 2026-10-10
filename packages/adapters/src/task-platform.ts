@@ -467,15 +467,31 @@ export class RestTaskPlatform implements TaskPlatform {
   }
 
   async upcomingMeetings(
-    input: { connection: TaskConnection; timeMin: string; timeMax: string; maxMeetings?: number; maxCalendars?: number },
+    input: {
+      connection: TaskConnection;
+      timeMin: string;
+      timeMax: string;
+      maxMeetings?: number;
+      maxCalendars?: number;
+    },
     context: AdapterContext,
   ): Promise<{ meetings: TaskMeeting[]; complete: boolean }> {
     const start = z.iso.datetime({ offset: true }).parse(input.timeMin);
     const end = z.iso.datetime({ offset: true }).parse(input.timeMax);
     if (Date.parse(end) <= Date.parse(start) || Date.parse(end) - Date.parse(start) > 8 * 86400_000)
       throw new Error("Choose a meeting window of at most eight days");
-    const maxMeetings = z.number().int().min(1).max(300).parse(input.maxMeetings ?? 300);
-    const maxCalendars = z.number().int().min(1).max(100).parse(input.maxCalendars ?? 100);
+    const maxMeetings = z
+      .number()
+      .int()
+      .min(1)
+      .max(300)
+      .parse(input.maxMeetings ?? 300);
+    const maxCalendars = z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .parse(input.maxCalendars ?? 100);
     const calendars: Record<string, unknown>[] = [];
     let cursor = "";
     let complete = false;
@@ -566,7 +582,9 @@ export class RestTaskPlatform implements TaskPlatform {
       }
     }
     return {
-      meetings: meetings.sort((a, b) => Date.parse(a.start) - Date.parse(b.start)).slice(0, maxMeetings),
+      meetings: meetings
+        .sort((a, b) => Date.parse(a.start) - Date.parse(b.start))
+        .slice(0, maxMeetings),
       complete,
     };
   }

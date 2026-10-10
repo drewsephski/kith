@@ -11,6 +11,7 @@ export * from "./desktop.js";
 export * from "./domain.js";
 export * from "./email.js";
 export * from "./events.js";
+export * from "./for-you.js";
 export * from "./history.js";
 export * from "./ids.js";
 export * from "./integration-settings.js";
@@ -25,5 +26,3 @@ export * from "./runs.js";
 export * from "./search.js";
 export * from "./task-starters.js";
 export * from "./terminal.js";
-
-export * from "./for-you.js";

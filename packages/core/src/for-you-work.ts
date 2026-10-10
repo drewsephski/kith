@@ -32,7 +32,7 @@ export function connectedForYouSuggestions(services: readonly string[]): string[
 
 /** The server supplies account identities; clients never author the launch prompt. */
 export function forYouPrompt(
-  suggestion: ForYouSuggestion,
+  suggestion: Pick<ForYouSuggestion, "prompt" | "services">,
   services: readonly ConnectedAppService[],
 ): string {
   if (!suggestion.services) return suggestion.prompt;

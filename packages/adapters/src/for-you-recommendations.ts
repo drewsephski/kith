@@ -323,7 +323,6 @@ export class ForYouRecommendations {
     const calendars = accounts.filter((c) => taskStarterApp(c.provider) === "calendar").slice(0, 2);
     const batches = await Promise.allSettled(
       calendars.map(async (connection) => {
-        await assertStarterConnections(this.deps.prisma, scope, [connection]);
         const c = {
           id: connection.id,
           provider: connection.provider,
@@ -331,6 +330,7 @@ export class ForYouRecommendations {
           providerRef: connection.providerRef ?? "",
           displayName: connection.displayName,
         };
+        await assertStarterConnections(this.deps.prisma, scope, [c]);
         const platform = await this.deps.integrationSettings.taskPlatform(c, context);
         const result = await platform.upcomingMeetings(
           {

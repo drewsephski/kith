@@ -68,6 +68,7 @@ export * from "./fake-sandbox.js";
 export * from "./fake-web.js";
 export * from "./favicon.js";
 export * from "./fish-audio-voice.js";
+export * from "./for-you-recommendations.js";
 export * from "./github-webhook-emulator.js";
 export * from "./google-calendar.js";
 export * from "./graphql-connectors.js";
@@ -142,5 +143,3 @@ export * from "./web-limits.js";
 export * from "./web-provider-factory.js";
 export * from "./web-ssrf.js";
 export * from "./web-tools.js";
-
-export * from "./for-you-recommendations.js";
