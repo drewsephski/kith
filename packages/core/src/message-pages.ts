@@ -15,7 +15,12 @@ export function mergeThreadHistory<
   TSnapshot extends ThreadHistory<TMessage>,
 >(previous: TSnapshot | null, recent: TSnapshot, preserveLoadedHistory = false): TSnapshot {
   if (!previous || previous.threadId !== recent.threadId) return recent;
-  recent = { ...recent, settledRunIds: [...new Set([...(previous.settledRunIds ?? []), ...(recent.settledRunIds ?? [])])].slice(-100) };
+  recent = {
+    ...recent,
+    settledRunIds: [
+      ...new Set([...(previous.settledRunIds ?? []), ...(recent.settledRunIds ?? [])]),
+    ].slice(-100),
+  };
   if (!preserveLoadedHistory) return recent;
   return {
     ...recent,

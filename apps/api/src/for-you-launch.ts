@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { ORPCError } from "@orpc/server";
 import type { JobPublisher } from "@rakazo/adapter-kit";
 import { runContinueJob } from "@rakazo/adapter-kit";
+import type { ForYouRecommendations } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import {
   connectedAppServices,
@@ -9,7 +10,6 @@ import {
   forYouPrompt,
   PERSONAL_ASSISTANT_GUIDANCE,
 } from "@rakazo/core";
-import type { ForYouRecommendations } from "@rakazo/adapters";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -35,10 +35,21 @@ export async function launchForYou(
   let recommendation: Awaited<ReturnType<ForYouRecommendations["launch"]>> | undefined;
   if (input.suggestionId.startsWith("recommendation:")) {
     if (!deps.forYouRecommendations) throw new ORPCError("NOT_IMPLEMENTED");
-    try { recommendation = await deps.forYouRecommendations.launch(actor, input.assistantId, input.suggestionId); }
-    catch { throw new ORPCError("CONFLICT", { message: "The source changed or is unavailable. Refresh For you." }); }
+    try {
+      recommendation = await deps.forYouRecommendations.launch(
+        actor,
+        input.assistantId,
+        input.suggestionId,
+      );
+    } catch {
+      throw new ORPCError("CONFLICT", {
+        message: "The source changed or is unavailable. Refresh For you.",
+      });
+    }
   }
-  const suggestion = recommendation ? { id: input.suggestionId, title: recommendation.title, prompt: recommendation.prompt } : FOR_YOU_SUGGESTIONS.find((entry) => entry.id === input.suggestionId);
+  const suggestion = recommendation
+    ? { id: input.suggestionId, title: recommendation.title, prompt: recommendation.prompt }
+    : FOR_YOU_SUGGESTIONS.find((entry) => entry.id === input.suggestionId);
   if (!suggestion) throw new ORPCError("BAD_REQUEST", { message: "Unknown suggestion." });
   const operationId = recommendation?.operationId ?? input.operationId;
   if ((await personalAssistantBotId(deps.prisma, actor)) !== input.assistantId)

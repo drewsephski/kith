@@ -287,7 +287,6 @@ import { AssistantForYou } from "./shell/assistant-for-you";
 import { AssistantWelcome } from "./shell/assistant-welcome";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
-import { useReplyDraft } from "./shell/reply-draft";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import { ConversationMenu } from "./shell/conversation-menu";
@@ -310,6 +309,7 @@ import {
   ChoiceCard,
   McpApprovalCard,
 } from "./shell/message-cards";
+import { useReplyDraft } from "./shell/reply-draft";
 import { commitSpaceRename, sidebarGroupsForSpaces } from "./shell/space-sidebar";
 import { WindowChrome } from "./WindowChrome";
 
@@ -497,6 +497,10 @@ export function ShellPage({
     { text: string; nonce: number; target: string; starter?: TaskStarterId } | undefined
   >();
   const [taskStarterDraft, setTaskStarterDraft] = useState<TaskStarterDraft | null>(null);
+  const [streamConnection, setStreamConnection] = useState<{
+    target: string;
+    state: string;
+  } | null>(null);
   const conversationDrafts = useRef(new Map<string, ConversationDraft>());
   const conversationScroll = useRef(new Map<string, { top: number; following: boolean }>());
   const conversationSnapshots = useRef(new Map<string, ThreadSnapshot>());
@@ -1499,6 +1503,9 @@ export function ShellPage({
     const abort = new AbortController();
     void runThreadSubscription({
       signal: abort.signal,
+      onConnectionState: (state) => {
+        if (!abort.signal.aborted) setStreamConnection({ target: `bot:${active.id}`, state });
+      },
       loadInitial: async () => {
         const primed = bootstrappedThread.current;
         bootstrappedThread.current = null;
@@ -1620,6 +1627,9 @@ export function ShellPage({
     const abort = new AbortController();
     void runThreadSubscription({
       signal: abort.signal,
+      onConnectionState: (state) => {
+        if (!abort.signal.aborted) setStreamConnection({ target: `group:${groupId}`, state });
+      },
       loadInitial: () =>
         pendingJump
           ? rpc.threads.get({ groupId }, { signal: threadSnapshotSignal(abort.signal) })
@@ -2362,7 +2372,9 @@ export function ShellPage({
           replyDraft.settle(submittedReply);
           revokePendingAttachmentPreviews(attachments);
           setPendingAttachments((current) =>
-            current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
+            current.filter(
+              (attachment) => !attachments.some((submitted) => submitted.id === attachment.id),
+            ),
           );
           setAttachmentNotice(null);
           if (reroutedToGroup && groupTarget) {
@@ -2430,7 +2442,9 @@ export function ShellPage({
         replyDraft.settle(submittedReply);
         revokePendingAttachmentPreviews(attachments);
         setPendingAttachments((current) =>
-          current.filter((attachment) => !attachments.some((submitted) => submitted.id === attachment.id)),
+          current.filter(
+            (attachment) => !attachments.some((submitted) => submitted.id === attachment.id),
+          ),
         );
         // Refresh sidebar status even when a bot→group reroute navigates away below.
         void refreshBots().catch(() => undefined);
@@ -3961,6 +3975,8 @@ export function ShellPage({
         ) : null}
         {forYouOpen ? (
           <ForYouPage
+            assistantId={assistantId}
+            scopeKey={`${userId}:${bootstrapMe?.spaceId}:${assistantId}`}
             services={connectedForYouServices}
             onSelect={(suggestion) => void newConversation(suggestion)}
             busy={creatingThread || !assistantId}
@@ -4081,6 +4097,11 @@ export function ShellPage({
               <Transcript
                 key={conversationKey}
                 conversationKey={conversationKey}
+                reconnecting={
+                  streamConnection?.target ===
+                    (inGroup ? `group:${groupId}` : `bot:${active?.id}`) &&
+                  streamConnection.state === "reconnecting"
+                }
                 scrollPositions={conversationScroll.current}
                 welcome={
                   shellReady && transcriptMessages.length === 0 && !transcriptRunning ? (
@@ -5402,6 +5423,7 @@ export function ShellPage({
 
 export const Transcript = memo(function Transcript({
   conversationKey,
+  reconnecting = false,
   scrollPositions,
   welcome,
   scrollRef,
@@ -5436,6 +5458,7 @@ export const Transcript = memo(function Transcript({
   onOpenComputer,
 }: {
   conversationKey: string;
+  reconnecting?: boolean;
   scrollPositions: Map<string, { top: number; following: boolean }>;
   welcome?: ReactNode;
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -5934,6 +5957,7 @@ export const Transcript = memo(function Transcript({
         {workingBots.length > 0 || latestRun ? (
           <div className="kith-conversation-item shrink-0">
             <RunStatus
+              reconnecting={reconnecting}
               bots={workingBots}
               messages={messages}
               latestRun={latestRun}

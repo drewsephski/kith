@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useForYouRecommendations } from "@rakazo/chat-ui/suggestions";
 import type { ConnectedAppService, ForYouCategory, ForYouSuggestion } from "@rakazo/core";
 import { availableForYouSuggestions } from "@rakazo/core";
 import { Button, ConnectorIcon, NavigationButton, SelectionGroup } from "@rakazo/ui-web";
@@ -14,7 +15,20 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { translateForYouMessage } from "../lib/for-you-messages";
+import { rpc, selectedSpaceId } from "../lib/rpc";
 import { useConnectedServices } from "./shell/assistant-suggestions";
+
+const loadRecommendations = (assistantId: string, signal: AbortSignal) =>
+  rpc.forYou.discover({ assistantId }, { signal, context: { spaceId: selectedSpaceId() } });
+const dismissRecommendation = (
+  assistantId: string,
+  recommendationId: string,
+  action: "dismiss" | "snooze",
+) =>
+  rpc.forYou.dismiss(
+    { assistantId, recommendationId, action },
+    { context: { spaceId: selectedSpaceId() } },
+  );
 
 export function ForYouPage({
   onSelect,
@@ -24,10 +38,12 @@ export function ForYouPage({
   onShowSidebar,
   windowChrome,
   scopeKey,
+  assistantId,
   services: connectedServices,
 }: {
   onSelect: (suggestion: ForYouSuggestion) => void;
   scopeKey?: string;
+  assistantId?: string | null;
   services?: ConnectedAppService[];
   busy?: boolean;
   error?: string | null;
@@ -36,6 +52,13 @@ export function ForYouPage({
   windowChrome?: ReactNode;
 }) {
   const { t, i18n } = useLingui();
+  const discovery = useForYouRecommendations({
+    scopeKey,
+    assistantId,
+    load: loadRecommendations,
+    dismiss: dismissRecommendation,
+  });
+  const [dispositionError, setDispositionError] = useState(false);
   const categoryNav = useRef<HTMLElement>(null);
   const [categoryScroll, setCategoryScroll] = useState({ before: false, after: false });
   const updateCategoryScroll = () => {
@@ -154,6 +177,119 @@ export function ForYouPage({
               <p role="alert" className="mb-6 text-sm text-destructive">
                 {error}
               </p>
+            ) : null}
+            {assistantId ? (
+              <section
+                aria-label={t`Recommended`}
+                className="mb-8"
+                data-testid="for-you-recommendations"
+              >
+                <div className="mb-3 flex items-center justify-between gap-2 px-2">
+                  <h2 className="text-sm font-medium">
+                    <Trans>Recommended</Trans>
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busy || discovery.loading || !assistantId}
+                    onClick={discovery.refresh}
+                  >
+                    <Trans>Refresh</Trans>
+                  </Button>
+                </div>
+                {discovery.loading ? (
+                  <p role="status" className="px-2 text-sm text-muted-foreground">
+                    <Trans>Checking your sources…</Trans>
+                  </p>
+                ) : discovery.unavailable ? (
+                  <p role="status" className="px-2 text-sm text-muted-foreground">
+                    <Trans>Some sources are unavailable. Try refreshing.</Trans>
+                  </p>
+                ) : !discovery.recommendations.length ? (
+                  <p className="px-2 text-sm text-muted-foreground">
+                    <Trans>No grounded recommendations right now.</Trans>
+                  </p>
+                ) : null}
+                {dispositionError ? (
+                  <p role="alert" className="px-2 text-sm text-destructive">
+                    <Trans>Could not update this recommendation. Try again.</Trans>
+                  </p>
+                ) : null}
+                {discovery.recommendations.map((recommendation) => (
+                  <div key={recommendation.id} className="mb-3 rounded-xl border border-border p-3">
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      className="h-auto w-full justify-start whitespace-normal px-0 text-start"
+                      onClick={() =>
+                        onSelect({
+                          id: recommendation.id,
+                          title: recommendation.title,
+                          description: recommendation.description,
+                          group: "Recommended",
+                          category: "tasks",
+                          prompt: "",
+                          recommendation,
+                        })
+                      }
+                    >
+                      {recommendation.title}
+                    </Button>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {recommendation.description}
+                    </p>
+                    {recommendation.startsAt ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(recommendation.startsAt).toLocaleString(i18n.locale || "en", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      {recommendation.sources.map((source) =>
+                        source.url ? (
+                          <a
+                            key={source.id}
+                            className="underline underline-offset-2"
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {source.title}
+                          </a>
+                        ) : (
+                          <span key={source.id}>{source.title}</span>
+                        ),
+                      )}
+                      <time dateTime={recommendation.discoveredAt}>
+                        {new Date(recommendation.discoveredAt).toLocaleTimeString(
+                          i18n.locale || "en",
+                          { hour: "numeric", minute: "2-digit" },
+                        )}
+                      </time>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      {(["snooze", "dismiss"] as const).map((action) => (
+                        <Button
+                          key={action}
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => {
+                            setDispositionError(false);
+                            void discovery
+                              .dismiss(recommendation.id, action)
+                              .catch(() => setDispositionError(true));
+                          }}
+                        >
+                          {action === "snooze" ? t`Tomorrow` : t`Dismiss`}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
             ) : null}
             {services.length ? (
               <section

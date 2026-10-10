@@ -535,6 +535,7 @@ function Thread() {
       logo?: string | null;
     }>
   >([]);
+  const [streamReconnecting, setStreamReconnecting] = useState(false);
   const [selectedMentions, setSelectedMentions] = useState<ComposerMention[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<AgentSkillCatalogEntry | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -1317,6 +1318,7 @@ function Thread() {
     expandedHistoryThread.current = null;
     historyEpoch.current += 1;
     const abort = new AbortController();
+    setStreamReconnecting(false);
     const subscriptionGeneration = ++liveSubscriptionGeneration.current;
     liveSubscribed.current = false;
     void (async () => {
@@ -1342,9 +1344,17 @@ function Thread() {
             groupId ? { groupId } : { botId: botId! },
             cursor,
             (event) => {
+              if (
+                abort.signal.aborted ||
+                (event.threadId && event.threadId !== next?.threadId) ||
+                (event.seq !== undefined && event.seq <= cursor)
+              )
+                return;
+              setStreamReconnecting(false);
               cursor = Math.max(cursor, event.seq ?? -1);
               retryMs = 250;
               if (
+                event.type === "run.started" ||
                 event.type === "thread.progress" ||
                 event.type === "agent.tool.called" ||
                 event.type === "agent.tool.completed" ||
@@ -1395,6 +1405,7 @@ function Thread() {
           }
         }
         if (abort.signal.aborted) break;
+        setStreamReconnecting(true);
         if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
           await refresh().catch(() => undefined);
         }
@@ -2314,10 +2325,14 @@ function Thread() {
           accessibilityLiveRegion="polite"
           style={{ flex: 1, color: tokens.mutedForeground, fontSize: 13 }}
         >
-          {runActivityText(visibleMessages, snap?.run?.id) ??
-            (currentBotStatus === "queued" || currentBotStatus === "leased"
-              ? t("Starting…")
-              : t("Working…"))}
+          {streamReconnecting
+            ? t("Reconnecting…")
+            : (runActivityText(visibleMessages, snap?.run?.id) ??
+              (currentBotStatus === "queued"
+                ? t("Queued…")
+                : currentBotStatus === "leased"
+                  ? t("Starting…")
+                  : t("Preparing a response…")))}
         </Text>
       </View>
     ) : inGroup && workingGroupBots.length > 0 ? (
@@ -2367,7 +2382,10 @@ function Thread() {
               accessibilityLiveRegion="polite"
               style={{ color: tokens.mutedForeground, fontSize: 13 }}
             >
-              {bot.name}: {runActivityText(visibleMessages, bot.runId) ?? t("Working…")}
+              {bot.name}:{" "}
+              {streamReconnecting
+                ? t("Reconnecting…")
+                : (runActivityText(visibleMessages, bot.runId) ?? t("Preparing a response…"))}
             </Text>
           ))}
         </View>
@@ -2375,8 +2393,7 @@ function Thread() {
     ) : snap?.run &&
       ["waiting_input", "waiting_takeover", "cancelled", "completed", "failed"].includes(
         snap.run.status,
-      ) &&
-      (snap.run.status !== "completed" || hasRunResponseText(visibleMessages, snap.run.id)) ? (
+      ) ? (
       <Text
         accessibilityLiveRegion="polite"
         style={{ color: tokens.mutedForeground, fontSize: 13, paddingVertical: 8 }}

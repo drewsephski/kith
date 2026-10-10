@@ -12,13 +12,14 @@ export function useReplyDraft(scope: string) {
   const clear = useCallback(() => setDraft(null), []);
   const settle = useCallback((submitted: ReplyDraft | null) => {
     if (!submitted || scopeRef.current !== submitted.scope) return;
-    setDraft((latest) => latest === submitted ? null : latest);
+    setDraft((latest) => (latest === submitted ? null : latest));
   }, []);
   return {
     current,
     target: current?.target ?? null,
     quote: current?.quote ?? null,
-    select: (target: ThreadMessage, quote: string | null = null) => setDraft({ scope, target, quote }),
+    select: (target: ThreadMessage, quote: string | null = null) =>
+      setDraft({ scope, target, quote }),
     clear,
     settle,
   };

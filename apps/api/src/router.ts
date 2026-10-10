@@ -28,8 +28,8 @@ import type {
   ComputerExecutionLease,
   ConnectorRegistry,
   ConversationSuggestions,
-  ForYouRecommendations,
   FaviconResolver,
+  ForYouRecommendations,
   getBotSecretMetadata,
   IntegrationProviderSettings,
   McpConnector,
@@ -1551,7 +1551,12 @@ export function createRouter(deps: RouterDeps) {
       }),
       dismiss: authed.forYou.dismiss.handler(async ({ context, input }) => {
         if (!deps.forYouRecommendations) throw new ORPCError("NOT_IMPLEMENTED");
-        return deps.forYouRecommendations.dismiss(context.actor, input.assistantId, input.recommendationId, input.action);
+        return deps.forYouRecommendations.dismiss(
+          context.actor,
+          input.assistantId,
+          input.recommendationId,
+          input.action,
+        );
       }),
     },
     bots: {
