@@ -138,19 +138,25 @@ tags:
 - takeScreenshot: "15-thread"
 - longPressOn: "The fixture workspace is ready."
 - assertVisible: "Reply"
-- assertVisible: "React"
+- assertVisible: "Quote"
 - assertVisible: "More"
-- takeScreenshot: "15b-message-actions"
 - tapOn: "More"
+- assertVisible: "React"
 - assertVisible: "Speak message"
+- takeScreenshot: "15b-message-actions"
 - back
-# User messages omit Speak, so Android fits Reply/React/Copy on one page (no More).
+# Android pages actions in order: Reply/Quote, then React/Select text/Copy.
 - longPressOn: "Summarize the fixture launch checklist."
 - assertVisible: "Reply"
+- assertVisible: "Quote"
+- assertVisible: "More"
+- tapOn: "More"
 - assertVisible: "React"
 - assertVisible: "Copy"
 - assertNotVisible: "More"
 - assertNotVisible: "Speak message"
+- back
+- longPressOn: "Summarize the fixture launch checklist."
 - tapOn: "Reply"
 - assertVisible: "Replying to"
 - tapOn: "Cancel reply"
@@ -186,8 +192,10 @@ tags:
 - takeScreenshot: "19-group-thread"
 - longPressOn: "The fixture launch plan is ready."
 - assertVisible: "Reply"
-- assertVisible: "React"
+- assertVisible: "Quote"
 - assertVisible: "More"
+- tapOn: "More"
+- assertVisible: "React"
 - back
 
 - openLink: "rakazo:///group-settings?groupId=${RAKAZO_SCREENSHOT_GROUP_ID}"

@@ -254,7 +254,11 @@ async function setComputerMode(
   const settings = page.getByTestId("bot-settings");
   await expect(settings.locator("label:has-text('Name') input")).toHaveValue(botName);
   const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.locator('[data-slot="collapsible-trigger"]').click();
+  const advancedTrigger = advanced.locator('[data-slot="collapsible-trigger"]');
+  if ((await advancedTrigger.getAttribute("aria-expanded")) !== "true") {
+    await advancedTrigger.click();
+  }
+  await expect(advancedTrigger).toHaveAttribute("aria-expanded", "true");
   await settings
     .getByRole("button", { name: mode === "team" ? "Team" : "Private", exact: true })
     .click();

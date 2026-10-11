@@ -56,8 +56,8 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
         BrowserWindow.fromId(windowId)!.webContents.session.cookies.flushStore(),
       id,
     );
-    await app.close();
-    app = await launch();
+    await test.step("Close the authenticated process", () => app!.close(), { timeout: 20_000 });
+    app = await test.step("Relaunch the saved session", launch, { timeout: 20_000 });
     const restored = await app.firstWindow();
     await expect(restored.getByRole("combobox", { name: /^Message/ })).toBeVisible();
     await restored.goto(route);
@@ -98,7 +98,9 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
         BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(),
       restoredId,
     );
-    const setup = await recovery;
+    const setup = await test.step("Observe renderer crash recovery", () => recovery, {
+      timeout: 20_000,
+    });
     await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();
     await setup.getByRole("button", { name: "Continue", exact: true }).click();
     await expect

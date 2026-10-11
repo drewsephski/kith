@@ -4,6 +4,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   testMatch: "frontend.acceptance.ts",
+  outputDir: path.resolve(import.meta.dirname, "../test-results/frontend"),
   workers: 1,
   timeout: 120_000,
   expect: { timeout: 20_000 },
