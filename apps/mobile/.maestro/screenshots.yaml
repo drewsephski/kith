@@ -257,6 +257,7 @@ tags:
 # Capture the reaction after theme comparisons. Reactions are append-only, so adding
 # 👍 earlier would leak into dark/light thread frames with no remove control.
 - longPressOn: "The fixture workspace is ready."
+- tapOn: "More"
 - tapOn: "React"
 - tapOn: "👍"
 - extendedWaitUntil:

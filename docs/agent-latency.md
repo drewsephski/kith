@@ -299,7 +299,7 @@ screenshot behavior using the cached local computer image.
 | `pnpm check:agent-latency` | Benchmark CLI type check passed; the normal testkit check excludes CLI files |
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
-| `pnpm run test --maxWorkers=4` | Integrated revision: 8,461 passed, 300 skipped; one unchanged script test timed out under full-suite load and both script suites passed in a focused 24-test rerun |
+| `pnpm run test --maxWorkers=4` | Integrated revision: 8,466 passed, 300 skipped; one unchanged script test timed out under full-suite load and the deployment/backup selection passed in a focused 28-test rerun |
 | `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 994 tests passed on the integrated revision, including shared attachment size retention |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
