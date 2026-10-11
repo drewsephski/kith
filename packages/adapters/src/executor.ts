@@ -2840,30 +2840,34 @@ export async function persistLivePluginConnections(
 ): Promise<void> {
   const sync = planLiveConnectionSync(rows, liveSlugs);
   if (sync.connectIds.length > 0) {
-    await prisma.connection.updateMany({
+    const updated = await prisma.connection.updateMany({
       where: {
         id: { in: sync.connectIds },
         userId: owner.userId,
         spaceId: owner.spaceId,
+        status: { in: ["pending", "error"] },
       },
       data: { status: "connected" },
     });
-    for (const row of rows) {
-      if (sync.connectIds.includes(row.id)) row.status = "connected";
-    }
+    if (updated.count === sync.connectIds.length)
+      for (const row of rows) {
+        if (sync.connectIds.includes(row.id)) row.status = "connected";
+      }
   }
   if (sync.revokeIds.length > 0) {
-    await prisma.connection.updateMany({
+    const updated = await prisma.connection.updateMany({
       where: {
         id: { in: sync.revokeIds },
         userId: owner.userId,
         spaceId: owner.spaceId,
+        status: { in: ["pending", "error"] },
       },
       data: { status: "revoked" },
     });
-    for (const row of rows) {
-      if (sync.revokeIds.includes(row.id)) row.status = "revoked";
-    }
+    if (updated.count === sync.revokeIds.length)
+      for (const row of rows) {
+        if (sync.revokeIds.includes(row.id)) row.status = "revoked";
+      }
   }
 }
 
@@ -3587,11 +3591,27 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
           }
         }
-        const connectedComposio = mergeConnectedPlugins(composioRows, liveSlugs);
-        const connectedPlugins = selectRunConnections(
-          storedConnections,
-          connectedComposio.map((connection) => connection.provider),
-        );
+        let connectedPlugins: typeof storedConnections = [];
+        const connectionContext = (rows: typeof storedConnections, slugs: string[]) => {
+          const connectedComposio = mergeConnectedPlugins(
+            rows.filter((row) => row.connectorId === "composio"),
+            slugs,
+          );
+          connectedPlugins = selectRunConnections(
+            rows,
+            connectedComposio.map((connection) => connection.provider),
+          );
+          return {
+            connectedConnections: connectedPlugins.map((row) => ({
+              id: row.id,
+              connectorId: row.connectorId,
+              externalId: row.provider,
+              displayName: row.displayName,
+              providerRef: row.providerRef ?? undefined,
+            })),
+            connectedProviders: connectedComposio.map((row) => row.provider),
+          };
+        };
         const context = {
           operationId: runId,
           traceId: runId,
@@ -3616,14 +3636,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             });
             if (!active) throw new Error("Reconnect the sending account before continuing.");
           },
-          connectedConnections: connectedPlugins.map((row) => ({
-            id: row.id,
-            connectorId: row.connectorId,
-            externalId: row.provider,
-            displayName: row.displayName,
-            providerRef: row.providerRef ?? undefined,
-          })),
-          connectedProviders: connectedComposio.map((row) => row.provider),
+          ...connectionContext(storedConnections, liveSlugs),
         };
         const memoryScope = configuredMemory
           ? effectiveMemoryScope(bot.memoryScope, configuredMemory.defaultScope)
@@ -3634,9 +3647,51 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const discoverTools = () => {
           if (!discoveredToolsPromise) {
             const startedAt = performance.now();
-            discoveredToolsPromise = (
-              deps.connector ? deps.connector.discoverTools(context) : Promise.resolve([])
-            ).then((tools) => {
+            discoveredToolsPromise = (async () => {
+              if (profile === "conversation" && deps.connector) {
+                const rows = await deps.prisma.connection.findMany({
+                  where: { spaceId: run.spaceId, userId: run.userId },
+                  orderBy: { createdAt: "asc" },
+                  select: {
+                    id: true,
+                    connectorId: true,
+                    provider: true,
+                    providerRef: true,
+                    displayName: true,
+                    status: true,
+                  },
+                });
+                const composio = rows.filter((row) => row.connectorId === "composio");
+                if (needsLivePluginSync(composio)) {
+                  const listing = await loadLivePluginSlugs(
+                    deps.listConnectedPluginSlugs,
+                    run.userId,
+                  );
+                  if (listing.ok)
+                    await persistLivePluginConnections(
+                      deps.prisma,
+                      run,
+                      composio,
+                      listing.slugs,
+                    ).catch(() => undefined);
+                }
+                // Re-read after reconciliation: revocation during model generation must win.
+                const currentRows = await deps.prisma.connection.findMany({
+                  where: { spaceId: run.spaceId, userId: run.userId },
+                  orderBy: { createdAt: "asc" },
+                  select: {
+                    id: true,
+                    connectorId: true,
+                    provider: true,
+                    providerRef: true,
+                    displayName: true,
+                    status: true,
+                  },
+                });
+                Object.assign(context, connectionContext(currentRows, []));
+              }
+              return deps.connector ? deps.connector.discoverTools(context) : [];
+            })().then((tools) => {
               setupStages.connectorMs += Math.round(performance.now() - startedAt);
               return tools;
             });
@@ -6840,35 +6895,34 @@ export function createRunExecutor(deps: ExecutorDeps) {
           : history;
         const runtimeHistory = [...historicalContext, ...historyWithImages];
         // Without a roster a bot only knows the bots it spawned itself.
-        const botDirectory =
-          profile === "conversation" || thread.groupId
-            ? undefined
-            : renderBotDirectory(
-                (
-                  await deps.prisma.bot.findMany({
-                    where: {
-                      spaceId: run.spaceId,
-                      userId: run.userId,
-                      archivedAt: null,
-                      id: { not: bot.id },
-                      thread: { isNot: null },
-                    },
-                    select: {
-                      id: true,
-                      name: true,
-                      title: true,
-                      description: true,
-                    },
-                    orderBy: { createdAt: "asc" },
-                    take: BOT_DIRECTORY_LIMIT,
-                  })
-                ).map((peer) => ({
-                  id: peer.id,
-                  name: peer.name,
-                  title: peer.title,
-                  description: peer.description,
-                })),
-              );
+        const botDirectory = thread.groupId
+          ? undefined
+          : renderBotDirectory(
+              (
+                await deps.prisma.bot.findMany({
+                  where: {
+                    spaceId: run.spaceId,
+                    userId: run.userId,
+                    archivedAt: null,
+                    id: { not: bot.id },
+                    thread: { isNot: null },
+                  },
+                  select: {
+                    id: true,
+                    name: true,
+                    title: true,
+                    description: true,
+                  },
+                  orderBy: { createdAt: "asc" },
+                  take: BOT_DIRECTORY_LIMIT,
+                })
+              ).map((peer) => ({
+                id: peer.id,
+                name: peer.name,
+                title: peer.title,
+                description: peer.description,
+              })),
+            );
 
         if (heldForTakeover) {
           const releasedCheckpoint = takeoverCheckpointOf(

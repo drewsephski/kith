@@ -194,11 +194,14 @@ test("the terminal shows the bot's shell commands and file actions live and afte
   await expect
     .poll(
       async () =>
-        (await rpc<{ run: { status: string } | null }>(page, "threads/get", { botId })).run
-          ?.status ?? "idle",
+        (
+          await rpc<{ run: { status: string } | null }>(page, "threads/get", {
+            botId,
+          })
+        ).run?.status ?? "idle",
       { timeout: realSandboxTimeout(90_000, 30_000) },
     )
-    .toBe("idle");
+    .toBe("completed");
   // File tools show up too, not only shell commands.
   await expect
     .poll(

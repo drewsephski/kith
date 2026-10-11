@@ -138,7 +138,7 @@ test("a follow-up provider failure leaves the composer usable without unrelated 
   await expect(page.getByTestId("assistant-for-you")).toHaveCount(0);
 });
 
-test("connected-service starters stay above the composer when follow-ups are empty or unavailable", async ({
+test("connected-service starters do not replace unavailable conversation follow-ups", async ({
   page,
 }, testInfo) => {
   for (const mode of ["empty-followups", "error"]) {
@@ -146,11 +146,10 @@ test("connected-service starters stay above the composer when follow-ups are emp
       await page.setViewportSize({ width, height: 812 });
       await page.goto(`${fixture}?followups=1&connected=1&${mode}=1`);
       const strip = page.getByTestId("assistant-for-you");
-      const starter = strip.getByRole("button", { name: "Draft important replies", exact: true });
-      await expect(starter).toBeVisible();
-      await starter.click();
+      await expect(strip).toHaveCount(0);
       const composer = page.locator('textarea[name="chat-message"]');
-      await expect(composer).toHaveValue(/Go through my inbox.*create a draft response for each/);
+      await composer.fill("Clarify the onboarding milestone.");
+      await expect(composer).toHaveValue("Clarify the onboarding milestone.");
       await expect(composer).toBeFocused();
       await captureScreenshot(page, testInfo, `composer-starter-fallback-${mode}-${width}`);
       await page.getByRole("button", { name: "Start response", exact: true }).click();

@@ -154,6 +154,41 @@ describe("inferScript update_bot", () => {
   });
 });
 
+describe("ScriptedAgentRuntime computer lease fixture", () => {
+  it.each([false, true])(
+    "only invokes a computer tool for an explicit computer hold: %s",
+    async (computer) => {
+      const runtime = new ScriptedAgentRuntime();
+      const runId = `hold-${computer}`;
+      const iterator = runtime
+        .run({
+          botId: "bot",
+          threadId: "thread",
+          runId,
+          prompt: `${computer ? "use the computer and " : ""}keep working until I stop you`,
+          instructions: "",
+          history: [],
+          tools: [],
+          model: { provider: "scripted", id: "scripted" },
+        })
+        [Symbol.asyncIterator]();
+      try {
+        const first = await iterator.next();
+        expect(first.value?.type).toBe(computer ? "tool" : "progress");
+        if (computer)
+          expect(first.value).toMatchObject({
+            name: "shell",
+            args: { command: "pwd" },
+          });
+        await runtime.abort(runId);
+        expect((await iterator.next()).done).toBe(false);
+      } finally {
+        await iterator.return?.();
+      }
+    },
+  );
+});
+
 describe("ScriptedAgentRuntime executionIds", () => {
   it("gives repeated tools distinct executionIds within a run", async () => {
     const runtime = new ScriptedAgentRuntime();

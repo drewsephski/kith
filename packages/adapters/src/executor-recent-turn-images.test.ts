@@ -63,7 +63,14 @@ async function runWithModel(
   scripted = false,
   computerAvailable = true,
   latencyCheck?: "stream" | "setup",
-  scenario?: { prompt: string; useCatalog?: boolean; collision?: boolean },
+  scenario?: {
+    prompt: string;
+    useCatalog?: boolean;
+    collision?: boolean;
+    pendingConnection?: boolean;
+    revokedDuringSync?: boolean;
+    peerDirectory?: boolean;
+  },
 ) {
   const run = {
     id: "run-1",
@@ -127,6 +134,7 @@ async function runWithModel(
     }
     yield { type: "done" as const, text: "Done" };
   });
+  let connectionStatus = "pending";
   const prisma = {
     run: {
       findUnique: vi.fn(async () => run),
@@ -150,7 +158,18 @@ async function runWithModel(
         memoryScope: null,
         computer: { id: "computer-1", scope: "dedicated" },
       })),
-      findMany: vi.fn(async () => []),
+      findMany: vi.fn(async () =>
+        scenario?.peerDirectory
+          ? [
+              {
+                id: "support",
+                name: "Support",
+                title: "Support bot",
+                description: "Resolves customer support tickets",
+              },
+            ]
+          : [],
+      ),
     },
     attempt: {
       create: vi.fn(async () => ({ id: "attempt-1" })),
@@ -179,7 +198,26 @@ async function runWithModel(
       })),
     },
     computer: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    connection: { findMany: vi.fn(async () => []) },
+    connection: {
+      findMany: vi.fn(async () =>
+        scenario?.pendingConnection
+          ? [
+              {
+                id: "gmail",
+                connectorId: "composio",
+                provider: "gmail",
+                providerRef: "account-fixture",
+                displayName: "Gmail",
+                status: connectionStatus,
+              },
+            ]
+          : [],
+      ),
+      updateMany: vi.fn(async () => {
+        connectionStatus = scenario?.revokedDuringSync ? "revoked" : "connected";
+        return { count: scenario?.revokedDuringSync ? 0 : 1 };
+      }),
+    },
     spaceModelPreference: {
       findFirst: vi.fn<(...args: unknown[]) => Promise<Record<string, unknown> | null>>(
         async () => null,
@@ -226,16 +264,30 @@ async function runWithModel(
     },
     artifact: {
       findMany: vi.fn(async () => [
-        { id: "art-1", storageKey: "shot.png", size: 4, mimeType: "image/png", name: "shot.png" },
+        {
+          id: "art-1",
+          storageKey: "shot.png",
+          size: 4,
+          mimeType: "image/png",
+          name: "shot.png",
+        },
       ]),
     },
   };
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
+  const listConnectedPluginSlugs = vi.fn(async () => ["gmail"]);
+  const discoveryContexts: Array<{
+    connectedConnections?: Array<{ id: string }>;
+  }> = [];
   const executor = createRunExecutor({
+    listConnectedPluginSlugs,
     prisma,
     deploymentModelKey:
       latencyCheck === "stream" ? `fake-deployment-key-${"x".repeat(2048)}` : "fake-deployment-key",
-    runtime: { describe: () => ({ capabilities: { scripted } }), run: runtimeRun },
+    runtime: {
+      describe: () => ({ capabilities: { scripted } }),
+      run: runtimeRun,
+    },
     sandbox: computerAvailable
       ? {
           describe: () => ({ capabilities: { graphical: false } }),
@@ -253,19 +305,25 @@ async function runWithModel(
     events: { append, finalizeRun },
     jobs: { enqueue: vi.fn(async () => undefined) },
     connector: {
-      discoverTools: vi.fn(async () =>
-        scenario?.collision
+      discoverTools: vi.fn(async (context: { connectedConnections?: Array<{ id: string }> }) => {
+        discoveryContexts.push({
+          connectedConnections: [...(context.connectedConnections ?? [])],
+        });
+        return scenario?.collision
           ? [
               {
                 name: "kith_search_tools",
                 description: "Fixture connector tool",
                 readOnly: true,
                 inputSchema: { type: "object", properties: {} },
-                route: { connectorId: "fixture", toolName: "kith_search_tools" },
+                route: {
+                  connectorId: "fixture",
+                  toolName: "kith_search_tools",
+                },
               },
             ]
-          : [],
-      ),
+          : [];
+      }),
       async *execute() {
         yield { type: "result", data: { ok: true } };
       },
@@ -292,7 +350,14 @@ async function runWithModel(
     }),
   );
   if (!request) throw new Error("runtime was not called");
-  return { request, get, prisma, run };
+  return {
+    request,
+    get,
+    prisma,
+    run,
+    listConnectedPluginSlugs,
+    discoveryContexts,
+  };
 }
 
 describe("response latency", () => {
@@ -317,6 +382,49 @@ describe("response latency", () => {
     expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount);
     expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount);
   });
+
+  it("preserves the peer bot directory for conversational bot questions", async () => {
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      {
+        prompt: "What is the support bot responsible for?",
+        peerDirectory: true,
+      },
+    );
+    expect(request.executionProfile).toBe("conversation");
+    expect(request.instructions).toContain("Support");
+    expect(request.instructions).toContain("Resolves customer support tickets");
+  });
+
+  it.each([false, true])(
+    "reconciles pending accounts on lazy escalation and preserves revocation=%s",
+    async (revokedDuringSync) => {
+      const { request, listConnectedPluginSlugs, discoveryContexts } = await runWithModel(
+        TEXT_ONLY_MODEL,
+        undefined,
+        false,
+        false,
+        true,
+        undefined,
+        {
+          prompt: "Hi",
+          useCatalog: true,
+          pendingConnection: true,
+          revokedDuringSync,
+        },
+      );
+      expect(request.executionProfile).toBe("conversation");
+      expect(listConnectedPluginSlugs).toHaveBeenCalledOnce();
+      expect(discoveryContexts[0]?.connectedConnections?.map((row) => row.id)).toEqual(
+        revokedDuringSync ? [] : ["gmail"],
+      );
+    },
+  );
 
   it("can dispatch a connector whose name matches a catalog wrapper without recursion", async () => {
     await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, true, undefined, {

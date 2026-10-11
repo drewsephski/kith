@@ -292,25 +292,27 @@ screenshot behavior using the cached local computer image.
 | `pnpm check:agent-latency` | Benchmark CLI type check passed; the normal testkit check excludes CLI files |
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
-| `pnpm run test --maxWorkers=4` | 8,445 passed, 297 skipped, one baseline mobile translation-catalog failure |
-| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | 982 passed, the same baseline translation-catalog failure |
+| `pnpm run test --maxWorkers=4` | Integrated revision: 8,454 passed, 300 skipped; two unchanged script tests timed out under concurrent validation and both passed in a focused 24-test rerun |
+| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 993 tests passed on the integrated revision |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
 | Final latency comparisons | 1,300 successful runs: 560 per revision, 80 concurrent per revision, 20 reconnect runs |
-| `pnpm lint` | Blocked by four pre-existing mobile formatting errors; changed files pass formatting checks |
+| `pnpm lint` | Passed on the integrated revision; existing warnings remain |
 | `git diff --check` | Passed |
 
-The translation failure on the baseline is three missing catalog keys: delivery
-confirmation recovery, draft recovery, and `Off`. The formatting failures are in
-`conversation-drafts.ts`, `incoming-share.ts`, `thread-feedback.ts`, and
-`use-conversation-draft.ts`. Concurrent mobile work owns those files; it was
-preserved rather than folded into this isolated performance branch. The counts
-above describe the isolated performance revision. Subsequent integration of the
-mobile hardening commit preserves its draft identity and screen-scope fixes while
-retaining response timing. Repository lint, all 22 package checks, benchmark/mobile
-type checks and all 993 mobile tests pass on the integrated revision. The original
-translation and formatting failures are fixed by that integration; the timing
-comparison remains against the original main baseline.
+The isolated performance revision initially encountered existing translation and
+formatting failures. Integration of the concurrent mobile hardening commit fixes
+those failures while preserving its draft identity and screen-scope protections.
+Repository lint, all 22 package checks and benchmark/mobile type checks pass.
+The controlled timing comparison remains against the original main baseline.
+
+Review regressions additionally verify lazy reconciliation of pending connected
+accounts, revocation racing reconciliation, and peer bot context in conversational
+questions. All 47 focused executor, connection and scripted-runtime tests pass.
+An additional 80 greeting/arithmetic runs after those fixes complete correctly,
+with zero computer startup or connector discovery and three tool schemas. Those
+runs shared resources with browser/type-check validation and are recorded as
+correctness evidence, not a new controlled latency comparison.
 
 The Postgres selection is reproducible with:
 

@@ -23,7 +23,7 @@ test("homepage screenshots", async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await page.waitForLoadState("load");
-    await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction(() => document.fonts.status === "loaded");
     await page.locator("#demo").scrollIntoViewIfNeeded();
     await page.locator("astro-island[ssr]").waitFor({ state: "detached" });
     await captureScreenshot(page, testInfo, `homepage-${width}`);
@@ -32,7 +32,7 @@ test("homepage screenshots", async ({ page }, testInfo) => {
     for (const width of [375, 860, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/${locale}/`);
-      await page.evaluate(() => document.fonts.ready);
+      await page.waitForFunction(() => document.fonts.status === "loaded");
       await page.locator("#demo").scrollIntoViewIfNeeded();
       await page.locator("astro-island[ssr]").waitFor({ state: "detached" });
       await captureScreenshot(page, testInfo, `homepage-${locale}-${width}`);

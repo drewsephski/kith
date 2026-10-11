@@ -10,13 +10,22 @@ tags:
 
 # A cold API 34 emulator can show a launcher ANR over the healthy app.
 - extendedWaitUntil:
-    visible: "Sign up for Kith|Pixel Launcher isn't responding"
+    visible: "Meet Kith[.]|Pixel Launcher isn't responding"
     timeout: 30000
 - runFlow:
     when:
       visible: "Pixel Launcher isn't responding"
     commands:
       - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: 'Meet Kith\.'
+    timeout: 30000
+- takeScreenshot: "00-introduction"
+- tapOn: "Skip"
+- extendedWaitUntil:
+    visible: "Sign in to Kith"
+    timeout: 30000
+- tapOn: "Sign up"
 - extendedWaitUntil:
     visible: "Sign up for Kith"
     timeout: 30000
