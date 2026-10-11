@@ -6268,5 +6268,331 @@
         }
       }
     ]
+  },
+  "reviewSafetySimpleLatency": {
+    "sourceBaseCommit": "db421ede",
+    "sourceChanges": "Medication eligibility, scoped notification clearing, early-frame publication and native smoke keyboard dismissal",
+    "sourceFileSha256": {
+      "packages/adapters/src/executor.ts": "2b47bca8a06e7094d6718eeee3f211390094ec169ef28d4db346a2cbf49e4c11",
+      "packages/adapters/src/pi-runtime.ts": "0bb3bf255c7a8c1f7241425ee7fef53eaca135f789bdde84cfbb1b3b166bb7e9",
+      "packages/adapter-kit/src/types.ts": "eafa85e7ad88b486a0d8fa95d0eb7a5db8e3a240750fe709789c6cac7102fd83",
+      "packages/adapters/src/execution-profile.ts": "cb0f906a0e40cf41c0acbed98f029eb012d2ceeae890ad79931afec7727f2bb3",
+      "apps/mobile/lib/api.ts": "d6932d1efe553aa0dc0b5de483b21ab0bd5e792d83c86fb2e9a072cc4b71949f",
+      "apps/mobile/lib/open-notification.ts": "e4dfa974f4fa5640bd52f857fdec1f1e310aa4c0cc935be3a47478e7dc91d6ae",
+      "apps/mobile/lib/response-timing.ts": "13ca53d060aefd37c747bcfb0fe6bb225888045b2992436cacd77dc5c3219852"
+    },
+    "rawReportSha256": "2fa0494bea6f82a21be5a85a2f563ce089d969548f37a73282d66761a6916dbc",
+    "database": "PostgreSQL 14.19, isolated local cluster, fsync enabled",
+    "injected": {
+      "computerColdMs": 120,
+      "computerPrepareMs": 60,
+      "connectorDiscoveryMs": 40,
+      "providerHeadersMs": 5,
+      "providerFirstTextMs": 25,
+      "providerChunkMs": 2,
+      "backgroundJobMs": 500,
+      "slowProviderHeadersMs": 50,
+      "slowProviderFirstTextMs": 250
+    },
+    "parallel": 1,
+    "interactiveReservation": true,
+    "summary": [
+      {
+        "scenario": "greeting",
+        "temperature": "cold",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 10.034459000000425,
+          "p95": 15.59191699999974
+        },
+        "firstPublishedTextMs": {
+          "p50": 113.50712500000009,
+          "p95": 127.35599999999977
+        },
+        "firstTextReceivedMs": {
+          "p50": 110.58116599999994,
+          "p95": 125.63458300000093
+        },
+        "completionMs": {
+          "p50": 119.66562499999964,
+          "p95": 133.13999999999942
+        },
+        "queueWaitMs": {
+          "p50": 5,
+          "p95": 10
+        },
+        "setupMs": {
+          "p50": 58,
+          "p95": 64
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 42
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 5
+        },
+        "toolCount": {
+          "p50": 6,
+          "p95": 6
+        },
+        "toolSchemaBytes": {
+          "p50": 2830,
+          "p95": 2830
+        },
+        "promptBytes": {
+          "p50": 3660,
+          "p95": 3660
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "greeting",
+        "temperature": "warm",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 9.35516699999971,
+          "p95": 12.755667000001267
+        },
+        "firstPublishedTextMs": {
+          "p50": 109.86437500000102,
+          "p95": 119.83370800000193
+        },
+        "firstTextReceivedMs": {
+          "p50": 107.82708400000047,
+          "p95": 115.11729200000264
+        },
+        "completionMs": {
+          "p50": 115.8652089999996,
+          "p95": 126.16975000000093
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 7
+        },
+        "setupMs": {
+          "p50": 56,
+          "p95": 62
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 39
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 4
+        },
+        "toolCount": {
+          "p50": 6,
+          "p95": 6
+        },
+        "toolSchemaBytes": {
+          "p50": 2830,
+          "p95": 2830
+        },
+        "promptBytes": {
+          "p50": 3660,
+          "p95": 3660
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "arithmetic",
+        "temperature": "cold",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 8.959334000002855,
+          "p95": 12.33166600000186
+        },
+        "firstPublishedTextMs": {
+          "p50": 111.39400000000023,
+          "p95": 119.22683400000096
+        },
+        "firstTextReceivedMs": {
+          "p50": 109.41179199999897,
+          "p95": 117.66241700000319
+        },
+        "completionMs": {
+          "p50": 116.84129100000064,
+          "p95": 127.30483399999866
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 5
+        },
+        "setupMs": {
+          "p50": 57,
+          "p95": 64
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 39
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 4
+        },
+        "toolCount": {
+          "p50": 6,
+          "p95": 6
+        },
+        "toolSchemaBytes": {
+          "p50": 2830,
+          "p95": 2830
+        },
+        "promptBytes": {
+          "p50": 3672,
+          "p95": 3672
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "arithmetic",
+        "temperature": "warm",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 8.687999999994645,
+          "p95": 11.471417000000656
+        },
+        "firstPublishedTextMs": {
+          "p50": 110.91887499999575,
+          "p95": 122.13570900000195
+        },
+        "firstTextReceivedMs": {
+          "p50": 108.049291000003,
+          "p95": 121.66379199999938
+        },
+        "completionMs": {
+          "p50": 118.58108400000128,
+          "p95": 132.88216699999612
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 6
+        },
+        "setupMs": {
+          "p50": 57,
+          "p95": 64
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 39
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 5
+        },
+        "toolCount": {
+          "p50": 6,
+          "p95": 6
+        },
+        "toolSchemaBytes": {
+          "p50": 2830,
+          "p95": 2830
+        },
+        "promptBytes": {
+          "p50": 3672,
+          "p95": 3672
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      }
+    ]
   }
 }

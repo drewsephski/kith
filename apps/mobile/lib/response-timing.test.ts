@@ -11,12 +11,17 @@ describe("client response timing", () => {
     now = 8;
     timing.frame("scope", "run");
     now = 10;
-    timing.accept("scope", "nonce", ["run"]);
-    expect(timing.read("run")).toMatchObject({
-      acknowledgmentMs: 10,
-      firstTextReceivedMs: 5,
-      firstTextFrameMs: 8,
-    });
+    expect(timing.accept("scope", "nonce", ["run"])).toEqual([
+      expect.objectContaining({
+        runId: "run",
+        acknowledgmentMs: 10,
+        firstTextReceivedMs: 5,
+        firstTextFrameMs: 8,
+      }),
+    ]);
+    expect(timing.accept("scope", "nonce", ["run"])).toEqual([]);
+    expect(timing.frame("scope", "run")).toBeUndefined();
+    expect(timing.read("run")?.firstTextFrameMs).toBe(8);
   });
   it("keeps acceptance, safe text, committed frame and completion distinct across nonce replay", () => {
     let now = 0;
@@ -50,5 +55,8 @@ describe("client response timing", () => {
     expect(timing.frame("b", "r")).toBeUndefined();
     timing.begin("b", "n");
     expect(timing.read("r")).toBeUndefined();
+    expect(timing.accept("a", "n", ["r"])).toEqual([]);
+    timing.accept("b", "n", ["new-run"]);
+    expect(timing.read("new-run")?.acknowledgmentMs).toBe(0);
   });
 });

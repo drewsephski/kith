@@ -37,6 +37,7 @@ name: Kith mobile smoke
     timeout: 30000
 - tapOn: "Message Researcher"
 - inputText: "Mobile acceptance hello"
+- hideKeyboard
 - tapOn: "Send"
 - extendedWaitUntil:
     visible: ".*done. i handled: Mobile acceptance hello.*"
@@ -63,6 +64,7 @@ name: Kith mobile smoke
     timeout: 30000
 - tapOn: "Message Acceptance Bot"
 - inputText: "Native bot acceptance"
+- hideKeyboard
 - tapOn: "Send"
 - extendedWaitUntil:
     visible: ".*done. i handled: Native bot acceptance.*"

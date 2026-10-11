@@ -29,10 +29,13 @@ export class ResponseTiming {
     if (this.pending.size > 32) this.pending.delete(this.pending.keys().next().value!);
   }
 
-  accept(scope: string, nonce: string, runIds: readonly string[]) {
+  accept(scope: string, nonce: string, runIds: readonly string[]): ClientResponseTiming[] {
+    const painted: ClientResponseTiming[] = [];
+    // A late acceptance from an invalidated scope must not prune the new scope.
+    if (!this.pending.has(`${scope}:${nonce}`)) return painted;
     this.prune(scope);
     const trace = this.pending.get(`${scope}:${nonce}`);
-    if (!trace) return;
+    if (!trace) return painted;
     trace.accepted ??= this.now();
     for (const id of runIds) {
       if (!this.runs.has(id)) {
@@ -44,9 +47,14 @@ export class ResponseTiming {
             : {}),
         });
         this.early.delete(id);
+        if (early?.scope === scope && early.frame !== undefined) {
+          const timing = this.read(id);
+          if (timing) painted.push(timing);
+        }
       }
     }
     while (this.runs.size > 32) this.runs.delete(this.runs.keys().next().value!);
+    return painted;
   }
 
   event(scope: string, runId: string, text: boolean, complete: boolean) {

@@ -893,7 +893,9 @@ export async function rpc<T>(
         : typeof result.runId === "string"
           ? [result.runId]
           : [];
-      responseTiming.accept(responseScope, sendNonce, ids);
+      for (const timing of responseTiming.accept(responseScope, sendNonce, ids)) {
+        if (__DEV__) console.info("run client timing", timing);
+      }
     }
     return parsed.json as T;
   } finally {

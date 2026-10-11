@@ -202,9 +202,29 @@ it("rejects a notification whose session changes while restoring credentials", a
         release = resolve;
       }),
   );
-  const opening = openNotificationResponse(tap("stale-session"));
+  const response = tap("stale-session");
+  vi.mocked(Notifications.getLastNotificationResponse).mockReturnValue(response);
+  const opening = openNotificationResponse(response);
   scope.generation += 1;
   release("old-token");
   expect(await opening).toBe(false);
   expect(router.push).not.toHaveBeenCalled();
+  expect(Notifications.clearLastNotificationResponse).toHaveBeenCalledTimes(1);
+});
+
+it("retains a newer tap when the older tap loses its session scope", async () => {
+  let release!: (token: string) => void;
+  vi.mocked(loadSessionToken).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  const opening = openNotificationResponse(tap("stale-scope-older"));
+  scope.generation += 1;
+  vi.mocked(Notifications.getLastNotificationResponse).mockReturnValue(tap("stale-scope-newer"));
+  release("old-token");
+  expect(await opening).toBe(false);
+  expect(router.push).not.toHaveBeenCalled();
+  expect(Notifications.clearLastNotificationResponse).not.toHaveBeenCalled();
 });

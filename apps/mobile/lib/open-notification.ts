@@ -50,6 +50,7 @@ export async function openNotificationResponse(
       return false;
     }
     if (!current()) {
+      clearNotificationResponseIfCurrent(response);
       openedResponses.delete(key);
       return false;
     }

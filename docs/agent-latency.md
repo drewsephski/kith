@@ -398,7 +398,7 @@ flow found the demonstration had left the system notification shade open. The
 demonstration now closes that shade after verifying notification removal. The smoke
 flow still requires actual cold introduction readiness and every subsequent assertion.
 
-### Final runtime-control inventory
+### Runtime-control inventory
 
 A capability audit found that routing runtime-owned `ask_user`, `request_takeover`
 and `run_subagent` through the executor catalog bypassed their runtime handlers.
@@ -450,3 +450,34 @@ failed: 513 seconds before most smoke assertions, close to the former 10-minute
 total harness cap. The three-flow suite has a bounded 15-minute cap; all per-step
 deadlines and assertions remain unchanged. This is CI coverage capacity, not a
 provider timeout change or a latency-benchmark adjustment.
+
+### Latest safety and client-timing review
+
+Medication dose, dosing, overdose and common medicine-name questions now stay on
+the full profile before the general explanation rule, preserving normal implicit
+effort and explicit preferences. Scoped notification rejection clears only the
+current Expo occurrence, retaining a newer delivery. Client acceptance publishes
+already-painted timing once with its original timestamp; stale acceptance cannot
+prune a new scope's traces. All 202 focused profile, reasoning, API, notification
+and timing tests, lint and all 22 package checks pass. Native smoke reaches Send
+after successful custom-server configuration and sign-in; it now explicitly
+dismisses the keyboard before both send taps. Its reply assertions remain strict.
+
+A fresh 80-trial sweep with these guards, identical dependency injection and no
+concurrent local builds/tests supersedes the preceding simple-turn sweep as the
+latest measurement. Its aggregate and source/report hashes are recorded under
+`reviewSafetySimpleLatency`. Values are milliseconds, p50 / p95, 20 trials per row.
+
+| Scenario | Computer | Baseline first safe text | Latest first safe text | Latest completion | Latest setup |
+| --- | --- | ---: | ---: | ---: | ---: |
+| greeting | cold | 356 / 435 | 111 / 126 | 120 / 133 | 58 / 64 |
+| greeting | warm | 345 / 359 | 108 / 115 | 116 / 126 | 56 / 62 |
+| arithmetic | cold | 350 / 536 | 109 / 118 | 117 / 127 | 57 / 64 |
+| arithmetic | warm | 358 / 513 | 108 / 122 | 119 / 133 | 57 / 64 |
+
+Cold arithmetic median first-safe-text is **69% below baseline**. All rows retain
+six schemas (2,830 bytes), one model call and zero computer provisioning,
+preparation or connector discovery. Prompt sizes remain 3,660/3,672 bytes.
+Provider token/cache fields remain unknown. The client timing regressions test
+early-frame reporting; this backend/SSE sweep still does not measure physical iOS
+painting or native keyboard geometry. Full current-head CI remains pending.
