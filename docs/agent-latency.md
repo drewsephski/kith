@@ -301,7 +301,7 @@ screenshot behavior using the cached local computer image.
 | `pnpm check:agent-latency` | Benchmark CLI type check passed; the normal testkit check excludes CLI files |
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
-| `pnpm run test --maxWorkers=4` | Review revision `9dc36f02`: 8,477 passed, 300 skipped, zero failures. Earlier unchanged deployment-script timeouts passed in a focused 28-test rerun and in this complete run |
+| `pnpm run test --maxWorkers=2` | Review revision `5e70ac3c`: 8,482 passed, 300 skipped, zero failures. A four-worker run passed 8,481 and hit the unchanged deployment-script timeout; all 28 deployment/backup tests passed in isolation and the complete two-worker run passes that test without changing timeouts |
 | `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 1,000 tests passed, including shared attachment size retention and late delivery/notification-setting regressions |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
@@ -431,3 +431,14 @@ not the final inventory. These remain emulator measurements with unknown provide
 token/cache usage and no physical iOS timing claim. All 165 focused executor,
 connection and Pi runtime regressions, repository lint and all 22 package checks
 pass after this capability fix.
+
+The final dispatch contract selection also passes all 39 tests, explicitly
+checking the parent runtime's delegation permission. The complete local suite on
+`5e70ac3c` passes 8,482 tests with 300 skipped and no failures; the standalone
+benchmark CLI check also passes. Its remote cycle passes 12 checks, including
+full web, desktop and Postgres checks. Within the failed native job, screenshot
+and live-notification flows complete successfully. Its following smoke flow
+reaches custom-server configuration and correctly rejects a missing fixture URL, which Maestro had rendered as `undefined`. The
+Android runner now passes its isolated device API URL to every flow. Strict
+sign-in, message completion, restart, bot creation, computer takeover/release
+and sign-out assertions remain; complete native smoke acceptance awaits CI.

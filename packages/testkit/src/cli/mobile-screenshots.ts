@@ -1,6 +1,7 @@
 import { execFile, execFileSync } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { createServer, type Server } from "node:http";
+import type { Server } from "node:http";
+import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
@@ -10,7 +11,8 @@ import {
   PipedreamConnector,
   ThirdPartyConnectorEmulator,
 } from "@rakazo/adapters";
-import { createThreadMessage, type PrismaClient } from "@rakazo/db";
+import type { PrismaClient } from "@rakazo/db";
+import { createThreadMessage } from "@rakazo/db";
 import { sessionCookieHeader } from "../index.js";
 import { runProcess } from "./process.js";
 
@@ -23,6 +25,7 @@ const PASSWORD = "test-password-123";
 const API_PORT = 3110;
 const DEVICE_CONTROL_PORT = 3111;
 const HOST_API_URL = `http://127.0.0.1:${API_PORT}`;
+const DEVICE_API_URL = `http://10.0.2.2:${API_PORT}`;
 const DEVICE_CONTROL_URL = `http://127.0.0.1:${DEVICE_CONTROL_PORT}`;
 const EXPAND_NOTIFICATIONS_URL = `${DEVICE_CONTROL_URL}/expand-notifications`;
 const WEB_ORIGIN = "http://127.0.0.1:5180";
@@ -95,6 +98,8 @@ async function main() {
           "--output",
           path.join(REPORT_DIR, `${flow}.html`),
           "-e",
+          `RAKAZO_API_URL=${DEVICE_API_URL}`,
+          "-e",
           `RAKAZO_SCREENSHOT_EMAIL=${EMAIL}`,
           "-e",
           `RAKAZO_SCREENSHOT_PASSWORD=${PASSWORD}`,
@@ -120,7 +125,7 @@ async function main() {
   } finally {
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
-      server.closeAllConnections();
+      if ("closeAllConnections" in server) server.closeAllConnections();
     });
     await new Promise<void>((resolve, reject) => {
       deviceControl.close((error) => (error ? reject(error) : resolve()));
