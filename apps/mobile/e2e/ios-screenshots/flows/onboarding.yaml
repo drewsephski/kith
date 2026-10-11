@@ -1,34 +1,53 @@
 appId: com.kith.agent
-name: Onboarding
+name: Fresh introduction and first assistant
 ---
-- runFlow:
-    file: ../subflows/sign-in.yaml
-    env:
-      RAKAZO_ACTIVE_EMAIL: ${RAKAZO_SCREENSHOT_EMPTY_EMAIL}
+# Use a disposable simulator: iOS Keychain clearing affects the entire simulator.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      notifications: unset
 - extendedWaitUntil:
-    visible: "Personal|Tap \\+ to create a bot"
-    timeout: 20000
-- takeScreenshot: 01-empty-inbox
-- openLink: "rakazo:///artifacts"
-- extendedWaitUntil:
-    visible: "No artifacts yet|Artifacts"
-    timeout: 15000
-- takeScreenshot: 02-empty-artifacts
-- openLink: "rakazo:///new"
-- extendedWaitUntil:
-    visible: "Name this bot"
-    timeout: 15000
-- takeScreenshot: 03-new-bot
-- tapOn: "Name this bot"
-- inputText: "Guide"
-- hideKeyboard
-- tapOn: "Create"
-- extendedWaitUntil:
-    visible: "What do you want me on first\\?"
+    visible: "Meet Kith."
     timeout: 30000
-- takeScreenshot: 04-choice-card
-- tapOn: "Day-to-day work"
+- takeScreenshot: 01-meet-kith
+- tapOn: "Continue"
+- assertVisible: "Hand off the work."
+- takeScreenshot: 02-hand-off
+- stopApp
+- launchApp
 - extendedWaitUntil:
-    notVisible: "Inbox & email"
+    visible: "Hand off the work."
+    timeout: 30000
+- tapOn: "Continue"
+- assertVisible: "Pick up where you left off."
+- takeScreenshot: 03-return-to-results
+- tapOn: "Get started"
+- extendedWaitUntil:
+    visible: "Sign up for Kith"
     timeout: 15000
-- takeScreenshot: 05-choice-selected
+- takeScreenshot: 04-auth
+- runFlow: ../subflows/custom-server.yaml
+# This account has no bots; preparation must not require manual bot creation.
+- tapOn: "Sign in"
+- tapOn: "Email"
+- inputText: ${RAKAZO_SCREENSHOT_EMPTY_EMAIL}
+- tapOn: "Password"
+- inputText: ${RAKAZO_SCREENSHOT_PASSWORD}
+- hideKeyboard
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "What should I help you with first\\?"
+    timeout: 30000
+- takeScreenshot: 05-first-assistant
+- tapOn: "Organize my day"
+- extendedWaitUntil:
+    notVisible: "Email and follow-ups"
+    timeout: 15000
+- takeScreenshot: 06-focus-selected
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Account"
+    timeout: 30000
+- assertNotVisible: "Meet Kith."

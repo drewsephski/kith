@@ -44,6 +44,7 @@ import type {
 import {
   currentApiBase,
   loadSessionToken,
+  mobileScreenScopeKey,
   rpc,
   selectedSpaceId,
   selectInitialSpace,
@@ -122,7 +123,8 @@ export default function Home() {
   const activityRequestId = useRef(0);
   const inboxRequestId = useRef(0);
   const creatingBotRef = useRef(false);
-  const openedInitialAssistant = useRef(false);
+  const openedInitialAssistant = useRef<string | null>(null);
+  const preparingInitialAssistant = useRef<string | null>(null);
   const [preparingAssistant, setPreparingAssistant] = useState(false);
   const spaceActionRef = useRef<{ busy: boolean; recoveryId: string | null }>({
     busy: false,
@@ -181,11 +183,13 @@ export default function Home() {
       setGroups(navigation.current.groups);
       setSpaces(navigation.spaces);
       setMe(nextMe);
+      const assistantScope = `${endpoint}:${session}:${nextMe.spaceId}`;
       if (
-        !navigation.current.bots.length &&
-        !navigation.current.groups.length &&
-        !openedInitialAssistant.current
+        openedInitialAssistant.current !== assistantScope &&
+        (preparingInitialAssistant.current === assistantScope ||
+          (!navigation.current.bots.length && !navigation.current.groups.length))
       ) {
+        preparingInitialAssistant.current = assistantScope;
         setPreparingAssistant(true);
         const assistant = await rpc<{ botId: string; needsModel: boolean }>("assistant/ensure");
         if (!current()) return;
@@ -193,7 +197,8 @@ export default function Home() {
         await rpc("onboarding/start", { botId: assistant.botId });
         await rpc("onboarding/promptFocus", { botId: assistant.botId });
         if (!current()) return;
-        openedInitialAssistant.current = true;
+        openedInitialAssistant.current = assistantScope;
+        preparingInitialAssistant.current = null;
         router.push({ pathname: "/thread", params: { botId: assistant.botId, name: "Kith" } });
       }
     } catch (err) {
@@ -287,6 +292,7 @@ export default function Home() {
     }, [activityMode, hasSession, loadActivity, query, searching]),
   );
 
+  const searchScope = mobileScreenScopeKey();
   useEffect(() => {
     const trimmed = query.trim();
     if (!searching || !trimmed) {
@@ -323,7 +329,7 @@ export default function Home() {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [query, searching, searchRetry]);
+  }, [query, searching, searchRetry, searchScope]);
 
   const visible = useMemo(() => filterBots(bots, query), [bots, query]);
   const visibleGroups = useMemo(() => {
@@ -778,21 +784,25 @@ export default function Home() {
           </>
         }
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            {query.trim() && searching
-              ? searchLoading
-                ? t("Searching…")
-                : searchError
-                  ? ""
-                  : t("No results")
-              : query.trim()
-                ? t("No matching bots")
-                : searching
-                  ? t("Search conversations, files, and routines")
-                  : error || preparingAssistant
+          !me && !error && !searching ? (
+            <ActivityIndicator accessibilityLabel={t("Loading…")} />
+          ) : (
+            <Text style={styles.empty}>
+              {query.trim() && searching
+                ? searchLoading
+                  ? t("Searching…")
+                  : searchError
                     ? ""
-                    : t("Tap + to create a bot")}
-          </Text>
+                    : t("No results")
+                : query.trim()
+                  ? t("No matching bots")
+                  : searching
+                    ? t("Search conversations, files, and routines")
+                    : error || preparingAssistant
+                      ? ""
+                      : t("Tap + to create a bot")}
+            </Text>
+          )
         }
         ListFooterComponent={
           inboxNeedsCreateHint(listData) ? (

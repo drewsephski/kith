@@ -7,9 +7,11 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "../components/minimal-scroll";
+import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import { SandboxedHtmlPreview } from "../components/sandboxed-html-preview";
 import { formatActivityRelativeTime } from "../lib/activity";
+import { captureMobileScreenScope } from "../lib/api";
 import { mobileTokens } from "../lib/appearance";
 import { shareLocalFile, writeArtifactCacheFile } from "../lib/artifact-open";
 import type { MobileArtifactWithContent } from "../lib/artifacts";
@@ -56,19 +58,21 @@ export default function ArtifactDetailScreen() {
   const [versions, setVersions] = useState<ArtifactVersion[] | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [content, setContent] = useState<ContentState>({ status: "loading" });
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    const current = captureMobileScreenScope();
     setVersions(null);
     setSelectedVersionId(null);
     void listArtifactVersions(artifactId)
       .then((list) => {
-        if (cancelled) return;
+        if (cancelled || !current()) return;
         setVersions(list);
         setSelectedVersionId(list[0]?.id ?? artifactId);
       })
       .catch(() => {
-        if (!cancelled) setSelectedVersionId(artifactId);
+        if (!cancelled && current()) setSelectedVersionId(artifactId);
       });
     return () => {
       cancelled = true;
@@ -78,16 +82,18 @@ export default function ArtifactDetailScreen() {
   useEffect(() => {
     if (!selectedVersionId) return;
     let cancelled = false;
+    const current = captureMobileScreenScope();
     setContent({ status: "loading" });
     void getArtifactById(selectedVersionId)
       .then(async (artifact) => {
+        if (cancelled || !current()) return;
         const file = writeArtifactCacheFile(artifact.id, artifact.mimeType, artifact.contentBase64);
         const preview = await computePreview(artifact.mimeType, file);
-        if (cancelled) return;
+        if (cancelled || !current()) return;
         setContent({ status: "ready", artifact, file, preview });
       })
       .catch((error: unknown) => {
-        if (!cancelled) {
+        if (!cancelled && current()) {
           setContent({
             status: "error",
             message: errorText(error, t("Could not load this artifact.")),
@@ -97,7 +103,7 @@ export default function ArtifactDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedVersionId, t]);
+  }, [selectedVersionId, t, loadAttempt]);
 
   const confirmDelete = useCallback(() => {
     if (content.status !== "ready") return;
@@ -247,7 +253,14 @@ export default function ArtifactDetailScreen() {
           </View>
         ) : content.status === "error" ? (
           <View style={styles.centered}>
-            <Text style={styles.errorText}>{content.message}</Text>
+            <Text accessibilityRole="alert" style={styles.errorText}>
+              {content.message}
+            </Text>
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setLoadAttempt((value) => value + 1)}
+            />
           </View>
         ) : (
           <ArtifactPreview

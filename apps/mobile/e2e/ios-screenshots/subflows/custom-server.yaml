@@ -1,0 +1,14 @@
+appId: com.kith.agent
+---
+- tapOn: "Use a custom server|Custom server"
+- extendedWaitUntil:
+    visible: "Server"
+    timeout: 10000
+- tapOn:
+    text: "http.*|https.*"
+- eraseText: 100
+- inputText: ${RAKAZO_API_URL}
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: "Sign up for Kith|Sign in to Kith"
+    timeout: 20000

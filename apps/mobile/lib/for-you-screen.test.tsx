@@ -218,6 +218,48 @@ it("offers conversational suggestions without unavailable service tasks", async 
   expect(host.textContent).not.toContain("Your work");
 });
 
+it("keeps successful context visible when another source fails and retries the failed load", async () => {
+  const original = state.rpc.getMockImplementation()!;
+  let failed = true;
+  state.rpc.mockImplementation((proc: string, input: unknown) => {
+    if (proc === "connections/list" && failed) return Promise.reject(new Error("Offline"));
+    if (proc === "runs/list")
+      return Promise.resolve({
+        runs: [
+          {
+            runId: "active",
+            botId: "bot-one",
+            botName: "Research",
+            groupId: null,
+            groupName: null,
+            threadId: "thread-one",
+            messageId: null,
+            status: "running",
+            trigger: "user",
+            notificationsEnabled: false,
+            promptSnippet: "Research my idea",
+            updatedAt: "2026-10-11T12:00:00Z",
+          },
+        ],
+      });
+    return original(proc, input);
+  });
+  await render();
+  expect(host.textContent).toContain("Research my idea");
+  expect(host.textContent).toContain("Offline");
+  expect(host.textContent).not.toContain("Gmail");
+  failed = false;
+  await act(async () => {
+    const retry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Retry",
+    );
+    expect(retry).toBeDefined();
+    retry!.click();
+  });
+  expect(host.textContent).not.toContain("Offline");
+  expect(host.textContent).toContain("Research my idea");
+});
+
 it("shows actual connected account labels and filters tasks by their service", async () => {
   const original = state.rpc.getMockImplementation()!;
   state.rpc.mockImplementation((proc: string, input: unknown) =>

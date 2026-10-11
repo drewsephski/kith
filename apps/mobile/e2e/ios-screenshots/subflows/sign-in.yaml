@@ -3,11 +3,11 @@ appId: com.kith.agent
 - runFlow: launch-app.yaml
 - runFlow:
     when:
-      visible: "Sign up for Rakazo"
+      visible: "Sign up for Kith"
     commands:
       - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "Sign in to Rakazo"
+    visible: "Sign in to Kith"
     timeout: 15000
 - tapOn: "Email"
 - inputText: ${RAKAZO_ACTIVE_EMAIL}

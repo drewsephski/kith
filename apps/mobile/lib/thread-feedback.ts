@@ -42,8 +42,16 @@ export type SendAttempt = {
   recoveredInput?: ThreadSendInput;
 };
 
-export async function deliverSend(payload: SendPayload, attempt: SendAttempt, request: typeof rpc, prepare?: (input: ThreadSendInput) => Promise<void>) {
-  if (attempt.recoveredInput) { await request("threads/send", attempt.recoveredInput); return; }
+export async function deliverSend(
+  payload: SendPayload,
+  attempt: SendAttempt,
+  request: typeof rpc,
+  prepare?: (input: ThreadSendInput) => Promise<void>,
+) {
+  if (attempt.recoveredInput) {
+    await request("threads/send", attempt.recoveredInput);
+    return;
+  }
   const { plan, groupTarget, botTarget, reroutedToGroup, attachments } = payload;
   if (plan.shouldRunRoutines) {
     await Promise.all(

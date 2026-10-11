@@ -5,7 +5,7 @@ import { Alert, Text, TextInput } from "react-native";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { cancelHeaderOptions } from "../components/sheet-header";
-import { rpc, selectSpace } from "../lib/api";
+import { captureMobileScreenScope, rpc, selectSpace } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
 import { errorText } from "../lib/user-error";
@@ -21,10 +21,12 @@ export default function NewSpace() {
   async function create() {
     const trimmed = name.trim();
     if (!trimmed || pending) return;
+    const current = captureMobileScreenScope();
     setPending(true);
     setError(null);
     try {
       const space = await rpc<Space>("spaces/create", { name: trimmed });
+      if (!current()) return;
       if (!(await selectSpace(space.id))) {
         Alert.alert(t("Space created"), t("It could not be opened. Try again from the sidebar."));
         router.dismissAll();

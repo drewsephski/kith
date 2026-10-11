@@ -49,6 +49,7 @@ vi.mock("./device-voice", () => ({ loadDeviceVoiceEnabled: async () => true }));
 vi.mock("./voice", () => ({ stopVoicePlayback: mocks.stopVoicePlayback }));
 vi.mock("expo-speech", () => ({ stop: mocks.stop, speak: mocks.speak }));
 vi.mock("./api", () => ({
+  captureMobileScreenScope: () => () => true,
   rpc: async (procedure: string) => {
     if (procedure === "bots/get")
       return { id: "bot-fixture", name: "Fixture", title: "", computerMode: "team" };

@@ -53,6 +53,7 @@ export default function NewGroup() {
       pending
     )
       return;
+    const current = captureMobileScreenScope();
     setPending(true);
     setError(null);
     try {
@@ -60,6 +61,7 @@ export default function NewGroup() {
         name: name.trim(),
         botIds: selected,
       });
+      if (!current()) return;
       router.replace({
         pathname: "/group-thread",
         params: { groupId: group.id, name: group.name },

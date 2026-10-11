@@ -2,7 +2,11 @@ import type { ThreadSendInput } from "@rakazo/contracts";
 import { ThreadSendInputSchema } from "@rakazo/contracts";
 import * as SecureStore from "expo-secure-store";
 
-export type DurableDelivery = { input: ThreadSendInput; displayText: string; replyPreview: string | null };
+export type DurableDelivery = {
+  input: ThreadSendInput;
+  displayText: string;
+  replyPreview: string | null;
+};
 export type SavedConversationDraft = {
   deliveries?: DurableDelivery[];
   text: string;
@@ -21,9 +25,20 @@ export function parseSavedConversationDraft(raw: string): SavedConversationDraft
       const deliveries: DurableDelivery[] = [];
       if ("deliveries" in parsed && Array.isArray(parsed.deliveries)) {
         for (const entry of parsed.deliveries) {
-          if (!entry || typeof entry !== "object" || typeof entry.displayText !== "string" || !(entry.replyPreview === null || typeof entry.replyPreview === "string")) continue;
+          if (
+            !entry ||
+            typeof entry !== "object" ||
+            typeof entry.displayText !== "string" ||
+            !(entry.replyPreview === null || typeof entry.replyPreview === "string")
+          )
+            continue;
           const input = ThreadSendInputSchema.safeParse(entry.input);
-          if (input.success && input.data.clientNonce) deliveries.push({ input: input.data, displayText: entry.displayText, replyPreview: entry.replyPreview });
+          if (input.success && input.data.clientNonce)
+            deliveries.push({
+              input: input.data,
+              displayText: entry.displayText,
+              replyPreview: entry.replyPreview,
+            });
         }
       }
       return {

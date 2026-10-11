@@ -27,6 +27,9 @@ it("imports text, links and local files without resolving remote content", () =>
 it.each([
   "file:///private/secret.txt",
   "file:///shared/group/../../secret.txt",
+  "file:///shared/group/..%2f..%2fsecret.txt",
+  "file:///shared/group/nested%5c..%5csecret.txt",
+  "file:///shared/group/%00/report.pdf",
   "https://example.test/file",
   "file://remote/shared/group/report.pdf",
 ])("rejects unowned file locations: %s", (value) => {
