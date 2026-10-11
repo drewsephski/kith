@@ -1572,12 +1572,13 @@ describe("sendThreadMessage", () => {
   });
 
   it("steers a waiting-takeover run instead of refusing the message", async () => {
+    let messageSeq = 1;
+    let eventSeq = 2;
     const tx = {
       thread: {
-        update: vi
-          .fn()
-          .mockResolvedValueOnce({ nextMessageSeq: 2 })
-          .mockResolvedValueOnce({ nextEventSeq: 3 }),
+        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown } }) =>
+          data.nextMessageSeq ? { nextMessageSeq: ++messageSeq } : { nextEventSeq: ++eventSeq },
+        ),
       },
       message: {
         create: vi.fn().mockResolvedValue({

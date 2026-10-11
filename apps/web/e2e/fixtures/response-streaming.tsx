@@ -4,6 +4,7 @@ import type { ProductEvent, ThreadMessage, ThreadSnapshot } from "@rakazo/contra
 import {
   isAssistantResponding,
   isToolActivityBlock,
+  taskAcknowledgmentBlocks,
   withLiveStreamingProgress,
 } from "@rakazo/core";
 import { DEFAULT_GROK_BOT_COLOR } from "@rakazo/ui-web";
@@ -12,7 +13,7 @@ import { AssistantResponseRow } from "../../src/components/ai/CollaborationMarke
 import { RunStatus } from "../../src/components/ai/RunStatus";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { setResponseStreamingPreference } from "../../src/lib/response-streaming";
-import { reduceThreadSnapshot } from "../../src/lib/thread-events";
+import { applyThreadSendReceipt, reduceThreadSnapshot } from "../../src/lib/thread-events";
 import { SettingsOverlay } from "../../src/pages/SettingsOverlay";
 import "../../src/styles.css";
 
@@ -20,6 +21,7 @@ const params = new URLSearchParams(location.search);
 const view = params.get("view") === "settings" ? "settings" : "thread";
 const streamResponses = params.get("stream") !== "off";
 const phase = params.get("phase") === "done" ? "done" : "live";
+const acknowledgment = params.get("ack") === "on";
 const assistantId = params.get("bot") === "other" ? "other-bot" : "bot-1";
 
 const USER_TEXT = "What's the capital of Portugal?";
@@ -65,20 +67,41 @@ function reduceComparableTurn(stream: boolean, turn: "live" | "done"): ThreadSna
       },
     }),
   );
+  if (acknowledgment) {
+    snapshot = applyThreadSendReceipt(snapshot, {
+      botId: "bot-1",
+      runId: "run-1",
+      taskId: "task-1",
+    });
+    snapshot = reduceThreadSnapshot(
+      snapshot,
+      productEvent(2, {
+        type: "thread.message.created",
+        payload: {
+          messageId: "bot-ack",
+          role: "bot",
+          acknowledgment: true,
+          blocks: taskAcknowledgmentBlocks([{ kind: "text", text: USER_TEXT }]),
+        },
+      }),
+    );
+    if (params.get("phase") === "queued")
+      return withLiveStreamingProgress(snapshot, stream) ?? emptySnapshot();
+  }
   snapshot = reduceThreadSnapshot(
     snapshot,
-    productEvent(2, { type: "run.started", payload: { trigger: "user" } }),
+    productEvent(3, { type: "run.started", payload: { trigger: "user" } }),
   );
   snapshot = reduceThreadSnapshot(
     snapshot,
-    productEvent(3, {
+    productEvent(4, {
       type: "agent.tool.called",
       payload: { name: "browser" },
     }),
   );
   snapshot = reduceThreadSnapshot(
     snapshot,
-    productEvent(4, {
+    productEvent(5, {
       type: "thread.progress",
       payload: { text: LIVE_TOKENS, streaming: true },
     }),
@@ -86,7 +109,7 @@ function reduceComparableTurn(stream: boolean, turn: "live" | "done"): ThreadSna
   if (turn === "done") {
     snapshot = reduceThreadSnapshot(
       snapshot,
-      productEvent(5, {
+      productEvent(6, {
         type: "thread.message.created",
         payload: {
           messageId: "bot-final",
@@ -95,7 +118,7 @@ function reduceComparableTurn(stream: boolean, turn: "live" | "done"): ThreadSna
         },
       }),
     );
-    snapshot = reduceThreadSnapshot(snapshot, productEvent(6, { type: "run.completed" }));
+    snapshot = reduceThreadSnapshot(snapshot, productEvent(7, { type: "run.completed" }));
   }
   return withLiveStreamingProgress(snapshot, stream) ?? emptySnapshot();
 }
@@ -163,7 +186,10 @@ function MessageRow({ message, responding }: { message: ThreadMessage; respondin
                 dir="auto"
               >
                 {narration.map((block, i) => (
-                  <ChatMarkdown key={`${message.id}-${i}`} streaming={block.kind === "progress"}>
+                  <ChatMarkdown
+                    key={`${message.id}-${i}`}
+                    streaming={message.id.startsWith("progress:") && block.kind === "progress"}
+                  >
                     {block.text}
                   </ChatMarkdown>
                 ))}
@@ -177,7 +203,11 @@ function MessageRow({ message, responding }: { message: ThreadMessage; respondin
             >
               {narration.map((block, i) => (
                 <div key={`${message.id}-${i}`}>
-                  <ChatMarkdown streaming={block.kind === "progress"}>{block.text}</ChatMarkdown>
+                  <ChatMarkdown
+                    streaming={message.id.startsWith("progress:") && block.kind === "progress"}
+                  >
+                    {block.text}
+                  </ChatMarkdown>
                 </div>
               ))}
             </div>

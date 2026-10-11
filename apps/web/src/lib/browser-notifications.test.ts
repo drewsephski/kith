@@ -49,6 +49,11 @@ function context(overrides: Partial<BrowserNotificationContext> = {}): BrowserNo
 }
 
 describe("browser notifications", () => {
+  it("does not notify for an acceptance receipt", () => {
+    expect(
+      shouldNotifyBrowser(event({ payload: { role: "bot", acknowledgment: true } }), context()),
+    ).toBe(false);
+  });
   beforeEach(() => {
     i18n.load("en", {
       "{name} failed": "Chief failed",

@@ -51,7 +51,9 @@ export function shouldNotifyBrowser(
   context: BrowserNotificationContext,
 ): boolean {
   const notifiable =
-    (event.type === "thread.message.created" && event.payload.role === "bot") ||
+    (event.type === "thread.message.created" &&
+      event.payload.role === "bot" &&
+      event.payload.acknowledgment !== true) ||
     event.type === "run.failed" ||
     event.type === "run.cancelled";
   return (

@@ -7502,12 +7502,12 @@ const MessageView = memo(function MessageView({
                   >
                     {showAssistantAvatar ? (
                       <AssistantResponseRow>
-                        <ChatMarkdown streaming={block.kind === "progress"}>
+                        <ChatMarkdown streaming={isLive && block.kind === "progress"}>
                           {block.text}
                         </ChatMarkdown>
                       </AssistantResponseRow>
                     ) : (
-                      <ChatMarkdown streaming={block.kind === "progress"}>
+                      <ChatMarkdown streaming={isLive && block.kind === "progress"}>
                         {block.text}
                       </ChatMarkdown>
                     )}

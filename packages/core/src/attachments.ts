@@ -105,6 +105,7 @@ export function promptTextForAttachments(
 export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
   return blocks
     .map((block) => {
+      if (block.kind === "progress" && block.acknowledgment) return "";
       if (block.kind === "text") return block.text;
       if (block.kind === "email")
         return `[email ${block.mode}; untrusted content] ${JSON.stringify({ draftId: block.draftId, messageId: block.messageId, ...block })}`;

@@ -4,7 +4,7 @@ import type {
   ThreadMessage,
   ThreadSnapshot,
 } from "@rakazo/contracts";
-import { withLiveStreamingProgress } from "@rakazo/core";
+import { taskAcknowledgmentBlocks, withLiveStreamingProgress } from "@rakazo/core";
 import { describe, expect, it } from "vitest";
 import {
   activeThreadRuns,
@@ -25,6 +25,34 @@ import {
 } from "./thread-events.js";
 
 describe("thread event reduction", () => {
+  it("keeps an acceptance receipt visible with streaming off without settling the run", () => {
+    const queued = applyThreadSendReceipt(snapshot([]), {
+      botId: "bot-1",
+      runId: "run-1",
+      taskId: "task-1",
+    });
+    const acknowledged = reduceThreadSnapshot(
+      queued,
+      event({
+        seq: 4,
+        type: "thread.message.created",
+        payload: {
+          messageId: "ack-1",
+          role: "bot",
+          acknowledgment: true,
+          blocks: taskAcknowledgmentBlocks([{ kind: "text", text: "Plan my week" }]),
+        },
+      }),
+    );
+    expect(withLiveStreamingProgress(acknowledged, false)?.messages[0]?.id).toBe("ack-1");
+    expect(acknowledged?.run?.status).toBe("queued");
+    const failed = reduceThreadSnapshot(
+      acknowledged,
+      event({ seq: 5, type: "run.failed", payload: { error: "Unavailable" } }),
+    );
+    expect(failed?.run?.status).toBe("failed");
+    expect(failed?.messages[0]?.id).toBe("ack-1");
+  });
   it("ignores replayed deltas and older starts after terminal completion", () => {
     let state: ThreadSnapshot | null = { ...snapshot([]), run: threadRun("run-1") };
     const delta = event({ seq: 4, payload: { delta: "Hello" } });

@@ -12,6 +12,7 @@ export function loadRunHistoryMessages(
   return prisma.message.findMany({
     where: {
       threadId: run.threadId,
+      NOT: { blocks: { array_contains: [{ kind: "progress", acknowledgment: true }] } },
       ...(channelId
         ? {
             OR: [

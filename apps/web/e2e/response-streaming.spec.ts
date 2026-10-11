@@ -6,6 +6,33 @@ const fixture = "/e2e/fixtures/response-streaming.html";
 const LIVE_TOKENS = "Lisbon is the cap";
 const COMPLETE_TEXT = "Lisbon is the capital of Portugal.";
 
+test("accepted requests show a durable receipt before model output, even with streaming off", async ({
+  page,
+}, testInfo) => {
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${fixture}?view=thread&stream=off&ack=on&phase=queued`);
+    await expect(page.getByTestId("message-bot-bubble")).toContainText(
+      "Got it — I’ll look into your request:",
+    );
+    await expect(page.getByTestId("message-bot-bubble")).toContainText(
+      "What's the capital of Portugal?",
+    );
+    await expect(page.getByTestId("run-status")).toContainText("Queued…");
+    await expect(page.locator(".rk-chat-markdown-cursor")).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId("message-bot-bubble")).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await capture(page, testInfo, `task-receipt-${width}`, { clip: true });
+  }
+  await page.goto(`${fixture}?view=thread&stream=off&ack=on&phase=done`);
+  await expect(page.getByTestId("message-bot-bubble")).toHaveCount(2);
+  await expect(page.getByTestId("message-bot-bubble").last()).toContainText(COMPLETE_TEXT);
+  await expect(page.getByTestId("run-status")).toHaveText("Done");
+});
+
 async function openFixture(
   page: Page,
   query: { view: "settings" | "thread"; stream: "on" | "off"; phase?: "live" | "done" },
