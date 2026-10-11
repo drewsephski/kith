@@ -1,9 +1,8 @@
 import { useState } from "react";
 import type { ViewProps } from "react-native";
 import { Alert, Pressable, Text, View } from "react-native";
-import { mobileTokens } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
-import { native } from "../lib/native";
+import { native, useMobileTokens } from "../lib/native";
 import { errorText } from "../lib/user-error";
 import { NativeActionButton } from "./native-action-button";
 
@@ -33,7 +32,7 @@ export function AskActions({
   onAccessibilityAction?: ViewProps["onAccessibilityAction"];
 }) {
   const { t } = useI18n();
-  const tokens = mobileTokens();
+  const tokens = useMobileTokens();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const submitting = pendingAction !== null;
 
@@ -68,7 +67,6 @@ export function AskActions({
               prominence={action.id === "allow" ? "primary" : "secondary"}
               busy={pendingAction === action.id}
               disabled={disabled || submitting || (action.id === "allow" && !emailPreviewAvailable)}
-              size="compact"
               fill={false}
               onPress={() => void submit(action.id)}
             />
@@ -79,6 +77,8 @@ export function AskActions({
             key={action.id}
             accessibilityActions={accessibilityActions}
             onAccessibilityAction={onAccessibilityAction}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: Boolean(disabled || submitting) }}
             disabled={disabled || submitting}
             onPress={() => void submit(action.id)}
             style={{

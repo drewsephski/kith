@@ -10,6 +10,8 @@ import { NativeActionButton as IosButton } from "../components/native-action-but
 const platform = vi.hoisted(() => ({ OS: "ios", Version: 26 }));
 const swiftButton = vi.hoisted(() => vi.fn());
 const swiftLabel = vi.hoisted(() => vi.fn());
+const swiftText = vi.hoisted(() => vi.fn());
+const swiftProgress = vi.hoisted(() => vi.fn());
 const appearance = vi.hoisted(() => ({ value: "light" as "light" | "dark" }));
 const swiftHost = vi.hoisted(() => vi.fn());
 
@@ -60,8 +62,14 @@ vi.mock("@expo/ui/swift-ui", () => ({
     swiftLabel(props);
     return null;
   },
-  ProgressView: () => null,
-  Text: () => null,
+  ProgressView: (props: unknown) => {
+    swiftProgress(props);
+    return null;
+  },
+  Text: (props: unknown) => {
+    swiftText(props);
+    return null;
+  },
 }));
 vi.mock("@expo/ui/swift-ui/modifiers", () => {
   const modifier = (name: string) => (value: unknown) => ({ name, value });
@@ -87,6 +95,8 @@ beforeEach(() => {
   appearance.value = "light";
   swiftButton.mockClear();
   swiftLabel.mockClear();
+  swiftText.mockClear();
+  swiftProgress.mockClear();
   swiftHost.mockClear();
 });
 
@@ -197,8 +207,14 @@ describe("compact native actions", () => {
       />,
     );
     expect(swiftButton.mock.lastCall?.[0]).toMatchObject({
-      label: "Keyboard",
+      label: undefined,
       systemImage: "keyboard",
+    });
+    expect(swiftLabel.mock.lastCall?.[0]).toMatchObject({
+      title: "Keyboard",
+      modifiers: [
+        { name: "foregroundStyle", value: tokensForAppearance("light").primaryForeground },
+      ],
     });
     renderToStaticMarkup(
       <IosButton label="Ctrl" size="compact" fill selected={false} onPress={() => {}} />,
@@ -211,7 +227,7 @@ describe("compact native actions", () => {
     );
   });
   it.each(["light", "dark"] as const)(
-    "uses the filled foreground for enabled selected icons in %s mode",
+    "uses contrasting foregrounds for enabled and disabled selected icons in %s mode",
     (scheme) => {
       appearance.value = scheme;
       for (const disabled of [false, true]) {
@@ -228,15 +244,12 @@ describe("compact native actions", () => {
           />,
         );
         const { modifiers } = swiftLabel.mock.lastCall![0];
-        expect(
-          modifiers.some((modifier: { name: string }) => modifier.name === "foregroundStyle"),
-        ).toBe(!disabled);
-        if (!disabled) {
-          expect(modifiers).toContainEqual({
-            name: "foregroundStyle",
-            value: tokensForAppearance(scheme).primaryForeground,
-          });
-        }
+        expect(modifiers).toContainEqual({
+          name: "foregroundStyle",
+          value: disabled
+            ? tokensForAppearance(scheme).foreground
+            : tokensForAppearance(scheme).primaryForeground,
+        });
       }
     },
   );
@@ -266,5 +279,50 @@ describe("compact native actions", () => {
     expect(host.querySelector("button")?.getAttribute("aria-label")).toBe("Keyboard");
     expect(host.querySelector("button")?.style.backgroundColor).toBe("transparent");
     expect(host.querySelector("i")).not.toBeNull();
+  });
+});
+
+describe("primary action contrast", () => {
+  it.each([18, 26])("uses a contrasting label at every width on iOS %s", (version) => {
+    platform.Version = version;
+    for (const scheme of ["light", "dark"] as const) {
+      appearance.value = scheme;
+      for (const fill of [false, true]) {
+        for (const size of ["compact", "default"] as const) {
+          renderToStaticMarkup(
+            <IosButton label="Send" fill={fill} size={size} onPress={() => {}} />,
+          );
+          expect(swiftButton.mock.lastCall?.[0].label).toBeUndefined();
+          expect(swiftText.mock.lastCall?.[0]).toMatchObject({
+            children: "Send",
+            modifiers: expect.arrayContaining([
+              { name: "foregroundStyle", value: tokensForAppearance(scheme).primaryForeground },
+            ]),
+          });
+          expect(swiftButton.mock.lastCall?.[0].modifiers).toContainEqual({
+            name: "controlSize",
+            value: size === "compact" ? "small" : "large",
+          });
+        }
+      }
+    }
+  });
+
+  it.each(["light", "dark"] as const)("keeps pending actions visible in %s mode", (scheme) => {
+    appearance.value = scheme;
+    renderToStaticMarkup(<IosButton label="Send" fill={false} busy onPress={() => {}} />);
+    expect(swiftButton.mock.lastCall?.[0].onPress).toBeUndefined();
+    expect(swiftButton.mock.lastCall?.[0].modifiers).toContainEqual({
+      name: "accessibilityLabel",
+      value: "Send",
+    });
+    expect(swiftProgress.mock.lastCall?.[0].modifiers).toContainEqual({
+      name: "tint",
+      value: tokensForAppearance(scheme).foreground,
+    });
+    expect(swiftProgress.mock.lastCall?.[0].modifiers).toContainEqual({
+      name: "controlSize",
+      value: "small",
+    });
   });
 });

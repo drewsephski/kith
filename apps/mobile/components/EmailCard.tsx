@@ -1,13 +1,65 @@
 import type { EmailCard as EmailBlock, EmailContent, EmailDraftEdits } from "@rakazo/contracts";
 import { useRef, useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import type { TextStyle } from "react-native";
+import { StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import type { MobileMessage } from "../lib/api";
 import { rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
+import { stacksAtTextScale } from "../lib/text-scale";
 import { useThreadReadOnly } from "../lib/thread-read-only";
 import { errorText } from "../lib/user-error";
 import { NativeActionButton } from "./native-action-button";
+
+type EmailTextStyle = TextStyle & { fontSize: number; lineHeight: number };
+
+/** Text owns the layout so a multiline input cannot clip its own content. */
+function EmailTextField({
+  value,
+  label,
+  onChange,
+  maxLength,
+  style,
+}: {
+  value: string;
+  label: string;
+  onChange: (value: string) => void;
+  maxLength: number;
+  style: EmailTextStyle;
+}) {
+  const { fontScale } = useWindowDimensions();
+  // Text and TextInput otherwise recalculate native Dynamic Type at different
+  // times. Scale both together so their line wrapping and height always agree.
+  const scaledStyle = {
+    ...style,
+    fontSize: style.fontSize * fontScale,
+    lineHeight: style.lineHeight * fontScale,
+  };
+  return (
+    <View style={{ minHeight: scaledStyle.lineHeight }}>
+      <Text
+        allowFontScaling={false}
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={[scaledStyle, { opacity: 0 }]}
+      >
+        {`${value}\u200b`}
+      </Text>
+      <TextInput
+        allowFontScaling={false}
+        accessibilityLabel={label}
+        value={value}
+        onChangeText={onChange}
+        maxLength={maxLength}
+        multiline
+        scrollEnabled={false}
+        textAlignVertical="top"
+        style={[StyleSheet.absoluteFill, scaledStyle, { padding: 0 }]}
+      />
+    </View>
+  );
+}
 
 export function EmailPreview({
   email,
@@ -16,9 +68,17 @@ export function EmailPreview({
   email: EmailContent;
   onChange?: (edits: EmailDraftEdits) => void;
 }) {
-  const [bodyHeight, setBodyHeight] = useState(20);
   const tokens = useMobileTokens();
   const { t } = useI18n();
+  const { fontScale } = useWindowDimensions();
+  const stacked = stacksAtTextScale(fontScale);
+  const subjectStyle: EmailTextStyle = {
+    color: tokens.foreground,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "600",
+  };
+  const bodyStyle: EmailTextStyle = { color: tokens.foreground, fontSize: 15, lineHeight: 22 };
   const headers = [
     [t("Account"), email.account],
     [t("From"), email.from === email.account ? undefined : email.from],
@@ -28,40 +88,33 @@ export function EmailPreview({
     [t("Attachments"), email.attachments?.join(", ")],
   ];
   return (
-    <View style={{ gap: 6, width: "100%" }}>
+    <View style={{ gap: 8, width: "100%" }}>
       {onChange ? (
-        <TextInput
-          accessibilityLabel={t("Email subject")}
+        <EmailTextField
+          label={t("Email subject")}
           value={email.subject}
-          onChangeText={(subject) => onChange({ subject, body: email.body })}
+          onChange={(subject) => onChange({ subject, body: email.body })}
           maxLength={1000}
-          style={{
-            color: tokens.foreground,
-            fontSize: 13,
-            lineHeight: 20,
-            fontWeight: "500",
-            padding: 0,
-          }}
+          style={subjectStyle}
         />
       ) : (
-        <Text
-          selectable
-          style={{ color: tokens.foreground, fontSize: 13, lineHeight: 20, fontWeight: "500" }}
-        >
+        <Text selectable style={subjectStyle}>
           {email.subject || t("No subject")}
         </Text>
       )}
       {headers
         .filter(([, value]) => value)
         .map(([label, value]) => (
-          <View key={label} style={{ flexDirection: "row", gap: 8 }}>
+          <View
+            key={label}
+            style={{ flexDirection: stacked ? "column" : "row", gap: stacked ? 2 : 8 }}
+          >
             <Text
               style={{
                 color: tokens.mutedForeground,
-                opacity: 0.8,
-                fontSize: 10,
-                lineHeight: 15,
-                width: 60,
+                fontSize: 13,
+                lineHeight: 20,
+                ...(stacked ? {} : { width: 80 }),
               }}
             >
               {label}
@@ -70,10 +123,9 @@ export function EmailPreview({
               selectable
               style={{
                 color: tokens.foreground,
-                opacity: 0.75,
-                fontSize: 11,
-                lineHeight: 15,
-                flex: 1,
+                fontSize: 14,
+                lineHeight: 20,
+                ...(stacked ? {} : { flex: 1 }),
                 flexShrink: 1,
               }}
             >
@@ -82,27 +134,19 @@ export function EmailPreview({
           </View>
         ))}
       <View style={{ borderTopWidth: 1, borderColor: tokens.border, paddingTop: 8 }}>
-        <TextInput
-          accessibilityLabel={t("Email body")}
-          value={email.body}
-          onChangeText={(body) => onChange?.({ subject: email.subject, body })}
-          editable={Boolean(onChange)}
-          maxLength={50000}
-          multiline
-          scrollEnabled={false}
-          textAlignVertical="top"
-          onContentSizeChange={(event) =>
-            setBodyHeight(Math.max(20, Math.ceil(event.nativeEvent.contentSize.height)))
-          }
-          style={{
-            color: tokens.foreground,
-            opacity: 0.9,
-            fontSize: 12,
-            lineHeight: 20,
-            height: bodyHeight,
-            padding: 0,
-          }}
-        />
+        {onChange ? (
+          <EmailTextField
+            label={t("Email body")}
+            value={email.body}
+            onChange={(body) => onChange({ subject: email.subject, body })}
+            maxLength={50000}
+            style={bodyStyle}
+          />
+        ) : (
+          <Text selectable style={bodyStyle}>
+            {email.body}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -201,7 +245,6 @@ export function EmailCard({
           busy={busy}
           disabled={readOnly || accepted || !message.botId}
           fill={false}
-          size="compact"
           onPress={() => void act()}
         />
       </View>

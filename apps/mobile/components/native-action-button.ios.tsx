@@ -36,7 +36,21 @@ export function NativeActionButton({
   const inactive = disabled || busy;
   const stretches = actionFills(prominence, fill);
   const small = size === "compact";
+  const large = stretches || (prominence !== "plain" && prominence !== "quiet");
   const effectiveProminence = actionProminence(prominence, selected);
+  // Native label shortcuts choose white text for a prominent tint, including our
+  // light primary fill in dark mode. Custom labels use the matching foreground.
+  const customLabel = busy || stretches || effectiveProminence === "primary";
+  const labelModifiers = [
+    ...(stretches
+      ? [frame({ maxWidth: Infinity, minHeight: small ? 16 : 24 })]
+      : small
+        ? []
+        : [frame({ minHeight: 24 })]),
+    ...(effectiveProminence === "primary"
+      ? [foregroundStyle(inactive ? tokens.foreground : tokens.primaryForeground)]
+      : []),
+  ];
   const role = prominence === "destructive" ? "destructive" : "default";
   const color =
     effectiveProminence === "destructive"
@@ -57,14 +71,14 @@ export function NativeActionButton({
       ]}
     >
       <Button
-        label={busy || stretches ? undefined : (label ?? accessibilityLabel)}
+        label={customLabel ? undefined : (label ?? accessibilityLabel)}
         systemImage={icon?.ios as never}
         onPress={inactive ? undefined : onPress}
         role={role}
         modifiers={[
           buttonStyle(swiftStyle(effectiveProminence)),
           controlSize(
-            small ? "small" : stretches ? "large" : prominence === "quiet" ? "small" : "regular",
+            small ? "small" : large ? "large" : prominence === "quiet" ? "small" : "regular",
           ),
           ...(small ? [font({ size: 13 })] : []),
           ...(icon && !label ? [labelStyle("iconOnly")] : []),
@@ -89,31 +103,19 @@ export function NativeActionButton({
           <ProgressView
             modifiers={[
               progressViewStyle("circular"),
-              ...(stretches ? [frame({ maxWidth: Infinity })] : []),
+              controlSize("small"),
+              frame({ ...(stretches ? { maxWidth: Infinity } : {}), minHeight: small ? 16 : 24 }),
+              ...(effectiveProminence === "primary" ? [tint(tokens.foreground)] : []),
             ]}
           />
-        ) : stretches && icon ? (
+        ) : customLabel && icon ? (
           <Label
             title={label ?? accessibilityLabel}
             systemImage={icon.ios as never}
-            modifiers={[
-              frame({ maxWidth: Infinity, ...(small ? { minHeight: 16 } : {}) }),
-              ...(!inactive && effectiveProminence === "primary"
-                ? [foregroundStyle(tokens.primaryForeground)]
-                : []),
-            ]}
+            modifiers={labelModifiers}
           />
-        ) : stretches ? (
-          <Text
-            modifiers={[
-              frame({ maxWidth: Infinity, ...(small ? { minHeight: 16 } : {}) }),
-              ...(!inactive && effectiveProminence === "primary"
-                ? [foregroundStyle(tokens.primaryForeground)]
-                : []),
-            ]}
-          >
-            {label}
-          </Text>
+        ) : customLabel ? (
+          <Text modifiers={labelModifiers}>{label}</Text>
         ) : undefined}
       </Button>
     </Host>
