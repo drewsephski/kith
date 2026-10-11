@@ -10,7 +10,7 @@ test("a visible reply keeps run activity without duplicating the avatar", async 
   await expect(page.locator('[data-message-id="final-reply"]')).toBeVisible();
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
   const activity = page.getByTestId("active-bot-glyph");
-  await expect(activity).toContainText("Working…");
+  await expect(activity).toContainText("Preparing a response…");
   await expect(activity.locator("img[data-working]")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "conversation-response-started");
 });
@@ -24,7 +24,7 @@ test("the footer avatar disappears on first text and stays hidden when streaming
   await expect(indicator.locator("img[data-working]")).toHaveCount(1);
   await page.getByRole("button", { name: "Start response" }).click();
   await expect(page.getByTestId("assistant-response-row")).toContainText("I");
-  await expect(indicator).toContainText("Working…");
+  await expect(indicator).toContainText("Preparing a response…");
   await expect(indicator.locator("img[data-working]")).toHaveCount(0);
   await page.getByRole("button", { name: "Save response" }).click();
   await expect(page.locator('[data-message-id="final-reply"]')).toBeVisible();
@@ -46,7 +46,7 @@ test("a group reply keeps the loading indicator for a member that has not respon
   await expect(activity).toHaveCount(2);
   await expect(activity.filter({ hasText: "Kith:" }).locator("img[data-working]")).toHaveCount(0);
   const research = activity.filter({ hasText: "Research:" });
-  await expect(research).toContainText("Working…");
+  await expect(research).toContainText("Preparing a response…");
   await expect(research.locator(".rakazo-group-avatar")).toBeVisible();
 });
 
@@ -135,7 +135,7 @@ test("long replies and streaming stay inside narrow and split-panel layouts", as
     await page.goto(`${fixture}?streaming=on`);
     await expect(page.getByTestId("assistant-response-row")).toBeVisible();
     const activity = page.getByTestId("active-bot-glyph");
-    await expect(activity).toContainText("Working…");
+    await expect(activity).toContainText("Preparing a response…");
     await expect(activity.locator("img[data-working]")).toHaveCount(0);
     await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
     await captureScreenshot(page, testInfo, `conversation-streaming-${width}`);
