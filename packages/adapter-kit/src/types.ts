@@ -185,8 +185,10 @@ export interface AgentToolExecutionResult {
   details: unknown;
 }
 
-/** Hooks for a tool call that can report output before it returns. */
+/** Runtime-owned tool restrictions and hooks for output before a call returns. */
 export interface AgentToolExecutionObserver {
+  /** Runtime-owned helper restriction; model arguments cannot enable delegation. */
+  allowDelegation?: boolean;
   /**
    * A shell command has already produced output and is still running.
    * Resolves with the final redacted result when the process exits.

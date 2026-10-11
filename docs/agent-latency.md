@@ -86,7 +86,8 @@ reports were discarded. Final runs count only nonempty assistant text/deltas wit
   startup. Shared and private computers retain the existing lifecycle implementation.
   Scripted file output also renews both leases before writing.
 - A conservative deterministic conversation profile uses the existing lazy tool
-  catalog's three schemas. Connector discovery and detailed capability instructions
+  catalog's three wrappers plus direct runtime controls for questions, takeover and
+  delegation (six schemas in the configured-computer fixture). Connector discovery and detailed capability instructions
   are deferred. Saved memory, scratchpad, recent history, retrieval, safety guidance,
   skills, model selection, and approval handlers remain available. Ambiguous,
   resumed, group, attachment, personal-source, and consequential requests use the
@@ -222,7 +223,8 @@ has not been measured.
 
 Acknowledgment was already quick: cold arithmetic acceptance p50 was
 **10.3 → 9.5 ms** in process. No timer or premature status was used to claim a gain.
-Greeting tool schemas fell **53 → 3**, **33,281 → 1,085 bytes (97% smaller)**;
+The initial three-schema sweep measured **53 → 3**, **33,281 → 1,085 bytes**.
+That inventory is superseded by the final six-schema runtime-control sweep below;
 message/system bytes fell **12,292 → 3,660 (70% smaller)**. Cold conversational
 runs performed **zero** computer provisions/preparations and connector discoveries.
 Baseline cold greetings performed one of each. Warm greetings also avoid the
@@ -303,7 +305,7 @@ screenshot behavior using the cached local computer image.
 | `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 1,000 tests passed, including shared attachment size retention and late delivery/notification-setting regressions |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
-| Final latency comparisons | 1,300 successful runs: 560 per revision, 80 concurrent per revision, 20 reconnect runs |
+| Main latency comparisons | 1,300 successful runs: 560 per revision, 80 concurrent per revision, 20 reconnect runs |
 | `pnpm lint` | Passed on the integrated revision; existing warnings remain |
 | `git diff --check` | Passed |
 
@@ -330,7 +332,7 @@ with zero computer startup or connector discovery and three tool schemas. Those
 runs shared resources with browser/type-check validation and are recorded as
 correctness evidence, not a new controlled latency comparison.
 
-A final controlled 80-trial simple-turn sweep on `bcf3e614` runs serially after
+An earlier controlled 80-trial simple-turn sweep on `bcf3e614` runs serially after
 review fixes, with the same local Postgres engine and injected delays as the
 original baseline and no concurrent local tests or builds. Remote CI runs
 separately. Rounded p50/p95 measurements are:
@@ -395,3 +397,37 @@ and the complete live-notification demonstration on `9dc36f02`; its following sm
 flow found the demonstration had left the system notification shade open. The
 demonstration now closes that shade after verifying notification removal. The smoke
 flow still requires actual cold introduction readiness and every subsequent assertion.
+
+### Final runtime-control inventory
+
+A capability audit found that routing runtime-owned `ask_user`, `request_takeover`
+and `run_subagent` through the executor catalog bypassed their runtime handlers.
+They now remain directly available beside the three wrappers and are excluded
+from catalog execution. Helpers retain their existing bot-management/delegation
+restriction through a runtime-owned flag applied to catalog discovery and execution.
+This uses the existing registry and handlers; it adds no classifier call or model
+switch. The additional schemas are a deliberate correctness trade-off.
+
+A new controlled 80-trial sweep after `c38c2276` includes those controls and the
+helper guard, with identical Postgres, injected delays and temperature definitions,
+and no concurrent local tests or builds. It supersedes the earlier three-schema
+simple-turn measurements for the shipped profile. Source-file and report hashes
+are included in `runtimeControlSimpleLatency` in the aggregate JSON.
+
+| Scenario | Computer | Baseline first safe text | Final first safe text | Final completion | Final setup |
+| --- | --- | ---: | ---: | ---: | ---: |
+| greeting | cold | 356 / 435 | 115 / 121 | 123 / 134 | 60 / 68 |
+| greeting | warm | 345 / 359 | 109 / 113 | 118 / 126 | 58 / 62 |
+| arithmetic | cold | 350 / 536 | 112 / 115 | 121 / 125 | 59 / 63 |
+| arithmetic | warm | 358 / 513 | 110 / 117 | 119 / 127 | 59 / 63 |
+
+Each row contains 20 successful trials; values are milliseconds, p50 / p95.
+Cold arithmetic first-safe-text p50 is **68% below baseline**. Every trial retains
+zero computer provisioning, preparation and connector discovery, and one model
+call. The configured-computer conversational inventory is **six schemas**,
+**2,830 bytes versus 33,281 bytes (91% smaller)**; greeting system/message bytes
+remain 3,660 versus 12,292. Earlier three-schema counts are development evidence,
+not the final inventory. These remain emulator measurements with unknown provider
+token/cache usage and no physical iOS timing claim. All 165 focused executor,
+connection and Pi runtime regressions, repository lint and all 22 package checks
+pass after this capability fix.

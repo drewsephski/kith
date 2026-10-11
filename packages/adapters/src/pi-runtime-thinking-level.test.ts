@@ -1,4 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentToolExecutionObserver } from "@rakazo/adapter-kit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { builtinAgentTools } from "./builtin-tools.js";
 
@@ -17,6 +18,8 @@ const fakeAgentState = vi.hoisted(() => ({
   lastSubagentResult: undefined as unknown,
   failPrompt: false,
   abortCalls: 0,
+  probeObserver: false,
+  delegationPermissions: [] as Array<boolean | undefined>,
 }));
 
 type FakeAgentTool = {
@@ -53,6 +56,8 @@ vi.mock("@earendil-works/pi-agent-core", () => ({
         "subagent-call",
         fakeAgentState.subagentArgs,
       );
+      if (fakeAgentState.probeObserver)
+        await this.tools.find((tool) => tool.name === "list_files")?.execute("probe-call", {});
     }
     async waitForIdle() {}
     abort() {
@@ -164,7 +169,19 @@ async function runWithModel(
         maxImagesPerPrompt,
         ...limits,
       },
-      executeTool: vi.fn(async () => ({ ok: true })),
+      executeTool: vi.fn(
+        async (
+          _name: string,
+          _args: Record<string, unknown>,
+          _executionId: string,
+          _route?: unknown,
+          observer?: AgentToolExecutionObserver,
+        ) => {
+          if (fakeAgentState.probeObserver)
+            fakeAgentState.delegationPermissions.push(observer?.allowDelegation);
+          return { ok: true };
+        },
+      ),
       resolveModel,
     },
     {
@@ -205,6 +222,8 @@ describe("Pi agent thinking level", () => {
     fakeAgentState.subagentArgs = { name: "helper", task: "help" };
     fakeAgentState.lastSubagentResult = undefined;
     fakeAgentState.failPrompt = false;
+    fakeAgentState.probeObserver = false;
+    fakeAgentState.delegationPermissions = [];
     vi.unstubAllEnvs();
   });
 
@@ -229,6 +248,12 @@ describe("Pi agent thinking level", () => {
         "conversation",
       ),
     ).toEqual(["low", "medium"]);
+  });
+
+  it("passes a runtime-owned delegation restriction to helper tool execution", async () => {
+    fakeAgentState.probeObserver = true;
+    await runWithModel("reasoning-model");
+    expect(fakeAgentState.delegationPermissions).toEqual([false, true]);
   });
 
   it("uses balanced implicit effort when a conversation receives additional steering", async () => {

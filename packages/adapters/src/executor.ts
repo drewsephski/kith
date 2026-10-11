@@ -201,7 +201,12 @@ import {
   browserNavigateFromTool,
   browserSnapshotFromTool,
 } from "./browser-tools.js";
-import { agentConnectionTools, builtinAgentTools, sharedMemorySaveError } from "./builtin-tools.js";
+import {
+  agentConnectionTools,
+  builtinAgentTools,
+  DELEGATION_TOOL_NAMES,
+  sharedMemorySaveError,
+} from "./builtin-tools.js";
 import { archiveSpawnedBot, spawnBot } from "./child-bots.js";
 import { type CloudAgentConnection, cloudAgentsEnabled } from "./cloud-agent-factory.js";
 import { executeCloudAgentTool } from "./cloud-agent-service.js";
@@ -393,6 +398,9 @@ import {
 } from "./user-progress.js";
 import { createWebProvider } from "./web-provider-factory.js";
 import { webFetchFromTool, webSearchFromTool } from "./web-tools.js";
+
+// These controls are interpreted by the runtime, not the executor's effect handler.
+const RUNTIME_CONTROL_TOOL_NAMES = new Set(["ask_user", "request_takeover", "run_subagent"]);
 
 const READ_ONLY_AGENT_TOOLS = new Set([
   "computer_observe",
@@ -4110,7 +4118,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           run.trigger === "created"
             ? []
             : profile === "conversation"
-              ? conversationCatalogTools
+              ? [
+                  ...conversationCatalogTools,
+                  ...builtins.filter((tool) => RUNTIME_CONTROL_TOOL_NAMES.has(tool.name)),
+                ]
               : availableTools;
         let catalogPromise: Promise<ReturnType<typeof catalogEntries>> | undefined;
         const loadRunCatalog = () =>
@@ -4118,7 +4129,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             for (const tool of discovered) {
               if (!BUILTIN_AGENT_TOOL_NAMES.has(tool.name)) connectorTools.set(tool.name, tool);
             }
-            return catalogEntries([...builtins, ...Array.from(connectorTools.values())]);
+            return catalogEntries([
+              ...builtins.filter((tool) => !RUNTIME_CONTROL_TOOL_NAMES.has(tool.name)),
+              ...Array.from(connectorTools.values()),
+            ]);
           }));
         const taskCatalogInstruction = tools.some((tool) => tool.name === "task_catalog")
           ? TASK_CATALOG_GUIDANCE
@@ -4351,7 +4365,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
               ? conversationCatalogTools.find((tool) => tool.name === name)
               : undefined;
           if (catalogControl) {
-            const entries = await loadRunCatalog();
+            const allEntries = await loadRunCatalog();
+            const entries =
+              observer?.allowDelegation === false
+                ? allEntries.filter((entry) => !DELEGATION_TOOL_NAMES.has(entry.tool.name))
+                : allEntries;
             if (catalogControl.route?.toolName === CATALOG_SEARCH)
               return searchCatalog(entries, args);
             const entry = loadCatalogEntry(entries, args);
@@ -4381,6 +4399,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
           if (disabledBuiltinTools.has(name)) {
             return { error: "This tool is disabled for this bot." };
           }
+          if (observer?.allowDelegation === false && DELEGATION_TOOL_NAMES.has(name))
+            return { error: "Short helpers cannot manage or delegate to other bots." };
           if (PAGE_BROWSER_TOOL_NAMES.has(name) && !pageBrowserAllowed) {
             return { error: "Page browser is unavailable on this computer." };
           }

@@ -80,6 +80,8 @@ async function runWithModel(
     computerWaitRetries?: number;
     preparationFailure?: string;
     swallowPreparationFailure?: boolean;
+    inspectRuntimeControls?: boolean;
+    inspectHelperDelegation?: boolean;
   },
 ) {
   const run = {
@@ -109,6 +111,37 @@ async function runWithModel(
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;
+    if (scenario?.inspectRuntimeControls) {
+      for (const name of ["ask_user", "request_takeover", "run_subagent"]) {
+        expect(next.tools.some((tool) => tool.name === name)).toBe(true);
+        const result = (await next.executeTool?.(
+          "kith_search_tools",
+          { query: name },
+          `search-${name}`,
+        )) as { tools: Array<{ name: string }> };
+        expect(result.tools.some((tool) => tool.name === name)).toBe(false);
+      }
+    }
+    if (scenario?.inspectHelperDelegation) {
+      const observer = { allowDelegation: false };
+      const result = (await next.executeTool?.(
+        "kith_search_tools",
+        { query: "spawn_bot" },
+        "helper-search",
+        undefined,
+        observer,
+      )) as { tools: Array<{ name: string }> };
+      expect(result.tools.some((tool) => tool.name === "spawn_bot")).toBe(false);
+      expect(
+        await next.executeTool?.(
+          "spawn_bot",
+          { name: "Forbidden helper bot" },
+          "helper-spawn",
+          undefined,
+          observer,
+        ),
+      ).toEqual({ error: "Short helpers cannot manage or delegate to other bots." });
+    }
     if (scenario?.steeringAttachment) {
       const prior = vi.mocked(provisionComputer).mock.calls.length;
       if (scenario.steeringBusy)
@@ -500,9 +533,27 @@ describe("response latency", () => {
       "kith_search_tools",
       "kith_load_tool",
       "kith_execute_tool",
+      "request_takeover",
+      "ask_user",
+      "run_subagent",
     ]);
     expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount);
     expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount);
+  });
+
+  it("keeps runtime controls directly available without routing them through catalog effects", async () => {
+    await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      inspectRuntimeControls: true,
+    });
+  });
+
+  it("retains helper delegation restrictions through lazy catalog search and execution", async () => {
+    const { prisma } = await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      inspectHelperDelegation: true,
+    });
+    expect(prisma.externalEffect.create).not.toHaveBeenCalled();
   });
 
   it("materializes an image-only current turn before inference", async () => {

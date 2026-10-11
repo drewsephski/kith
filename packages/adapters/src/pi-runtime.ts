@@ -1368,6 +1368,7 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
               executionId,
               tool.route,
               {
+                allowDelegation: host.depth === 0,
                 onShellStillRunning: (completion) => {
                   host.pendingShells.push(completion);
                 },
