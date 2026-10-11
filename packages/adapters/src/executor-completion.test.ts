@@ -325,6 +325,10 @@ describe("runReplyGuidance", () => {
     expect(runPromotesMidTurnNarration("user")).toBe(true);
     expect(runReplyGuidance("user")).toBe(LONG_WORK_PROGRESS_GUIDANCE);
     expect(runReplyGuidance("user")).toContain("message_user");
+    expect(runReplyGuidance("user")).toContain("Before starting tool-based work");
+    expect(runReplyGuidance("user")).toContain(
+      "continue executing without waiting for another reply",
+    );
     expect(runReplyGuidance("messaging")).toBe(LONG_WORK_PROGRESS_GUIDANCE);
   });
 });

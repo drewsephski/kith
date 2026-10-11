@@ -1,7 +1,7 @@
 vi.mock("expo-constants", () => ({ default: { expoConfig: { extra: {} } } }));
 vi.mock("./ai-consent", () => ({ promptAiConsent: vi.fn() }));
 
-import { withLiveStreamingProgress } from "@rakazo/core";
+import { taskAcknowledgmentBlocks, withLiveStreamingProgress } from "@rakazo/core";
 import * as SecureStore from "expo-secure-store";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { promptAiConsent } from "./ai-consent";
@@ -2407,6 +2407,31 @@ describe("discarded mobile thread refresh cursor", () => {
 });
 
 describe("mobile thread event reduction", () => {
+  it("renders an acceptance receipt without settling the queued task", () => {
+    const queued: MobileSnapshot = { ...snapshot(), run: { id: "run-1", status: "queued" } };
+    const next = applyMobileThreadEvent(queued, {
+      type: "thread.message.created",
+      seq: 4,
+      runId: "run-1",
+      botId: "bot-1",
+      payload: {
+        messageId: "ack-1",
+        role: "bot",
+        acknowledgment: true,
+        blocks: taskAcknowledgmentBlocks([{ kind: "text", text: "Plan my week" }]),
+      },
+    });
+    expect(withLiveStreamingProgress(next, false)?.messages[0]?.id).toBe("ack-1");
+    expect(next?.run?.status).toBe("queued");
+    const failed = applyMobileThreadEvent(next, {
+      type: "run.failed",
+      seq: 5,
+      runId: "run-1",
+      payload: { error: "Unavailable" },
+    });
+    expect(failed?.run?.status).toBe("failed");
+    expect(failed?.messages[0]?.id).toBe("ack-1");
+  });
   it("appends an emoji reply with its exact target", () => {
     const initial = snapshot([mobileMessage("message-1", [{ kind: "text", text: "Done" }])]);
 

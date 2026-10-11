@@ -19,7 +19,7 @@ describe("task acknowledgments", () => {
 
   it("quotes markdown and HTML as literal text and bounds long input", () => {
     const blocks = taskAcknowledgmentBlocks([
-      { kind: "text", text: "![image](https://example.test) <img src=x> " + "😀".repeat(200) },
+      { kind: "text", text: `![image](https://example.test) <img src=x> ${"😀".repeat(200)}` },
     ]);
     const block = blocks[0];
     expect(block?.kind).toBe("progress");
