@@ -6283,3 +6283,7 @@ msgstr "이메일 주소"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "이름"
+
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "읽음"

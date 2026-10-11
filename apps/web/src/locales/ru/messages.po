@@ -6283,3 +6283,7 @@ msgstr "Ваш адрес электронной почты"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Ваше имя"
+
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "Прочитано"

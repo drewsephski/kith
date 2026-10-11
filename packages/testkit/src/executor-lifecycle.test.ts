@@ -70,6 +70,10 @@ describeIntegration("run executor lifecycle", () => {
     });
     expect(pending).toHaveLength(1);
     expect(pending[0]?.claimedAt).toBeNull();
+    const unread = await handles.prisma.message.findUniqueOrThrow({
+      where: { id: pending[0]!.messageId },
+    });
+    expect(unread.readAt).toBeNull();
     await handles.executor.continueRun(seeded.run.id, "scripted-worker");
     const [runs, steering, messages] = await Promise.all([
       handles.prisma.run.findMany({ where: { botId: seeded.bot.id } }),
@@ -80,6 +84,15 @@ describeIntegration("run executor lifecycle", () => {
     expect(runs[0]?.status).toBe("completed");
     expect(steering).toHaveLength(0);
     expect(JSON.stringify(messages)).toContain("Use revised totals.");
+    const read = await handles.prisma.message.findUniqueOrThrow({ where: { id: unread.id } });
+    expect(read.readAt).toBeInstanceOf(Date);
+    const started = await handles.prisma.event.findFirstOrThrow({
+      where: { runId: seeded.run.id, type: "run.started" },
+    });
+    expect(started.payload).toMatchObject({
+      readMessageIds: expect.arrayContaining([unread.id]),
+      readAt: expect.any(String),
+    });
   });
 
   it("reclaims an expired running lease with a higher fence", async () => {

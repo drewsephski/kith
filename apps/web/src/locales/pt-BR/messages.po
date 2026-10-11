@@ -6283,3 +6283,7 @@ msgstr "Seu endereço de e-mail"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "O seu nome"
+
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "Lida"

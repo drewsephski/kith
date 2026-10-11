@@ -3495,6 +3495,21 @@ export function createRunExecutor(deps: ExecutorDeps) {
               })
             : Promise.resolve(null),
         ]);
+        await deps.events.append({
+          spaceId: run.spaceId,
+          threadId: thread.id,
+          botId: bot.id,
+          type: "run.started",
+          runId,
+          payload: {
+            trigger: run.trigger,
+            routineId: run.routineId,
+            readMessageIds: messages
+              .filter((message) => message.role === "user")
+              .map((message) => message.id),
+          },
+        });
+
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
             ? (messages.find((message) => message.id === run.sourceMessageId)?.seq ??
@@ -3587,21 +3602,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
           ? effectiveMemoryScope(bot.memoryScope, configuredMemory.defaultScope)
           : null;
         const semanticMemory: SemanticMemoryProvider | null = configuredMemory?.provider ?? null;
-
-        await deps.events.append({
-          spaceId: run.spaceId,
-          threadId: thread.id,
-          botId: bot.id,
-          type: "run.started",
-          runId,
-          payload: {
-            trigger: run.trigger,
-            routineId: run.routineId,
-            readMessageIds: messages
-              .filter((message) => message.role === "user")
-              .map((message) => message.id),
-          },
-        });
 
         const discoveredPromise = deps.connector
           ? deps.connector.discoverTools(context)

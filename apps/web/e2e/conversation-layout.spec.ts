@@ -205,7 +205,7 @@ test("new bot form fits mobile and cancellation is keyboard accessible", async (
   await expect(page.getByTestId("created-profile")).toHaveText("Cancelled");
 });
 
-test("shows Read under the latest consumed user message with no acknowledgment bubble", async ({
+test("shows Read beneath the user message while keeping the responding animation and text", async ({
   page,
 }, testInfo) => {
   for (const width of [1440, 375]) {
@@ -214,10 +214,13 @@ test("shows Read under the latest consumed user message with no acknowledgment b
     await expect(page.getByTestId("message-read-status")).toHaveCount(0);
     await page.goto(`${fixture}?working=off&read=older`);
     await expect(page.getByTestId("message-read-status")).toHaveCount(0);
-    await page.goto(`${fixture}?working=off&read=latest`);
+    await page.goto(`${fixture}?read=latest`);
     const receipt = page.locator('[data-message-id="inbox"]').getByTestId("message-read-status");
     await expect(receipt).toHaveText("Read");
     await expect(page.getByTestId("message-read-status")).toHaveCount(1);
+    const responding = page.getByTestId("active-bot-glyph");
+    await expect(responding).toContainText("Preparing a response…");
+    await expect(responding.locator("img[data-working]")).toHaveCount(1);
     const bubbleBox = await page
       .locator('[data-message-id="inbox"] [data-testid="message-bubble-frame"]')
       .boundingBox();
@@ -232,6 +235,7 @@ test("shows Read under the latest consumed user message with no acknowledgment b
     ).toBe(true);
     await page.reload();
     await expect(receipt).toHaveText("Read");
+    await expect(responding.locator("img[data-working]")).toHaveCount(1);
     await page.screenshot({
       path: testInfo.outputPath(`message-read-${width}.png`),
       fullPage: true,

@@ -4,6 +4,7 @@ export const RU_MESSAGES: Record<string, string> = {
   Photo: "Фото",
   Today: "Сегодня",
   Yesterday: "Вчера",
+  Read: "Прочитано",
   You: "Вы",
   "Original message unavailable": "Исходное сообщение недоступно",
   "No archived bots": "Нет архивированных ботов",

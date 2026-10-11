@@ -4,6 +4,7 @@ export const DE_MESSAGES: Record<string, string> = {
   Photo: "Foto",
   Today: "Heute",
   Yesterday: "Gestern",
+  Read: "Gelesen",
   You: "Du",
   "Original message unavailable": "Originalnachricht nicht verfügbar",
   "No archived bots": "Keine archivierten Bots",

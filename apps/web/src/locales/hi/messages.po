@@ -6283,3 +6283,7 @@ msgstr "आपका ईमेल पता"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "आपका नाम"
+
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "पढ़ा गया"

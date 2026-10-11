@@ -6283,3 +6283,7 @@ msgstr "你的邮箱"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "你的名字"
+
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "已读"
