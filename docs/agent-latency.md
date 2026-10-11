@@ -305,7 +305,12 @@ confirmation recovery, draft recovery, and `Off`. The formatting failures are in
 `conversation-drafts.ts`, `incoming-share.ts`, `thread-feedback.ts`, and
 `use-conversation-draft.ts`. Concurrent mobile work owns those files; it was
 preserved rather than folded into this isolated performance branch. The counts
-above describe this branch's baseline, not the state of that concurrent branch.
+above describe the isolated performance revision. Subsequent integration of the
+mobile hardening commit preserves its draft identity and screen-scope fixes while
+retaining response timing. Repository lint, all 22 package checks, benchmark/mobile
+type checks and all 993 mobile tests pass on the integrated revision. The original
+translation and formatting failures are fixed by that integration; the timing
+comparison remains against the original main baseline.
 
 The Postgres selection is reproducible with:
 
