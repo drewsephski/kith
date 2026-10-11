@@ -1400,6 +1400,7 @@ function Thread() {
           threadId: notificationThreadId,
         }).catch(() => undefined);
         markReadIfVisible();
+        if (!jumpScrollTarget.current && !expandedHistoryThread.current) void refresh().catch((cause) => setError(errorText(cause)));
         return;
       }
       void setOpenNotificationThread(null).catch(() => undefined);
@@ -2597,7 +2598,10 @@ function Thread() {
       style={{ flex: 1, backgroundColor: tokens.background, paddingHorizontal: 20 }}
     >
       {error ? (
-        <Text style={{ color: tokens.mutedForeground, marginTop: headerHeight + 28 }}>{error}</Text>
+        <View style={{ marginTop: headerHeight + 28, gap: 8 }}>
+          <Text accessibilityRole="alert" style={{ color: tokens.mutedForeground }}>{error}</Text>
+          <NativeActionButton label={t("Retry")} prominence="plain" onPress={() => void refresh().catch((cause) => setError(errorText(cause)))} />
+        </View>
       ) : null}
       {runError ? (
         <Text style={{ color: tokens.destructive, marginTop: error ? 12 : headerHeight + 28 }}>

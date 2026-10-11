@@ -5,6 +5,7 @@ import type { MobileMe } from "./api";
 import { captureMobileScreenScope, currentApiBase, mobileScreenScopeKey, rpc, selectedSpaceId } from "./api";
 import type { DraftScope, DurableDelivery, SavedConversationDraft } from "./conversation-drafts";
 import { parseSavedConversationDraft, readConversationDraft, writeConversationDraft } from "./conversation-drafts";
+import { t } from "./i18n";
 import { currentSessionGeneration, loadVerifiedIntegrationsScope } from "./session";
 
 /** Persist reviewable text and durable delivery identities, never temporary file handles. */
@@ -76,7 +77,7 @@ export function useConversationDraft(conversation: string | undefined, draft: Sa
   }, [prompt, ready, scopeKey, deliveries]);
   async function persist() {
     clearTimeout(saveTimer.current);
-    if (!scopeRef.current || !ownsScope.current()) throw new Error("Draft recovery is not ready. Try again.");
+    if (!scopeRef.current || !ownsScope.current()) throw new Error(t("Draft recovery is not ready. Try again."));
     await writeConversationDraft(scopeRef.current, encoded());
   }
   return { ready, error, deliveries,

@@ -21,7 +21,8 @@ vi.mock("./ui-direction", () => ({
 function collectSourceFiles(dir: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
+    // Native prebuild output vendors dependencies; only application sources own chrome copy.
+    if (["node_modules", "dist", "ios", "android", "build"].includes(entry.name)) continue;
     const path = join(dir, entry.name);
     if (entry.isDirectory()) files.push(...collectSourceFiles(path));
     else if (/\.(ts|tsx)$/.test(entry.name) && !entry.name.endsWith(".test.ts")) files.push(path);
