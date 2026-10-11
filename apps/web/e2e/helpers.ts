@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
+import type { Locator, Page, TestInfo } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 export function isRealSandboxProvider(provider = process.env.SANDBOX_PROVIDER) {
   return provider === "e2b" || provider === "daytona" || provider === "box";
@@ -107,6 +108,11 @@ export async function createBotFromPicker(
   await form.locator("label:has-text('Name') input").fill(name);
   if (options.title != null || options.computerMode != null) {
     await form.getByRole("button", { name: "More options", exact: true }).click();
+    const panel = form.locator('[data-slot="collapsible-content"]');
+    await expect(panel).not.toHaveAttribute("data-starting-style");
+    await panel.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
   }
   if (options.title != null) {
     await form.locator("label:has-text('Title') input").fill(options.title);
@@ -116,12 +122,28 @@ export async function createBotFromPicker(
   }
   if (options.computerMode === "dedicated") {
     await form.getByTestId("create-bot-private").click();
+    await expect(form.getByTestId("create-bot-private")).toHaveAttribute("aria-pressed", "true");
   } else if (options.computerMode === "team") {
     await form.getByTestId("create-bot-team").click();
+    await expect(form.getByTestId("create-bot-team")).toHaveAttribute("aria-pressed", "true");
   }
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForURL(/\/app\/[^/]+$/);
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+}
+
+/** Wait for lazy settings and disclosure layout before interacting below them. */
+export async function openBotSettingsAdvanced(settings: Locator) {
+  const advanced = settings.getByTestId("bot-settings-advanced");
+  const trigger = advanced.locator('[data-slot="collapsible-trigger"]');
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(advanced.getByTestId("bot-knowledge")).toBeVisible();
+  const panel = advanced.locator('[data-slot="collapsible-content"]');
+  await expect(panel).not.toHaveAttribute("data-starting-style");
+  await panel.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
 }
 
 /** Open the user Settings overlay, optionally switching to a sidebar section. */

@@ -5,6 +5,7 @@ import {
   chooseSelectOption,
   completeOnboarding,
   createNamedBot,
+  openBotSettingsAdvanced,
   rpc,
   signup,
 } from "./helpers";
@@ -28,10 +29,7 @@ test("command credentials add, replace and remove without leaking values", async
   await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings
-    .getByTestId("bot-settings-advanced")
-    .locator('[data-slot="collapsible-trigger"]')
-    .click();
+  await openBotSettingsAdvanced(settings);
   const credentials = settings.getByTestId("bot-credentials");
   await expect(credentials).toBeVisible();
   await expect(credentials.getByTestId("bot-credentials-empty")).toBeVisible();
@@ -109,10 +107,7 @@ test("command credentials refuse a reserved variable name before saving", async 
   await page.locator("main").getByRole("button", { name: botName, exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  await settings
-    .getByTestId("bot-settings-advanced")
-    .locator('[data-slot="collapsible-trigger"]')
-    .click();
+  await openBotSettingsAdvanced(settings);
   const credentials = settings.getByTestId("bot-credentials");
   await credentials.getByTestId("credential-add").click();
   const addForm = credentials.getByTestId("credential-add-form");

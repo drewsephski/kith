@@ -481,3 +481,13 @@ preparation or connector discovery. Prompt sizes remain 3,660/3,672 bytes.
 Provider token/cache fields remain unknown. The client timing regressions test
 early-frame reporting; this backend/SSE sweep still does not measure physical iOS
 painting or native keyboard geometry. Full current-head CI remains pending.
+
+The subsequent `2086a498` CI cycle passes 12 checks, including Android screenshots,
+notification demonstration and the complete smoke journey. Web passes 301 cases
+but fails two disclosure interactions: credential layout changes while lazy
+Knowledge mounts, and Private selection is clicked during expansion. Fixtures now
+wait for the real panel animation and Knowledge mount, and assert Private is
+pressed before submission. Four focused credential/private-computer journeys
+pass together; lint and web type checking pass. Persisted-mode and credential
+security assertions, per-step deadlines and production behavior are unchanged.
+The following exact-head CI cycle remains the merge gate.
