@@ -1,3 +1,4 @@
+import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   appendTextSegment,
@@ -785,6 +786,13 @@ describe("appendToolCallSegment", () => {
 });
 
 describe("createStreamingRedactor", () => {
+  it("streams safe text immediately even when credentials are much longer than the reply", () => {
+    const redactor = createStreamingRedactor([`fake-token-${"x".repeat(2048)}`]);
+    expect(redactor.push("Hello! ")).toBe("Hello! ");
+    expect(redactor.push("How can I help?")).toBe("How can I help?");
+    expect(redactor.finish()).toBe("");
+  });
+
   it("never emits a secret split across streaming chunks", () => {
     const redactor = createStreamingRedactor(["fake-secret-123"]);
     const output = [
@@ -811,20 +819,96 @@ describe("createStreamingRedactor", () => {
     expect(redactor.finish()).toBe("");
   });
 
-  it("does not emit a high surrogate when the secret hold window would split an emoji pair", () => {
-    const redactor = createStreamingRedactor(["abcdefghij"]); // length 10
+  it("streams a complete emoji while buffering only the following secret prefix", () => {
+    const redactor = createStreamingRedactor(["abcdefghij"]);
     const high = "\uD83D";
     const low = "\uDE00";
-    // safeStartLimit lands between high and low; the pair must stay buffered together.
-    expect(redactor.push(`x${high}${low}abcdefgh`)).toBe("x");
-    expect(redactor.push("ij done")).toBe("😀[redacted]");
-    expect(redactor.finish()).toBe(" done");
+    expect(redactor.push(`x${high}${low}abcdefgh`)).toBe("x😀");
+    expect(redactor.push("ij done")).toBe("[redacted] done");
+    expect(redactor.finish()).toBe("");
   });
+
+  it("releases a potential secret as soon as the next chunk rules it out", () => {
+    const redactor = createStreamingRedactor(["fake-secret-123"]);
+    expect(redactor.push("hello fake-se")).toBe("hello ");
+    expect(redactor.push("cond opinion")).toBe("fake-second opinion");
+    expect(redactor.finish()).toBe("");
+  });
+
+  it("releases an incomplete secret prefix at the end of the stream", () => {
+    const redactor = createStreamingRedactor(["fake-secret-123"]);
+    expect(redactor.push("hello fake-se")).toBe("hello ");
+    expect(redactor.finish()).toBe("fake-se");
+    expect(redactor.finish()).toBe("");
+  });
+
+  it.each([
+    {
+      secrets: ["abc", "abcdef"],
+      text: "before abcdef abc after",
+      expected: "before [redacted] [redacted] after",
+    },
+    { secrets: ["abc", "abcdef"], text: "abcde!", expected: "[redacted]de!" },
+    { secrets: ["abc", "abcdef"], text: "abcde", expected: "[redacted]de" },
+    { secrets: ["abab", "bab"], text: "ababab", expected: "[redacted]ab" },
+    {
+      secrets: ["fake", "token", ""],
+      text: "faketokenfake",
+      expected: "[redacted][redacted][redacted]",
+    },
+    {
+      secrets: ["😀key", "😀key-long"],
+      text: "hello 😀key-long! 😀 ok",
+      expected: "hello [redacted]! 😀 ok",
+    },
+  ])(
+    "redacts consistently at every pair of chunk boundaries: $text",
+    ({ secrets, text, expected }) => {
+      for (let first = 0; first <= text.length; first++) {
+        for (let second = first; second <= text.length; second++) {
+          const redactor = createStreamingRedactor(secrets);
+          const chunks = [text.slice(0, first), text.slice(first, second), text.slice(second)];
+          const emitted = chunks.map((chunk) => redactor.push(chunk));
+          expect([...emitted, redactor.finish()].join("")).toBe(expected);
+          for (const chunk of emitted) {
+            expect(chunk).toBe(sanitizeUtf16ForJson(chunk));
+          }
+        }
+      }
+    },
+  );
 
   it("replaces an orphaned high surrogate at end of stream", () => {
     const redactor = createStreamingRedactor([]);
     expect(redactor.push("end\uD83D")).toBe("end");
     expect(redactor.finish()).toBe("\uFFFD");
+  });
+
+  it("matches whole-text redaction for generated overlapping secrets and chunk layouts", () => {
+    const text = fc
+      .array(fc.constantFrom("a", "b", "c", "d", " ", "😀", "é"), { maxLength: 12 })
+      .map((characters) => characters.join(""));
+    fc.assert(
+      fc.property(
+        fc.array(text, { maxLength: 6 }),
+        fc.array(text, { maxLength: 10 }),
+        (secrets, chunks) => {
+          const input = chunks.join("");
+          const values = [...new Set(secrets.filter(Boolean))].sort((a, b) => b.length - a.length);
+          let expected = "";
+          for (let offset = 0; offset < input.length; ) {
+            const secret = values.find((value) => input.startsWith(value, offset));
+            expected += secret ? "[redacted]" : input[offset];
+            offset += secret?.length ?? 1;
+          }
+          const redactor = createStreamingRedactor(secrets);
+          expect([...chunks.map((chunk) => redactor.push(chunk)), redactor.finish()].join("")).toBe(
+            expected,
+          );
+        },
+      ),
+      { seed: 4242, numRuns: 500 },
+    );
   });
 });
 

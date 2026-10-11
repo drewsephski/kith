@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 21.8.0",
+    "version": ">= 22.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -14,6 +14,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "uploadSourceMaps": true,
       "environment": "production",
       "channel": "production",
       "ios": {

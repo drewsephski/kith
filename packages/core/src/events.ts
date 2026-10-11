@@ -546,7 +546,6 @@ export function sanitizeJsonValue<T>(value: T): T {
 
 export function createStreamingRedactor(secrets: string[]) {
   const values = [...new Set(secrets.filter(Boolean))].sort((a, b) => b.length - a.length);
-  const maxLength = values[0]?.length ?? 0;
   let buffer = "";
 
   const drain = (final: boolean) => {
@@ -555,11 +554,23 @@ export function createStreamingRedactor(secrets: string[]) {
       output = buffer;
       buffer = "";
     } else {
-      const safeStartLimit = final ? buffer.length : Math.max(0, buffer.length - maxLength + 1);
       let offset = 0;
       output = "";
-      while (offset < safeStartLimit) {
-        const secret = values.find((value) => buffer.startsWith(value, offset));
+      scan: while (offset < buffer.length) {
+        let secret: string | undefined;
+        for (const value of values) {
+          if (value.charCodeAt(0) !== buffer.charCodeAt(offset)) continue;
+          // Only a suffix that could complete a secret needs buffering. A fixed
+          // credential-length window can hide an entire otherwise safe reply.
+          // Check longer values first, including incomplete matches, so overlapping
+          // secrets redact identically regardless of how the stream is chunked.
+          if (!final && buffer.length - offset < value.length) {
+            if (value.startsWith(buffer.slice(offset))) break scan;
+          } else if (buffer.startsWith(value, offset)) {
+            secret = value;
+            break;
+          }
+        }
         if (secret) {
           output += "[redacted]";
           offset += secret.length;
@@ -570,8 +581,6 @@ export function createStreamingRedactor(secrets: string[]) {
           const hasNext = offset + 1 < buffer.length;
           const next = hasNext ? buffer.charCodeAt(offset + 1) : -1;
           if (hasNext && isLowSurrogate(next)) {
-            // Keep the pair together; hold both if the low unit is outside this drain window.
-            if (!final && offset + 1 >= safeStartLimit) break;
             output += buffer[offset]! + buffer[offset + 1]!;
             offset += 2;
             continue;

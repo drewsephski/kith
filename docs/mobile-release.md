@@ -18,7 +18,15 @@ pnpm exec expo export --platform ios --platform android
 
 Doctor initially found a missing expo-asset peer, direct expo-modules-core use and duplicate native icon installations caused by compiler peer contexts. The reliability patch resolves all three; Doctor passed all 21 checks locally. Keep the shared native markdown compiler peer aligned with mobile. Do not delete the lockfile to suppress diagnosis.
 
-The asset peer/configuration is a native change: appVersion runtime is now 1.0.6. Create fresh native builds. Existing 1.0.5 binaries remain on their compatible runtime and must not receive this revision as JavaScript OTA. Channels and application IDs are unchanged.
+The asset peer/configuration and Expo Observe are native changes: appVersion runtime is now 1.0.7. Create fresh native builds. Existing 1.0.5 and 1.0.6 binaries remain on their compatible runtimes and must not receive this revision as JavaScript OTA. Channels and application IDs are unchanged.
+
+## Expo Observe
+
+The root enables Expo Router render timings and an Observe error boundary. Inbox, sign-in/sign-up/recovery, server setup, and bot/group thread entry routes mark interactive only after the splash is hidden and their initial data or recoverable error UI is ready. Other routes collect render timings; add interactive markers when their readiness conditions are defined.
+
+Route parameters carrying resource IDs, names, integration endpoints, and authentication codes/tokens are filtered from navigation metrics. Handled startup failures use fixed diagnostic messages without raw exceptions or server responses. Unhandled JavaScript errors and native crashes use Observe's automatic reporting.
+
+Production EAS builds upload JavaScript source maps and require EAS CLI 22 or later. Debug dispatch is disabled by default. Observe requires a fresh native development or release build and does not run in Expo Go. After running the installed app, open the existing project's **Observe** tab for startup metrics, **Navigation** for route timings, and **Errors** for reports. From `apps/mobile`, `eas observe:versions`, `eas observe:metrics-summary`, and `eas observe:routes` query the same data. See the [Expo Observe setup guide](https://docs.expo.dev/eas/observe/get-started/).
 
 ## Deterministic native CI
 

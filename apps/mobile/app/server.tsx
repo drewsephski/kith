@@ -17,8 +17,10 @@ import {
 } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
+import { useScreenInteractive } from "../lib/observe";
 
 export default function ServerScreen() {
+  useScreenInteractive();
   const { t } = useI18n();
   const tokens = useMobileTokens();
   const router = useRouter();

@@ -1,5 +1,6 @@
 import type { AgentRunRequest } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
+import { getLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
 import { COMPUTER_TOOL_NAMES, createRunExecutor } from "./executor.js";
@@ -60,6 +61,7 @@ async function runWithModel(
   backupReadFails = false,
   scripted = false,
   computerAvailable = true,
+  latencyCheck?: "stream" | "setup",
 ) {
   const run = {
     id: "run-1",
@@ -73,9 +75,29 @@ async function runWithModel(
     leaseFence: 0,
   };
   const get = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
+  const append = vi.fn(async () => undefined);
+  let releaseSetup!: () => void;
+  const setupGate = new Promise<void>((resolve) => {
+    releaseSetup = resolve;
+  });
+  let markSetupStarted!: () => void;
+  const setupStarted = new Promise<void>((resolve) => {
+    markSetupStarted = resolve;
+  });
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;
+    if (latencyCheck === "stream") {
+      yield { type: "text" as const, text: "Done" };
+      // The executor must publish the first safe chunk before requesting more
+      // output, even when a credential is much longer than the entire reply.
+      expect(append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "thread.progress",
+          payload: { text: "Done", streaming: true },
+        }),
+      );
+    }
     if (switchModel) {
       const onModelChange = (
         next as AgentRunRequest & {
@@ -161,7 +183,15 @@ async function runWithModel(
     botSecret: { findMany: vi.fn(async () => []) },
     agentSkill: { findMany: vi.fn(async () => []) },
     scratchpadItem: { findMany: vi.fn(async () => []) },
-    externalEffect: { findMany: vi.fn(async () => []) },
+    externalEffect: {
+      findMany: vi.fn(async () => {
+        if (latencyCheck === "setup") {
+          markSetupStarted();
+          await setupGate;
+        }
+        return [];
+      }),
+    },
     artifact: {
       findMany: vi.fn(async () => [
         { id: "art-1", storageKey: "shot.png", size: 4, mimeType: "image/png", name: "shot.png" },
@@ -171,7 +201,8 @@ async function runWithModel(
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
   const executor = createRunExecutor({
     prisma,
-    deploymentModelKey: "fake-deployment-key",
+    deploymentModelKey:
+      latencyCheck === "stream" ? `fake-deployment-key-${"x".repeat(2048)}` : "fake-deployment-key",
     runtime: { describe: () => ({ capabilities: { scripted } }), run: runtimeRun },
     sandbox: computerAvailable
       ? {
@@ -186,12 +217,22 @@ async function runWithModel(
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
     artifacts: { get },
-    events: { append: vi.fn(async () => undefined), finalizeRun },
+    events: { append, finalizeRun },
     jobs: { enqueue: vi.fn(async () => undefined) },
     secrets: [],
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
-  await executor.continueRun(run.id, "worker-1");
+  const continuing = executor.continueRun(run.id, "worker-1");
+  if (latencyCheck === "setup") {
+    try {
+      await setupStarted;
+      expect(prisma.spaceBackupModel.findMany).toHaveBeenCalled();
+    } finally {
+      releaseSetup();
+      await continuing;
+    }
+  }
+  await continuing;
   expect(runtimeRun).toHaveBeenCalled();
   expect(finalizeRun).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -202,6 +243,40 @@ async function runWithModel(
   if (!request) throw new Error("runtime was not called");
   return { request, get, prisma, run };
 }
+
+describe("response latency", () => {
+  it.each([false, true])(
+    "streams a short reply before completion with computer=%s",
+    async (computer) => {
+      await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, computer, "stream");
+    },
+  );
+
+  it("loads independent setup reads without waiting for approved-effect retrieval", async () => {
+    await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, false, "setup");
+  });
+
+  it("reports setup, model and delivery timing without response text or credentials", async () => {
+    const info = vi.spyOn(getLogger(), "info");
+    try {
+      await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, false, "stream");
+      const timings = info.mock.calls.filter(([message]) => message === "run response timing");
+      expect(timings).toHaveLength(1);
+      expect(timings[0]?.[1]).toEqual({
+        runId: "run-1",
+        queueWaitMs: null,
+        setupMs: expect.any(Number),
+        modelToFirstTextMs: expect.any(Number),
+        streamDeliveryMs: expect.any(Number),
+      });
+      for (const key of ["setupMs", "modelToFirstTextMs", "streamDeliveryMs"]) {
+        expect(timings[0]?.[1]?.[key]).toBeGreaterThanOrEqual(0);
+      }
+    } finally {
+      info.mockRestore();
+    }
+  });
+});
 
 describe("recent turn images follow model vision", () => {
   it("responds with a connected model without provisioning a computer", async () => {

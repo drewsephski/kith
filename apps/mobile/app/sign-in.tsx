@@ -32,6 +32,7 @@ import type { AuthMode } from "../lib/auth-routing";
 import { initialAuthMode } from "../lib/auth-routing";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
+import { useScreenInteractive } from "../lib/observe";
 import { continueWithSso } from "../lib/sso";
 import { credentialIssueText, errorText } from "../lib/user-error";
 
@@ -53,6 +54,7 @@ export default function SignIn() {
   const [capabilityError, setCapabilityError] = useState(false);
   const [capabilityAttempt, setCapabilityAttempt] = useState(0);
   const [resetSent, setResetSent] = useState(false);
+  useScreenInteractive(ready && !hasSession && (reset !== null || capabilityError));
 
   useFocusEffect(
     useCallback(() => {
