@@ -66,6 +66,7 @@ name: Android live working status demonstration
     timeout: 5000
 - takeScreenshot: "30-live-working-notification"
 - tapOn: "Researcher is working"
+- hideKeyboard
 - extendedWaitUntil:
     visible: "Stop"
     timeout: 10000

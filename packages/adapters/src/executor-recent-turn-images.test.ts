@@ -78,6 +78,8 @@ async function runWithModel(
     steeringAttachment?: "file" | "image";
     steeringBusy?: boolean;
     computerWaitRetries?: number;
+    preparationFailure?: string;
+    swallowPreparationFailure?: boolean;
   },
 ) {
   const run = {
@@ -121,21 +123,33 @@ async function runWithModel(
       }
     }
     if (scenario?.useCatalog) {
-      const toolName = scenario.collision ? "kith_search_tools" : "list_files";
-      const result = (await next.executeTool?.(
-        "kith_search_tools",
-        { query: toolName },
-        "search",
-      )) as { tools: Array<{ id: string; name: string }> };
-      const hit = result.tools.find((tool) => tool.name === toolName);
-      expect(hit).toBeDefined();
-      expect(
-        await next.executeTool?.(
-          "kith_execute_tool",
-          { id: hit!.id, arguments: scenario.collision ? {} : { path: "" } },
-          "execute",
-        ),
-      ).toEqual(scenario.collision ? { ok: true } : { path: "", entries: [] });
+      try {
+        const toolName = scenario.collision ? "kith_search_tools" : "list_files";
+        if (next.executionProfile === "agent") {
+          expect(await next.executeTool?.(toolName, { path: "" }, "execute")).toEqual({
+            path: "",
+            entries: [],
+          });
+        } else {
+          const result = (await next.executeTool?.(
+            "kith_search_tools",
+            { query: toolName },
+            "search",
+          )) as { tools: Array<{ id: string; name: string }> };
+          const hit = result.tools.find((tool) => tool.name === toolName);
+          expect(hit).toBeDefined();
+          expect(
+            await next.executeTool?.(
+              "kith_execute_tool",
+              { id: hit!.id, arguments: scenario.collision ? {} : { path: "" } },
+              "execute",
+            ),
+          ).toEqual(scenario.collision ? { ok: true } : { path: "", entries: [] });
+        }
+      } catch (error) {
+        if (!scenario.swallowPreparationFailure) throw error;
+        expect(error).toMatchObject({ message: "Computer setup failed" });
+      }
     }
     if (latencyCheck === "stream") {
       yield { type: "text" as const, text: "Done" };
@@ -409,6 +423,8 @@ async function runWithModel(
     secrets: [],
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
+  if (scenario?.preparationFailure)
+    vi.mocked(provisionComputer).mockRejectedValueOnce(new Error(scenario.preparationFailure));
   const continuing = executor.continueRun(run.id, "worker-1");
   if (latencyCheck === "setup") {
     try {
@@ -419,7 +435,17 @@ async function runWithModel(
       await continuing;
     }
   }
-  await continuing;
+  if (scenario?.preparationFailure) {
+    await expect(continuing).rejects.toThrow("Run setup failed; retrying");
+    expect(finalizeRun).not.toHaveBeenCalled();
+    expect(run.status).toBe("queued");
+    expect(run.checkpoint).toBe("computer-required");
+    expect(prisma.attempt.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "setup_failed" }) }),
+    );
+    await executor.continueRun(run.id, "worker-1");
+    expect(runtimeRun).toHaveBeenCalledTimes(2);
+  } else await continuing;
   if (scenario?.computerWaitRetries) {
     expect(run.checkpoint).toBe("computer-required");
     for (let retry = 0; retry < scenario.computerWaitRetries; retry++) {
@@ -522,6 +548,22 @@ describe("response latency", () => {
       computerWaitRetries: 3,
     });
   });
+
+  it.each([false, true])(
+    "recovers computer preparation failures when the runtime consumes tool errors=%s",
+    async (swallowPreparationFailure) => {
+      for (const preparationFailure of [
+        "Temporary sandbox prepare failure",
+        "computer control revocation is still in progress",
+      ])
+        await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+          prompt: "Hi",
+          useCatalog: true,
+          preparationFailure,
+          swallowPreparationFailure,
+        });
+    },
+  );
 
   it("preserves the peer bot directory for conversational bot questions", async () => {
     const { request } = await runWithModel(

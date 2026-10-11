@@ -181,15 +181,12 @@ export async function chooseSelectOption(
   await trigger.click();
   const options = page.locator('[data-slot="select-item"]:visible');
   if (typeof value === "string") {
-    await options.first().waitFor();
-    const index = await options.evaluateAll(
-      (elements, selectedValue) =>
-        elements.findIndex((element) => element.getAttribute("data-value") === selectedValue),
-      value,
-    );
-    if (index < 0) throw new Error("Select option is unavailable");
-    await options.nth(index).click();
+    // Closing portals can still be visible while the next select opens. Keep
+    // the value on the locator rather than computing a shifting global index.
+    const escapedValue = await page.evaluate((selectedValue) => CSS.escape(selectedValue), value);
+    await options.and(page.locator(`[data-value="${escapedValue}"]`)).click();
   } else {
     await options.nth(value.index).click();
   }
+  await expect(page.locator('[data-slot="select-content"]:visible')).toHaveCount(0);
 }

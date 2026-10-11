@@ -377,3 +377,12 @@ not evaluate permission-map expressions, and waits for the actual saved toggle s
 Optional hosted push registration no longer blocks or rolls back the already-saved
 native notification setting. These fixes have focused deterministic regressions;
 native acceptance remains a CI gate rather than a local device claim.
+
+Transient provisioning failures during tool demand now abort inference and use the
+existing bounded worker retry path, preserving the computer-required checkpoint.
+Regressions cover both propagated and consumed runtime tool errors, then verify
+completion under the same run identity after preparation succeeds. Browser selection
+fixtures address portal fade-out by locating the requested value and waiting for
+closure, with an explicit pre-save thinking assertion. Android acceptance hides
+the restored keyboard after opening the real working notification before checking
+the stop control; notification delivery, navigation and cancellation remain required.

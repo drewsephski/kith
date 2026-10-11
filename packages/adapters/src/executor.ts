@@ -3929,6 +3929,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const computerMode = parseComputerMode(storedComputer?.scope ?? "dedicated");
         let computer: ComputerRef | null = null;
         let computerPromise: Promise<ComputerRef> | undefined;
+        let computerSetupFailure: ComputerSetupError | undefined;
         const ensureComputer = (): Promise<ComputerRef> => {
           computerPromise ??= (async () => {
             context.signal.throwIfAborted();
@@ -3955,7 +3956,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
               });
             }
             context.screenLeaseId = screenLeaseIdForRun(computerLease, runId, fence);
-            computer = await provisionComputer(deps, storedComputer.id, context, "bot");
+            try {
+              computer = await provisionComputer(deps, storedComputer.id, context, "bot");
+            } catch (error) {
+              if (error instanceof ComputerBusyError) throw error;
+              computerSetupFailure = new ComputerSetupError(error);
+              runAbortController?.abort(computerSetupFailure);
+              throw computerSetupFailure;
+            }
             setupStages.computerMs += Math.round(performance.now() - startedAt);
             screenRelease = { computer, context };
             scheduleComputerSleep(deps.jobs, storedComputer.id);
@@ -7210,6 +7218,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             context,
           );
           for await (const event of withRuntimeCleanup(runtimeEvents, runAbortController)) {
+            if (computerSetupFailure) throw computerSetupFailure;
             if (event.type === "text" && event.text) firstTextAt ??= performance.now();
             if (approvalPausePending) return;
             if (!leaseValid) return;
@@ -7538,6 +7547,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
 
+          if (computerSetupFailure) throw computerSetupFailure;
           if (approvalPausePending || !leaseValid) return;
           approvedEffectReplays.assertDrained();
           pendingProgress += progressRedactor.finish();
@@ -7701,6 +7711,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             getLogger().error("history.compact enqueue failed", error);
           }
         } catch (error) {
+          if (computerSetupFailure) {
+            await workspaceCheckpoint.flush().catch(() => undefined);
+            throw computerSetupFailure;
+          }
           if (approvalPausePending) return;
           if (!terminalCheckpointComplete) {
             await workspaceCheckpoint.flush().catch(() => undefined);
@@ -7774,7 +7788,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           resumeCheckpoint,
           heldForTakeover,
           retryForever ? null : "Run setup failed; retrying",
-          computerBusy || computerRequired,
+          computerBusy || computerRequired || setupError instanceof ComputerSetupError,
         );
         if (released) {
           await deps.prisma.attempt.update({
@@ -8591,6 +8605,12 @@ export function subagentMarksUnread(trigger: string, status: "running" | "comple
 }
 
 const COMPUTER_REQUIRED_CHECKPOINT = "computer-required";
+
+class ComputerSetupError extends Error {
+  constructor(cause: unknown) {
+    super("Computer setup failed", { cause });
+  }
+}
 
 function computerRunRequeueData(
   resumeCheckpoint: TakeoverResumeCheckpoint | null,

@@ -103,6 +103,7 @@ test("custom connections persist reasoning support and bot thinking", async ({
   const thinking = settings.getByRole("combobox", { name: "Thinking", exact: true });
   await expect(thinking).toBeVisible();
   await chooseSelectOption(page, thinking, "low");
+  await expect(thinking).toHaveAttribute("data-value", "low");
   await thinking.scrollIntoViewIfNeeded();
   await captureScreenshot(page, testInfo, "openai-compatible-thinking");
   const saved = page.waitForResponse(
