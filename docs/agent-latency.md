@@ -442,3 +442,11 @@ reaches custom-server configuration and correctly rejects a missing fixture URL,
 Android runner now passes its isolated device API URL to every flow. Strict
 sign-in, message completion, restart, bot creation, computer takeover/release
 and sign-out assertions remain; complete native smoke acceptance awaits CI.
+
+The retained account screenshot also places Sign out below the fold. Smoke now
+scrolls to that action before asserting and tapping it. The preceding run spent
+266 seconds on screenshots, 182 on the notification demo and 65 before smoke
+failed: 513 seconds before most smoke assertions, close to the former 10-minute
+total harness cap. The three-flow suite has a bounded 15-minute cap; all per-step
+deadlines and assertions remain unchanged. This is CI coverage capacity, not a
+provider timeout change or a latency-benchmark adjustment.

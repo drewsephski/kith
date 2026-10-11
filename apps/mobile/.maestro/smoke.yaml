@@ -90,6 +90,9 @@ name: Kith mobile smoke
     visible: "For you"
     timeout: 10000
 - openLink: "rakazo:///account"
+- scrollUntilVisible:
+    element: "Sign out"
+    direction: DOWN
 - extendedWaitUntil:
     visible: "Sign out"
     timeout: 10000

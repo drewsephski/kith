@@ -23,4 +23,6 @@ adb logcat -c
 adb logcat > "$android_log" &
 android_log_pid=$!
 
-timeout --signal=INT --kill-after=30s 10m pnpm test:mobile-screenshots
+# The three flows include full screenshots, a real notification demo and smoke.
+# Keep their assertion deadlines strict, with a bounded total-suite allowance.
+timeout --signal=INT --kill-after=30s 15m pnpm test:mobile-screenshots
