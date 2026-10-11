@@ -99,7 +99,7 @@ export async function launchForYou(
     rejectArchivedSpawnKey: true,
     initialTask: {
       prompt: forYouPrompt(suggestion, services),
-      displayPrompt: recommendation?.userPrompt,
+      displayPrompt: recommendation?.userPrompt ?? suggestion.prompt,
       recommendation: recommendation
         ? {
             id: recommendation.id,

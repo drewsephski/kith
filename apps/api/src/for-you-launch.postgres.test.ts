@@ -6,6 +6,7 @@ import {
   IntegrationProviderSettings,
 } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
+import { FOR_YOU_SUGGESTIONS } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { createDb } from "@rakazo/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -166,6 +167,16 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
     expect(before.prompt).not.toContain("Revoked inbox");
     expect(before.prompt).not.toContain("Other inbox");
     expect(before.prompt).not.toContain("Repositories");
+    const displayPrompt = FOR_YOU_SUGGESTIONS.find(({ id }) => id === launch.suggestionId)!.prompt;
+    const messages = await prisma.message.findMany({
+      where: { threadId: bot.threadId, role: "user" },
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.blocks).toEqual([{ kind: "text", text: displayPrompt }]);
+    const event = await prisma.event.findFirstOrThrow({
+      where: { botId: bot.id, type: "thread.message.created" },
+    });
+    expect(event.payload).toMatchObject({ blocks: [{ kind: "text", text: displayPrompt }] });
     await prisma.connection.update({
       where: { id: `${actor.spaceId}-mail` },
       data: { status: "revoked" },
@@ -173,6 +184,9 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
     expect((await launchForYou({ prisma, jobs }, actor, launch)).id).toBe(bot.id);
     const after = await prisma.task.findFirstOrThrow({ where: { botId: bot.id } });
     expect(after.prompt).toBe(before.prompt);
+    expect(
+      await prisma.message.findMany({ where: { threadId: bot.threadId, role: "user" } }),
+    ).toEqual(messages);
     expect(await counts()).toEqual({ bots: 1, messages: 1, tasks: 1, runs: 1 });
   });
 
