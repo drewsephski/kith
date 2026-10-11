@@ -1,13 +1,12 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  Off: "关闭",
+  "Delivery was not confirmed. Retry safely.": "尚未确认送达，可以安全重试。",
+  "Draft recovery is not ready. Try again.": "草稿恢复尚未就绪，请重试。",
   "Meet Kith.": "认识 Kith。",
   "An assistant that remembers what matters and helps you get things done.":
     "记住重要的事，帮你把事情办好的助手。",
   "Hand off the work.": "把工作交给 Kith。",
-  "Plan your day, research an idea, or draft your next reply.":
-    "安排一天、研究想法，或起草下一封回复。",
   "Pick up where you left off.": "随时接着做。",
-  "Follow real progress. Approve important actions. Return to your results.":
-    "查看真实进展，批准重要操作，随时回来查看结果。",
   "Kith, your blue companion": "Kith，你的蓝色伙伴",
   Examples: "示例",
   "Plan my day": "安排我的一天",

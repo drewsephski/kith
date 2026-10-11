@@ -13,10 +13,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BotAvatar } from "../components/bot-avatar";
 import { FlatList, ScrollView } from "../components/minimal-scroll";
+import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import { formatActivityRelativeTime } from "../lib/activity";
 import type { MobileBot } from "../lib/api";
-import { rpc } from "../lib/api";
+import { captureMobileScreenScope, rpc } from "../lib/api";
 import { mobileTokens } from "../lib/appearance";
 import type { MobileArtifactSummary } from "../lib/artifacts";
 import {
@@ -70,14 +71,22 @@ export default function ArtifactsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+      const current = captureMobileScreenScope();
       rpc<MobileBot[]>("bots/list")
-        .then(setBots)
+        .then((next) => {
+          if (active && current()) setBots(next);
+        })
         .catch(() => undefined);
+      return () => {
+        active = false;
+      };
     }, []),
   );
 
   const load = useCallback(
     async (botId: string | null, mode: "replace" | "refresh") => {
+      const current = captureMobileScreenScope();
       const generation = ++generationRef.current;
       loadingMoreRef.current = false;
       setLoadingMore(false);
@@ -90,14 +99,12 @@ export default function ArtifactsScreen() {
       }
       try {
         const page = await listSpaceArtifacts({ botId: botId ?? undefined, limit: PAGE_SIZE });
-        if (generation !== generationRef.current) return;
+        if (!current() || generation !== generationRef.current) return;
         setItems(page.items);
         setNextCursor(page.nextCursor);
       } catch (error) {
-        if (generation !== generationRef.current) return;
-        if (mode === "replace") {
-          setLoadError(errorText(error, t("Could not load artifacts.")));
-        }
+        if (!current() || generation !== generationRef.current) return;
+        setLoadError(errorText(error, t("Could not load artifacts.")));
       }
     },
     [t],
@@ -115,6 +122,7 @@ export default function ArtifactsScreen() {
 
   const loadMore = useCallback(async () => {
     if (!nextCursor || loadingMoreRef.current) return;
+    const current = captureMobileScreenScope();
     const generation = generationRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
@@ -124,7 +132,7 @@ export default function ArtifactsScreen() {
         cursor: nextCursor,
         limit: PAGE_SIZE,
       });
-      if (generation !== generationRef.current) return;
+      if (!current() || generation !== generationRef.current) return;
       setItems((current) => (current ?? []).concat(page.items));
       setNextCursor(page.nextCursor);
       setSearchPageFailed(false);
@@ -202,28 +210,42 @@ export default function ArtifactsScreen() {
     <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
       <FlatList<MobileArtifactSummary>
         ListHeaderComponent={
-          <ScrollView
-            horizontal
-            contentInsetAdjustmentBehavior="never"
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipsScroll}
-            contentContainerStyle={styles.chipsRow}
-          >
-            <Chip
-              label={t("All bots")}
-              active={activeBotId === null}
-              onPress={() => setActiveBotId(null)}
-            />
-            {bots.map((bot) => (
+          <View>
+            {items !== null && loadError ? (
+              <View>
+                <Text accessibilityRole="alert" style={styles.empty}>
+                  {loadError}
+                </Text>
+                <NativeActionButton
+                  label={t("Retry")}
+                  prominence="plain"
+                  onPress={() => void load(activeBotId, "refresh")}
+                />
+              </View>
+            ) : null}
+            <ScrollView
+              horizontal
+              contentInsetAdjustmentBehavior="never"
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsScroll}
+              contentContainerStyle={styles.chipsRow}
+            >
               <Chip
-                key={bot.id}
-                label={bot.name}
-                active={activeBotId === bot.id}
-                onPress={() => setActiveBotId(bot.id)}
-                avatar={<BotAvatar color={bot.color} identity={bot.id} size={16} />}
+                label={t("All bots")}
+                active={activeBotId === null}
+                onPress={() => setActiveBotId(null)}
               />
-            ))}
-          </ScrollView>
+              {bots.map((bot) => (
+                <Chip
+                  key={bot.id}
+                  label={bot.name}
+                  active={activeBotId === bot.id}
+                  onPress={() => setActiveBotId(bot.id)}
+                  avatar={<BotAvatar color={bot.color} identity={bot.id} size={16} />}
+                />
+              ))}
+            </ScrollView>
+          </View>
         }
         style={styles.listView}
         contentInsetAdjustmentBehavior="automatic"
@@ -244,7 +266,16 @@ export default function ArtifactsScreen() {
           items === null ? (
             <View style={styles.centered}>
               {loadError ? (
-                <Text style={styles.empty}>{loadError}</Text>
+                <View>
+                  <Text accessibilityRole="alert" style={styles.empty}>
+                    {loadError}
+                  </Text>
+                  <NativeActionButton
+                    label={t("Retry")}
+                    prominence="plain"
+                    onPress={() => void load(activeBotId, "refresh")}
+                  />
+                </View>
               ) : (
                 <ActivityIndicator color={native.secondaryLabel} />
               )}

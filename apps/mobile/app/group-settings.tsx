@@ -33,7 +33,11 @@ export default function GroupSettingsScreen() {
     const current = () => active && scopeCurrent();
     setLoading(true);
     setLoadError(null);
-    if (!groupId) return;
+    if (!groupId) {
+      setLoadError(t("Group not found"));
+      setLoading(false);
+      return;
+    }
     void Promise.all([
       rpc<MobileGroup[]>("groups/list").then(
         (groups) => groups.find((row) => row.id === groupId) ?? null,
@@ -61,6 +65,7 @@ export default function GroupSettingsScreen() {
 
   async function save() {
     if (!groupId || !group || pending) return;
+    const current = captureMobileScreenScope();
     setPending(true);
     setError(null);
     try {
@@ -69,7 +74,7 @@ export default function GroupSettingsScreen() {
       const memberIds = group.members.map((member) => member.botId).join(",");
       if (selected.join(",") !== memberIds) input.botIds = selected;
       if (input.name || input.botIds) await rpc("groups/update", input);
-      router.back();
+      if (current()) router.back();
     } catch (err) {
       setError(errorText(err, t("Could not save group")));
     } finally {

@@ -3,8 +3,18 @@ name: Kith mobile smoke
 ---
 - launchApp:
     clearState: true
+    clearKeychain: true
     permissions:
       notifications: deny
+- extendedWaitUntil:
+    visible: "Meet Kith."
+    timeout: 30000
+- tapOn: "Skip"
+- extendedWaitUntil:
+    visible: "Sign in to Kith"
+    timeout: 30000
+- runFlow: ../e2e/ios-screenshots/subflows/custom-server.yaml
+- tapOn: "Sign up"
 - extendedWaitUntil:
     visible: "Sign up for Kith"
     timeout: 30000

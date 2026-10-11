@@ -185,6 +185,7 @@ import {
 import { useScreenInteractive } from "../lib/observe";
 import type { PickedAttachment } from "../lib/pick-attachments";
 import { pickDocuments, pickFromLibrary, takePhoto } from "../lib/pick-attachments";
+import { filterPickedAttachments } from "../lib/pick-attachments-filter";
 import { threadRefreshDelayMs } from "../lib/refresh";
 import {
   getCachedResponseStreamingEnabled,
@@ -655,10 +656,27 @@ function Thread() {
           conversation: groupId ? `group:${groupId}` : `bot:${botId}`,
         });
         if (!incoming) return;
+        const picked = filterPickedAttachments(
+          composerRef.current.attachmentIds.length,
+          incoming.attachments.map((item) => ({
+            ...item,
+            size: Math.floor((item.contentBase64.length * 3) / 4),
+          })),
+        );
+        if (picked.skipped.length)
+          setAttachmentNotice(
+            t("Skipped {items}", {
+              items: picked.skipped.map(formatAttachmentSkip).join(", "),
+            }),
+          );
         setDraft((text) => [text, incoming.text].filter(Boolean).join("\n\n"));
         setPendingAttachments((items) => [
           ...items,
-          ...incoming.attachments.map((item) => ({ ...item, threadKey })),
+          ...picked.attachments.map((item) => ({
+            ...item,
+            id: `${shareId}:${item.id}`,
+            threadKey,
+          })),
         ]);
         router.setParams({ shareId: undefined });
       })
@@ -1158,6 +1176,7 @@ function Thread() {
 
   async function refresh() {
     if (!botId && !groupId) return;
+    const scopeCurrent = captureMobileScreenScope();
     const targetBotId = botId;
     const targetGroupId = groupId;
     const epoch = historyEpoch.current;
@@ -1170,6 +1189,7 @@ function Thread() {
       targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
     );
     if (
+      !scopeCurrent() ||
       session !== currentSessionGeneration() ||
       space !== selectedSpaceId() ||
       endpoint !== currentApiBase()
@@ -1472,7 +1492,10 @@ function Thread() {
       signal: abort.signal,
       isCurrent,
       snapshot: async () => {
-        if (messageId || jumpScrollTarget.current || expandedHistoryThread.current) {
+        if (
+          snapRef.current &&
+          (messageId || jumpScrollTarget.current || expandedHistoryThread.current)
+        ) {
           const next = await rpc<MobileSnapshot>(
             "threads/get",
             groupId ? { groupId } : { botId: botId! },
@@ -1722,27 +1745,19 @@ function Thread() {
     );
     const groupTarget = plan.rerouteGroupId ?? initialGroupTarget;
     const botTarget = reroutedToGroup ? undefined : initialBotTarget;
-    const recovered = feedback.failedSends.find(
-      (item) =>
-        item.recoveredInput &&
-        item.payload.displayText === submitted.promptText &&
-        !attachments.length,
-    );
-    const attempt =
-      recovered ??
-      feedback.sendAttempt({
-        originThreadKey: originThreadKey!,
-        displayText: submitted.promptText,
-        replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
-        initialBotTarget,
-        botTarget,
-        groupTarget,
-        reroutedToGroup,
-        plan,
-        attachments: attachments.map((attachment) => ({ ...attachment })),
-        replyTargetId: replyTarget?.id,
-        replyQuote,
-      });
+    const attempt = feedback.sendAttempt({
+      originThreadKey: originThreadKey!,
+      displayText: submitted.promptText,
+      replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
+      initialBotTarget,
+      botTarget,
+      groupTarget,
+      reroutedToGroup,
+      plan,
+      attachments: attachments.map((attachment) => ({ ...attachment })),
+      replyTargetId: replyTarget?.id,
+      replyQuote,
+    });
     await deliver(attempt, () => {
       if (originThreadKey !== (activeGroupId.current ?? activeBotId.current)) return;
       const settled = settleComposer(submitted, composerRef.current);
@@ -1787,6 +1802,7 @@ function Thread() {
       pendingDeliveries.current -= 1;
       setSending(pendingDeliveries.current > 0);
     }
+    if (!current()) return;
     if (onSettled) onSettled();
     else if (
       attempt.payload.originThreadKey === (activeGroupId.current ?? activeBotId.current) &&

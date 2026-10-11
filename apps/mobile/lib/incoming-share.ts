@@ -21,9 +21,13 @@ export function parseIncomingShare(
       text.push(url.toString());
     } else {
       const url = new URL(payload.value);
+      const path = decodeURIComponent(url.pathname);
       if (
         url.protocol !== "file:" ||
         url.hostname ||
+        /%2f|%5c/i.test(url.pathname) ||
+        path.includes("\\") ||
+        Array.from(path).some((char) => char.charCodeAt(0) < 32) ||
         !allowedFileRoots.some((root) => {
           const base = new URL(root);
           return (
@@ -34,7 +38,12 @@ export function parseIncomingShare(
       )
         throw new Error("This shared file is not accessible");
       const name = decodeURIComponent(url.pathname.split("/").at(-1) ?? "file");
-      if (!name || name.includes("/") || name.includes("\\") || Array.from(name).some((char) => char.charCodeAt(0) < 32))
+      if (
+        !name ||
+        name.includes("/") ||
+        name.includes("\\") ||
+        Array.from(name).some((char) => char.charCodeAt(0) < 32)
+      )
         throw new Error("This shared filename is not supported");
       files.push({ uri: url.toString(), name, mimeType: payload.mimeType });
     }

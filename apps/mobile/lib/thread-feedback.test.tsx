@@ -309,6 +309,29 @@ describe("thread feedback", () => {
     expect(feedback.failedSends).toEqual([second]);
   });
 
+  it("does not replay a recovered delivery when the reply or destination changes", () => {
+    const original = payload();
+    const failed = feedback.sendAttempt(original);
+    failed.recoveredInput = {
+      botId: "bot-1",
+      text: "Hello",
+      clientNonce: failed.clientNonce,
+      replyToMessageId: "reply-1",
+    };
+    act(() => feedback.sendFailed(failed));
+    expect(feedback.sendAttempt(payload())).toBe(failed);
+    for (const edit of [
+      { replyTargetId: "reply-2" },
+      { replyQuote: "Changed quote" },
+      { botTarget: "bot-2" },
+      { attachments: [] },
+    ]) {
+      const fresh = feedback.sendAttempt({ ...payload(), ...edit });
+      expect(fresh.clientNonce).not.toBe(failed.clientNonce);
+      expect(fresh.recoveredInput).toBeUndefined();
+    }
+  });
+
   it("keeps load failures separate from sends and clears them when a refresh reaches the server", () => {
     act(() => feedback.setError("Could not reach the server"));
     act(() => feedback.sendFailed(feedback.sendAttempt(payload())));
