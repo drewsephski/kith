@@ -75,7 +75,13 @@ function payload(text = "Hello"): SendPayload {
     reroutedToGroup: false,
     plan: resolveComposerSendPlan({ text, mentions: [], hasAttachments: true }),
     attachments: [
-      { id: "attachment-1", name: "photo.png", mimeType: "image/png", contentBase64: "fake" },
+      {
+        id: "attachment-1",
+        name: "photo.png",
+        mimeType: "image/png",
+        size: 3,
+        contentBase64: "fake",
+      },
     ],
     replyTargetId: "reply-1",
     replyQuote: "Quoted message",

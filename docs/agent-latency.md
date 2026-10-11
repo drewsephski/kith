@@ -300,7 +300,7 @@ screenshot behavior using the cached local computer image.
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
 | `pnpm run test --maxWorkers=4` | Integrated revision: 8,461 passed, 300 skipped; one unchanged script test timed out under full-suite load and both script suites passed in a focused 24-test rerun |
-| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 993 tests passed on the integrated revision |
+| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 994 tests passed on the integrated revision, including shared attachment size retention |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
 | Final latency comparisons | 1,300 successful runs: 560 per revision, 80 concurrent per revision, 20 reconnect runs |
@@ -321,6 +321,10 @@ image-only workspace availability and busy-computer requeue under the same run I
 The 12 model-settings/bot-navigation browser cases pass with explicit readiness
 and finite animation completion checks. The full current-commit Postgres
 selection passes all 81 tests.
+Shared attachments retain the validated filesystem byte size through staging and
+thread capacity checks; a boundary regression keeps a valid padded 10 MiB payload
+and rejects an oversized file. Marketing screenshot capture uses built assets and
+the Astro preview API, avoiding development-module reloads during hydration.
 An additional 80 greeting/arithmetic runs after those fixes complete correctly,
 with zero computer startup or connector discovery and three tool schemas. Those
 runs shared resources with browser/type-check validation and are recorded as

@@ -658,10 +658,7 @@ function Thread() {
         if (!incoming) return;
         const picked = filterPickedAttachments(
           composerRef.current.attachmentIds.length,
-          incoming.attachments.map((item) => ({
-            ...item,
-            size: Math.floor((item.contentBase64.length * 3) / 4),
-          })),
+          incoming.attachments,
         );
         if (picked.skipped.length)
           setAttachmentNotice(

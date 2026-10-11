@@ -29,7 +29,8 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm dev",
+    // Capture shipped assets without development dependency reloads interrupting hydration.
+    command: "pnpm run build && node e2e/preview-server.mjs",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

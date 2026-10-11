@@ -1,8 +1,40 @@
+import { ATTACHMENT_MAX_BYTES } from "@rakazo/contracts";
 import { expect, it } from "vitest";
 import { parseIncomingShare } from "./incoming-share";
 import { stageIncomingShare, takeIncomingShare } from "./incoming-share-draft";
+import { filterPickedAttachments } from "./pick-attachments-filter";
 
 const roots = ["file:///shared/group/"];
+it("retains the validated size through staging and conversation capacity checks", () => {
+  const scope = {
+    endpoint: "https://example.test",
+    userId: "one",
+    spaceId: "one",
+    conversation: "bot:one",
+  };
+  const contentBase64 = `${"A".repeat(Math.ceil(ATTACHMENT_MAX_BYTES / 3) * 4 - 2)}==`;
+  const picked = filterPickedAttachments(0, [
+    {
+      name: "limit.txt",
+      mimeType: "text/plain",
+      size: ATTACHMENT_MAX_BYTES,
+      contentBase64,
+    },
+  ]);
+  stageIncomingShare("limit", { scope, text: "", attachments: picked.attachments });
+  const incoming = takeIncomingShare("limit", scope)!;
+  const imported = filterPickedAttachments(0, incoming.attachments);
+  expect(imported.skipped).toEqual([]);
+  expect(imported.attachments[0]?.size).toBe(ATTACHMENT_MAX_BYTES);
+  expect(
+    filterPickedAttachments(0, [
+      {
+        ...incoming.attachments[0]!,
+        size: ATTACHMENT_MAX_BYTES + 1,
+      },
+    ]).skipped,
+  ).toHaveLength(1);
+});
 it("imports text, links and local files without resolving remote content", () => {
   expect(
     parseIncomingShare(

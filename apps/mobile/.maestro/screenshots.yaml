@@ -158,8 +158,10 @@ tags:
 - back
 - longPressOn: "Summarize the fixture launch checklist."
 - tapOn: "Reply"
-- assertVisible: "Replying to"
+- assertVisible: "You"
+- assertVisible: "Cancel reply"
 - tapOn: "Cancel reply"
+- assertNotVisible: "Cancel reply"
 - tapOn: "Bot actions"
 - assertVisible: "Clear conversation"
 - takeScreenshot: "16-bot-actions"
