@@ -99,6 +99,14 @@ export async function launchForYou(
     rejectArchivedSpawnKey: true,
     initialTask: {
       prompt: forYouPrompt(suggestion, services),
+      displayPrompt: recommendation?.userPrompt,
+      recommendation: recommendation
+        ? {
+            id: recommendation.id,
+            fingerprint: recommendation.fingerprint,
+            source: recommendation.source,
+          }
+        : undefined,
       clientNonce: spawnKey,
       launchIdentity: {
         suggestionId: input.suggestionId,
@@ -135,6 +143,5 @@ export async function launchForYou(
     await deps.jobs.enqueue(runContinueJob(run.id)).catch((error) => {
       getLogger().error("For you launch enqueue", error);
     });
-  if (recommendation) await deps.forYouRecommendations?.launched(actor, recommendation.id, bot.id);
   return bot;
 }

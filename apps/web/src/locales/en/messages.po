@@ -508,6 +508,14 @@ msgstr "Always allowed"
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "An API key is stored for this provider, not a subscription sign-in."
 
+#: src/pages/ForYou.tsx
+msgid "An unfinished item in your saved work."
+msgstr "An unfinished item in your saved work."
+
+#: src/pages/ForYou.tsx
+msgid "An upcoming event on your calendar."
+msgstr "An upcoming event on your calendar."
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Analytics property"
 msgstr "Analytics property"
@@ -660,6 +668,10 @@ msgstr "at {0}"
 #: src/pages/RoutineSchedule.tsx
 msgid "at {timeSelect}"
 msgstr "at {timeSelect}"
+
+#: src/pages/Auth.tsx
+msgid "At least 8 characters"
+msgstr "At least 8 characters"
 
 #: src/pages/Shell.tsx
 msgid "Attach file"
@@ -1051,6 +1063,10 @@ msgstr "Checking computer setup…"
 #: src/components/CalendarReceipt.tsx
 msgid "Checking your calendar"
 msgstr "Checking your calendar"
+
+#: src/pages/ForYou.tsx
+msgid "Checking your sources…"
+msgstr "Checking your sources…"
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
@@ -1494,6 +1510,11 @@ msgstr "Context limit"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "Continue"
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Continue “{0}”"
+msgstr "Continue “{0}”"
 
 #: src/pages/shell/message-cards.tsx
 msgid "Continue connecting"
@@ -2124,6 +2145,10 @@ msgstr "Could not update reaction"
 msgid "Could not update the default memory scope"
 msgstr "Could not update the default memory scope"
 
+#: src/pages/ForYou.tsx
+msgid "Could not update this recommendation. Try again."
+msgstr "Could not update this recommendation. Try again."
+
 #: src/components/computer/FilesApp.tsx
 msgid "Could not upload file"
 msgstr "Could not upload file"
@@ -2440,6 +2465,7 @@ msgstr "Disconnecting…"
 
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Dismiss"
 msgstr "Dismiss"
@@ -2689,6 +2715,7 @@ msgid "Expand {0}"
 msgstr "Expand {0}"
 
 #: src/pages/ForYou.tsx
+#: src/pages/shell/assistant-for-you.tsx
 msgid "Explore"
 msgstr "Explore"
 
@@ -2850,6 +2877,10 @@ msgstr "Follow up on unanswered conversations"
 msgid "Follow up unanswered emails"
 msgstr "Follow up unanswered emails"
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Follow-ups"
+msgstr "Follow-ups"
+
 #: src/pages/ForYou.tsx
 msgid "For builders"
 msgstr "For builders"
@@ -2860,7 +2891,6 @@ msgid "For builders"
 msgstr "For builders"
 
 #: src/pages/ForYou.tsx
-#: src/pages/shell/assistant-for-you.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "For you"
 msgstr "For you"
@@ -3011,6 +3041,10 @@ msgstr "Header value"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "Hear a sample"
+
+#: src/pages/Auth.tsx
+msgid "Help and privacy"
+msgstr "Help and privacy"
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Help me plan my day. Ask me what I need to get done."
@@ -3808,6 +3842,10 @@ msgstr "No credentials saved for this bot."
 msgid "No events found in the checked window."
 msgstr "No events found in the checked window."
 
+#: src/pages/ForYou.tsx
+msgid "No grounded recommendations right now."
+msgstr "No grounded recommendations right now."
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr "No group chats yet."
@@ -4232,6 +4270,11 @@ msgstr "Preference sources"
 msgid "Preferences"
 msgstr "Preferences"
 
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Prepare for “{0}”"
+msgstr "Prepare for “{0}”"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Prepare for your next meeting"
@@ -4244,6 +4287,10 @@ msgstr "Prepare me for my next meeting using my calendar, relevant emails, and H
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Prepare my next meeting"
 msgstr "Prepare my next meeting"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Preparing a response…"
+msgstr "Preparing a response…"
 
 #: src/components/CalendarReceipt.tsx
 msgid "Preparing your briefing"
@@ -4273,6 +4320,10 @@ msgstr "Previous categories"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
 msgstr "Priority"
+
+#: src/pages/Auth.tsx
+msgid "Privacy"
+msgstr "Privacy"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "Private"
@@ -4337,6 +4388,10 @@ msgstr "Pull this week’s numbers into a Sheet"
 msgid "Queued"
 msgstr "Queued"
 
+#: src/components/ai/RunStatus.tsx
+msgid "Queued…"
+msgstr "Queued…"
+
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr "Quote"
@@ -4382,6 +4437,10 @@ msgstr "Recent"
 msgid "Recent conversations"
 msgstr "Recent conversations"
 
+#: src/pages/ForYou.tsx
+msgid "Recommended"
+msgstr "Recommended"
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
 msgstr "Reconnect OAuth"
@@ -4390,6 +4449,10 @@ msgstr "Reconnect OAuth"
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Reconnecting"
 msgstr "Reconnecting"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Reconnecting…"
+msgstr "Reconnecting…"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Recording may have started, but the view could not refresh"
@@ -4453,6 +4516,7 @@ msgstr "Redirect URI"
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Refresh"
 msgstr "Refresh"
@@ -5305,6 +5369,10 @@ msgstr "Slack not enabled"
 msgid "Software update"
 msgstr "Software update"
 
+#: src/pages/ForYou.tsx
+msgid "Some sources are unavailable. Try refreshing."
+msgstr "Some sources are unavailable. Try refreshing."
+
 #: src/App.tsx
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
@@ -5475,6 +5543,10 @@ msgstr "Summarize team updates"
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Sunday"
 msgstr "Sunday"
+
+#: src/pages/Auth.tsx
+msgid "Support"
+msgstr "Support"
 
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -5752,6 +5824,10 @@ msgstr "To:"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "Today"
+
+#: src/pages/ForYou.tsx
+msgid "Tomorrow"
+msgstr "Tomorrow"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Tool sources"
@@ -6048,6 +6124,10 @@ msgstr "Voice chat"
 msgid "Wait a moment and test again."
 msgstr "Wait a moment and test again."
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for approval"
+msgstr "Waiting for approval"
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "Waiting for the API to come back…"
@@ -6151,7 +6231,6 @@ msgstr "When to use"
 msgid "Where should bots run?"
 msgstr "Where should bots run?"
 
-#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx

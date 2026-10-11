@@ -194,7 +194,15 @@ export default function ForYou() {
             {discovery.recommendations.map((recommendation) => (
               <View key={recommendation.id} style={styles.group}>
                 <NativeActionButton
-                  label={recommendation.title}
+                  label={
+                    recommendation.kind === "meeting"
+                      ? t("Prepare for “{title}”", {
+                          title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
+                        })
+                      : t("Continue “{title}”", {
+                          title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
+                        })
+                  }
                   disabled={busy}
                   onPress={() =>
                     void select({
@@ -208,7 +216,11 @@ export default function ForYou() {
                     })
                   }
                 />
-                <Text style={styles.description}>{recommendation.description}</Text>
+                <Text style={styles.description}>
+                  {recommendation.kind === "meeting"
+                    ? t("An upcoming event on your calendar.")
+                    : t("An unfinished item in your saved work.")}
+                </Text>
                 {recommendation.startsAt ? (
                   <Text style={styles.description}>
                     {new Date(recommendation.startsAt).toLocaleString()}

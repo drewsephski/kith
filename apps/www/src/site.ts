@@ -4,6 +4,7 @@ import { resolvePublicConfig } from "../public-config.mjs";
 const env = { ...process.env, ...import.meta.env };
 const config = resolvePublicConfig(env);
 export const SITE_NAME = "Kith";
+export const SUPPORT_EMAIL = env.PUBLIC_SUPPORT_EMAIL?.trim();
 export const SITE_URL = config.siteUrl;
 export const SITE_INDEXED = config.indexed;
 export const APP_URL = config.appUrl;

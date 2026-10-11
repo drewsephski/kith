@@ -1854,7 +1854,13 @@ describeJourneys("required product journeys", () => {
       orderBy: { createdAt: "desc" },
     });
     await rpc(app, cookie, "threads/stop", { botId: bot.id });
-    await waitFor(app, cookie, bot.id, (snap) => !snap.run);
+    const stopped = await waitFor(
+      app,
+      cookie,
+      bot.id,
+      (snap) => snap.run?.id === hanging.id && snap.run.status === "cancelled",
+    );
+    expect(stopped.run?.status).toBe("cancelled");
     expect((await prisma.run.findUniqueOrThrow({ where: { id: hanging.id } })).status).toBe(
       "cancelled",
     );

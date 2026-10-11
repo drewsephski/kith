@@ -468,6 +468,21 @@ describe("thread event reduction", () => {
     );
 
     expect(next).toMatchObject({ cursor: 12, messages: [], olderCursor: null, run: null });
+    expect(next?.settledRunIds).toContain("run-1");
+    const lateProgress = reduceThreadSnapshot(
+      next,
+      event({
+        type: "thread.progress",
+        seq: 13,
+        runId: "run-1",
+        payload: { text: "old work", activity: true },
+      }),
+    );
+    const lateTerminal = reduceThreadSnapshot(
+      lateProgress,
+      event({ type: "run.cancelled", seq: 14, runId: "run-1" }),
+    );
+    expect(lateTerminal).toMatchObject({ cursor: 14, messages: [], run: null });
   });
 
   it("routes clear and terminal events through the snapshot reducer", () => {

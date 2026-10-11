@@ -281,6 +281,13 @@ export function reduceThreadSnapshot(
       olderCursor: null,
       run: null,
       activeRuns: [],
+      settledRunIds: [
+        ...new Set([
+          ...(prev.settledRunIds ?? []),
+          ...(prev.run ? [prev.run.id] : []),
+          ...(prev.activeRuns ?? []).map((run) => run.id),
+        ]),
+      ].slice(-100),
     };
   }
   if (event.type === "run.started") {

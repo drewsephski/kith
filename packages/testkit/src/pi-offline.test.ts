@@ -104,8 +104,18 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     );
     server.assertComplete();
     expect(writes).toHaveLength(1);
-    expect(events).toContainEqual({ type: "progress", text: "Writing notes.txt", activity: true });
-    expect(events).toContainEqual({ type: "progress", text: "Working…", activity: true });
+    expect(
+      events
+        .filter((event) => event.type === "progress" && event.activity)
+        .map((event) => event.text)
+        .join(" "),
+    ).not.toContain("notes.txt");
+    expect(events).toContainEqual({ type: "progress", text: "Writing a file…", activity: true });
+    expect(events).toContainEqual({
+      type: "progress",
+      text: "Preparing a response…",
+      activity: true,
+    });
     expect(events).toContainEqual({
       type: "progress",
       text: "Continuing the task…",

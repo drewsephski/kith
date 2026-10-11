@@ -366,12 +366,17 @@ export async function threadSnapshot(
       deps.prisma.$transaction(
         async (tx) => {
           await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR SHARE`;
-          const [messagePage, last, waitingRun, busyOrFailed] = await Promise.all([
+          const [messagePage, last, lastClear, waitingRun, busyOrFailed] = await Promise.all([
             loadMessagePage(tx, target.threadId, undefined, THREAD_MESSAGE_PAGE_SIZE),
             tx.event.findFirst({
               where: { threadId: target.threadId },
               orderBy: { seq: "desc" },
               select: { seq: true },
+            }),
+            tx.event.findFirst({
+              where: { threadId: target.threadId, type: "thread.cleared" },
+              orderBy: { seq: "desc" },
+              select: { createdAt: true },
             }),
             // Waiting asks win over a concurrent busy run (including peer bot_message).
             tx.run.findFirst({
@@ -402,21 +407,34 @@ export async function threadSnapshot(
           // timestamps (equal createdAt values reverse under gt/gte), ask for
           // the newest terminal run under the same deterministic ordering and
           // check whether it is this failure.
-          const newestTerminal =
-            run?.status === "failed"
-              ? await tx.run.findFirst({
-                  where: {
-                    botId: target.botId,
-                    threadId: target.threadId,
-                    // Peer bot_message failures must not bury a user-visible failure.
-                    trigger: { not: "bot_message" },
-                    status: { in: ["failed", "completed", "cancelled"] },
-                  },
-                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                  select: { id: true },
-                })
-              : null;
-          const currentRun = run?.status === "failed" && newestTerminal?.id !== run.id ? null : run;
+          const newestTerminal = await tx.run.findFirst({
+            where: {
+              botId: target.botId,
+              threadId: target.threadId,
+              trigger: { not: "bot_message" },
+              status: { in: ["failed", "completed", "cancelled"] },
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          });
+          const terminals = await tx.run.findMany({
+            where: {
+              threadId: target.threadId,
+              status: { in: ["failed", "completed", "cancelled"] },
+            },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            take: 100,
+            select: { id: true },
+          });
+          const retainedRun =
+            run?.status === "failed" && newestTerminal?.id !== run.id
+              ? newestTerminal
+              : (run ?? newestTerminal);
+          // Explicitly clearing history also clears its visible status. Keep the
+          // terminal ledger so delayed pre-clear activity remains rejected.
+          const currentRun =
+            retainedRun && lastClear?.createdAt && retainedRun.createdAt <= lastClear.createdAt
+              ? null
+              : retainedRun;
           const liveEvents =
             currentRun && isActive(currentRun.status as RunStatus)
               ? await tx.event.findMany({
@@ -435,7 +453,13 @@ export async function threadSnapshot(
                   orderBy: { seq: "asc" },
                 })
               : [];
-          return { messagePage, last, run: currentRun, liveEvents };
+          return {
+            messagePage,
+            last,
+            run: currentRun,
+            liveEvents,
+            settledRunIds: terminals.map((run) => run.id),
+          };
         },
         { timeout: 15_000, maxWait: 5_000 },
       ),
@@ -447,6 +471,7 @@ export async function threadSnapshot(
       messages: messagesWithLiveEvents(core.messagePage.messages, core.liveEvents),
       olderCursor: core.messagePage.olderCursor,
       run: core.run ? mapRun(core.run) : null,
+      settledRunIds: core.settledRunIds,
       computer: toComputerStatus(target.botId, target.bot.computer, busyBotName),
     };
   }
@@ -454,12 +479,17 @@ export async function threadSnapshot(
   const core = await deps.prisma.$transaction(
     async (tx) => {
       await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR SHARE`;
-      const [messagePage, last, activeRuns, recentTerminals] = await Promise.all([
+      const [messagePage, last, lastClear, loadedActiveRuns, recentTerminals] = await Promise.all([
         loadMessagePage(tx, target.threadId, undefined, THREAD_MESSAGE_PAGE_SIZE),
         tx.event.findFirst({
           where: { threadId: target.threadId },
           orderBy: { seq: "desc" },
           select: { seq: true },
+        }),
+        tx.event.findFirst({
+          where: { threadId: target.threadId, type: "thread.cleared" },
+          orderBy: { seq: "desc" },
+          select: { createdAt: true },
         }),
         tx.run.findMany({
           where: {
@@ -485,6 +515,12 @@ export async function threadSnapshot(
           take: 50,
         }),
       ]);
+      const activeRuns = lastClear?.createdAt
+        ? loadedActiveRuns.filter((run) => run.createdAt > lastClear.createdAt)
+        : loadedActiveRuns;
+      const visibleTerminals = lastClear?.createdAt
+        ? recentTerminals.filter((run) => run.createdAt > lastClear.createdAt)
+        : recentTerminals;
       const liveEvents =
         activeRuns.length > 0
           ? await tx.event.findMany({
@@ -507,7 +543,8 @@ export async function threadSnapshot(
         messagePage,
         last,
         activeRuns,
-        terminalRun: pickLatestTerminalRun(recentTerminals),
+        terminalRun: pickLatestTerminalRun(visibleTerminals),
+        settledRunIds: recentTerminals.map((run) => run.id),
         liveEvents,
       };
     },
@@ -529,7 +566,10 @@ export async function threadSnapshot(
         ? mapRun(core.terminalRun)
         : primaryActiveRun
           ? mapRun(primaryActiveRun)
-          : null,
+          : core.terminalRun
+            ? mapRun(core.terminalRun)
+            : null,
+    settledRunIds: core.settledRunIds,
     activeRuns: core.activeRuns.map(mapRun),
   };
 }

@@ -291,6 +291,30 @@ describe("inferScript save_shared_memory", () => {
 });
 
 describe("scripted durable steering", () => {
+  it("keeps explicit steering in the result when system context fills the original summary", async () => {
+    const events: AgentRuntimeEvent[] = [];
+    for await (const event of new ScriptedAgentRuntime().run({
+      botId: "bot",
+      threadId: "thread",
+      runId: "run-steering-summary",
+      prompt: `Initial work\n\n${"System context. ".repeat(50)}`,
+      instructions: "",
+      history: [],
+      tools: [],
+      model: { provider: "scripted", id: "scripted" },
+      claimSteering: async () => [
+        { id: "steer", messageId: "message", text: "Use revised totals." },
+      ],
+    }))
+      events.push(event);
+    expect(
+      events
+        .filter((event) => event.type === "text")
+        .map((event) => event.text)
+        .join(""),
+    ).toContain("Use revised totals.");
+    expect(events.at(-1)?.type).toBe("done");
+  });
   it("keeps the original tool intent when initial steering adds context", async () => {
     const prompt = "write a file called notes/original.txt";
     const claimSteering = vi.fn(async () => [

@@ -150,11 +150,19 @@ with explicit `no-store` headers, forwards `/health`, and keeps SPA navigation w
 Missing or malformed proxy configuration fails the build. Database, Composio, encryption,
 and auth signing secrets stay exclusively on Fly.
 
+Deploy and verify a compatible backend before publishing production web changes.
+Production Vercel builds probe the For you discovery, dismissal, and launch routes
+without authentication and require their normal RPC unauthorized response. A missing
+route fails the build instead of publishing a frontend that returns 404 on every task.
+Backend rollout acceptance checks these routes on loopback and through the public
+application origin; a failed check triggers the existing rollback. Local static builds
+and Vercel previews remain independent of a running backend.
+
 For a local build check:
 
 ```bash
 API_PROXY_TARGET=https://kith-example-api.fly.dev pnpm --filter @rakazo/web build:vercel
-node --test apps/web/scripts/vercel-build.test.mjs infra/fly/start.test.mjs
+node --test apps/web/scripts/vercel-build.test.mjs scripts/verify-for-you-api.test.mjs infra/fly/start.test.mjs
 fly config validate --app "$KITH_BACKEND_APP" --config infra/fly/fly.toml
 ```
 

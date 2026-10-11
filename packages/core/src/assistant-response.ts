@@ -50,3 +50,22 @@ export function runActivityText(
   const block = live?.blocks.findLast((block) => block.kind === "progress" && block.activity);
   return block?.kind === "progress" && block.text.trim() ? block.text.trim() : null;
 }
+
+/** Approval chrome derives from a durable, still-pending approval card in this run. */
+export function hasRunApproval(
+  messages: readonly Pick<ThreadMessage, "runId" | "blocks">[],
+  runId: string | null | undefined,
+): boolean {
+  return (
+    !!runId &&
+    messages.some(
+      (message) =>
+        message.runId === runId &&
+        message.blocks.some(
+          (block) =>
+            (block.kind === "mcp_approval" && block.status === "pending") ||
+            (block.kind === "ask" && !!block.approvalEffectId && block.status !== "answered"),
+        ),
+    )
+  );
+}

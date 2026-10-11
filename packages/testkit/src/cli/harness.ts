@@ -141,7 +141,11 @@ async function main() {
         if (result.exitCode !== 0)
           throw new Error("Isolated integration database operation failed");
       };
-      for (const [index, suite] of suites.entries()) {
+      const selectedSuites = e2eSpec
+        ? suites.filter((suite) => new RegExp(e2eSpec).test(suite))
+        : suites;
+      if (selectedSuites.length === 0) throw new Error("No integration suites match --spec");
+      for (const [index, suite] of selectedSuites.entries()) {
         const database = `integration_${index}`;
         await databaseCommand(`CREATE DATABASE "${database}" TEMPLATE "${template}"`);
         const suiteUrl = new URL(databaseUrl);

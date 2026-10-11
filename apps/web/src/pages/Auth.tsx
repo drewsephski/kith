@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { AI_PRIVACY_URL, DEFAULT_SUPPORT_URL } from "@rakazo/contracts";
 import { credentialIssue, signupRequiresEmailVerification } from "@rakazo/core";
 import { Button, Input, KithAvatar, Label } from "@rakazo/ui-web";
 import { Eye, EyeOff } from "lucide-react";
@@ -241,6 +242,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                       type={showPassword ? "text" : "password"}
                       required
                       minLength={8}
+                      aria-describedby={mode === "up" ? "password-requirement" : undefined}
                       className={`${fieldClass} pr-12`}
                     />
                     <Button
@@ -255,6 +257,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                       {showPassword ? <EyeOff /> : <Eye />}
                     </Button>
                   </div>
+                  {mode === "up" ? (
+                    <p id="password-requirement" className="mt-2 text-sm text-muted-foreground">
+                      <Trans>At least 8 characters</Trans>
+                    </p>
+                  ) : null}
                   {mode === "in" && reset?.passwordReset ? (
                     <div className="mt-2 text-right text-sm">
                       <Link to="/forgot-password" className="font-medium text-foreground">
@@ -317,6 +324,21 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           ) : null}
         </>
       )}
+      <nav
+        aria-label={t`Help and privacy`}
+        className="mt-6 flex justify-center gap-5 text-sm text-muted-foreground"
+      >
+        <a href={reset?.privacyUrl ?? AI_PRIVACY_URL} target="_blank" rel="noopener noreferrer">
+          <Trans>Privacy</Trans>
+        </a>
+        <a
+          href={reset?.supportUrl ?? DEFAULT_SUPPORT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Trans>Support</Trans>
+        </a>
+      </nav>
     </AuthFrame>
   );
 }

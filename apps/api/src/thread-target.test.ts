@@ -205,7 +205,7 @@ describe("threadSnapshot", () => {
         findFirst: vi.fn().mockResolvedValue({ seq: 4 }),
         findMany: findManyEvents,
       },
-      run: { findFirst: botRunFindFirst([run]) },
+      run: { findFirst: botRunFindFirst([run]), findMany: vi.fn().mockResolvedValue([]) },
     };
     const prisma = {
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -271,7 +271,7 @@ describe("threadSnapshot", () => {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: findManyEvents,
       },
-      run: { findFirst: findFirstRun },
+      run: { findFirst: findFirstRun, findMany: vi.fn().mockResolvedValue([]) },
     };
     const prisma = {
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -356,7 +356,10 @@ describe("threadSnapshot", () => {
                 findFirst: vi.fn().mockResolvedValue(null),
                 findMany: vi.fn().mockResolvedValue([]),
               },
-              run: { findFirst: botRunFindFirst([waitingPeer, olderUser]) },
+              run: {
+                findFirst: botRunFindFirst([waitingPeer, olderUser]),
+                findMany: vi.fn().mockResolvedValue([]),
+              },
             }),
           ),
         } as unknown as PrismaClient,
@@ -411,7 +414,7 @@ describe("threadSnapshot", () => {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: vi.fn(),
       },
-      run: { findFirst: findFirstRun },
+      run: { findFirst: findFirstRun, findMany: vi.fn().mockResolvedValue([]) },
     };
     const prisma = {
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -434,10 +437,10 @@ describe("threadSnapshot", () => {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
-    expect(snapshot.run).toBeNull();
+    expect(snapshot.run).toMatchObject({ id: "run-completed", status: "completed", error: null });
   });
 
-  it("does not return a cancelled or completed run", async () => {
+  it("returns no status when the conversation has never run", async () => {
     const findManyEvents = vi.fn();
     const findFirstRun = botRunFindFirst([]);
     const tx = {
@@ -447,7 +450,7 @@ describe("threadSnapshot", () => {
         findFirst: vi.fn().mockResolvedValue(null),
         findMany: findManyEvents,
       },
-      run: { findFirst: findFirstRun },
+      run: { findFirst: findFirstRun, findMany: vi.fn().mockResolvedValue([]) },
     };
     const prisma = {
       $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
@@ -473,6 +476,61 @@ describe("threadSnapshot", () => {
     expect(snapshot.run).toBeNull();
     expect(findManyEvents).not.toHaveBeenCalled();
   });
+  it.each(["bot", "group"] as const)(
+    "clearing a %s hides old status while retaining replay protection",
+    async (kind) => {
+      const clearedAt = new Date("2026-10-10T12:00:00Z");
+      const terminal = {
+        id: "old-run",
+        botId: "bot-1",
+        threadId: "thread-1",
+        taskId: "task-1",
+        status: "cancelled",
+        trigger: "user",
+        routineId: null,
+        modelId: null,
+        modelProvider: null,
+        error: null,
+        startedAt: null,
+        completedAt: clearedAt,
+        createdAt: new Date("2026-10-10T11:00:00Z"),
+      };
+      const tx = {
+        $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
+        message: { findMany: vi.fn().mockResolvedValue([]) },
+        event: {
+          findFirst: vi.fn(async (args: { where: { type?: string } }) =>
+            args.where.type === "thread.cleared" ? { createdAt: clearedAt } : { seq: 12 },
+          ),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        run: {
+          findFirst: botRunFindFirst([terminal]),
+          findMany: groupRunFindMany({ terminals: [terminal] }),
+        },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+      } as unknown as PrismaClient;
+      const target =
+        kind === "group"
+          ? groupTarget()
+          : ({
+              kind: "bot",
+              botId: "bot-1",
+              threadId: "thread-1",
+              bot: { computer: null },
+            } as ThreadTarget);
+      const cleared = await threadSnapshot({ prisma }, target);
+      expect(cleared.run).toBeNull();
+      expect(cleared.settledRunIds).toEqual([terminal.id]);
+      terminal.createdAt = new Date("2026-10-10T13:00:00Z");
+      expect((await threadSnapshot({ prisma }, target)).run).toMatchObject({
+        id: terminal.id,
+        status: "cancelled",
+      });
+    },
+  );
   it("returns a group's latest failed run so a refresh keeps its error", async () => {
     const run = {
       id: "run-failed",
@@ -682,7 +740,11 @@ describe("threadSnapshot", () => {
       groupTarget(),
     );
 
-    expect(snapshot.run).toBeNull();
+    expect(snapshot.run).toMatchObject({
+      id: "run-newer-completed",
+      status: "completed",
+      error: null,
+    });
     expect(snapshot.activeRuns).toEqual([]);
   });
 
@@ -720,7 +782,11 @@ describe("threadSnapshot", () => {
       groupTarget(),
     );
 
-    expect(snapshot.run).toBeNull();
+    expect(snapshot.run).toMatchObject({
+      id: "run-newer-cancelled",
+      status: "cancelled",
+      error: null,
+    });
   });
 
   it("prefers a timestamped terminal over an older failure with null completedAt", async () => {
@@ -757,7 +823,7 @@ describe("threadSnapshot", () => {
       groupTarget(),
     );
 
-    expect(snapshot.run).toBeNull();
+    expect(snapshot.run).toMatchObject({ id: "run-completed", status: "completed", error: null });
   });
 
   it("clamps a long persisted group failure error on refresh", async () => {

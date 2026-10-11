@@ -508,6 +508,14 @@ msgstr "始终允许"
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "此提供方存储的是 API 密钥，不是订阅登录。"
 
+#: src/pages/ForYou.tsx
+msgid "An unfinished item in your saved work."
+msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "An upcoming event on your calendar."
+msgstr ""
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Analytics property"
 msgstr ""
@@ -660,6 +668,10 @@ msgstr "{0}"
 #: src/pages/RoutineSchedule.tsx
 msgid "at {timeSelect}"
 msgstr "{timeSelect}"
+
+#: src/pages/Auth.tsx
+msgid "At least 8 characters"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Attach file"
@@ -1051,6 +1063,10 @@ msgstr ""
 #: src/components/CalendarReceipt.tsx
 msgid "Checking your calendar"
 msgstr "正在查看你的日历"
+
+#: src/pages/ForYou.tsx
+msgid "Checking your sources…"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
@@ -1494,6 +1510,11 @@ msgstr "上下文限制"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "继续"
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Continue “{0}”"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Continue connecting"
@@ -2124,6 +2145,10 @@ msgstr "无法更新反应"
 msgid "Could not update the default memory scope"
 msgstr "无法更新默认记忆范围"
 
+#: src/pages/ForYou.tsx
+msgid "Could not update this recommendation. Try again."
+msgstr ""
+
 #: src/components/computer/FilesApp.tsx
 msgid "Could not upload file"
 msgstr ""
@@ -2440,6 +2465,7 @@ msgstr "正在断开…"
 
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Dismiss"
 msgstr ""
@@ -2689,6 +2715,7 @@ msgid "Expand {0}"
 msgstr "展开 {0}"
 
 #: src/pages/ForYou.tsx
+#: src/pages/shell/assistant-for-you.tsx
 msgid "Explore"
 msgstr "探索"
 
@@ -2850,6 +2877,10 @@ msgstr "跟进尚未回复的对话"
 msgid "Follow up unanswered emails"
 msgstr ""
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Follow-ups"
+msgstr ""
+
 #: src/pages/ForYou.tsx
 msgid "For builders"
 msgstr "面向创作者"
@@ -2860,7 +2891,6 @@ msgid "For builders"
 msgstr "面向创作者"
 
 #: src/pages/ForYou.tsx
-#: src/pages/shell/assistant-for-you.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "For you"
 msgstr "为你准备"
@@ -3011,6 +3041,10 @@ msgstr "请求头值"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "试听"
+
+#: src/pages/Auth.tsx
+msgid "Help and privacy"
+msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Help me plan my day. Ask me what I need to get done."
@@ -3808,6 +3842,10 @@ msgstr ""
 msgid "No events found in the checked window."
 msgstr "检查的时间段内未找到活动。"
 
+#: src/pages/ForYou.tsx
+msgid "No grounded recommendations right now."
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr "还没有群聊。"
@@ -4232,6 +4270,11 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Prepare for “{0}”"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Prepare for your next meeting"
@@ -4243,6 +4286,10 @@ msgstr ""
 
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Prepare my next meeting"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Preparing a response…"
 msgstr ""
 
 #: src/components/CalendarReceipt.tsx
@@ -4272,6 +4319,10 @@ msgstr "前面的分类"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Privacy"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
@@ -4337,6 +4388,10 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Queued…"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr ""
@@ -4382,6 +4437,10 @@ msgstr "最近"
 msgid "Recent conversations"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Recommended"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
 msgstr "重新连接 OAuth"
@@ -4390,6 +4449,10 @@ msgstr "重新连接 OAuth"
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Reconnecting"
 msgstr "正在重新连接"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Reconnecting…"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Recording may have started, but the view could not refresh"
@@ -4453,6 +4516,7 @@ msgstr ""
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Refresh"
 msgstr "刷新"
@@ -5305,6 +5369,10 @@ msgstr ""
 msgid "Software update"
 msgstr "软件更新"
 
+#: src/pages/ForYou.tsx
+msgid "Some sources are unavailable. Try refreshing."
+msgstr ""
+
 #: src/App.tsx
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
@@ -5474,6 +5542,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Sunday"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Support"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5752,6 +5824,10 @@ msgstr "至:"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "今天"
+
+#: src/pages/ForYou.tsx
+msgid "Tomorrow"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Tool sources"
@@ -6048,6 +6124,10 @@ msgstr "语音聊天"
 msgid "Wait a moment and test again."
 msgstr "请稍候并重新测试。"
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for approval"
+msgstr ""
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "正在等待 API 恢复…"
@@ -6151,7 +6231,6 @@ msgstr "何时使用"
 msgid "Where should bots run?"
 msgstr "Bot 应在哪里运行？"
 
-#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx

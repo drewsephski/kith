@@ -233,10 +233,14 @@ export function ForYouPage({
                         })
                       }
                     >
-                      {recommendation.title}
+                      {recommendation.kind === "meeting"
+                        ? t`Prepare for “${recommendation.sources[0]?.title.slice(0, 120)}”`
+                        : t`Continue “${recommendation.sources[0]?.title.slice(0, 120)}”`}
                     </Button>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {recommendation.description}
+                      {recommendation.kind === "meeting"
+                        ? t`An upcoming event on your calendar.`
+                        : t`An unfinished item in your saved work.`}
                     </p>
                     {recommendation.startsAt ? (
                       <p className="mt-1 text-xs text-muted-foreground">

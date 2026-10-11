@@ -58,6 +58,37 @@ describe("account preferences", () => {
     return { update, deps, actor, handler: new RPCHandler(createRouter(deps)) };
   }
 
+  it.each(["forYou/discover", "forYou/dismiss", "bots/launchForYou"])(
+    "registers %s and rejects anonymous compatibility probes before accessing sources",
+    async (route) => {
+      const { handler, deps } = preferencesDeps("robot");
+      const { matched, response } = await handler.handle(
+        new Request(`http://127.0.0.1/rpc/${route}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            json: {
+              assistantId: "compatibility-probe",
+              spaceId: "compatibility-probe",
+              userId: "compatibility-probe",
+              recommendationId: "compatibility-probe",
+              action: "dismiss",
+              suggestionId: "weekly-plan",
+              operationId: "00000000-0000-4000-8000-000000000000",
+            },
+          }),
+        }),
+        { prefix: "/rpc", context: {} },
+      );
+      expect(matched).toBe(true);
+      expect(response?.status).toBe(401);
+      await expect(response?.json()).resolves.toEqual({
+        json: expect.objectContaining({ code: "UNAUTHORIZED", status: 401 }),
+      });
+      expect(deps.prisma.user.findUniqueOrThrow).not.toHaveBeenCalled();
+    },
+  );
+
   it("reports model credential store outages as service unavailable", async () => {
     const { deps, actor } = preferencesDeps("robot");
     Object.assign(deps.prisma, {

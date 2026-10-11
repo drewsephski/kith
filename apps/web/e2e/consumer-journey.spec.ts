@@ -57,7 +57,7 @@ test("Web handoff safely resumes one assistant across sign-up, concurrent tabs a
   await captureScreenshot(page, testInfo, "consumer-first-run-narrow");
 });
 
-test("returning home offers concrete connected-service prompts instead of task activity", async ({
+test("returning home respects abstention and prefills conversation-specific follow-ups", async ({
   page,
 }, testInfo) => {
   await signup(page, `returning-${Date.now()}@example.test`, "password12", "Alex");
@@ -113,10 +113,33 @@ test("returning home offers concrete connected-service prompts instead of task a
   // Returning to the app revalidates connected services; task rendering does not rediscover accounts.
   await page.reload();
   await expect(page).toHaveURL(new RegExp(`/app/${primary}$`));
+  const abstention = page.waitForResponse("**/rpc/threads/suggestions");
   await composer.fill("Remember that I prefer morning meetings.");
   await composer.press("Enter");
   await expect(page.getByTestId("message-bot-bubble").last()).toBeVisible();
-  const prompt = highlights.getByRole("button", { name: "Draft important replies", exact: true });
+  expect((await (await abstention).json()).json).toEqual([]);
+  await expect(highlights).toHaveCount(0);
+  // Model output is synthetic; the preceding real API request proves that the
+  // unavailable offline model does not manufacture a connected-service fallback.
+  await page.route("**/rpc/threads/suggestions", (route) =>
+    route.fulfill({
+      json: {
+        json: [
+          {
+            id: "morning-preference",
+            title: "Review my meeting preference",
+            prompt:
+              "Review how my preference for morning meetings should guide future calendar suggestions.",
+          },
+        ],
+      },
+    }),
+  );
+  await page.reload();
+  const prompt = highlights.getByRole("button", {
+    name: "Review my meeting preference",
+    exact: true,
+  });
   await testInfo.attach("connected-suggestions-state", {
     contentType: "application/json",
     body: JSON.stringify(
@@ -158,6 +181,8 @@ test("returning home offers concrete connected-service prompts instead of task a
   }
   await prompt.click();
   await expect(page).toHaveURL(new RegExp(`/app/${primary}$`));
-  await expect(composer).toHaveValue(/Go through my inbox.*create a draft response for each/);
+  await expect(composer).toHaveValue(
+    "Review how my preference for morning meetings should guide future calendar suggestions.",
+  );
   await expect(composer).toBeFocused();
 });

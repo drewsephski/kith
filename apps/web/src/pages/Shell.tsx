@@ -1993,6 +1993,15 @@ export function ShellPage({
       status: run.status,
     };
   });
+  const waitingBots = currentRuns
+    .filter((run) => ["waiting_input", "waiting_takeover"].includes(run.status))
+    .map((run) => ({
+      botId: run.botId,
+      runId: run.id,
+      color: resolveTranscriptBot(run.botId)?.color ?? FALLBACK_BOT_COLOR,
+      name: resolveTranscriptBot(run.botId)?.name,
+      status: run.status,
+    }));
   const resolveTranscriptMemberName = useCallback(
     (botId: string | undefined) => memberName(transcriptMembers, botId),
     [transcriptMembers],
@@ -4147,6 +4156,7 @@ export function ShellPage({
                 answerableAskMessageId={answerableAskMessageId}
                 running={transcriptRunning}
                 workingBots={workingBots}
+                waitingBots={waitingBots}
                 latestRun={activeSnapshot?.run}
                 assistantId={assistantId}
                 onLoadOlder={loadOlder}
@@ -5437,6 +5447,7 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId,
   running,
   workingBots,
+  waitingBots = [],
   latestRun,
   assistantId,
   onLoadOlder,
@@ -5472,6 +5483,7 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId: string | null;
   running: boolean;
   workingBots: (GroupAvatarMember & { runId: string })[];
+  waitingBots?: (GroupAvatarMember & { runId: string })[];
   latestRun?: ThreadSnapshot["run"];
   assistantId: string | null;
   onLoadOlder: () => void | Promise<void>;
@@ -5954,11 +5966,12 @@ export const Transcript = memo(function Transcript({
             </Fragment>
           );
         })}
-        {workingBots.length > 0 || latestRun ? (
+        {workingBots.length > 0 || waitingBots.length > 0 || latestRun ? (
           <div className="kith-conversation-item shrink-0">
             <RunStatus
               reconnecting={reconnecting}
               bots={workingBots}
+              waitingBots={waitingBots}
               messages={messages}
               latestRun={latestRun}
               assistantId={assistantId}

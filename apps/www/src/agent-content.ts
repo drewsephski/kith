@@ -3,8 +3,9 @@ import { GROK_ALTERNATIVE_MARKDOWN } from "./grok-alternative.js";
 import { OPENCLAW_MARKDOWN, SELF_HOST_MARKDOWN } from "./guide.js";
 import { getHomeCopy } from "./i18n/home.js";
 import { getJourneyCopy } from "./i18n/journey.js";
-import { GITHUB_URL, SITE_URL, WEB_START_URL, DESKTOP_URL } from "./site.js";
+import { GITHUB_URL, SITE_URL, WEB_START_URL, DESKTOP_URL, SUPPORT_EMAIL } from "./site.js";
 import { roundupMarkdown } from "./roundup.js";
+import { PRIVACY_EFFECTIVE_DATE, PRIVACY_INTRO, PRIVACY_SECTIONS } from "./privacy-policy.js";
 
 export const HOME_MARKDOWN = `# Kith
 
@@ -43,19 +44,38 @@ Kith targets the web, macOS, Linux, iOS, and Android. The source is available un
 
 export const SUPPORT_MARKDOWN = `# Kith support
 
-For help with the Kith mobile app or a hosted Kith account, contact your service operator. Include the email address on the account, what you expected to happen, and any error message you saw. Never send passwords, API keys, access tokens, or other secrets.
+Get help with sign-in, your account, connected services, or the Kith app.
 
-For self-hosted Kith, start with the [self-hosting guide](${SITE_URL}/self-hosted-ai-agent/). The [full reference](${GITHUB_URL}/blob/main/docs/self-host.md) is on GitHub. Open reproducible bugs and feature requests in the [public GitHub repository](${GITHUB_URL}/issues). Use the repository security policy for vulnerability reporting.
+${SUPPORT_EMAIL ? `Email [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}) for private support or privacy requests.` : `Visit [support](${SITE_URL}/support/) for contact information.`} Include your app version and a short description of the problem. Never send passwords, API keys, or access tokens.
 
-Hosted users can permanently delete their account and associated personal Space data from the Account screen in the Kith app.
+## Sign-in and connections
+
+Use Forgot password? on the sign-in screen to reset your password. If you use your own server, contact its operator. You can disconnect services in the app and revoke access in the connected service's settings.
+
+## Account deletion
+
+Open Account in the mobile app, choose Delete account, complete the requested identity check, and confirm. This deletes your account and its personal Space data. Content shared with other members and records held by connected services may remain. If you cannot sign in, contact support from your account's email address; we will verify your request before deleting account data.
+
+## Software issues and self-hosting
+
+Report reproducible bugs in the [issue tracker](${GITHUB_URL}/issues). Keep account information and private screenshots out of public reports. For self-hosting, read the [guide](${SITE_URL}/self-hosted-ai-agent/). Read our [privacy policy](${SITE_URL}/privacy/) for data handling and privacy choices.
 `;
 
-export const PRIVACY_MARKDOWN = `# Kith privacy
+export const PRIVACY_MARKDOWN = `# Privacy policy
 
-The operator of the Kith service you use is responsible for its policies and commercial terms. This fork does not operate the upstream Rakazo service.
+Effective ${PRIVACY_EFFECTIVE_DATE}.
 
-- [Deployment guide](${GITHUB_URL}/blob/main/docs/hosted-deployment.md)
-- [Upstream privacy policy](https://rakazo.com/privacy/) applies to that upstream service, not this fork.
+${PRIVACY_INTRO}
+
+${SUPPORT_EMAIL ? `For privacy questions or requests, contact [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}).` : `For privacy questions or requests, visit [support](${SITE_URL}/support/).`}
+
+${PRIVACY_SECTIONS.map((section) => [
+  `## ${section.heading}`,
+  ...section.paragraphs,
+  ...(section.items ? [section.items.map((item) => `- ${item}`).join("\n")] : []),
+].join("\n\n")).join("\n\n")}
+
+Contact us through the [support page](${SITE_URL}/support/).
 `;
 
 export const TERMS_MARKDOWN = `# Kith terms

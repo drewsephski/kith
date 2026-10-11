@@ -1007,4 +1007,25 @@ export const RU_MESSAGES: Record<string, string> = {
   Stopped: "Остановлено",
   "Waiting for you": "Ожидает вас",
   "Waiting for your input": "Ожидает вашего ввода",
+  "At least 8 characters": "Не менее 8 символов",
+  "Checking your sources…": "Проверяем ваши источники…",
+  "Could not update this recommendation. Try again.":
+    "Не удалось обновить рекомендацию. Попробуйте ещё раз.",
+  "No grounded recommendations right now.":
+    "Сейчас нет рекомендаций с подтверждёнными источниками.",
+  "Preparing a response…": "Готовим ответ…",
+  Privacy: "Конфиденциальность",
+  "Queued…": "В очереди…",
+  Recommended: "Рекомендации",
+  "Reconnecting…": "Переподключение…",
+  Refresh: "Обновить",
+  "Some sources are unavailable. Try refreshing.":
+    "Некоторые источники недоступны. Попробуйте обновить.",
+  Support: "Поддержка",
+  Tomorrow: "Завтра",
+  "Prepare for “{title}”": "Подготовиться к «{title}»",
+  "Continue “{title}”": "Продолжить «{title}»",
+  "An upcoming event on your calendar.": "Предстоящее событие в вашем календаре.",
+  "An unfinished item in your saved work.": "Незавершённая задача в сохранённой работе.",
+  "Waiting for approval": "Ожидание одобрения",
 };

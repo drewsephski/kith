@@ -508,6 +508,14 @@ msgstr "항상 허용됨"
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "이 서비스에는 구독 로그인이 아니라 API 키가 저장되어 있습니다."
 
+#: src/pages/ForYou.tsx
+msgid "An unfinished item in your saved work."
+msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "An upcoming event on your calendar."
+msgstr ""
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Analytics property"
 msgstr ""
@@ -660,6 +668,10 @@ msgstr "{0}에"
 #: src/pages/RoutineSchedule.tsx
 msgid "at {timeSelect}"
 msgstr "{timeSelect}에"
+
+#: src/pages/Auth.tsx
+msgid "At least 8 characters"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Attach file"
@@ -1051,6 +1063,10 @@ msgstr ""
 #: src/components/CalendarReceipt.tsx
 msgid "Checking your calendar"
 msgstr "캘린더 확인 중"
+
+#: src/pages/ForYou.tsx
+msgid "Checking your sources…"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
@@ -1494,6 +1510,11 @@ msgstr "컨텍스트 한도"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "계속"
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Continue “{0}”"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Continue connecting"
@@ -2124,6 +2145,10 @@ msgstr "반응을 업데이트할 수 없습니다"
 msgid "Could not update the default memory scope"
 msgstr "기본 기억 범위를 변경하지 못했습니다."
 
+#: src/pages/ForYou.tsx
+msgid "Could not update this recommendation. Try again."
+msgstr ""
+
 #: src/components/computer/FilesApp.tsx
 msgid "Could not upload file"
 msgstr ""
@@ -2440,6 +2465,7 @@ msgstr "연결 해제 중…"
 
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Dismiss"
 msgstr "닫기"
@@ -2689,6 +2715,7 @@ msgid "Expand {0}"
 msgstr "{0} 펼치기"
 
 #: src/pages/ForYou.tsx
+#: src/pages/shell/assistant-for-you.tsx
 msgid "Explore"
 msgstr "둘러보기"
 
@@ -2850,6 +2877,10 @@ msgstr "답이 없는 대화에 후속 연락하기"
 msgid "Follow up unanswered emails"
 msgstr ""
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Follow-ups"
+msgstr ""
+
 #: src/pages/ForYou.tsx
 msgid "For builders"
 msgstr "만드는 사람을 위한 도움"
@@ -2860,7 +2891,6 @@ msgid "For builders"
 msgstr "만드는 사람을 위한 도움"
 
 #: src/pages/ForYou.tsx
-#: src/pages/shell/assistant-for-you.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "For you"
 msgstr "나를 위한 작업"
@@ -3011,6 +3041,10 @@ msgstr "헤더 값"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "샘플 듣기"
+
+#: src/pages/Auth.tsx
+msgid "Help and privacy"
+msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Help me plan my day. Ask me what I need to get done."
@@ -3808,6 +3842,10 @@ msgstr ""
 msgid "No events found in the checked window."
 msgstr "확인한 기간에 일정이 없습니다."
 
+#: src/pages/ForYou.tsx
+msgid "No grounded recommendations right now."
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr "아직 그룹 채팅이 없습니다."
@@ -4232,6 +4270,11 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Prepare for “{0}”"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Prepare for your next meeting"
@@ -4243,6 +4286,10 @@ msgstr ""
 
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Prepare my next meeting"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Preparing a response…"
 msgstr ""
 
 #: src/components/CalendarReceipt.tsx
@@ -4272,6 +4319,10 @@ msgstr "이전 카테고리"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Privacy"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
@@ -4337,6 +4388,10 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Queued…"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr ""
@@ -4382,6 +4437,10 @@ msgstr "최근"
 msgid "Recent conversations"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Recommended"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
 msgstr "OAuth 다시 연결"
@@ -4390,6 +4449,10 @@ msgstr "OAuth 다시 연결"
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Reconnecting"
 msgstr "다시 연결 중"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Reconnecting…"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Recording may have started, but the view could not refresh"
@@ -4453,6 +4516,7 @@ msgstr ""
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Refresh"
 msgstr "새로고침"
@@ -5305,6 +5369,10 @@ msgstr ""
 msgid "Software update"
 msgstr "소프트웨어 업데이트"
 
+#: src/pages/ForYou.tsx
+msgid "Some sources are unavailable. Try refreshing."
+msgstr ""
+
 #: src/App.tsx
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
@@ -5474,6 +5542,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Sunday"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Support"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5752,6 +5824,10 @@ msgstr "받는 사람:"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "오늘"
+
+#: src/pages/ForYou.tsx
+msgid "Tomorrow"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Tool sources"
@@ -6048,6 +6124,10 @@ msgstr "음성 대화"
 msgid "Wait a moment and test again."
 msgstr "잠시 기다린 뒤 다시 테스트하세요."
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for approval"
+msgstr ""
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr "API가 다시 작동하기를 기다리는 중…"
@@ -6151,7 +6231,6 @@ msgstr "언제 사용할지"
 msgid "Where should bots run?"
 msgstr "Bot을 어디에서 실행할까요?"
 
-#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx

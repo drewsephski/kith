@@ -13,6 +13,11 @@ function fixture(failure = "", delayed = false) {
   const scripts = {
     git: `[[ "$1" == rev-parse ]] && echo "$EXPECTED_SHA"; exit 0`,
     sleep: "exit 0",
+    node: `
+echo "node $1" >> "$FIXTURE/log"
+[[ "$1" == scripts/verify-for-you-api.mjs ]] || exit 99
+[[ "$FAILURE" == for-you ]] && exit 1
+exit 0`,
     timeout: `
 echo "timeout $1 $2" >> "$FIXTURE/log"
 [[ "$1" == --kill-after=5s ]] || exit 99
@@ -89,13 +94,22 @@ test("waits for supervised startup before reporting exact-source success", () =>
     const result = f.run();
     assert.equal(result.status, 0, result.stderr);
     assert.equal(f.log().match(/flyctl ssh/g)?.length, 3);
+    assert.match(f.log(), /node scripts\/verify-for-you-api\.mjs/);
     assert.doesNotMatch(f.log(), /--image/);
   } finally {
     f.close();
   }
 });
 
-for (const failure of ["runtime", "health", "auth", "deploy", "rollback-starting", "ssh-timeout"]) {
+for (const failure of [
+  "runtime",
+  "health",
+  "auth",
+  "deploy",
+  "rollback-starting",
+  "ssh-timeout",
+  "for-you",
+]) {
   test(`restores the immutable prior image after ${failure} failure and keeps the job failed`, () => {
     const f = fixture(failure);
     try {

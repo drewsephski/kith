@@ -77,6 +77,7 @@ import {
 } from "@rakazo/adapters";
 import { createAuth, isBlockedAuthPath, loopbackTwinOrigins } from "@rakazo/auth";
 import type { Actor, AuthCapabilities } from "@rakazo/contracts";
+import { DEFAULT_SUPPORT_URL } from "@rakazo/contracts";
 import { signupAllowlistBootUpdate, signupPolicyFromEnv } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import {
@@ -643,6 +644,8 @@ export async function createApp(
       resetUrl:
         env.passwordAuth !== false && email ? new URL("/reset-password", env.webOrigin).href : null,
       billing: Boolean(billing),
+      privacyUrl: env.privacyPolicyUrl ?? null,
+      supportUrl: DEFAULT_SUPPORT_URL,
     } satisfies AuthCapabilities);
   });
   if (localEmailEmulator && env.nodeEnv === "development") {

@@ -45,6 +45,7 @@ export interface TaskPlatform {
       timeMax: string;
       maxMeetings?: number;
       maxCalendars?: number;
+      maxPages?: number;
     },
     context: AdapterContext,
   ): Promise<{ meetings: TaskMeeting[]; complete: boolean }>;

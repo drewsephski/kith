@@ -3,22 +3,32 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { fetchGithubStars, formatStarCount } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { SUPPORT_EMAIL } from "../site";
+import { PRIVACY_EFFECTIVE_DATE, PRIVACY_INTRO, PRIVACY_SECTIONS } from "../privacy-policy";
 
 const stars = await fetchGithubStars();
 const starsLabel = stars === null ? "Star" : formatStarCount(stars);
 ---
 
 <BaseLayout
-  title="Privacy · Kith"
-  description="Privacy information for self-hosted and operator-hosted Kith services."
+  title="Privacy policy · Kith"
+  description="How Kith handles account information, conversations, files, voice, and connected services."
 >
   <div class="container">
     <Header starsLabel={starsLabel} />
     <main id="main" class="privacy-copy">
-      <h1>Privacy</h1>
-      <p>Kith is open-source software. The operator of the service you use is responsible for its policies, data handling, and any commercial terms. Contact that operator before sharing private information.</p>
-      <p>The fork does not claim to operate the upstream Rakazo service. Its <a href="https://rakazo.com/privacy/" rel="noreferrer" target="_blank">upstream privacy policy</a> describes that service and does not establish policies for a separate Kith deployment.</p>
-      <p>Self-hosting and service configuration are described in the <a href="https://github.com/drewsephski/kith/blob/main/docs/hosted-deployment.md">deployment guide</a>.</p>
+      <h1>Privacy policy</h1>
+      <p>Effective {PRIVACY_EFFECTIVE_DATE}.</p>
+      <p>{PRIVACY_INTRO}</p>
+      {SUPPORT_EMAIL && <p>For privacy questions or requests, contact <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>}
+      {PRIVACY_SECTIONS.map((section) => (
+        <section>
+          <h2>{section.heading}</h2>
+          {section.paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+          {section.items && <ul>{section.items.map((item) => <li>{item}</li>)}</ul>}
+        </section>
+      ))}
+      <p>Contact us through the <a href="/support/">support page</a>.</p>
     </main>
     <Footer />
   </div>

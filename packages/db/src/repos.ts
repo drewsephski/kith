@@ -393,8 +393,23 @@ export function createRepos(prisma: PrismaClient) {
         /** Commit the first user task with its conversation; no empty launch window. */
         initialTask?: {
           prompt: string;
+          /** The backend may attach grounded context without displaying a raw source snapshot. */
+          displayPrompt?: string;
           clientNonce: string;
           launchIdentity?: { suggestionId: string; assistantId: string; operationId: string };
+          recommendation?: {
+            id: string;
+            fingerprint: string;
+            source:
+              | { kind: "task"; id: string; botId: string; updatedAt: Date }
+              | {
+                  kind: "connection";
+                  id: string;
+                  connectorId: string;
+                  provider: string;
+                  providerRef: string;
+                };
+          };
         };
         modelProvider?: string | null;
         modelId?: string | null;
@@ -484,7 +499,47 @@ export function createRepos(prisma: PrismaClient) {
             },
           });
           if (input.initialTask) {
-            const blocks: MessageBlock[] = [{ kind: "text", text: input.initialTask.prompt }];
+            if (input.initialTask.recommendation) {
+              // Lock local source state through acceptance. A completion, edit or
+              // revocation after the provider read must invalidate this launch.
+              const source = input.initialTask.recommendation.source;
+              const held =
+                source.kind === "task"
+                  ? await tx.$queryRaw<{ id: string }[]>`
+                    SELECT s.id FROM scratchpad_items s JOIN bots b ON b.id = s."botId"
+                    WHERE s.id = ${source.id} AND s."userId" = ${actor.userId}
+                      AND s."spaceId" = ${actor.spaceId} AND s."botId" = ${source.botId}
+                      AND s.status = 'open' AND s."updatedAt" = ${source.updatedAt}
+                      AND b."archivedAt" IS NULL FOR SHARE OF s, b
+                  `
+                  : await tx.$queryRaw<{ id: string }[]>`
+                    SELECT id FROM connections WHERE id = ${source.id}
+                      AND "userId" = ${actor.userId} AND "spaceId" = ${actor.spaceId}
+                      AND status = 'connected' AND "connectorId" = ${source.connectorId}
+                      AND provider = ${source.provider} AND "providerRef" = ${source.providerRef}
+                    FOR SHARE
+                  `;
+              if (held.length !== 1) throw new IsolationError();
+              const now = new Date();
+              const accepted = await tx.forYouRecommendation.updateMany({
+                where: {
+                  id: input.initialTask.recommendation.id,
+                  fingerprint: input.initialTask.recommendation.fingerprint,
+                  userId: actor.userId,
+                  spaceId: actor.spaceId,
+                  assistantId: input.parentBotId ?? "",
+                  state: "available",
+                  launchedBotId: null,
+                  expiresAt: { gt: now },
+                  OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+                },
+                data: { launchedBotId: created.id },
+              });
+              if (accepted.count !== 1) throw new IsolationError();
+            }
+            const blocks: MessageBlock[] = [
+              { kind: "text", text: input.initialTask.displayPrompt ?? input.initialTask.prompt },
+            ];
             const message = await createThreadMessageInTransaction(tx, {
               threadId: thread.id,
               role: "user",

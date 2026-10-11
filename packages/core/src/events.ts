@@ -122,6 +122,7 @@ export function projectMessages(
       continue;
     }
     if (event.type === "thread.cleared") {
+      for (const message of messages) if (message.runId) settled.add(message.runId);
       messages.length = 0;
       liveById.clear();
       liveSubagents.clear();
@@ -182,6 +183,13 @@ export function isSettledRunActivity(
   snapshot: { run?: { id: string; status: string } | null; settledRunIds?: string[] },
   event: { type: string; runId?: string | null },
 ): boolean {
+  if (
+    event.runId &&
+    isRunTerminalEvent(event) &&
+    snapshot.settledRunIds?.includes(event.runId) &&
+    snapshot.run?.id !== event.runId
+  )
+    return true;
   if (
     !event.runId ||
     ![

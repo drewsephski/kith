@@ -65,7 +65,8 @@ timeout --kill-after=5s 10m flyctl deploy . --app "$FLY_APP" --config infra/fly/
 # The supervisor can still be starting after Fly's frontend liveness check passes.
 runtime_health() {
   timeout --kill-after=5s 30s flyctl ssh console --app "$FLY_APP" --command \
-    "node /app/scripts/verify-hosted-runtime.mjs $EXPECTED_SHA" && public_health
+    "node /app/scripts/verify-hosted-runtime.mjs $EXPECTED_SHA" && public_health &&
+    node scripts/verify-for-you-api.mjs "$HOSTED_ORIGIN"
 }
 if ! wait_for_acceptance runtime_health; then
   echo "Hosted API or worker did not pass exact-source acceptance." >&2

@@ -1,3 +1,4 @@
+import { AI_PRIVACY_URL, DEFAULT_SUPPORT_URL } from "@rakazo/contracts";
 import { credentialIssue } from "@rakazo/core";
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -5,6 +6,7 @@ import {
   AccessibilityInfo,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   Text,
@@ -292,6 +294,28 @@ export default function SignIn() {
                           }}
                         />
                       ) : null}
+                      {mode === "up" ? (
+                        <Text
+                          accessibilityRole="text"
+                          style={{ color: tokens.mutedForeground, marginTop: 8 }}
+                        >
+                          {t("At least 8 characters")}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: "row", gap: 16, marginTop: 16 }}>
+                        <NativeActionButton
+                          label={t("Privacy")}
+                          prominence="quiet"
+                          onPress={() => void Linking.openURL(reset.privacyUrl ?? AI_PRIVACY_URL)}
+                        />
+                        <NativeActionButton
+                          label={t("Support")}
+                          prominence="quiet"
+                          onPress={() =>
+                            void Linking.openURL(reset.supportUrl ?? DEFAULT_SUPPORT_URL)
+                          }
+                        />
+                      </View>
                       {error ? (
                         <Text style={{ color: tokens.destructive, marginTop: 12 }}>{error}</Text>
                       ) : null}

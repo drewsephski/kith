@@ -617,5 +617,6 @@ function namedSpace(prompt: string) {
 }
 
 function summarize(prompt: string): string {
-  return `done. i handled: ${prompt.slice(0, 180)}`;
+  const [original, steering] = prompt.split("\n\nAdditional user context:\n");
+  return `done. i handled: ${original!.slice(0, 180)}${steering ? `\n\n${steering.slice(0, 180)}` : ""}`;
 }

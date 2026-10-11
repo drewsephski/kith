@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const DEFAULT_SUPPORT_URL = "https://www.kith.surf/support/";
+
 export const authCapabilitiesSchema = z.object({
   sso: z
     .object({
@@ -11,6 +13,11 @@ export const authCapabilitiesSchema = z.object({
   passwordReset: z.boolean(),
   resetUrl: z.string().url().nullable(),
   billing: z.boolean().optional(),
+  privacyUrl: z
+    .url({ protocol: /^https?$/ })
+    .nullable()
+    .optional(),
+  supportUrl: z.url({ protocol: /^https?$/ }).optional(),
 });
 export type AuthCapabilities = z.infer<typeof authCapabilitiesSchema>;
 

@@ -508,6 +508,14 @@ msgstr "हमेशा अनुमत"
 msgid "An API key is stored for this provider, not a subscription sign-in."
 msgstr "इस प्रोवाइडर के लिए API कुंजी संग्रहीत है, सब्सक्रिप्शन साइन-इन नहीं।"
 
+#: src/pages/ForYou.tsx
+msgid "An unfinished item in your saved work."
+msgstr ""
+
+#: src/pages/ForYou.tsx
+msgid "An upcoming event on your calendar."
+msgstr ""
+
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Analytics property"
 msgstr ""
@@ -660,6 +668,10 @@ msgstr "{0} बजे"
 #: src/pages/RoutineSchedule.tsx
 msgid "at {timeSelect}"
 msgstr "{timeSelect} बजे"
+
+#: src/pages/Auth.tsx
+msgid "At least 8 characters"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Attach file"
@@ -1051,6 +1063,10 @@ msgstr ""
 #: src/components/CalendarReceipt.tsx
 msgid "Checking your calendar"
 msgstr "आपका कैलेंडर देख रहा हूँ"
+
+#: src/pages/ForYou.tsx
+msgid "Checking your sources…"
+msgstr ""
 
 #: src/components/ComputersUnavailableHint.tsx
 #: src/components/DesktopUpdates.tsx
@@ -1494,6 +1510,11 @@ msgstr "कॉन्टेक्स्ट सीमा"
 #: src/pages/Onboarding.tsx
 msgid "Continue"
 msgstr "जारी रखें"
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Continue “{0}”"
+msgstr ""
 
 #: src/pages/shell/message-cards.tsx
 msgid "Continue connecting"
@@ -2124,6 +2145,10 @@ msgstr ""
 msgid "Could not update the default memory scope"
 msgstr "डिफ़ॉल्ट मेमोरी स्कोप अपडेट नहीं हो सका"
 
+#: src/pages/ForYou.tsx
+msgid "Could not update this recommendation. Try again."
+msgstr ""
+
 #: src/components/computer/FilesApp.tsx
 msgid "Could not upload file"
 msgstr ""
@@ -2440,6 +2465,7 @@ msgstr "डिस्कनेक्ट हो रहा है…"
 
 #: src/components/ComputerUpdateProgress.tsx
 #: src/components/teach/TeachComputerOverlay.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Dismiss"
 msgstr ""
@@ -2689,6 +2715,7 @@ msgid "Expand {0}"
 msgstr ""
 
 #: src/pages/ForYou.tsx
+#: src/pages/shell/assistant-for-you.tsx
 msgid "Explore"
 msgstr "खोजें"
 
@@ -2850,6 +2877,10 @@ msgstr "अनुत्तरित बातचीत पर फिर सं�
 msgid "Follow up unanswered emails"
 msgstr ""
 
+#: src/pages/shell/assistant-for-you.tsx
+msgid "Follow-ups"
+msgstr ""
+
 #: src/pages/ForYou.tsx
 msgid "For builders"
 msgstr "निर्माताओं के लिए"
@@ -2860,7 +2891,6 @@ msgid "For builders"
 msgstr "निर्माताओं के लिए"
 
 #: src/pages/ForYou.tsx
-#: src/pages/shell/assistant-for-you.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "For you"
 msgstr "आपके लिए"
@@ -3011,6 +3041,10 @@ msgstr "हेडर मान"
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Hear a sample"
 msgstr "एक नमूना सुनें"
+
+#: src/pages/Auth.tsx
+msgid "Help and privacy"
+msgstr ""
 
 #: src/pages/shell/assistant-welcome.tsx
 msgid "Help me plan my day. Ask me what I need to get done."
@@ -3808,6 +3842,10 @@ msgstr ""
 msgid "No events found in the checked window."
 msgstr "जाँची गई अवधि में कोई कार्यक्रम नहीं मिला।"
 
+#: src/pages/ForYou.tsx
+msgid "No grounded recommendations right now."
+msgstr ""
+
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
 msgstr ""
@@ -4232,6 +4270,11 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Prepare for “{0}”"
+msgstr ""
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Prepare for your next meeting"
@@ -4243,6 +4286,10 @@ msgstr ""
 
 #: src/pages/shell/assistant-suggestions.ts
 msgid "Prepare my next meeting"
+msgstr ""
+
+#: src/components/ai/RunStatus.tsx
+msgid "Preparing a response…"
 msgstr ""
 
 #: src/components/CalendarReceipt.tsx
@@ -4272,6 +4319,10 @@ msgstr "पिछली श्रेणियां"
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Priority"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Privacy"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
@@ -4337,6 +4388,10 @@ msgstr ""
 msgid "Queued"
 msgstr ""
 
+#: src/components/ai/RunStatus.tsx
+msgid "Queued…"
+msgstr ""
+
 #: src/pages/Shell.tsx
 msgid "Quote"
 msgstr ""
@@ -4382,6 +4437,10 @@ msgstr "हाल के"
 msgid "Recent conversations"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Recommended"
+msgstr ""
+
 #: src/pages/McpServersOverlay.tsx
 msgid "Reconnect OAuth"
 msgstr "OAuth पुनः कनेक्ट करें"
@@ -4390,6 +4449,10 @@ msgstr "OAuth पुनः कनेक्ट करें"
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Reconnecting"
 msgstr "पुनः कनेक्ट हो रहा है"
+
+#: src/components/ai/RunStatus.tsx
+msgid "Reconnecting…"
+msgstr ""
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Recording may have started, but the view could not refresh"
@@ -4453,6 +4516,7 @@ msgstr ""
 
 #: src/App.tsx
 #: src/components/ErrorBoundary.tsx
+#: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
 msgid "Refresh"
 msgstr "रीफ़्रेश करें"
@@ -5305,6 +5369,10 @@ msgstr ""
 msgid "Software update"
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "Some sources are unavailable. Try refreshing."
+msgstr ""
+
 #: src/App.tsx
 #: src/lib/user-error.ts
 msgid "Something went wrong. Try again."
@@ -5474,6 +5542,10 @@ msgstr ""
 
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Sunday"
+msgstr ""
+
+#: src/pages/Auth.tsx
+msgid "Support"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -5752,6 +5824,10 @@ msgstr "प्रति:"
 #: src/pages/shell/chat-context.tsx
 msgid "Today"
 msgstr "आज"
+
+#: src/pages/ForYou.tsx
+msgid "Tomorrow"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Tool sources"
@@ -6048,6 +6124,10 @@ msgstr "वॉइस चैट"
 msgid "Wait a moment and test again."
 msgstr "थोड़ी देर रुकें और फिर से परीक्षण करें।"
 
+#: src/components/ai/RunStatus.tsx
+msgid "Waiting for approval"
+msgstr ""
+
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Waiting for the API to come back…"
 msgstr ""
@@ -6151,7 +6231,6 @@ msgstr "कब उपयोग करें"
 msgid "Where should bots run?"
 msgstr "बॉट कहां चलने चाहिए?"
 
-#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx

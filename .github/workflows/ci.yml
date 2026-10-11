@@ -113,6 +113,8 @@ jobs:
         env:
           DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
       - run: pnpm test
+      - name: Verify hosted frontend and backend compatibility checks
+        run: node --test scripts/verify-for-you-api.test.mjs scripts/deploy-hosted.test.mjs apps/web/scripts/vercel-build.test.mjs
 
   test-integration:
     name: Postgres journeys

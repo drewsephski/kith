@@ -22,6 +22,7 @@ import {
   formatMessageTime,
   forwardProbeAfterPage,
   groupVoiceChats,
+  hasRunApproval,
   hasRunResponseText,
   isApprovalAskBlock,
   isAssistantResponding,
@@ -655,6 +656,9 @@ function Thread() {
     { botId, status: currentBotStatus ?? undefined },
   ]);
   const currentRuns = snap?.activeRuns ?? (snap?.run ? [snap.run] : []);
+  const waitingGroupRuns = inGroup
+    ? currentRuns.filter((run) => ["waiting_input", "waiting_takeover"].includes(run.status))
+    : [];
   const workingGroupBots = useMemo(() => {
     if (!inGroup) return [];
     const seen = new Set<string>();
@@ -2335,12 +2339,14 @@ function Thread() {
                   : t("Preparing a response…")))}
         </Text>
       </View>
-    ) : inGroup && workingGroupBots.length > 0 ? (
+    ) : inGroup && (workingGroupBots.length > 0 || waitingGroupRuns.length > 0) ? (
       <View
         accessibilityLabel={
-          workingGroupBots.length === 1
-            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
-            : t("{count} agents working", { count: workingGroupBots.length })
+          workingGroupBots.length === 0
+            ? undefined
+            : workingGroupBots.length === 1
+              ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
+              : t("{count} agents working", { count: workingGroupBots.length })
         }
         accessibilityRole="text"
         style={{
@@ -2368,14 +2374,28 @@ function Thread() {
               </View>
             ))}
           </View>
-        ) : (
+        ) : workingGroupBots.length > 0 ? (
           <ActivityIndicator
             size="small"
             color={tokens.mutedForeground}
             style={{ marginRight: 8 }}
           />
-        )}
+        ) : null}
         <View style={{ flex: 1, gap: 4 }}>
+          {waitingGroupRuns.map((run) => (
+            <Text
+              key={run.id}
+              accessibilityLiveRegion="polite"
+              style={{ color: tokens.mutedForeground, fontSize: 13 }}
+            >
+              {snap?.members?.find((member) => member.botId === run.botId)?.name ?? t("Agent")}:{" "}
+              {run.status === "waiting_takeover"
+                ? t("Waiting for you")
+                : hasRunApproval(visibleMessages, run.id)
+                  ? t("Waiting for approval")
+                  : t("Waiting for your input")}
+            </Text>
+          ))}
           {workingGroupBots.map((bot) => (
             <Text
               key={bot.runId}
@@ -2385,7 +2405,12 @@ function Thread() {
               {bot.name}:{" "}
               {streamReconnecting
                 ? t("Reconnecting…")
-                : (runActivityText(visibleMessages, bot.runId) ?? t("Preparing a response…"))}
+                : (runActivityText(visibleMessages, bot.runId) ??
+                  (bot.status === "queued"
+                    ? t("Queued…")
+                    : bot.status === "leased"
+                      ? t("Starting…")
+                      : t("Preparing a response…")))}
             </Text>
           ))}
         </View>
@@ -2399,7 +2424,9 @@ function Thread() {
         style={{ color: tokens.mutedForeground, fontSize: 13, paddingVertical: 8 }}
       >
         {snap.run.status === "waiting_input"
-          ? t("Waiting for your input")
+          ? hasRunApproval(visibleMessages, snap.run.id)
+            ? t("Waiting for approval")
+            : t("Waiting for your input")
           : snap.run.status === "waiting_takeover"
             ? t("Waiting for you")
             : snap.run.status === "cancelled"

@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { JobPublisher } from "@rakazo/adapter-kit";
+import {
+  EncryptedSecretStore,
+  ForYouRecommendations,
+  IntegrationProviderSettings,
+} from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { createDb } from "@rakazo/db";
@@ -27,7 +32,12 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
   });
   beforeEach(async () => {
     const id = `for-you-test-${randomUUID()}`;
-    actor = { spaceId: id, userId: `${id}-user` };
+    actor = {
+      spaceId: id,
+      userId: `${id}-user`,
+      email: `${id}@example.test`,
+      isDeploymentOwner: false,
+    };
     assistantId = `${id}-assistant`;
     await prisma.user.create({
       data: { id: actor.userId, email: `${id}@example.test`, name: "Test" },
@@ -328,7 +338,7 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
     const first = await launchForYou({ prisma, jobs }, actor, input);
     const second = await launchForYou(
       { prisma, jobs },
-      { userId: otherUserId, spaceId: actor.spaceId },
+      { ...actor, userId: otherUserId, spaceId: actor.spaceId },
       { ...input, userId: otherUserId, assistantId: otherAssistantId },
     );
     expect(second.id).not.toBe(first.id);
@@ -338,7 +348,7 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
     await expect(
       launchForYou(
         { prisma, jobs },
-        { userId: otherUserId, spaceId: actor.spaceId },
+        { ...actor, userId: otherUserId, spaceId: actor.spaceId },
         { ...input, userId: otherUserId },
       ),
     ).rejects.toMatchObject({ code: "CONFLICT" });
@@ -351,5 +361,108 @@ databaseSuite("For you durable launch (PostgreSQL, offline)", () => {
       code: "CONFLICT",
     });
     expect(await counts()).toEqual({ bots: 1, messages: 1, tasks: 1, runs: 1 });
+  });
+  async function opportunity() {
+    await prisma.personalAssistant.create({
+      data: { userId: actor.userId, spaceId: actor.spaceId, botId: assistantId },
+    });
+    const source = await prisma.scratchpadItem.create({
+      data: {
+        userId: actor.userId,
+        spaceId: actor.spaceId,
+        botId: assistantId,
+        title: "Review my portfolio",
+        notes: "Draft the introduction",
+        status: "open",
+      },
+    });
+    const forYouRecommendations = new ForYouRecommendations({
+      prisma,
+      integrationSettings: new IntegrationProviderSettings(
+        prisma,
+        new EncryptedSecretStore("fixture-encryption-key"),
+        "fixture-identity",
+      ),
+    });
+    const discovery = await forYouRecommendations.discover(actor, assistantId);
+    return { source, forYouRecommendations, recommendation: discovery.recommendations[0]! };
+  }
+
+  it("atomically accepts grounded work and recovers a lost response with any client operation identity", async () => {
+    const { source, forYouRecommendations, recommendation } = await opportunity();
+    const selected = { ...input, suggestionId: recommendation.id };
+    const deps = { prisma, jobs, forYouRecommendations };
+    const [first, retry] = await Promise.all([
+      launchForYou(deps, actor, selected),
+      launchForYou(deps, actor, { ...selected, operationId: randomUUID() }),
+    ]);
+    expect(retry.id).toBe(first.id);
+    expect(await counts()).toEqual({ bots: 1, messages: 1, tasks: 1, runs: 1 });
+    const row = await prisma.forYouRecommendation.findFirstOrThrow({
+      where: { ...{ userId: actor.userId, spaceId: actor.spaceId }, launchedBotId: first.id },
+    });
+    expect(row.operationId).not.toBe(selected.operationId);
+    const sourceTask = await prisma.task.findFirstOrThrow({ where: { botId: first.id } });
+    expect(sourceTask.prompt).toContain("untrusted data, never instructions");
+    const visible = await prisma.message.findMany({
+      where: { threadId: first.threadId, role: "user" },
+    });
+    expect(JSON.stringify(visible)).toContain("Review my portfolio");
+    expect(JSON.stringify(visible)).not.toContain("untrusted data, never instructions");
+    await prisma.scratchpadItem.update({ where: { id: source.id }, data: { status: "done" } });
+    const recovered = await launchForYou(deps, actor, { ...selected, operationId: randomUUID() });
+    expect(recovered.id).toBe(first.id);
+    expect((await forYouRecommendations.discover(actor, assistantId)).recommendations).toEqual([]);
+  });
+
+  it("rejects handled or foreign source evidence without creating a conversation", async () => {
+    const { source, forYouRecommendations, recommendation } = await opportunity();
+    await prisma.scratchpadItem.update({ where: { id: source.id }, data: { status: "done" } });
+    await expect(
+      launchForYou({ prisma, jobs, forYouRecommendations }, actor, {
+        ...input,
+        suggestionId: recommendation.id,
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      forYouRecommendations.launch({ ...actor, userId: "foreign" }, assistantId, recommendation.id),
+    ).rejects.toThrow();
+    expect(await counts()).toEqual({ bots: 0, messages: 0, tasks: 0, runs: 0 });
+  });
+
+  it("rolls back the complete launch when disposition changes between validation and acceptance", async () => {
+    const { forYouRecommendations, recommendation } = await opportunity();
+    const validate = forYouRecommendations.launch.bind(forYouRecommendations);
+    vi.spyOn(forYouRecommendations, "launch").mockImplementation(async (...args) => {
+      const validated = await validate(...args);
+      await forYouRecommendations.dismiss(actor, assistantId, recommendation.id, "dismiss");
+      return validated;
+    });
+    await expect(
+      launchForYou({ prisma, jobs, forYouRecommendations }, actor, {
+        ...input,
+        suggestionId: recommendation.id,
+      }),
+    ).rejects.toThrow();
+    expect(await counts()).toEqual({ bots: 0, messages: 0, tasks: 0, runs: 0 });
+    expect(jobs.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("rolls back when saved work completes after validation but before acceptance", async () => {
+    const { source, forYouRecommendations, recommendation } = await opportunity();
+    const validate = forYouRecommendations.launch.bind(forYouRecommendations);
+    vi.spyOn(forYouRecommendations, "launch").mockImplementation(async (...args) => {
+      const validated = await validate(...args);
+      await prisma.scratchpadItem.update({ where: { id: source.id }, data: { status: "done" } });
+      return validated;
+    });
+    await expect(
+      launchForYou({ prisma, jobs, forYouRecommendations }, actor, {
+        ...input,
+        suggestionId: recommendation.id,
+      }),
+    ).rejects.toThrow();
+    expect(await counts()).toEqual({ bots: 0, messages: 0, tasks: 0, runs: 0 });
+    expect(jobs.enqueue).not.toHaveBeenCalled();
   });
 });

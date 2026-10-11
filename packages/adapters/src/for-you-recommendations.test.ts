@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ForYouRecommendations } from "./for-you-recommendations.js";
 import type { TaskStarterDependencies } from "./task-starter-service.js";
 
-const actor: Actor = { userId: "user", spaceId: "space" };
+const actor: Actor = {
+  userId: "user",
+  spaceId: "space",
+  email: "tester@example.test",
+  isDeploymentOwner: false,
+};
 const tomorrow = "2026-10-11T16:00:00.000Z";
 const account = {
   id: "calendar",
@@ -160,7 +165,9 @@ describe("source-grounded recommendations", () => {
       expect.anything(),
     );
     expect(prisma.connection.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining(actor) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: actor.userId, spaceId: actor.spaceId }),
+      }),
     );
     expect(runtime.run).not.toHaveBeenCalled();
   });
@@ -174,6 +181,9 @@ describe("source-grounded recommendations", () => {
     await expect(service.launch(actor, "assistant", id)).rejects.toThrow("source changed");
     platform.upcomingMeetings.mockResolvedValue({ meetings: [], complete: true });
     await expect(service.launch(actor, "assistant", id)).rejects.toThrow("source changed");
+    expect(
+      (await service.discover(actor, "assistant")).recommendations.map((card) => card.id),
+    ).not.toContain(id);
   });
   it("invalidates a revoked connection and completed work even within the discovery cache", async () => {
     const { service, prisma } = setup();
@@ -238,14 +248,14 @@ describe("source-grounded recommendations", () => {
     await expect(service.launch(actor, "assistant", id)).rejects.toThrow("source changed");
   });
   it("deduplicates reads, reports original retrieval freshness, and suppresses started opportunities", async () => {
-    const { service, platform } = setup();
+    const { service, platform, rows } = setup();
     const first = (await service.discover(actor, "assistant")).recommendations;
     vi.advanceTimersByTime(30_000);
     const second = (await service.discover(actor, "assistant")).recommendations;
     expect(second).toEqual(first);
     expect(platform.upcomingMeetings).toHaveBeenCalledTimes(1);
     const launch = await service.launch(actor, "assistant", first[0]!.id);
-    await service.launched(actor, launch.id, "started-bot");
+    [...rows.values()].find((row) => row.id === launch.id)!.launchedBotId = "started-bot";
     expect(
       (await service.discover(actor, "assistant")).recommendations.map((r) => r.id),
     ).not.toContain(first[0]!.id);

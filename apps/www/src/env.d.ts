@@ -12,6 +12,7 @@ interface ImportMeta {
 interface ImportMetaEnv {
   readonly PUBLIC_SITE_URL?: string;
   readonly PUBLIC_APP_URL?: string;
+  readonly PUBLIC_SUPPORT_EMAIL?: string;
   readonly PUBLIC_DESKTOP_MAC_URL?: string;
   readonly PUBLIC_DESKTOP_WINDOWS_URL?: string;
   readonly PUBLIC_DESKTOP_LINUX_URL?: string;

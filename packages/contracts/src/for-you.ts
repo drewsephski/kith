@@ -3,6 +3,7 @@ import { TaskSourceSchema } from "./task-starters.js";
 
 export const ForYouRecommendationSchema = z.object({
   id: z.string().min(1).max(100),
+  kind: z.enum(["meeting", "task"]),
   title: z.string().max(160),
   description: z.string().max(300),
   sources: z.array(TaskSourceSchema).min(1).max(6),

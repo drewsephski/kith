@@ -3,7 +3,25 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { publicBackendOrigin, vercelBuildConfig, writeVercelOutput } from "./vercel-build.mjs";
+import {
+  buildVercelWeb,
+  publicBackendOrigin,
+  vercelBuildConfig,
+  writeVercelOutput,
+} from "./vercel-build.mjs";
+
+test("production publishing stops before building when the backend lacks For you", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    requests.push(url.pathname);
+    return new Response("404 Not Found", { status: 404 });
+  });
+  await assert.rejects(
+    buildVercelWeb({ API_PROXY_TARGET: "https://api.example.com", VERCEL_ENV: "production" }),
+    /Deploy the compatible backend first/,
+  );
+  assert.equal(requests.length, 3);
+});
 
 test("accepts public HTTPS roots and canonicalizes only a trailing slash", () => {
   assert.equal(

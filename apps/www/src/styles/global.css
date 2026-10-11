@@ -2197,6 +2197,8 @@ button.button--secondary:focus-visible {
 .privacy-copy > p,
 .privacy-copy > ul,
 .privacy-copy > ol,
+.privacy-copy section > p,
+.privacy-copy section > ul,
 .blog-body > p,
 .blog-body > ul,
 .blog-body > ol {
