@@ -494,8 +494,14 @@ async function main() {
                 assert.ok(
                   JSON.stringify(request.messages).includes("REST uses resource endpoints"),
                 );
-              if ("image" in scenario)
-                assert.ok(JSON.stringify(request.messages).includes("image_url"));
+              if ("image" in scenario) {
+                const messages = JSON.stringify(request.messages);
+                assert.ok(messages.includes("image_url"));
+                assert.ok(
+                  messages.includes("attachments/"),
+                  "Image must also be available to file-based workflows",
+                );
+              }
               if ("tool" in scenario) {
                 const results = request.messages.filter((message) => message.role === "tool");
                 assert.ok(

@@ -111,6 +111,7 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await settings.getByRole("button", { name: "Save", exact: true }).click();
   await saved;
   await page.reload();
+  await expect(page.getByPlaceholder(/Message/)).toBeVisible();
   await page.getByRole("button", { name: "Conversation details" }).click();
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   await expect(settings).toBeVisible();

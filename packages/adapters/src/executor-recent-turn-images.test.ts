@@ -3,7 +3,11 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
-import { acquireComputerExecutionLease, provisionComputer } from "./computer-lifecycle.js";
+import {
+  acquireComputerExecutionLease,
+  ComputerBusyError,
+  provisionComputer,
+} from "./computer-lifecycle.js";
 import { COMPUTER_TOOL_NAMES, createRunExecutor } from "./executor.js";
 import { NoneSandboxProvider } from "./none-sandbox.js";
 
@@ -70,6 +74,9 @@ async function runWithModel(
     pendingConnection?: boolean;
     revokedDuringSync?: boolean;
     peerDirectory?: boolean;
+    imageCurrent?: boolean;
+    steeringAttachment?: "file" | "image";
+    steeringBusy?: boolean;
   },
 ) {
   const run = {
@@ -82,9 +89,11 @@ async function runWithModel(
     status: "queued",
     trigger: "user",
     leaseFence: 0,
+    sourceMessageId: scenario?.imageCurrent ? "current" : undefined,
   };
   const get = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
   const append = vi.fn(async () => undefined);
+  const writeFile = vi.fn(async () => undefined);
   let releaseSetup!: () => void;
   const setupGate = new Promise<void>((resolve) => {
     releaseSetup = resolve;
@@ -96,6 +105,19 @@ async function runWithModel(
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;
+    if (scenario?.steeringAttachment) {
+      const prior = vi.mocked(provisionComputer).mock.calls.length;
+      if (scenario.steeringBusy)
+        vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
+      const steering = await next.claimSteering?.([]);
+      expect(vi.mocked(provisionComputer).mock.calls.length).toBe(
+        prior + (scenario.steeringBusy ? 0 : 1),
+      );
+      if (!scenario.steeringBusy) {
+        expect(steering?.[0]?.text).toContain("attachments/art-1.png");
+        expect(writeFile).toHaveBeenCalledOnce();
+      }
+    }
     if (scenario?.useCatalog) {
       const toolName = scenario.collision ? "kith_search_tools" : "list_files";
       const result = (await next.executeTool?.(
@@ -187,9 +209,26 @@ async function runWithModel(
     },
     message: {
       findMany: vi.fn(async (args: { where?: { threadId?: string } }) =>
-        args.where?.threadId ? historyMessages() : [],
+        args.where?.threadId
+          ? historyMessages().map((message) =>
+              scenario?.imageCurrent && message.id === "current"
+                ? {
+                    ...message,
+                    blocks: [
+                      {
+                        kind: "image" as const,
+                        artifactId: "art-1",
+                        mimeType: "image/png",
+                        name: "shot.png",
+                      },
+                    ],
+                  }
+                : message,
+            )
+          : [],
       ),
       findUnique: vi.fn(async () => null),
+      findFirst: vi.fn(async () => null),
     },
     task: {
       findUniqueOrThrow: vi.fn(async () => ({
@@ -291,7 +330,7 @@ async function runWithModel(
     sandbox: computerAvailable
       ? {
           describe: () => ({ capabilities: { graphical: false } }),
-          writeFile: vi.fn(async () => undefined),
+          writeFile,
           listFiles: vi.fn(async () => []),
           async *exportWorkspace() {
             yield* [];
@@ -302,7 +341,29 @@ async function runWithModel(
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
     artifacts: { get },
-    events: { append, finalizeRun },
+    events: {
+      append,
+      finalizeRun,
+      claimSteering: vi.fn(async () =>
+        scenario?.steeringAttachment
+          ? [
+              {
+                id: "steering-1",
+                messageId: "steering-message",
+                text: "Inspect this attachment",
+                blocks: [
+                  {
+                    kind: scenario.steeringAttachment,
+                    artifactId: "art-1",
+                    mimeType: "image/png",
+                    name: "shot.png",
+                  },
+                ],
+              },
+            ]
+          : [],
+      ),
+    },
     jobs: { enqueue: vi.fn(async () => undefined) },
     connector: {
       discoverTools: vi.fn(async (context: { connectedConnections?: Array<{ id: string }> }) => {
@@ -343,12 +404,16 @@ async function runWithModel(
   }
   await continuing;
   expect(runtimeRun).toHaveBeenCalled();
-  expect(finalizeRun).toHaveBeenCalledWith(
-    expect.objectContaining({
-      outcome: "completed",
-      blocks: expect.arrayContaining([{ kind: "text", text: "Done" }]),
-    }),
-  );
+  if (scenario?.steeringBusy) {
+    expect(finalizeRun).not.toHaveBeenCalled();
+    expect(run.status).toBe("queued");
+  } else
+    expect(finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "completed",
+        blocks: expect.arrayContaining([{ kind: "text", text: "Done" }]),
+      }),
+    );
   if (!request) throw new Error("runtime was not called");
   return {
     request,
@@ -357,6 +422,7 @@ async function runWithModel(
     run,
     listConnectedPluginSlugs,
     discoveryContexts,
+    writeFile,
   };
 }
 
@@ -381,6 +447,41 @@ describe("response latency", () => {
     ]);
     expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount);
     expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount);
+  });
+
+  it("materializes an image-only current turn before inference", async () => {
+    const prior = vi.mocked(provisionComputer).mock.calls.length;
+    const { request, writeFile } = await runWithModel(
+      VISION_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Inspect this image", imageCurrent: true },
+    );
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior + 1);
+    expect(request.prompt).toContain("attachments/art-1.png");
+    expect(writeFile).toHaveBeenCalledOnce();
+  });
+
+  it.each(["file", "image"] as const)(
+    "provisions for a %s added during a conversational reply",
+    async (steeringAttachment) => {
+      await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+        prompt: "Hi",
+        steeringAttachment,
+      });
+    },
+  );
+
+  it("requeues the same run when steering attachments race a busy computer", async () => {
+    const { run } = await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      steeringAttachment: "file",
+      steeringBusy: true,
+    });
+    expect(run.id).toBe("run-1");
   });
 
   it("preserves the peer bot directory for conversational bot questions", async () => {

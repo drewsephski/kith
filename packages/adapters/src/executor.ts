@@ -3979,7 +3979,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           currentTurnFiles =
             deps.artifacts &&
             computerAvailable &&
-            turnBlocks?.some((block) => block.kind === "file")
+            turnBlocks?.some((block) => block.kind === "file" || block.kind === "image")
               ? await materializeCurrentTurnFiles(
                   {
                     prisma: deps.prisma,
@@ -7150,6 +7150,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   leaseFence: fence,
                   seenIds,
                 });
+                if (
+                  deps.artifacts &&
+                  computerAvailable &&
+                  steering.some((item) =>
+                    item.blocks?.some((block) => block.kind === "file" || block.kind === "image"),
+                  ) &&
+                  !(await ensureToolComputer("write_file"))
+                )
+                  return [];
                 return Promise.all(
                   steering.map(async (item) => {
                     const { images, files, unavailableInstruction } =
@@ -7690,6 +7699,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             getLogger().error("history.compact enqueue failed", error);
           }
         } catch (error) {
+          if (approvalPausePending) return;
           if (!terminalCheckpointComplete) {
             await workspaceCheckpoint.flush().catch(() => undefined);
           }

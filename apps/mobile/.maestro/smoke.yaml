@@ -6,9 +6,10 @@ name: Kith mobile smoke
     clearKeychain: true
     permissions:
       notifications: deny
-- extendedWaitUntil:
-    visible: "Meet Kith."
-    timeout: 30000
+- runFlow:
+    file: subflows/cold-introduction.yaml
+    env:
+      NOTIFICATIONS_PERMISSION: deny
 - tapOn: "Skip"
 - extendedWaitUntil:
     visible: "Sign in to Kith"

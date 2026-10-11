@@ -170,6 +170,13 @@ raw memory, attachment body, email, token or secret is logged.
 All timings are milliseconds, shown as p50 / p95. Each row has 20 successful
 trials per revision. Main sweeps cover 13 scenarios (520 trials per revision); the
 eight-tool long task adds 40 per revision. No failed trial is included as successful.
+The updated attachment rows are replaced by a final 40-run rerun after review
+restored image materialization and demand preparation for steering attachments.
+The original updated attachment trials supplied vision input but omitted the
+workspace file; their lower timings are superseded and are not valid evidence
+for file-based attachment workflows. Attachment responses now retain the required
+computer preparation and show no meaningful speedup. The harness checks both
+vision input and an available workspace path before accepting an attachment answer.
 The measurements use PostgreSQL 14.19 locally, with fsync enabled. Raw reports
 remain in ignored `test-report/latency/`; committed [aggregate results](benchmarks/agent-latency.json)
 include their SHA-256 hashes and the complete setup/queue/context distributions.
@@ -198,8 +205,8 @@ include their SHA-256 hashes and the complete setup/queue/context distributions.
 | computer | warm | 386 / 416 | 410 / 539 | 403 / 434 | 427 / 581 |
 | browser | cold | 402 / 421 | 402 / 419 | 421 / 440 | 419 / 439 |
 | browser | warm | 394 / 403 | 398 / 411 | 413 / 425 | 416 / 434 |
-| attachment | cold | 339 / 348 | 155 / 162 | 363 / 370 | 171 / 181 |
-| attachment | warm | 338 / 344 | 154 / 159 | 360 / 368 | 171 / 176 |
+| attachment | cold | 339 / 348 | 345 / 387 | 363 / 370 | 366 / 410 |
+| attachment | warm | 338 / 344 | 339 / 355 | 360 / 368 | 363 / 382 |
 | multi-step | cold | 433 / 561 | 433 / 442 | 455 / 609 | 452 / 460 |
 | multi-step | warm | 431 / 553 | 428 / 435 | 451 / 579 | 449 / 459 |
 | long-agent | cold | 686 / 733 | 697 / 734 | 709 / 758 | 721 / 760 |
@@ -292,7 +299,7 @@ screenshot behavior using the cached local computer image.
 | `pnpm check:agent-latency` | Benchmark CLI type check passed; the normal testkit check excludes CLI files |
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
-| `pnpm run test --maxWorkers=4` | Integrated revision: 8,454 passed, 300 skipped; two unchanged script tests timed out under concurrent validation and both passed in a focused 24-test rerun |
+| `pnpm run test --maxWorkers=4` | Integrated revision: 8,461 passed, 300 skipped; one unchanged script test timed out under full-suite load and both script suites passed in a focused 24-test rerun |
 | `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 993 tests passed on the integrated revision |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
@@ -308,7 +315,12 @@ The controlled timing comparison remains against the original main baseline.
 
 Review regressions additionally verify lazy reconciliation of pending connected
 accounts, revocation racing reconciliation, and peer bot context in conversational
-questions. All 47 focused executor, connection and scripted-runtime tests pass.
+questions. All 47 initial focused executor, connection and scripted-runtime tests pass.
+Attachment and steering fixes additionally pass 122 executor tests, including
+image-only workspace availability and busy-computer requeue under the same run ID.
+The 12 model-settings/bot-navigation browser cases pass with explicit readiness
+and finite animation completion checks. The full current-commit Postgres
+selection passes all 81 tests.
 An additional 80 greeting/arithmetic runs after those fixes complete correctly,
 with zero computer startup or connector discovery and three tool schemas. Those
 runs shared resources with browser/type-check validation and are recorded as

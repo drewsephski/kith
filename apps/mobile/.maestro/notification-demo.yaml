@@ -5,19 +5,14 @@ name: Android live working status demonstration
     clearState: true
     permissions:
       notifications: allow
-# A cold API 34 emulator can show a launcher ANR over the healthy app.
-- extendedWaitUntil:
-    visible: "Sign up for Kith|Pixel Launcher isn't responding"
-    timeout: 30000
 - runFlow:
-    when:
-      visible: "Pixel Launcher isn't responding"
-    commands:
-      - tapOn: "Close app"
+    file: subflows/cold-introduction.yaml
+    env:
+      NOTIFICATIONS_PERMISSION: allow
+- tapOn: "Skip"
 - extendedWaitUntil:
-    visible: "Sign up for Kith"
+    visible: "Sign in to Kith"
     timeout: 30000
-- tapOn: "Sign in"
 - tapOn: "Email"
 - inputText: ${RAKAZO_SCREENSHOT_EMAIL}
 - tapOn: "Password"

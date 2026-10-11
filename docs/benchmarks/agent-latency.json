@@ -5475,5 +5475,160 @@
         }
       }
     ]
+  },
+  "attachmentReviewValidation": {
+    "note": "Replaces the updated attachment rows from the original sweep. Original updated attachment trials omitted workspace materialization; this rerun asserts the file is available in model context and restores required computer preparation.",
+    "rawReportSha256": "b7b229bcf41142c2f3b7aa464990a5f2d98914f5e59181223f75944ee513b24d",
+    "successfulTrials": 40,
+    "summary": [
+      {
+        "scenario": "attachment",
+        "temperature": "cold",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 10.621166999999332,
+          "p95": 25.855999999999767
+        },
+        "firstPublishedTextMs": {
+          "p50": 349.26166700000067,
+          "p95": 392.4199579999986
+        },
+        "firstTextReceivedMs": {
+          "p50": 344.7904579999995,
+          "p95": 387.0578749999986
+        },
+        "completionMs": {
+          "p50": 365.8834999999999,
+          "p95": 410.1698749999996
+        },
+        "queueWaitMs": {
+          "p50": 5,
+          "p95": 13
+        },
+        "setupMs": {
+          "p50": 287,
+          "p95": 306
+        },
+        "modelToFirstTextMs": {
+          "p50": 43,
+          "p95": 49
+        },
+        "streamDeliveryMs": {
+          "p50": 2,
+          "p95": 2
+        },
+        "toolCount": {
+          "p50": 53,
+          "p95": 53
+        },
+        "toolSchemaBytes": {
+          "p50": 33281,
+          "p95": 33281
+        },
+        "promptBytes": {
+          "p50": 12658,
+          "p95": 12658
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 1,
+          "p95": 1
+        },
+        "preparations": {
+          "p50": 1,
+          "p95": 1
+        },
+        "discoveries": {
+          "p50": 1,
+          "p95": 1
+        }
+      },
+      {
+        "scenario": "attachment",
+        "temperature": "warm",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 9.577750000000378,
+          "p95": 11.624415999998746
+        },
+        "firstPublishedTextMs": {
+          "p50": 343.05249999999796,
+          "p95": 357.77829100000235
+        },
+        "firstTextReceivedMs": {
+          "p50": 339.2929580000018,
+          "p95": 355.4835830000011
+        },
+        "completionMs": {
+          "p50": 363.0630830000009,
+          "p95": 382.033875000001
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 6
+        },
+        "setupMs": {
+          "p50": 283,
+          "p95": 292
+        },
+        "modelToFirstTextMs": {
+          "p50": 42,
+          "p95": 45
+        },
+        "streamDeliveryMs": {
+          "p50": 2,
+          "p95": 3
+        },
+        "toolCount": {
+          "p50": 53,
+          "p95": 53
+        },
+        "toolSchemaBytes": {
+          "p50": 33281,
+          "p95": 33281
+        },
+        "promptBytes": {
+          "p50": 12658,
+          "p95": 12658
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 1,
+          "p95": 1
+        },
+        "preparations": {
+          "p50": 1,
+          "p95": 1
+        },
+        "discoveries": {
+          "p50": 1,
+          "p95": 1
+        }
+      }
+    ]
   }
 }
