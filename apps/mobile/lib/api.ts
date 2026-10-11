@@ -25,6 +25,7 @@ import type { ThreadHistory } from "@rakazo/core";
 import {
   aiConsentTarget,
   aiDataUsesForProcedure,
+  applyMessageReadReceipt,
   cancelResponseBody,
   ensureAiDataConsent,
   isRunTerminalEvent,
@@ -918,6 +919,7 @@ export type MobileMessage = {
   replyQuote?: string;
   replyPreview?: ReplyPreview | null;
   createdAt?: string;
+  readAt?: string;
   blocks: MessageBlock[];
   emailActions?: EmailActionState[];
 };
@@ -1180,6 +1182,17 @@ export function applyMobileThreadEvent(
       ].slice(-100),
     };
   }
+  if (event.type === "thread.message.read") {
+    return {
+      ...prev,
+      cursor: event.seq ?? prev.cursor,
+      messages: applyMessageReadReceipt(
+        prev.messages,
+        event.payload?.messageIds,
+        event.payload?.readAt,
+      ),
+    };
+  }
   if (event.type === "run.started" && event.runId) {
     const run = { id: event.runId, botId: event.botId, status: "running" };
     const others = (prev.activeRuns ?? (prev.run ? [prev.run] : [])).filter((r) => r.id !== run.id);
@@ -1187,6 +1200,11 @@ export function applyMobileThreadEvent(
       ...prev,
       cursor: event.seq ?? prev.cursor,
       run,
+      messages: applyMessageReadReceipt(
+        prev.messages,
+        event.payload?.readMessageIds,
+        event.payload?.readAt,
+      ),
       activeRuns: prev.groupId ? [...others, run] : [run],
     };
   }
@@ -1358,6 +1376,7 @@ export function applyMobileThreadEvent(
     const next: MobileMessage = {
       id,
       createdAt: known?.createdAt ?? event.createdAt,
+      readAt: known?.readAt,
       runId: event.runId ? String(event.runId) : undefined,
       role: (event.payload?.role as MobileMessage["role"]) ?? "bot",
       // An update can leave the call id out — the `end_call` marker does — so keep the one

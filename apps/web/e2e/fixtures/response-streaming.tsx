@@ -4,7 +4,6 @@ import type { ProductEvent, ThreadMessage, ThreadSnapshot } from "@rakazo/contra
 import {
   isAssistantResponding,
   isToolActivityBlock,
-  taskAcknowledgmentBlocks,
   withLiveStreamingProgress,
 } from "@rakazo/core";
 import { DEFAULT_GROK_BOT_COLOR } from "@rakazo/ui-web";
@@ -13,7 +12,7 @@ import { AssistantResponseRow } from "../../src/components/ai/CollaborationMarke
 import { RunStatus } from "../../src/components/ai/RunStatus";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { setResponseStreamingPreference } from "../../src/lib/response-streaming";
-import { applyThreadSendReceipt, reduceThreadSnapshot } from "../../src/lib/thread-events";
+import { reduceThreadSnapshot } from "../../src/lib/thread-events";
 import { SettingsOverlay } from "../../src/pages/SettingsOverlay";
 import "../../src/styles.css";
 
@@ -21,7 +20,6 @@ const params = new URLSearchParams(location.search);
 const view = params.get("view") === "settings" ? "settings" : "thread";
 const streamResponses = params.get("stream") !== "off";
 const phase = params.get("phase") === "done" ? "done" : "live";
-const acknowledgment = params.get("ack") === "on";
 const assistantId = params.get("bot") === "other" ? "other-bot" : "bot-1";
 
 const USER_TEXT = "What's the capital of Portugal?";
@@ -67,27 +65,6 @@ function reduceComparableTurn(stream: boolean, turn: "live" | "done"): ThreadSna
       },
     }),
   );
-  if (acknowledgment) {
-    snapshot = applyThreadSendReceipt(snapshot, {
-      botId: "bot-1",
-      runId: "run-1",
-      taskId: "task-1",
-    });
-    snapshot = reduceThreadSnapshot(
-      snapshot,
-      productEvent(2, {
-        type: "thread.message.created",
-        payload: {
-          messageId: "bot-ack",
-          role: "bot",
-          acknowledgment: true,
-          blocks: taskAcknowledgmentBlocks([{ kind: "text", text: USER_TEXT }]),
-        },
-      }),
-    );
-    if (params.get("phase") === "queued")
-      return withLiveStreamingProgress(snapshot, stream) ?? emptySnapshot();
-  }
   snapshot = reduceThreadSnapshot(
     snapshot,
     productEvent(3, { type: "run.started", payload: { trigger: "user" } }),

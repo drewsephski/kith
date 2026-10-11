@@ -8,6 +8,7 @@ export const ProductEventType = z.enum([
   "thread.message.created",
   "thread.cleared",
   "thread.message.updated",
+  "thread.message.read",
   "thread.message.reaction",
   "thread.progress",
   "thread.artifact",
@@ -365,6 +366,8 @@ export const ReplyPreviewSchema = z.object({
 export type ReplyPreview = z.infer<typeof ReplyPreviewSchema>;
 
 export const ThreadMessageSchema = z.object({
+  /** First worker pickup or consumption of steering, independent of delivery. */
+  readAt: z.string().datetime().optional(),
   id: Id,
   threadId: Id,
   seq: z.number().int().nonnegative(),

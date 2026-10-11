@@ -41,6 +41,8 @@ export function userVisibleMessages<T extends PresentableMessage>(
   const includePeerReceipts = options.includePeerReceipts === true;
 
   return messages.filter((message) => {
+    if (message.blocks.some((block) => block.kind === "progress" && block.acknowledgment))
+      return false;
     if (isPeerReceiptBlocks(message.blocks)) return includePeerReceipts;
     if (!message.runId || !peerRunIds.has(message.runId)) return true;
     // Keep peer-run ask cards, and (unless the caller opts out) the bot's own text reply.

@@ -4,7 +4,7 @@ import type {
   ThreadMessage,
   ThreadSnapshot,
 } from "@rakazo/contracts";
-import { taskAcknowledgmentBlocks, withLiveStreamingProgress } from "@rakazo/core";
+import { latestReadMessageId, withLiveStreamingProgress } from "@rakazo/core";
 import { describe, expect, it } from "vitest";
 import {
   activeThreadRuns,
@@ -25,33 +25,51 @@ import {
 } from "./thread-events.js";
 
 describe("thread event reduction", () => {
-  it("keeps an acceptance receipt visible with streaming off without settling the run", () => {
-    const queued = applyThreadSendReceipt(snapshot([]), {
+  it("keeps queued messages unread, reads exact inputs, and preserves receipts on updates", () => {
+    const initial = snapshot([
+      { ...message("user-1", [], 1), role: "user" },
+      { ...message("steer-1", [], 2), role: "user" },
+    ]);
+    const queued = applyThreadSendReceipt(initial, {
       botId: "bot-1",
       runId: "run-1",
       taskId: "task-1",
     });
-    const acknowledged = reduceThreadSnapshot(
+    expect(latestReadMessageId(queued?.messages ?? [])).toBeUndefined();
+    const readAt = "2026-10-11T13:00:00.000Z";
+    const started = reduceThreadSnapshot(
       queued,
+      event({ seq: 4, type: "run.started", payload: { readMessageIds: ["user-1"], readAt } }),
+    );
+    expect(started?.messages[0]?.readAt).toBe(readAt);
+    expect(latestReadMessageId(started?.messages ?? [])).toBeUndefined();
+    const consumed = reduceThreadSnapshot(
+      started,
+      event({ seq: 5, type: "thread.message.read", payload: { messageIds: ["steer-1"], readAt } }),
+    );
+    expect(latestReadMessageId(withLiveStreamingProgress(consumed, false)?.messages ?? [])).toBe(
+      "steer-1",
+    );
+    expect(isThreadSnapshotEvent(event({ type: "thread.message.read" }))).toBe(true);
+    const updated = reduceThreadSnapshot(
+      consumed,
       event({
-        seq: 4,
-        type: "thread.message.created",
-        payload: {
-          messageId: "ack-1",
-          role: "bot",
-          acknowledgment: true,
-          blocks: taskAcknowledgmentBlocks([{ kind: "text", text: "Plan my week" }]),
-        },
+        seq: 6,
+        type: "thread.message.updated",
+        payload: { messageId: "steer-1", role: "user", blocks: [] },
       }),
     );
-    expect(withLiveStreamingProgress(acknowledged, false)?.messages[0]?.id).toBe("ack-1");
-    expect(acknowledged?.run?.status).toBe("queued");
-    const failed = reduceThreadSnapshot(
-      acknowledged,
-      event({ seq: 5, type: "run.failed", payload: { error: "Unavailable" } }),
-    );
-    expect(failed?.run?.status).toBe("failed");
-    expect(failed?.messages[0]?.id).toBe("ack-1");
+    expect(updated?.messages[1]?.readAt).toBe(readAt);
+    expect(
+      reduceThreadSnapshot(
+        updated,
+        event({
+          seq: 5,
+          type: "thread.message.read",
+          payload: { messageIds: ["user-1"], readAt: "bad" },
+        }),
+      ),
+    ).toBe(updated);
   });
   it("ignores replayed deltas and older starts after terminal completion", () => {
     let state: ThreadSnapshot | null = { ...snapshot([]), run: threadRun("run-1") };

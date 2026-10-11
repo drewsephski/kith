@@ -28,7 +28,6 @@ import {
 import { deriveMessageQuote, messageReplyPreview } from "@rakazo/core/message-quote";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
-  acknowledgeMessageInTransaction,
   answerWaitingRunWithTextInTransaction,
   appendEventInTransaction,
   createGroupRepos,
@@ -701,30 +700,6 @@ export async function sendThreadMessage(
 
   const commit = () =>
     deps.prisma.$transaction(async (tx) => {
-      const accept = async <Run extends { id: string; botId?: string }>(
-        message: { id: string; seq: number },
-        runs: Run[],
-        eventSeq: number,
-        blocks: MessageBlock[],
-      ) => {
-        // Spoken turns already have a live call; do not add a synthetic spoken reply.
-        if (!callId) {
-          for (const run of runs) {
-            const botId = run.botId ?? (target.kind === "bot" ? target.botId : undefined);
-            if (!botId) throw new IsolationError("Acknowledgment has no target");
-            const event = await acknowledgeMessageInTransaction(tx, {
-              spaceId: actor.spaceId,
-              threadId: target.threadId,
-              botId,
-              runId: run.id,
-              messageId: message.id,
-              blocks,
-            });
-            eventSeq = event.seq;
-          }
-        }
-        return { message, runs, eventSeq };
-      };
       let editedEmail: MessageBlock | undefined;
       let replyToMessageId: string | undefined;
       let replyQuote: string | undefined;
@@ -889,7 +864,7 @@ export async function sendThreadMessage(
               replyPreview,
             },
           });
-          return accept(message, answered, event.seq, blocks);
+          return { message, runs: answered, eventSeq: event.seq };
         }
         if (
           activeRuns.some(
@@ -927,7 +902,7 @@ export async function sendThreadMessage(
               replyPreview,
             },
           });
-          return accept(message, [active], event.seq, blocks);
+          return { message, runs: [active], eventSeq: event.seq };
         }
         const task = await tx.task.create({
           data: {
@@ -975,7 +950,7 @@ export async function sendThreadMessage(
             replyPreview,
           },
         });
-        return accept(message, [run], event.seq, blocks);
+        return { message, runs: [run], eventSeq: event.seq };
       }
 
       const members = await lockAndLoadGroupMembers(tx, actor, target);
@@ -1141,7 +1116,7 @@ export async function sendThreadMessage(
           replyPreview,
         },
       });
-      return accept(message, runs, event.seq, blocks);
+      return { message, runs, eventSeq: event.seq };
     });
 
   const committed = await withSerializableRetry(commit).catch(async (error) => {

@@ -12,7 +12,6 @@ export * from "./external-conversations.js";
 export * from "./groups.js";
 export * from "./history-retrieval.js";
 export * from "./memory-config.js";
-export * from "./message-acknowledgment.js";
 export * from "./messages.js";
 export * from "./messaging.js";
 export * from "./model-backups.js";

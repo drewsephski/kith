@@ -2613,7 +2613,13 @@ describe("claimSteering", () => {
   it("claims pending messages for the fenced run in message order", async () => {
     const tx = {
       $queryRaw: vi.fn(),
-      run: { findFirst: vi.fn().mockResolvedValue({ id: "run-1" }) },
+      run: {
+        findFirst: vi.fn().mockResolvedValue({ id: "run-1", spaceId: "space-1" }),
+        findUnique: vi.fn().mockResolvedValue({ status: "running" }),
+      },
+      thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 8 }) },
+      message: { updateMany: vi.fn() },
+      event: { create: vi.fn().mockImplementation(({ data }) => data) },
       steeringMessage: {
         findMany: vi.fn().mockResolvedValue([
           {
@@ -2676,6 +2682,20 @@ describe("claimSteering", () => {
         blocks: [{ kind: "text", text: "Second" }],
       },
     ]);
+    expect(tx.message.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          threadId: "thread-1",
+          role: "user",
+          id: { in: ["message-1", "message-2"] },
+          readAt: null,
+        },
+        data: { readAt: expect.any(Date) },
+      }),
+    );
+    expect(tx.event.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ type: "thread.message.read" }) }),
+    );
     expect(tx.run.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ leaseOwner: "worker-1", leaseFence: 2 }),

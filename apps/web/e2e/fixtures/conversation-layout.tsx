@@ -62,6 +62,13 @@ const sampleMessages = [
   message("inbox", "user", "Any emails today?", 5),
 ];
 
+if (params.has("read")) {
+  const readMessage = sampleMessages.find(
+    (item) => item.id === (params.get("read") === "older" ? "question" : "inbox"),
+  );
+  if (readMessage) readMessage.readAt = "2026-10-11T13:00:00.000Z";
+}
+
 function Conversation() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

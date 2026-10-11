@@ -306,6 +306,7 @@ function toThreadMessage(row: {
   runId: string | null;
   clientNonce?: string | null;
   createdAt: Date;
+  readAt?: Date | null;
 }): ThreadMessage {
   const parent = row.replyTo?.threadId === row.threadId ? row.replyTo : null;
   const parsed = parent ? MessageBlockSchema.array().safeParse(parent.blocks) : undefined;
@@ -332,5 +333,6 @@ function toThreadMessage(row: {
     runId: row.runId ?? undefined,
     callId: callIdFromClientNonce(row.clientNonce),
     createdAt: row.createdAt.toISOString(),
+    ...(row.readAt ? { readAt: row.readAt.toISOString() } : {}),
   };
 }

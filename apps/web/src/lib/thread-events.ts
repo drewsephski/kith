@@ -8,6 +8,7 @@ import type {
   ThreadSnapshot,
 } from "@rakazo/contracts";
 import {
+  applyMessageReadReceipt,
   isActive,
   isRunTerminalEvent,
   isSettledRunActivity,
@@ -259,6 +260,7 @@ export function isThreadSnapshotEvent(event: ProductEvent): boolean {
     event.type === "agent.tool.completed" ||
     event.type === "thread.message.created" ||
     event.type === "thread.message.updated" ||
+    event.type === "thread.message.read" ||
     event.type === "thread.message.reaction" ||
     event.type === "run.started" ||
     event.type === "run.waiting_input" ||
@@ -290,6 +292,17 @@ export function reduceThreadSnapshot(
       ].slice(-100),
     };
   }
+  if (event.type === "thread.message.read") {
+    return {
+      ...prev,
+      cursor: event.seq ?? prev.cursor,
+      messages: applyMessageReadReceipt(
+        prev.messages,
+        event.payload?.messageIds,
+        event.payload?.readAt,
+      ),
+    };
+  }
   if (event.type === "run.started") {
     if (!event.runId) {
       return {
@@ -315,6 +328,11 @@ export function reduceThreadSnapshot(
       // cannot wipe the banner (activeRuns still tracks the new work).
       run: prev.groupId && prev.run?.status === "failed" && prev.run.id !== run.id ? prev.run : run,
       activeRuns,
+      messages: applyMessageReadReceipt(
+        prev.messages,
+        event.payload?.readMessageIds,
+        event.payload?.readAt,
+      ),
     };
   }
   if (event.type === "run.waiting_input" || event.type === "computer.takeover.requested") {
@@ -516,6 +534,7 @@ export function reduceThreadSnapshot(
       callId: typeof event.payload.callId === "string" ? event.payload.callId : known?.callId,
       ...replyMetadata(event.payload, known),
       createdAt: known?.createdAt ?? event.createdAt,
+      readAt: known?.readAt,
     };
     const replacedSubagentIds = new Set(
       blocks.filter((block) => block.kind === "subagent").map((block) => block.agentId),

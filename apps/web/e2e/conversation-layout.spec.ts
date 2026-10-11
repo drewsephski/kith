@@ -204,3 +204,41 @@ test("new bot form fits mobile and cancellation is keyboard accessible", async (
   await cancel.press("Enter");
   await expect(page.getByTestId("created-profile")).toHaveText("Cancelled");
 });
+
+test("shows Read under the latest consumed user message with no acknowledgment bubble", async ({
+  page,
+}, testInfo) => {
+  for (const width of [1440, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${fixture}?working=off`);
+    await expect(page.getByTestId("message-read-status")).toHaveCount(0);
+    await page.goto(`${fixture}?working=off&read=older`);
+    await expect(page.getByTestId("message-read-status")).toHaveCount(0);
+    await page.goto(`${fixture}?working=off&read=latest`);
+    const receipt = page.locator('[data-message-id="inbox"]').getByTestId("message-read-status");
+    await expect(receipt).toHaveText("Read");
+    await expect(page.getByTestId("message-read-status")).toHaveCount(1);
+    const bubbleBox = await page
+      .locator('[data-message-id="inbox"] [data-testid="message-bubble-frame"]')
+      .boundingBox();
+    const readBox = await receipt.boundingBox();
+    expect(bubbleBox).toBeTruthy();
+    expect(readBox).toBeTruthy();
+    expect(Math.abs(readBox!.x + readBox!.width - (bubbleBox!.x + bubbleBox!.width))).toBeLessThan(
+      2,
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await page.reload();
+    await expect(receipt).toHaveText("Read");
+    await page.screenshot({
+      path: testInfo.outputPath(`message-read-${width}.png`),
+      fullPage: true,
+    });
+    await testInfo.attach(`message-read-${width}`, {
+      path: testInfo.outputPath(`message-read-${width}.png`),
+      contentType: "image/png",
+    });
+  }
+});

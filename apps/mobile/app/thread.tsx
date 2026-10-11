@@ -30,6 +30,7 @@ import {
   isRunTerminalEvent,
   isSecretAskBlock,
   latestAnswerableAskMessageId,
+  latestReadMessageId,
   leaveThreadWindow,
   mentionChipKey,
   openThreadWindow,
@@ -580,6 +581,7 @@ function Thread() {
     [dismissedChoiceQuestions, snap?.messages],
   );
   const visibleMessages = reactionView.visibleMessages;
+  const readMessageId = latestReadMessageId(visibleMessages);
   const latestMessageId = visibleMessages.at(-1)?.id ?? null;
   const activePendingAttachments = attachmentsForThread(pendingAttachments, threadKey);
   const composerSnapshot: ComposerSnapshot = {
@@ -1367,6 +1369,7 @@ function Thread() {
                 event.type === "agent.tool.completed" ||
                 event.type === "thread.message.created" ||
                 event.type === "thread.message.updated" ||
+                event.type === "thread.message.read" ||
                 event.type === "thread.message.reaction" ||
                 event.type === "thread.subagent" ||
                 event.type === "thread.cloud_agent" ||
@@ -2267,6 +2270,19 @@ function Thread() {
                 />
               </ThreadReadOnlyContext.Provider>
             </MessageContextMenu>
+            {message.id === readMessageId ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={{
+                  alignSelf: "flex-end",
+                  marginTop: 4,
+                  fontSize: 12,
+                  color: tokens.mutedForeground,
+                }}
+              >
+                {t("Read")}
+              </Text>
+            ) : null}
             {messageReactions ? (
               <View
                 style={{

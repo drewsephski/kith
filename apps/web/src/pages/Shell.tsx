@@ -53,6 +53,7 @@ import {
   isRunTerminalEvent,
   isToolActivityBlock,
   latestAnswerableAskMessageId,
+  latestReadMessageId,
   mentionChipKey,
   nestRosterByParent,
   PERSONAL_ASSISTANT_GUIDANCE,
@@ -5528,6 +5529,7 @@ export const Transcript = memo(function Transcript({
     [messages],
   );
   const reactionView = useMemo(() => projectMessageReactions(messages), [messages]);
+  const readMessageId = latestReadMessageId(reactionView.visibleMessages);
   const separatorIds = timeSeparatorIds(
     reactionView.visibleMessages.filter((message) =>
       messageHasVisibleBlocks(message.blocks, showToolActivity),
@@ -5910,6 +5912,14 @@ export const Transcript = memo(function Transcript({
                       showToolActivity={showToolActivity}
                       showAssistantAvatar={showAssistantAvatar}
                     />
+                    {message.id === readMessageId ? (
+                      <div
+                        data-testid="message-read-status"
+                        className="mt-1 text-end text-xs text-muted-foreground"
+                      >
+                        {t`Read`}
+                      </div>
+                    ) : null}
                     {peerReceipt ? null : (
                       <MessageHoverActions
                         message={message}

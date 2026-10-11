@@ -260,7 +260,7 @@ export function createThreadEvents(
   return {
     answerRunInput: (input) => answerRunInput(prisma, input, realtime, options.runSecretWriter),
     append: (input) => appendEvent(prisma, input, realtime),
-    claimSteering: (input) => claimSteering(prisma, input),
+    claimSteering: (input) => claimSteering(prisma, input, realtime),
     clearThread: (input) => clearThread(prisma, input, realtime),
     finalizeComputerControlRelease: (input) =>
       finalizeComputerControlRelease(prisma, input, realtime),
@@ -521,8 +521,9 @@ export async function sendUserMessage(
 export async function claimSteering(
   prisma: PrismaClient,
   input: ClaimSteeringInput,
+  realtime?: RealtimeFanout,
 ): Promise<ClaimedSteeringMessage[]> {
-  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const committed = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
     const run = await tx.run.findFirst({
       where: {
@@ -533,9 +534,14 @@ export async function claimSteering(
         leaseOwner: input.leaseOwner,
         leaseFence: input.leaseFence,
       },
-      select: { id: true, trigger: true, sourceMessage: { select: { blocks: true } } },
+      select: {
+        id: true,
+        spaceId: true,
+        trigger: true,
+        sourceMessage: { select: { blocks: true } },
+      },
     });
-    if (!run || run.trigger === "created") return [];
+    if (!run || run.trigger === "created") return { messages: [], eventSeq: null };
     const channelId =
       run.trigger === "messaging"
         ? messagingChannelId(run.sourceMessage?.blocks as MessageBlock[] | undefined)
@@ -569,18 +575,36 @@ export async function claimSteering(
       include: { message: { select: { blocks: true, seq: true } } },
       orderBy: [{ message: { seq: "asc" } }, { id: "asc" }],
     });
-    if (steering.length === 0) return [];
+    if (steering.length === 0) return { messages: [], eventSeq: null };
+    const readAt = new Date();
     await tx.steeringMessage.updateMany({
       where: { id: { in: steering.map((item) => item.id) }, claimedAt: null },
-      data: { runId: input.runId, claimedAt: new Date() },
+      data: { runId: input.runId, claimedAt: readAt },
     });
-    return steering.map((item) => ({
-      id: item.id,
-      messageId: item.messageId,
-      text: blocksToAgentHistoryText(item.message.blocks as MessageBlock[]),
-      blocks: item.message.blocks as MessageBlock[],
-    }));
+    const unreadIds = steering.filter((item) => !item.claimedAt).map((item) => item.messageId);
+    const event = unreadIds.length
+      ? await appendEventInTransaction(tx, {
+          spaceId: run.spaceId,
+          threadId: input.threadId,
+          botId: input.botId,
+          runId: input.runId,
+          type: "thread.message.read",
+          payload: { messageIds: unreadIds, readAt: readAt.toISOString() },
+        })
+      : null;
+    return {
+      eventSeq: event?.seq ?? null,
+      messages: steering.map((item) => ({
+        id: item.id,
+        messageId: item.messageId,
+        text: blocksToAgentHistoryText(item.message.blocks as MessageBlock[]),
+        blocks: item.message.blocks as MessageBlock[],
+      })),
+    };
   });
+  if (committed.eventSeq !== null)
+    await notifyRealtime(realtime, input.threadId, committed.eventSeq);
+  return committed.messages;
 }
 
 async function findPendingAsk(
@@ -1397,8 +1421,29 @@ export async function appendEventInTransaction(
   } else {
     await assertRunCanWriteHistory(tx, input.runId, { allowCancelled: input.allowCancelledRun });
   }
+  // Receipt evidence commits with the event, so reconnects and reloads agree.
+  const readIds =
+    input.type === "run.started"
+      ? input.payload.readMessageIds
+      : input.type === "thread.message.read"
+        ? input.payload.messageIds
+        : undefined;
+  const readAt = new Date();
+  if (Array.isArray(readIds) && readIds.length) {
+    await tx.message.updateMany({
+      where: {
+        threadId: input.threadId,
+        role: "user",
+        id: { in: readIds.filter((id): id is string => typeof id === "string") },
+        readAt: null,
+      },
+      data: { readAt },
+    });
+  }
   // Unpaired UTF-16 surrogates (e.g. a split emoji high half) are invalid JSON for Postgres.
-  const payload = sanitizeJsonValue(input.payload);
+  const payload = sanitizeJsonValue(
+    Array.isArray(readIds) ? { ...input.payload, readAt: readAt.toISOString() } : input.payload,
+  );
   return tx.event.create({
     data: {
       spaceId: input.spaceId,
