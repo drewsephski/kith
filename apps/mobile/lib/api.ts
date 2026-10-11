@@ -178,6 +178,21 @@ export async function selectSpace(id: string) {
   return true;
 }
 
+export function mobileScreenScopeKey() {
+  return `${currentApiBase()}:${currentSessionGeneration()}:${spaceSelectionGeneration}:${selectedSpaceId()}`;
+}
+
+/** Includes the selection epoch so A → B → A cannot revive an old response. */
+export function captureMobileScreenScope(): () => boolean {
+  const endpoint = currentApiBase();
+  const session = currentSessionGeneration();
+  const spaceGeneration = spaceSelectionGeneration;
+  return () =>
+    endpoint === currentApiBase() &&
+    session === currentSessionGeneration() &&
+    spaceGeneration === spaceSelectionGeneration;
+}
+
 export function selectedSpaceId(): string | null {
   return cachedSpaceId || null;
 }
@@ -1082,7 +1097,7 @@ export function blockText(message: MobileMessage) {
     .join("\n");
 }
 
-type ThreadEvent = {
+export type ThreadEvent = {
   id?: string;
   threadId?: string;
   createdAt?: string;

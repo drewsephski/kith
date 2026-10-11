@@ -49,3 +49,17 @@ export function activityStatusLabel(status: RunActivityRow["status"]): string {
       return status;
   }
 }
+
+/** Keep notification/search destinations attached to the recorded result. */
+export function activityDestination(run: RunActivityRow) {
+  const shared = {
+    threadId: run.threadId,
+    ...(run.messageId ? { messageId: run.messageId } : {}),
+  };
+  return run.groupId
+    ? {
+        pathname: "/group-thread" as const,
+        params: { groupId: run.groupId, name: run.groupName ?? t("Group"), ...shared },
+      }
+    : { pathname: "/thread" as const, params: { botId: run.botId, name: run.botName, ...shared } };
+}

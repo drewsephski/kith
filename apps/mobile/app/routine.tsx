@@ -5,7 +5,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { glassHeaderOptions } from "../components/glass-title";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
-import { rpc } from "../lib/api";
+import { captureMobileScreenScope, rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
 import { routineStatusLine } from "../lib/routine";
@@ -23,6 +23,7 @@ export default function RoutineDetail() {
   const [routine, setRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!botId || !routineId) {
@@ -31,26 +32,29 @@ export default function RoutineDetail() {
       return;
     }
     let cancelled = false;
+    const current = captureMobileScreenScope();
+    setError(null);
+    setRoutine(null);
     setLoading(true);
     void rpc<Routine[]>("routines/list", { botId })
       .then((routines) => {
-        if (cancelled) return;
+        if (cancelled || !current()) return;
         const match = routines.find((item) => item.id === routineId);
         if (match) setRoutine(match);
         else setError(t("This routine no longer exists"));
       })
       .catch((loadError) => {
-        if (!cancelled) {
+        if (!cancelled && current()) {
           setError(errorText(loadError, t("Could not load routine")));
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && current()) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [botId, routineId]);
+  }, [botId, routineId, attempt]);
 
   return (
     <ScrollView
@@ -60,7 +64,20 @@ export default function RoutineDetail() {
     >
       <Stack.Screen options={glassHeaderOptions(routine?.name ?? t("Routine"))} />
       {loading ? <ActivityIndicator color={tokens.mutedForeground} /> : null}
-      {error ? <Text style={{ color: tokens.destructive, fontSize: 15 }}>{error}</Text> : null}
+      {error ? (
+        <View>
+          <Text accessibilityRole="alert" style={{ color: tokens.destructive, fontSize: 15 }}>
+            {error}
+          </Text>
+          {botId && routineId ? (
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setAttempt((value) => value + 1)}
+            />
+          ) : null}
+        </View>
+      ) : null}
       {routine ? (
         <>
           <View

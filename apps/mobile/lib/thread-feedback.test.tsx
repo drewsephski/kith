@@ -281,11 +281,12 @@ describe("thread feedback", () => {
     ]);
   });
 
-  it("gives new and edited messages fresh nonces and upload caches", () => {
+  it("reuses an uncertain unchanged send, while giving edited messages fresh nonces and upload caches", () => {
     const failed = feedback.sendAttempt(payload());
     failed.artifactIds.set("attachment-1", "artifact-1");
     act(() => feedback.sendFailed(failed));
-    for (const text of ["Hello", "Edited"]) {
+    expect(feedback.sendAttempt(payload("Hello"))).toBe(failed);
+    for (const text of ["New", "Edited"]) {
       const fresh = feedback.sendAttempt(payload(text));
       expect(fresh.clientNonce).not.toBe(failed.clientNonce);
       expect(fresh.artifactIds.size).toBe(0);

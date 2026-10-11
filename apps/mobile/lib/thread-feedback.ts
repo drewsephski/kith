@@ -1,4 +1,4 @@
-import type { AgentSkillCatalogEntry } from "@rakazo/contracts";
+import type { AgentSkillCatalogEntry, ThreadSendInput } from "@rakazo/contracts";
 import type { ComposerMention, resolveComposerSendPlan } from "@rakazo/core";
 import { useEffect, useRef, useState } from "react";
 import type { rpc } from "./api";
@@ -39,9 +39,11 @@ export type SendAttempt = {
   artifactIds: Map<string, string>;
   sending: boolean;
   error?: string;
+  recoveredInput?: ThreadSendInput;
 };
 
-export async function deliverSend(payload: SendPayload, attempt: SendAttempt, request: typeof rpc) {
+export async function deliverSend(payload: SendPayload, attempt: SendAttempt, request: typeof rpc, prepare?: (input: ThreadSendInput) => Promise<void>) {
+  if (attempt.recoveredInput) { await request("threads/send", attempt.recoveredInput); return; }
   const { plan, groupTarget, botTarget, reroutedToGroup, attachments } = payload;
   if (plan.shouldRunRoutines) {
     await Promise.all(
@@ -69,7 +71,7 @@ export async function deliverSend(payload: SendPayload, attempt: SendAttempt, re
     }
     artifactIds.push(id);
   }
-  await request("threads/send", {
+  const input: ThreadSendInput = {
     ...(groupTarget ? { groupId: groupTarget } : { botId: botTarget! }),
     clientNonce: attempt.clientNonce,
     text: plan.trimmed || undefined,
@@ -77,7 +79,9 @@ export async function deliverSend(payload: SendPayload, attempt: SendAttempt, re
     artifactIds: artifactIds.length ? artifactIds : undefined,
     replyToMessageId: reroutedToGroup ? undefined : payload.replyTargetId,
     replyQuote: reroutedToGroup ? undefined : (payload.replyQuote ?? undefined),
-  });
+  };
+  await prepare?.(input);
+  await request("threads/send", input);
 }
 
 export function useThreadFeedback(threadKey: string | undefined, newNonce: () => string) {
@@ -98,7 +102,12 @@ export function useThreadFeedback(threadKey: string | undefined, newNonce: () =>
     },
     failedSends: failedSends.filter((attempt) => attempt.payload.originThreadKey === threadKey),
     sendAttempt(payload: SendPayload): SendAttempt {
-      return { payload, clientNonce: newNonce(), artifactIds: new Map(), sending: false };
+      const existing = failedSends.find(
+        (attempt) => JSON.stringify(attempt.payload) === JSON.stringify(payload),
+      );
+      return (
+        existing ?? { payload, clientNonce: newNonce(), artifactIds: new Map(), sending: false }
+      );
     },
     start(attempt: SendAttempt) {
       if (attempt.sending) return false;

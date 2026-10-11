@@ -1,12 +1,12 @@
 import { GROUP_MEMBER_MAX, GROUP_MEMBER_MIN } from "@rakazo/contracts";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Text, TextInput } from "react-native";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import { BotMemberPicker } from "../components/bot-member-picker";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import type { MobileBot } from "../lib/api";
-import { rpc } from "../lib/api";
+import { captureMobileScreenScope, rpc } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
 import { errorText } from "../lib/user-error";
@@ -20,12 +20,30 @@ export default function NewGroup() {
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    const scopeCurrent = captureMobileScreenScope();
+    const current = () => active && scopeCurrent();
+    setLoading(true);
+    setLoadError(null);
     void rpc<MobileBot[]>("bots/list")
-      .then((nextBots) => setBots(nextBots.filter((bot) => !bot.archivedAt)))
-      .catch(() => undefined);
-  }, []);
+      .then((nextBots) => {
+        if (current()) setBots(nextBots.filter((bot) => !bot.archivedAt));
+      })
+      .catch((cause) => {
+        if (current()) setLoadError(errorText(cause, t("Could not load bots")));
+      })
+      .finally(() => {
+        if (current()) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   async function create() {
     if (
@@ -57,12 +75,34 @@ export default function NewGroup() {
     <>
       <Stack.Screen options={{ title: t("New group") }} />
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: tokens.background }}
         contentContainerStyle={{ padding: 24 }}
       >
+        {loading ? <ActivityIndicator accessibilityLabel={t("Loading members")} /> : null}
+        {loadError ? (
+          <View style={{ gap: 8 }}>
+            <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
+              {loadError}
+            </Text>
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setLoadAttempt((value) => value + 1)}
+            />
+          </View>
+        ) : null}
+        {!loading && !loadError && !bots.length ? (
+          <Text style={{ color: tokens.mutedForeground }}>
+            {t("Create a bot before starting a group.")}
+          </Text>
+        ) : null}
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
         <TextInput
+          accessibilityLabel={t("Group name")}
+          editable={!loading && !loadError && !pending}
           value={name}
           onChangeText={setName}
           placeholder={t("Name this group")}
@@ -83,11 +123,13 @@ export default function NewGroup() {
           bots={bots}
           selected={selected}
           onChange={setSelected}
-          disabled={pending}
+          disabled={pending || loading || Boolean(loadError)}
         />
         {error ? <Text style={{ color: tokens.destructive, marginTop: 12 }}>{error}</Text> : null}
         <NativeActionButton
           disabled={
+            loading ||
+            Boolean(loadError) ||
             !name.trim() ||
             selected.length < GROUP_MEMBER_MIN ||
             selected.length > GROUP_MEMBER_MAX ||

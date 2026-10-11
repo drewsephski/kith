@@ -23,9 +23,11 @@ import { BotAvatar } from "../components/bot-avatar";
 import { BotOrganizeModal } from "../components/bot-organize-modal";
 import { GroupAvatar } from "../components/group-avatar";
 import { FlatList } from "../components/minimal-scroll";
+import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import { WorkingIndicator } from "../components/WorkingIndicator";
 import {
+  activityDestination,
   activityStatusLabel,
   fetchSpaceActivity,
   formatActivityRelativeTime,
@@ -61,6 +63,7 @@ import {
   selectInboxSpace,
   spaceInboxItems,
 } from "../lib/inbox-spaces";
+import { loadIntroProgress } from "../lib/intro";
 import { dismissThreadNotifications, resumeLiveNotifications } from "../lib/live-notifications";
 import { native, useThemedStyles } from "../lib/native";
 import { iosAtLeast } from "../lib/native-controls";
@@ -70,6 +73,7 @@ import { registerPushToken } from "../lib/push";
 import { querySpaceSearch } from "../lib/search";
 import { mobileSearchDestination } from "../lib/search-destination";
 import { dedupeSearchHits, searchHitListKey, searchHitRowPreview } from "../lib/search-list";
+import { currentSessionGeneration } from "../lib/session";
 import { errorText } from "../lib/user-error";
 
 const FALLBACK_COLOR = botColors[3];
@@ -97,12 +101,15 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  const [introComplete, setIntroComplete] = useState(false);
   useScreenInteractive(ready && hasSession && (me !== null || error !== null));
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
   const [organizeTarget, setOrganizeTarget] = useState<{
     kind: "bot" | "group";
     id: string;
@@ -115,6 +122,8 @@ export default function Home() {
   const activityRequestId = useRef(0);
   const inboxRequestId = useRef(0);
   const creatingBotRef = useRef(false);
+  const openedInitialAssistant = useRef(false);
+  const [preparingAssistant, setPreparingAssistant] = useState(false);
   const spaceActionRef = useRef<{ busy: boolean; recoveryId: string | null }>({
     busy: false,
     recoveryId: null,
@@ -146,25 +155,52 @@ export default function Home() {
   const loadBots = useCallback(async () => {
     if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
     const requestId = ++inboxRequestId.current;
+    const session = currentSessionGeneration();
+    const endpoint = currentApiBase();
+    const selection = selectedSpaceId();
+    const current = () =>
+      requestId === inboxRequestId.current &&
+      session === currentSessionGeneration() &&
+      endpoint === currentApiBase() &&
+      (selection === selectedSpaceId() || (!selection && selectedSpaceId() === defaultSpace));
+    let defaultSpace: string | null = null;
     setError(null);
     try {
       const [navigation, nextMe] = await Promise.all([
         rpc<MobileSpaceNavigation>("spaces/list"),
         rpc<MobileMe>("me"),
       ]);
-      if (requestId !== inboxRequestId.current) return;
+      defaultSpace = nextMe.spaceId;
+      if (!current()) return;
       if (!(await selectInitialSpace(nextMe.spaceId))) {
         throw new Error(t("Could not save the default space"));
       }
-      if (requestId !== inboxRequestId.current) return;
+      if (!current()) return;
       setBots(navigation.current.bots);
       setBotSections(navigation.current.botSections);
       setGroups(navigation.current.groups);
       setSpaces(navigation.spaces);
       setMe(nextMe);
+      if (
+        !navigation.current.bots.length &&
+        !navigation.current.groups.length &&
+        !openedInitialAssistant.current
+      ) {
+        setPreparingAssistant(true);
+        const assistant = await rpc<{ botId: string; needsModel: boolean }>("assistant/ensure");
+        if (!current()) return;
+        // Both onboarding operations are server-idempotent. A lost response can be retried.
+        await rpc("onboarding/start", { botId: assistant.botId });
+        await rpc("onboarding/promptFocus", { botId: assistant.botId });
+        if (!current()) return;
+        openedInitialAssistant.current = true;
+        router.push({ pathname: "/thread", params: { botId: assistant.botId, name: "Kith" } });
+      }
     } catch (err) {
-      if (requestId !== inboxRequestId.current) return;
+      if (!current()) return;
       setError(errorText(err, t("Could not load bots")));
+    } finally {
+      if (current()) setPreparingAssistant(false);
     }
   }, []);
 
@@ -180,7 +216,12 @@ export default function Home() {
   useEffect(() => {
     void loadSessionToken().then((token) => {
       setHasSession(Boolean(token));
-      setReady(true);
+      if (token) setReady(true);
+      else
+        void loadIntroProgress()
+          .then((progress) => setIntroComplete(progress.complete))
+          .catch(() => setError(t("Could not restore the introduction")))
+          .finally(() => setReady(true));
     });
   }, []);
 
@@ -254,24 +295,35 @@ export default function Home() {
       return;
     }
     const abort = new AbortController();
+    const session = currentSessionGeneration();
+    const endpoint = currentApiBase();
+    const space = selectedSpaceId();
+    const current = () =>
+      !abort.signal.aborted &&
+      session === currentSessionGeneration() &&
+      endpoint === currentApiBase() &&
+      space === selectedSpaceId();
+    setSearchHits([]);
+    setSearchError(null);
+    setSearchLoading(true);
     const timer = setTimeout(() => {
       setSearchLoading(true);
       void querySpaceSearch(trimmed)
         .then((hits) => {
-          if (!abort.signal.aborted) setSearchHits(hits);
+          if (current()) setSearchHits(hits);
         })
-        .catch(() => {
-          if (!abort.signal.aborted) setSearchHits([]);
+        .catch((cause) => {
+          if (current()) setSearchError(errorText(cause, t("Could not search conversations")));
         })
         .finally(() => {
-          if (!abort.signal.aborted) setSearchLoading(false);
+          if (current()) setSearchLoading(false);
         });
     }, 200);
     return () => {
       abort.abort();
       clearTimeout(timer);
     };
-  }, [query, searching]);
+  }, [query, searching, searchRetry]);
 
   const visible = useMemo(() => filterBots(bots, query), [bots, query]);
   const visibleGroups = useMemo(() => {
@@ -560,7 +612,7 @@ export default function Home() {
       </View>
     );
   }
-  if (!hasSession) return <Redirect href="/sign-in" />;
+  if (!hasSession) return <Redirect href={introComplete ? "/sign-in" : "/intro"} />;
 
   return (
     <View style={styles.screen}>
@@ -680,7 +732,33 @@ export default function Home() {
               />
             ) : null}
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? (
+              <View>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {error}
+                </Text>
+                <NativeActionButton
+                  label={t("Retry")}
+                  prominence="plain"
+                  onPress={() => void refreshBots()}
+                />
+              </View>
+            ) : null}
+            {searchError ? (
+              <View>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {searchError}
+                </Text>
+                <NativeActionButton
+                  label={t("Retry search")}
+                  prominence="plain"
+                  onPress={() => setSearchRetry((value) => value + 1)}
+                />
+              </View>
+            ) : null}
+            {preparingAssistant ? (
+              <ActivityIndicator accessibilityLabel={t("Preparing your assistant")} />
+            ) : null}
             {spaceRecoveryId ? (
               <Pressable
                 accessibilityRole="button"
@@ -704,12 +782,16 @@ export default function Home() {
             {query.trim() && searching
               ? searchLoading
                 ? t("Searching…")
-                : t("No results")
+                : searchError
+                  ? ""
+                  : t("No results")
               : query.trim()
                 ? t("No matching bots")
                 : searching
                   ? t("Search conversations, files, and routines")
-                  : t("Tap + to create a bot")}
+                  : error || preparingAssistant
+                    ? ""
+                    : t("Tap + to create a bot")}
           </Text>
         }
         ListFooterComponent={
@@ -872,16 +954,7 @@ function ActivitySection({
   const { t } = useI18n();
   const router = useRouter();
   const botsById = useMemo(() => new Map(bots.map((bot) => [bot.id, bot])), [bots]);
-  const openRun = (run: RunActivityRow) => {
-    if (run.groupId) {
-      router.push({
-        pathname: "/group-thread",
-        params: { groupId: run.groupId, name: run.groupName ?? t("Group") },
-      });
-      return;
-    }
-    router.push({ pathname: "/thread", params: { botId: run.botId, name: run.botName } });
-  };
+  const openRun = (run: RunActivityRow) => router.push(activityDestination(run));
 
   return (
     <View style={styles.activitySection}>

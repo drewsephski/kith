@@ -6,7 +6,7 @@ import { ActivityIndicator, Linking, StyleSheet, Text, TextInput } from "react-n
 import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSegmentedControl } from "../../components/native-segmented-control";
-import { rpc } from "../../lib/api";
+import { captureMobileScreenScope, rpc } from "../../lib/api";
 import { mobileTokens } from "../../lib/appearance";
 import { useI18n } from "../../lib/i18n";
 import { native, useThemedStyles } from "../../lib/native";
@@ -18,6 +18,7 @@ export default function IntegrationSetup() {
   const directOnly = mode === "mcp";
   const { t } = useI18n();
   const styles = useThemedStyles(createStyles);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [state, setState] = useState<IntegrationSetupState | null>(null);
   const [choice, setChoice] = useState("composio");
   const [serverUrl, setServerUrl] = useState(endpoint ?? "");
@@ -37,17 +38,25 @@ export default function IntegrationSetup() {
     };
   }, []);
   useEffect(() => {
+    let active = true;
+    const current = captureMobileScreenScope();
+    setError(null);
     void rpc<IntegrationSetupState>("integrationSetup/get")
       .then((setup) => {
-        if (!mounted.current) return;
+        if (!active || !mounted.current || !current()) return;
         if (!setup.canConfigure && !directOnly) {
           router.replace("/integrations");
           return;
         }
         setState(setup);
       })
-      .catch(() => setError(t("Could not load integrations")));
-  }, []);
+      .catch(() => {
+        if (active && current()) setError(t("Could not load integrations"));
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
   const choices = [
     { value: "direct", label: t("Direct MCP") },
     { value: "composio", label: "Composio" },
@@ -102,9 +111,16 @@ export default function IntegrationSetup() {
     return (
       <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
         {error ? (
-          <Text accessibilityRole="alert" style={styles.text}>
-            {error}
-          </Text>
+          <>
+            <Text accessibilityRole="alert" style={styles.text}>
+              {error}
+            </Text>
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setLoadAttempt((value) => value + 1)}
+            />
+          </>
         ) : (
           <ActivityIndicator />
         )}

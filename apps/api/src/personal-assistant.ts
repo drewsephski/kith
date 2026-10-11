@@ -1,5 +1,36 @@
-import type { Actor } from "@rakazo/contracts";
+import type { Actor, Bot } from "@rakazo/contracts";
+import { PERSONAL_ASSISTANT_GUIDANCE } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
+
+/** Creation uses the repository's durable spawn identity; lost responses reuse the same bot. */
+export async function ensurePersonalAssistant(
+  prisma: PrismaClient,
+  actor: Actor,
+  create: (input: {
+    name: string;
+    title: string;
+    description: string;
+    instructions: string;
+    notifyOnFinish: boolean;
+    computerMode: "team";
+    spawnKey: string;
+  }) => Promise<Bot>,
+): Promise<string> {
+  const existing = await personalAssistantBotId(prisma, actor);
+  if (existing) return existing;
+  await create({
+    name: "Kith",
+    title: "",
+    description: "",
+    instructions: PERSONAL_ASSISTANT_GUIDANCE,
+    notifyOnFinish: true,
+    computerMode: "team",
+    spawnKey: `assistant:first:${actor.userId}`,
+  });
+  const botId = await personalAssistantBotId(prisma, actor);
+  if (!botId) throw new Error("Could not prepare your assistant");
+  return botId;
+}
 
 /** Bind once, independently of mutable sidebar order, with the actor's scope. */
 export async function personalAssistantBotId(

@@ -133,7 +133,7 @@ const structuredMentionTarget = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("connector"), id: Id }),
 ]);
 
-const threadSendInput = threadTarget
+export const ThreadSendInputSchema = threadTarget
   .safeExtend({
     /** Reference an authoritative persisted email card, never client-supplied mail/tool args. */
     emailAction: z
@@ -173,6 +173,8 @@ const threadSendInput = threadTarget
     }
   });
 
+export type ThreadSendInput = z.infer<typeof ThreadSendInputSchema>;
+
 const spaceName = z.string().trim().min(1).max(60);
 
 export const appContract = {
@@ -209,7 +211,10 @@ export const appContract = {
       .input(z.object({ spaceId: Id }))
       .output(z.object({ ok: z.literal(true), activeSpaceId: Id })),
   },
-  assistant: { get: oc.output(z.object({ botId: Id.nullable() })) },
+  assistant: {
+    get: oc.output(z.object({ botId: Id.nullable() })),
+    ensure: oc.output(z.object({ botId: Id, needsModel: z.boolean() })),
+  },
   bootstrap: oc.input(z.object({ botId: Id.optional() })).output(AppBootstrapSchema),
   deployment: {
     get: oc.output(DeploymentSettingsSchema),
@@ -388,7 +393,7 @@ export const appContract = {
     subscribe: oc
       .input(threadTarget.safeExtend({ cursor: z.number().int().min(-1) }))
       .output(eventIterator(ProductEventSchema)),
-    send: oc.input(threadSendInput).output(
+    send: oc.input(ThreadSendInputSchema).output(
       z.object({
         taskId: Id,
         runId: Id,

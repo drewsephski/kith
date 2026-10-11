@@ -295,8 +295,11 @@ describe("Android mobile platform contract", () => {
     expect(clear).toMatch(
       /setPendingAttachments\(\(current\) =>\s*current.filter\(\(attachment\) => !submitted.attachmentIds.includes\(attachment.id\)\)/,
     );
-    expect(clear).toMatch(/if \(!settled.clearComposer\) return;\s*setDraft\(""\)/);
-    expect(send).toMatch(/finally \{\s*onSettled\?\.\(\);/);
+    expect(clear).toMatch(
+      /if \(!settled.clearComposer\) return;\s*draftPersistence.confirmed\(attempt.clientNonce, true\);\s*setDraft\(""\)/,
+    );
+    expect(send).not.toMatch(/finally \{\s*onSettled\?\.\(\);/);
+    expect(send).toContain("if (onSettled) onSettled();");
     expect(send).toContain('attempt.error = errorText(err, t("Failed to send message"))');
     expect(thread).toContain("onRetry={() => void deliver(attempt)}");
   });

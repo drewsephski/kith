@@ -13,7 +13,6 @@ import type {
 import { canReactToThreadMessage, MESSAGE_REACTIONS } from "@rakazo/contracts";
 import type { ComposerMention, SlashActionId, ThreadItem } from "@rakazo/core";
 import {
-  abortableDelay,
   appendNewerThreadPage,
   attachmentsForThread,
   buildComposerMentionOptions,
@@ -131,11 +130,13 @@ import type {
 import {
   applyMobileThreadEvent,
   blockText,
+  captureMobileScreenScope,
   copyableMobileMessageText,
   currentApiBase,
   loadSessionToken,
   mergeMobileSnapshot,
   messagingProviderLabel,
+  mobileScreenScopeKey,
   mobileThreadRefreshResult,
   prependMobileMessagePage,
   rpc,
@@ -156,6 +157,7 @@ import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
 import { dateLocaleForUi, t, useI18n } from "../lib/i18n";
+import { takeIncomingShare } from "../lib/incoming-share-draft";
 import { isInlineImageMimeType } from "../lib/inline-image";
 import { saveLastBotId } from "../lib/last-bot";
 import {
@@ -197,6 +199,8 @@ import { ThreadJumpAnchor } from "../lib/thread-jump";
 import { ThreadReadOnlyContext } from "../lib/thread-read-only";
 import type { ThreadScrollAction, ThreadScrollState } from "../lib/thread-scroll";
 import { ThreadScrollBehavior } from "../lib/thread-scroll";
+import { recoverThreadSubscription } from "../lib/thread-subscription";
+import { useConversationDraft } from "../lib/use-conversation-draft";
 import { errorText } from "../lib/user-error";
 import { speakQueue, speakText } from "../lib/voice";
 import {
@@ -316,7 +320,9 @@ export default function ThreadRoute() {
     };
   }, [activeSpaceId, focused, spaceId]);
 
-  if (request.action === "show" && !focusSync.switchFailed) return <Thread />;
+  const params = useLocalSearchParams<{ botId?: string; groupId?: string }>();
+  if (request.action === "show" && !focusSync.switchFailed)
+    return <Thread key={`${mobileScreenScopeKey()}:${params.groupId ?? params.botId}`} />;
   return (
     <View
       style={{
@@ -398,6 +404,7 @@ function createThreadHeaderStyles() {
 function Thread() {
   const focused = useIsFocused();
   const [assistantId, setAssistantId] = useState<string | null>(null);
+  const [needsModel, setNeedsModel] = useState(false);
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
   const styles = useThemedStyles(createThreadHeaderStyles);
@@ -416,6 +423,7 @@ function Thread() {
     name,
     messageId,
     threadId,
+    shareId,
     readOnly: readOnlyParam,
   } = useLocalSearchParams<{
     botId?: string;
@@ -423,6 +431,7 @@ function Thread() {
     name?: string;
     messageId?: string;
     threadId?: string;
+    shareId?: string;
     readOnly?: string;
   }>();
   const readOnly = readOnlyParam === "1";
@@ -592,6 +601,70 @@ function Thread() {
     replyQuote,
     attachmentIds: activePendingAttachments.map((attachment) => attachment.id),
   };
+  const restoredReply = useRef<{ id: string; quote: string | null } | null>(null);
+  const draftPersistence = useConversationDraft(
+    groupId ? `group:${groupId}` : botId ? `bot:${botId}` : undefined,
+    { text: composerSnapshot.promptText, replyTargetId: replyTarget?.id, replyQuote },
+    (saved) => {
+      setDraft(saved.text);
+      if (saved.replyTargetId)
+        restoredReply.current = { id: saved.replyTargetId, quote: saved.replyQuote ?? null };
+    },
+  );
+  useEffect(() => {
+    const saved = restoredReply.current;
+    if (!saved || !snap) return;
+    const message = snap.messages.find((item) => item.id === saved.id);
+    if (message) {
+      setReplyTarget(message);
+      setReplyQuote(saved.quote);
+    }
+    restoredReply.current = null;
+  }, [snap, draftPersistence.ready]);
+  useEffect(() => {
+    if (!shareId || !draftPersistence.ready || readOnly || !threadKey) return;
+    let active = true;
+    const current = captureMobileScreenScope();
+    void rpc<MobileMe>("me")
+      .then((me) => {
+        if (!active || !current()) return;
+        const incoming = takeIncomingShare(shareId, {
+          endpoint: currentApiBase(),
+          userId: me.userId,
+          spaceId: me.spaceId,
+          conversation: groupId ? `group:${groupId}` : `bot:${botId}`,
+        });
+        if (!incoming) return;
+        setDraft((text) => [text, incoming.text].filter(Boolean).join("\n\n"));
+        setPendingAttachments((items) => [
+          ...items,
+          ...incoming.attachments.map((item) => ({ ...item, threadKey })),
+        ]);
+        router.setParams({ shareId: undefined });
+      })
+      .catch((cause) => {
+        if (active && current()) setError(errorText(cause, t("Could not import shared content")));
+      });
+    return () => {
+      active = false;
+    };
+  }, [shareId, draftPersistence.ready, readOnly, threadKey, botId, groupId, router]);
+  useEffect(() => {
+    for (const delivery of draftPersistence.deliveries) {
+      if (pendingDeliveries.current > 0) continue;
+      if (feedback.failedSends.some((item) => item.clientNonce === delivery.input.clientNonce)) continue;
+      const input = delivery.input;
+      feedback.sendFailed({ clientNonce: input.clientNonce!, artifactIds: new Map(), sending: false,
+        recoveredInput: input, error: t("Delivery was not confirmed. Retry safely."),
+        payload: { originThreadKey: threadKey!, displayText: delivery.displayText, replyPreview: delivery.replyPreview,
+          initialBotTarget: botId, botTarget: input.botId, groupTarget: input.groupId,
+          reroutedToGroup: Boolean(input.groupId && input.groupId !== groupId),
+          plan: resolveComposerSendPlan({ text: input.text ?? "", mentions: [], hasAttachments: Boolean(input.artifactIds?.length) }),
+          attachments: [], replyTargetId: input.replyToMessageId, replyQuote: input.replyQuote ?? null,
+        },
+      });
+    }
+  }, [draftPersistence.deliveries]);
   const composerRef = useRef(composerSnapshot);
   composerRef.current = composerSnapshot;
   const composerMentionTargets = useMemo(
@@ -1052,11 +1125,20 @@ function Thread() {
     const targetBotId = botId;
     const targetGroupId = groupId;
     const epoch = historyEpoch.current;
+    const session = currentSessionGeneration();
+    const space = selectedSpaceId();
+    const endpoint = currentApiBase();
     const generation = ++refreshGeneration.current;
     const next = await rpc<MobileSnapshot>(
       "threads/get",
       targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
     );
+    if (
+      session !== currentSessionGeneration() ||
+      space !== selectedSpaceId() ||
+      endpoint !== currentApiBase()
+    )
+      return;
     // Only the newest started refresh may commit. Threads also receive live
     // events; an older snapshot must not overwrite those while a newer refresh
     // is already in flight. The subscription starts from the snapshot returned
@@ -1285,10 +1367,18 @@ function Thread() {
           threadId: notificationThreadId,
         }).catch(() => undefined);
       }
+      let active = true;
+      const session = currentSessionGeneration();
+      void rpc<MobileMe>("me")
+        .then((me) => {
+          if (active && session === currentSessionGeneration()) setNeedsModel(me.needsModel);
+        })
+        .catch(() => undefined);
       void refreshMentionBots();
       markReadIfVisible();
       if (!readOnly) speakFinishedReply();
       return () => {
+        active = false;
         void setOpenNotificationThread(null).catch(() => undefined);
       };
     }, [
@@ -1330,99 +1420,96 @@ function Thread() {
     setStreamReconnecting(false);
     const subscriptionGeneration = ++liveSubscriptionGeneration.current;
     liveSubscribed.current = false;
-    void (async () => {
-      // Pending search jumps load the around-page separately; avoid replacing it with latest.
-      const next = messageId
-        ? await rpc<MobileSnapshot>("threads/get", groupId ? { groupId } : { botId: botId! }).catch(
-            (err: unknown) => {
-              setError(errorText(err));
-              return null;
-            },
-          )
-        : await refresh().catch((err: unknown) => {
-            setError(errorText(err));
-            return null;
-          });
-      if (abort.signal.aborted || readOnly) return;
-      let cursor = next?.cursor ?? -1;
-      let retryMs = 250;
-      while (!abort.signal.aborted) {
+    const scopeCurrent = captureMobileScreenScope();
+    const session = currentSessionGeneration();
+    const endpoint = currentApiBase();
+    const space = selectedSpaceId();
+    const isCurrent = () =>
+      scopeCurrent() &&
+      session === currentSessionGeneration() &&
+      endpoint === currentApiBase() &&
+      space === selectedSpaceId() &&
+      subscriptionGeneration === liveSubscriptionGeneration.current;
+    void recoverThreadSubscription({
+      signal: abort.signal,
+      isCurrent,
+      snapshot: async () => {
+        if (messageId || jumpScrollTarget.current || expandedHistoryThread.current) {
+          const next = await rpc<MobileSnapshot>(
+            "threads/get",
+            groupId ? { groupId } : { botId: botId! },
+          );
+          // History is not replaced: replay from the visible snapshot's cursor.
+          return { threadId: next.threadId, cursor: snapRef.current?.cursor ?? next.cursor };
+        }
+        return refresh();
+      },
+      subscribe: async (cursor, receive) => {
+        if (readOnly || !isCurrent()) {
+          abort.abort();
+          return;
+        }
+        liveSubscribed.current = true;
         try {
-          liveSubscribed.current = true;
           await subscribeThread(
             groupId ? { groupId } : { botId: botId! },
             cursor,
-            (event) => {
-              if (
-                abort.signal.aborted ||
-                (event.threadId && event.threadId !== next?.threadId) ||
-                (event.seq !== undefined && event.seq <= cursor)
-              )
-                return;
-              setStreamReconnecting(false);
-              cursor = Math.max(cursor, event.seq ?? -1);
-              retryMs = 250;
-              if (
-                event.type === "run.started" ||
-                event.type === "thread.progress" ||
-                event.type === "agent.tool.called" ||
-                event.type === "agent.tool.completed" ||
-                event.type === "thread.message.created" ||
-                event.type === "thread.message.updated" ||
-                event.type === "thread.message.read" ||
-                event.type === "thread.message.reaction" ||
-                event.type === "thread.subagent" ||
-                event.type === "thread.cloud_agent" ||
-                event.type === "thread.cleared" ||
-                event.type === "run.waiting_input" ||
-                event.type === "computer.takeover.requested" ||
-                isRunTerminalEvent(event)
-              ) {
-                if (event.type === "thread.cleared") {
-                  expandedHistoryThread.current = null;
-                  pinnedAroundRef.current = null;
-                  jumpScrollTarget.current = null;
-                  jumpAnchor.current.release();
-                  historyEpoch.current += 1;
-                }
-                commitSnap(applyMobileThreadEvent(snapRef.current, event));
-              }
-              if (event.type === "bot.updated") {
-                void refreshMentionBots();
-              }
-              if (event.type === "thread.message.created" && event.payload?.role === "bot") {
-                readVisibleTarget.current = null;
-                markReadIfVisible();
-              }
-              if (
-                isRunTerminalEvent(event) ||
-                event.type === "run.waiting_input" ||
-                event.type === "run.started"
-              ) {
-                void refreshMentionBots();
-                if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
-                  void refresh().catch(() => undefined);
-                }
-              }
-            },
+            receive,
             abort.signal,
           );
-        } catch {
-          // A full refresh reconciles visible state; the event cursor still resumes without gaps.
         } finally {
-          if (liveSubscriptionGeneration.current === subscriptionGeneration) {
-            liveSubscribed.current = false;
+          if (isCurrent()) liveSubscribed.current = false;
+        }
+      },
+      reconnecting: setStreamReconnecting,
+      failed: (err) => {
+        if (!snapRef.current) setError(errorText(err));
+      },
+      receive: (event) => {
+        if (
+          event.type === "run.started" ||
+          event.type === "thread.progress" ||
+          event.type === "agent.tool.called" ||
+          event.type === "agent.tool.completed" ||
+          event.type === "thread.message.created" ||
+          event.type === "thread.message.updated" ||
+          event.type === "thread.message.read" ||
+          event.type === "thread.message.reaction" ||
+          event.type === "thread.subagent" ||
+          event.type === "thread.cloud_agent" ||
+          event.type === "thread.cleared" ||
+          event.type === "run.waiting_input" ||
+          event.type === "computer.takeover.requested" ||
+          isRunTerminalEvent(event)
+        ) {
+          if (event.type === "thread.cleared") {
+            expandedHistoryThread.current = null;
+            pinnedAroundRef.current = null;
+            jumpScrollTarget.current = null;
+            jumpAnchor.current.release();
+            historyEpoch.current += 1;
+          }
+          commitSnap(applyMobileThreadEvent(snapRef.current, event));
+        }
+        if (event.type === "bot.updated") {
+          void refreshMentionBots();
+        }
+        if (event.type === "thread.message.created" && event.payload?.role === "bot") {
+          readVisibleTarget.current = null;
+          markReadIfVisible();
+        }
+        if (
+          isRunTerminalEvent(event) ||
+          event.type === "run.waiting_input" ||
+          event.type === "run.started"
+        ) {
+          void refreshMentionBots();
+          if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
+            void refresh().catch(() => undefined);
           }
         }
-        if (abort.signal.aborted) break;
-        setStreamReconnecting(true);
-        if (!jumpScrollTarget.current && !expandedHistoryThread.current) {
-          await refresh().catch(() => undefined);
-        }
-        await abortableDelay(retryMs, abort.signal);
-        retryMs = Math.min(retryMs * 2, 5_000);
-      }
-    })();
+      },
+    });
     return () => {
       abort.abort();
     };
@@ -1597,7 +1684,8 @@ function Thread() {
     );
     const groupTarget = plan.rerouteGroupId ?? initialGroupTarget;
     const botTarget = reroutedToGroup ? undefined : initialBotTarget;
-    const attempt = feedback.sendAttempt({
+    const recovered = feedback.failedSends.find((item) => item.recoveredInput && item.payload.displayText === submitted.promptText && !attachments.length);
+    const attempt = recovered ?? feedback.sendAttempt({
       originThreadKey: originThreadKey!,
       displayText: submitted.promptText,
       replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
@@ -1617,6 +1705,7 @@ function Thread() {
         current.filter((attachment) => !submitted.attachmentIds.includes(attachment.id)),
       );
       if (!settled.clearComposer) return;
+      draftPersistence.confirmed(attempt.clientNonce, true);
       setDraft("");
       setMentionQuery(null);
       setSlashQuery(null);
@@ -1631,10 +1720,12 @@ function Thread() {
   async function deliver(attempt: SendAttempt, onSettled?: () => void) {
     if (readOnly || !feedback.start(attempt)) return;
     const { initialBotTarget, botTarget, groupTarget, reroutedToGroup, plan } = attempt.payload;
+    const current = captureMobileScreenScope();
     pendingDeliveries.current += 1;
     setSending(true);
     try {
-      await deliverSend(attempt.payload, attempt, rpc);
+      if (!current()) return;
+      await deliverSend(attempt.payload, attempt, rpc, (input) => draftPersistence.prepare(input, attempt.payload.displayText, attempt.payload.replyPreview));
     } catch (err) {
       attempt.error = errorText(err, t("Failed to send message"));
       feedback.sendFailed(attempt);
@@ -1645,10 +1736,27 @@ function Thread() {
       }
       return;
     } finally {
-      onSettled?.();
       pendingDeliveries.current -= 1;
       setSending(pendingDeliveries.current > 0);
     }
+    if (onSettled) onSettled();
+    else if (
+      attempt.payload.originThreadKey === (activeGroupId.current ?? activeBotId.current) &&
+      composerRef.current.promptText === attempt.payload.displayText &&
+      composerRef.current.replyTargetId === attempt.payload.replyTargetId &&
+      composerRef.current.replyQuote === attempt.payload.replyQuote &&
+      JSON.stringify(composerRef.current.attachmentIds) ===
+        JSON.stringify(attempt.payload.attachments.map((item) => item.id))
+    ) {
+      draftPersistence.confirmed(attempt.clientNonce, true);
+      setDraft("");
+      setSelectedMentions([]);
+      setSelectedSkill(null);
+      setReplyTarget(null);
+      setReplyQuote(null);
+      setPendingAttachments([]);
+    }
+    draftPersistence.confirmed(attempt.clientNonce);
     feedback.sent(attempt);
     if (initialBotTarget) cancelFocusPrompt(initialBotTarget);
     void loadSessionToken()
@@ -2478,7 +2586,7 @@ function Thread() {
       key={attempt.clientNonce}
       attempt={attempt}
       onRetry={() => void deliver(attempt)}
-      onDelete={() => feedback.discard(attempt)}
+      onDelete={() => { draftPersistence.confirmed(attempt.clientNonce); feedback.discard(attempt); }}
     />
   ));
 
@@ -2729,6 +2837,18 @@ function Thread() {
       >
         {/* Fades messages out above the composer, like the header fade. */}
         <View pointerEvents="none" style={styles.composerFade} />
+        {needsModel && !readOnly ? (
+          <View style={{ paddingHorizontal: 20, gap: 8 }}>
+            <Text style={{ color: tokens.mutedForeground }}>
+              {t("Connect a model to give Kith work.")}
+            </Text>
+            <NativeActionButton
+              label={t("Connect a model")}
+              prominence="plain"
+              onPress={() => router.push("/models")}
+            />
+          </View>
+        ) : null}
         {!readOnly &&
         !inGroup &&
         !onCall &&
@@ -3099,6 +3219,11 @@ function Thread() {
                 </View>
               ))}
               <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 96 }}>
+                {draftPersistence.error ? (
+                  <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
+                    {t("Draft could not be saved on this device.")}
+                  </Text>
+                ) : null}
                 {!draft && !selectedSkill && !selectedMentions.length ? (
                   <Text
                     numberOfLines={1}

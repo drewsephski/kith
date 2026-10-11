@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { View } from "react-native";
+import { useEffect, useState } from "react";
+import { AppState, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import Animated, {
   cancelAnimation,
@@ -55,16 +55,27 @@ export function WorkingIndicator({ compact = false, tint }: { compact?: boolean;
   const { t } = useI18n();
   const reducedMotion = useReducedMotion();
   const progress = useSharedValue(0);
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) =>
+      setForeground(state === "active"),
+    );
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    if (reducedMotion || !foreground) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      return;
+    }
     progress.value = withRepeat(
       withTiming(1, { duration: CYCLE_MS, easing: Easing.linear }),
       -1,
       false,
     );
     return () => cancelAnimation(progress);
-  }, [progress, reducedMotion]);
+  }, [progress, reducedMotion, foreground]);
 
   if (compact) {
     return (
@@ -73,7 +84,7 @@ export function WorkingIndicator({ compact = false, tint }: { compact?: boolean;
           progress={progress}
           offset={0}
           size={8}
-          still={reducedMotion}
+          still={reducedMotion || !foreground}
           color={tint || tokens.mutedForeground}
         />
       </View>
@@ -100,7 +111,7 @@ export function WorkingIndicator({ compact = false, tint }: { compact?: boolean;
           progress={progress}
           offset={index / DOTS.length}
           size={7}
-          still={reducedMotion}
+          still={reducedMotion || !foreground}
           color={tokens.mutedForeground}
         />
       ))}

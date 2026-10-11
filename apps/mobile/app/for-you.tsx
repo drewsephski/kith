@@ -1,5 +1,10 @@
 import { useForYouRecommendations } from "@rakazo/chat-ui/suggestions";
-import type { Connection, ConnectionCatalogItem, ForYouDiscovery } from "@rakazo/contracts";
+import type {
+  Connection,
+  ConnectionCatalogItem,
+  ForYouDiscovery,
+  RunActivityRow,
+} from "@rakazo/contracts";
 import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
   availableForYouSuggestions,
@@ -11,14 +16,23 @@ import {
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { ConnectorIcon } from "../components/connector-icon";
 import { MenuPicker } from "../components/menu-picker";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
+import { activityDestination, activityStatusLabel, fetchSpaceActivity } from "../lib/activity";
 import type { MobileMe } from "../lib/api";
-import { currentApiBase, rpc, selectedSpaceId } from "../lib/api";
+import { captureMobileScreenScope, currentApiBase, rpc, selectedSpaceId } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens, useThemedStyles } from "../lib/native";
 import { currentSessionGeneration } from "../lib/session";
@@ -41,8 +55,18 @@ export default function ForYou() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
+  const recommendationRefresh = useRef<() => void>(() => undefined);
+  const [refreshAttempt, setRefreshAttempt] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [work, setWork] = useState<{
+    active: RunActivityRow[];
+    recent: RunActivityRow[];
+    scope: string;
+  } | null>(null);
   const [context, setContext] = useState<{
     spaceId: string | null;
+    endpoint: string;
     session: number;
     services: ConnectedAppService[];
     assistantId?: string;
@@ -50,34 +74,75 @@ export default function ForYou() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      let pending = false;
+      const scopeCurrent = captureMobileScreenScope();
       const spaceId = selectedSpaceId();
       const session = currentSessionGeneration();
-      setContext(null);
-      void Promise.allSettled([
-        rpc<Connection[]>("connections/list"),
-        rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
-        rpc<{ botId: string }>("assistant/get"),
-      ]).then(([accounts, catalog, assistant]) => {
-        if (!active || selectedSpaceId() !== spaceId || currentSessionGeneration() !== session)
-          return;
-        const services = connectedAppServices(
-          accounts.status === "fulfilled" ? accounts.value : [],
-          catalog.status === "fulfilled" ? catalog.value : [],
+      const endpoint = currentApiBase();
+      const scope = `${endpoint}:${spaceId}:${session}`;
+      const current = () =>
+        active &&
+        scopeCurrent() &&
+        selectedSpaceId() === spaceId &&
+        currentSessionGeneration() === session &&
+        currentApiBase() === endpoint;
+      setContext((previous) =>
+        previous?.spaceId === spaceId &&
+        previous.session === session &&
+        previous.endpoint === endpoint
+          ? previous
+          : null,
+      );
+      setWork((previous) => (previous?.scope === scope ? previous : null));
+      const load = async () => {
+        if (pending || !current()) return;
+        pending = true;
+        setLoading(true);
+        setLoadError(null);
+        const [accounts, catalog, assistant, activity] = await Promise.allSettled([
+          rpc<Connection[]>("connections/list"),
+          rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
+          rpc<{ botId: string | null }>("assistant/get"),
+          fetchSpaceActivity(),
+        ]);
+        pending = false;
+        if (!current()) return;
+        const failed = [accounts, catalog, assistant, activity].find(
+          (result) => result.status === "rejected",
         );
-        setContext({
+        if (failed?.status === "rejected")
+          setLoadError(errorText(failed.reason, t("Could not refresh your work and connections")));
+        setContext((previous) => ({
           spaceId,
           session,
-          services,
-          assistantId: assistant.status === "fulfilled" ? assistant.value.botId : undefined,
-        });
+          endpoint,
+          services:
+            accounts.status === "fulfilled" && catalog.status === "fulfilled"
+              ? connectedAppServices(accounts.value, catalog.value)
+              : (previous?.services ?? []),
+          assistantId:
+            assistant.status === "fulfilled"
+              ? (assistant.value.botId ?? undefined)
+              : previous?.assistantId,
+        }));
+        if (activity.status === "fulfilled") setWork({ ...activity.value, scope });
+        setLoading(false);
+        recommendationRefresh.current();
+      };
+      void load();
+      const foreground = AppState.addEventListener("change", (state) => {
+        if (state === "active") void load();
       });
       return () => {
         active = false;
+        foreground.remove();
       };
-    }, []),
+    }, [refreshAttempt]),
   );
   const currentContext =
-    context?.spaceId === selectedSpaceId() && context.session === currentSessionGeneration()
+    context?.spaceId === selectedSpaceId() &&
+    context.session === currentSessionGeneration() &&
+    context.endpoint === currentApiBase()
       ? context
       : null;
   const discovery = useForYouRecommendations({
@@ -86,7 +151,32 @@ export default function ForYou() {
     load: loadRecommendations,
     dismiss: dismissRecommendation,
   });
+  recommendationRefresh.current = discovery.refresh;
   const services = currentContext?.services ?? [];
+  const currentWork =
+    work?.scope === `${currentApiBase()}:${selectedSpaceId()}:${currentSessionGeneration()}`
+      ? work
+      : null;
+  const rows = [...(currentWork?.active ?? []), ...(currentWork?.recent ?? [])];
+  const uniqueRows = [...new Map(rows.map((run) => [run.runId, run])).values()];
+  const sections = [
+    {
+      title: "Needs your attention",
+      rows: uniqueRows.filter(
+        (run) => run.status === "waiting_input" || run.status === "waiting_takeover",
+      ),
+    },
+    {
+      title: "Working on",
+      rows: uniqueRows.filter((run) => ["queued", "leased", "running"].includes(run.status)),
+    },
+    {
+      title: "Recent work",
+      rows: uniqueRows
+        .filter((run) => ["completed", "failed", "cancelled"].includes(run.status))
+        .slice(0, 5),
+    },
+  ];
   const choices = [
     { key: "all", label: t("All") },
     { key: "tasks", label: t("Tasks") },
@@ -110,7 +200,7 @@ export default function ForYou() {
       const endpoint = currentApiBase();
       const [me, assistant] = await Promise.all([
         rpc<MobileMe>("me"),
-        rpc<{ botId: string }>("assistant/get"),
+        rpc<{ botId: string | null }>("assistant/get"),
       ]);
       if (!assistant.botId) throw new Error(t("Your assistant is not available. Try again."));
       const isCurrent = () =>
@@ -159,7 +249,53 @@ export default function ForYou() {
         style={styles.page}
         contentContainerStyle={styles.content}
       >
-        <MenuPicker label={t("Show")} choices={choices} value={category} onChange={setCategory} />
+        {loading ? <ActivityIndicator accessibilityLabel={t("Refreshing your work")} /> : null}
+        {loadError ? (
+          <View style={styles.group}>
+            <Text accessibilityRole="alert" style={[styles.error, { color: tokens.destructive }]}>
+              {loadError}
+            </Text>
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setRefreshAttempt((value) => value + 1)}
+            />
+          </View>
+        ) : null}
+        {sections
+          .filter((section) => section.rows.length)
+          .map((section) => (
+            <View key={section.title} style={styles.group}>
+              <Text accessibilityRole="header" style={styles.heading}>
+                {t(section.title)}
+              </Text>
+              {section.rows.map((run) => (
+                <Pressable
+                  key={run.runId}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${run.promptSnippet || run.botName}. ${activityStatusLabel(run.status)}`}
+                  onPress={() => router.push(activityDestination(run))}
+                  style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+                >
+                  <View style={styles.copy}>
+                    <Text style={styles.title}>{run.promptSnippet || run.botName}</Text>
+                    <Text style={styles.description}>
+                      {activityStatusLabel(run.status)} · {run.groupName ?? run.botName}
+                    </Text>
+                  </View>
+                  <NativeSymbol
+                    ios="chevron.right"
+                    android="chevron-forward"
+                    size={16}
+                    color={tokens.mutedForeground}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ))}
+        <View style={styles.group}>
+          <MenuPicker label={t("Show")} choices={choices} value={category} onChange={setCategory} />
+        </View>
         {busy ? (
           <ActivityIndicator
             accessibilityLabel={t("Opening conversation")}

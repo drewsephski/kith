@@ -24,6 +24,11 @@ vi.mock("./api", () => ({
   rpc: state.rpc,
   selectedSpaceId: () => state.space,
   currentApiBase: () => "https://example.test",
+  captureMobileScreenScope: () => {
+    const space = state.space;
+    const generation = state.generation;
+    return () => space === state.space && generation === state.generation;
+  },
 }));
 vi.mock("./session", () => ({ currentSessionGeneration: () => state.generation }));
 vi.mock("./i18n", () => ({
@@ -56,6 +61,7 @@ vi.mock("react-native", () => {
   const View = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
   return {
     View,
+    AppState: { currentState: "active", addEventListener: () => ({ remove() {} }) },
     Text: View,
     ScrollView: View,
     ActivityIndicator: View,
@@ -164,7 +170,7 @@ it("rejects an old account/space launch while loading the assistant", async () =
   expect(state.rpc.mock.calls.some(([proc]) => proc === "bots/launchForYou")).toBe(false);
   expect(state.push).not.toHaveBeenCalled();
 });
-it("does not load or display completed, active, or waiting work", async () => {
+it("shows verified waiting work and opens its recorded message destination", async () => {
   const original = state.rpc.getMockImplementation()!;
   state.rpc.mockImplementation((proc: string, input: unknown) =>
     proc === "runs/list"
@@ -189,9 +195,18 @@ it("does not load or display completed, active, or waiting work", async () => {
       : original(proc, input),
   );
   await render();
-  expect(host.textContent).not.toContain("Review the draft");
-  expect(host.textContent).not.toContain("Your work");
-  expect(state.rpc.mock.calls.some(([proc]) => proc === "runs/list")).toBe(false);
+  expect(host.textContent).toContain("Review the draft");
+  expect(host.textContent).toContain("Needs your attention");
+  expect(state.rpc.mock.calls.some(([proc]) => proc === "runs/list")).toBe(true);
+  await act(async () =>
+    (
+      host.querySelector('button[aria-label="Review the draft. Needs input"]') as HTMLButtonElement
+    ).click(),
+  );
+  expect(state.push).toHaveBeenCalledWith({
+    pathname: "/thread",
+    params: { botId: "bot-1", name: "Draft review", threadId: "thread-1", messageId: "approval-1" },
+  });
 });
 
 it("offers conversational suggestions without unavailable service tasks", async () => {

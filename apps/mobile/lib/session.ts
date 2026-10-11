@@ -1,6 +1,8 @@
 import type { AvatarStyle } from "@rakazo/contracts";
 import * as SecureStore from "expo-secure-store";
 import { clearAvatarStyle, saveAvatarStyle } from "./avatar-style";
+import { clearConversationDrafts } from "./conversation-drafts";
+import { clearIncomingShareDrafts } from "./incoming-share-draft";
 import { stopLiveNotifications } from "./live-notifications";
 
 const SESSION_KEY = "rakazo.session_token";
@@ -136,12 +138,16 @@ export async function saveSessionToken(token: string) {
 export async function clearSessionToken(): Promise<boolean> {
   sessionGeneration += 1;
   sessionInvalidated = true;
+  clearIncomingShareDrafts();
   sessionFallback = undefined;
   const clearingScope = invalidateIntegrationsScope();
+  // Storage failures must not restore a revoked bearer; drafts remain encrypted and account-scoped.
+  const clearingDrafts = clearConversationDrafts().catch(() => undefined);
   return enqueueTokenWrite(async () => {
     await stopLiveNotifications(true).catch(() => undefined);
     const tokenCleared = await clearStoredSessionToken();
     await clearingScope;
+    await clearingDrafts;
     // Best-effort: a stuck style must not block sign-out or restore a wiped token.
     await clearAvatarStyle();
     return tokenCleared;

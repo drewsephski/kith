@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppMark } from "../../components/app-mark";
 import { useAvatarStyle } from "../../components/avatar-style";
 import { BotAvatar } from "../../components/bot-avatar";
+import { IosNotificationsSettings } from "../../components/ios-notifications-settings";
 import { ScrollView } from "../../components/minimal-scroll";
 import { NativeActionButton } from "../../components/native-action-button";
 import { NativeSegmentedControl } from "../../components/native-segmented-control";
@@ -29,6 +30,7 @@ import {
 } from "../../components/settings-group";
 import type { MobileBot, MobileMe } from "../../lib/api";
 import {
+  captureMobileScreenScope,
   currentApiBase,
   deleteAccount,
   fetchAccountSecurity,
@@ -80,6 +82,9 @@ export default function Account() {
   const colorScheme = useResolvedAppearance();
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
   const [me, setMe] = useState<MobileMe | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [security, setSecurity] = useState<AccountSecurity | null>(null);
@@ -133,17 +138,6 @@ export default function Account() {
   const versionAccessibility = [versionInfo.nativeLabel, updateLabel].filter(Boolean).join(". ");
 
   useEffect(() => {
-    void rpc<MobileMe>("me")
-      .then(setMe)
-      .catch(() => undefined);
-    void rpc<{
-      runs: number;
-      inputTokens: number | null;
-      outputTokens: number | null;
-      totalTokens?: number | null;
-    }>("usage/summary")
-      .then(setUsage)
-      .catch(() => undefined);
     if (Platform.OS === "android") {
       void getLiveNotificationSettings()
         .then(setNotifications)
@@ -170,15 +164,32 @@ export default function Account() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      void rpc<MobileBot[]>("bots/listArchived")
-        .then((bots) => {
-          if (active) setArchivedBots(bots);
-        })
-        .catch(() => undefined);
+      const scopeCurrent = captureMobileScreenScope();
+      const current = () => active && scopeCurrent();
+      setAccountLoading(true);
+      setLoadError(null);
+      void Promise.allSettled([
+        rpc<MobileMe>("me"),
+        rpc<NonNullable<typeof usage>>("usage/summary"),
+        fetchAccountSecurity(),
+        rpc<MobileBot[]>("bots/listArchived"),
+      ]).then(([profile, summary, securityState, archive]) => {
+        if (!current()) return;
+        if (profile.status === "fulfilled") setMe(profile.value);
+        if (summary.status === "fulfilled") setUsage(summary.value);
+        if (securityState.status === "fulfilled") setSecurity(securityState.value);
+        if (archive.status === "fulfilled") setArchivedBots(archive.value);
+        const failure = [profile, summary, securityState, archive].find(
+          (result) => result.status === "rejected",
+        );
+        if (failure?.status === "rejected")
+          setLoadError(errorText(failure.reason, t("Could not load account settings")));
+        setAccountLoading(false);
+      });
       return () => {
         active = false;
       };
-    }, []),
+    }, [loadAttempt]),
   );
 
   async function selectAvatarStyle(next: AvatarStyle) {
@@ -241,11 +252,6 @@ export default function Account() {
       setPending(false);
     }
   }
-  useEffect(() => {
-    void fetchAccountSecurity()
-      .then(setSecurity)
-      .catch(() => undefined);
-  }, []);
 
   function closeDeletePrompt() {
     if (pending) return;
@@ -340,6 +346,21 @@ export default function Account() {
         contentContainerStyle={[styles.content, stackOptions && styles.compactContent]}
         contentInsetAdjustmentBehavior="automatic"
       >
+        {accountLoading ? (
+          <ActivityIndicator accessibilityLabel={t("Loading account settings")} />
+        ) : null}
+        {loadError ? (
+          <View>
+            <Text accessibilityRole="alert" style={styles.error}>
+              {loadError}
+            </Text>
+            <NativeActionButton
+              label={t("Retry")}
+              prominence="plain"
+              onPress={() => setLoadAttempt((value) => value + 1)}
+            />
+          </View>
+        ) : null}
         {focus === "usage" ? <SettingsGroup>{usageBlock}</SettingsGroup> : null}
         <SettingsGroup>
           <SettingsRow
@@ -451,6 +472,7 @@ export default function Account() {
           {localeError ? <Text style={styles.error}>{localeError}</Text> : null}
         </SettingsGroup>
 
+        {Platform.OS === "ios" ? <IosNotificationsSettings /> : null}
         {Platform.OS === "android" ? (
           <SettingsGroup accessibilityLabel={t("Notifications")} label={t("Notifications")}>
             <SettingsSwitch
@@ -582,14 +604,14 @@ export default function Account() {
           </SettingsGroup>
         </View>
 
-        {archivedBots.length > 0 ? (
+        {archivedBots.length > 0 || loadError ? (
           <SettingsGroup>
             <SettingsRow
               accessibilityRole="button"
               chevron="right"
               onPress={() => router.push("/archived-bots")}
               title={t("Archived bots")}
-              value={String(archivedBots.length)}
+              value={loadError && !archivedBots.length ? undefined : String(archivedBots.length)}
             />
           </SettingsGroup>
         ) : null}

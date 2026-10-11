@@ -66,6 +66,7 @@ Observe.configure({
         "botName",
         "endpoint",
         "token",
+        "shareId",
         "code",
       ],
     },
@@ -212,6 +213,8 @@ function Layout() {
                     >
                       <Stack.Screen name="index" options={{ headerShown: false, title: "Kith" }} />
                       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                      <Stack.Screen name="share-in" options={{ title: t("Share to Kith") }} />
+                      <Stack.Screen name="intro" options={{ headerShown: false }} />
                       <Stack.Screen
                         name="(settings)"
                         options={{

@@ -248,7 +248,7 @@ import {
   promptFocus,
   startOnboarding,
 } from "./onboarding.js";
-import { personalAssistantBotId } from "./personal-assistant.js";
+import { ensurePersonalAssistant, personalAssistantBotId } from "./personal-assistant.js";
 import { listRoutineRuns } from "./routine-runs.js";
 import { listSpaceRuns } from "./runs.js";
 import { addScreenProxyCapability } from "./screen-proxy.js";
@@ -989,6 +989,13 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     assistant: {
+      ensure: authed.assistant.ensure.handler(async ({ context }) => {
+        const botId = await ensurePersonalAssistant(deps.prisma, context.actor, (input) =>
+          repos.createBot(context.actor, input),
+        );
+        // This operation provisions identity only. A model is needed when the user sends work.
+        return { botId, needsModel: (await modelSetup(deps, context.actor)).needsModel };
+      }),
       get: authed.assistant.get.handler(async ({ context }) => ({
         botId: await personalAssistantBotId(deps.prisma, context.actor),
       })),
