@@ -5630,5 +5630,321 @@
         }
       }
     ]
+  },
+  "postReviewSimpleLatency": {
+    "commit": "bcf3e614",
+    "note": "80 serial controlled greeting/arithmetic trials after review fixes. Same local Postgres and injected timings as the original baseline, without concurrent local tests/builds. Remote CI and the existing marketing development process are outside the benchmark.",
+    "postgres": "local",
+    "injected": {
+      "computerColdMs": 120,
+      "computerPrepareMs": 60,
+      "connectorDiscoveryMs": 40,
+      "providerHeadersMs": 5,
+      "providerFirstTextMs": 25,
+      "providerChunkMs": 2,
+      "backgroundJobMs": 500,
+      "slowProviderHeadersMs": 50,
+      "slowProviderFirstTextMs": 250
+    },
+    "sha256": "5ccc5bee1cf306571b94ac95139206faafead7eb2bbf970d057df5511c30b251",
+    "successfulTrials": 80,
+    "summary": [
+      {
+        "scenario": "greeting",
+        "temperature": "cold",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 10.672167000000627,
+          "p95": 13.855416000000332
+        },
+        "firstPublishedTextMs": {
+          "p50": 114.95487499999945,
+          "p95": 137.70787500000006
+        },
+        "firstTextReceivedMs": {
+          "p50": 113.61783400000058,
+          "p95": 134.49925000000076
+        },
+        "completionMs": {
+          "p50": 125.17016700000022,
+          "p95": 143.13437499999964
+        },
+        "queueWaitMs": {
+          "p50": 5,
+          "p95": 7
+        },
+        "setupMs": {
+          "p50": 60,
+          "p95": 80
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 39
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 6
+        },
+        "toolCount": {
+          "p50": 3,
+          "p95": 3
+        },
+        "toolSchemaBytes": {
+          "p50": 1085,
+          "p95": 1085
+        },
+        "promptBytes": {
+          "p50": 3660,
+          "p95": 3660
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "greeting",
+        "temperature": "warm",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 9.979167000001326,
+          "p95": 14.128583000001527
+        },
+        "firstPublishedTextMs": {
+          "p50": 113.73749999999927,
+          "p95": 122.1941250000018
+        },
+        "firstTextReceivedMs": {
+          "p50": 111.66291699999783,
+          "p95": 120.0769160000018
+        },
+        "completionMs": {
+          "p50": 122.9273749999993,
+          "p95": 131.20537499999773
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 9
+        },
+        "setupMs": {
+          "p50": 59,
+          "p95": 63
+        },
+        "modelToFirstTextMs": {
+          "p50": 36,
+          "p95": 41
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 7
+        },
+        "toolCount": {
+          "p50": 3,
+          "p95": 3
+        },
+        "toolSchemaBytes": {
+          "p50": 1085,
+          "p95": 1085
+        },
+        "promptBytes": {
+          "p50": 3660,
+          "p95": 3660
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "arithmetic",
+        "temperature": "cold",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 9.235375000000204,
+          "p95": 15.987791000003199
+        },
+        "firstPublishedTextMs": {
+          "p50": 111.30408399999942,
+          "p95": 147.47495800000252
+        },
+        "firstTextReceivedMs": {
+          "p50": 109.34599999999773,
+          "p95": 144.1282910000009
+        },
+        "completionMs": {
+          "p50": 118.50729199999842,
+          "p95": 161.07687500000247
+        },
+        "queueWaitMs": {
+          "p50": 4,
+          "p95": 7
+        },
+        "setupMs": {
+          "p50": 58,
+          "p95": 80
+        },
+        "modelToFirstTextMs": {
+          "p50": 36,
+          "p95": 40
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 5
+        },
+        "toolCount": {
+          "p50": 3,
+          "p95": 3
+        },
+        "toolSchemaBytes": {
+          "p50": 1085,
+          "p95": 1085
+        },
+        "promptBytes": {
+          "p50": 3672,
+          "p95": 3672
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      },
+      {
+        "scenario": "arithmetic",
+        "temperature": "warm",
+        "trials": 20,
+        "acknowledgmentMs": {
+          "p50": 9.379208000005747,
+          "p95": 12.981667000000016
+        },
+        "firstPublishedTextMs": {
+          "p50": 112.75183300000208,
+          "p95": 124.54558399999951
+        },
+        "firstTextReceivedMs": {
+          "p50": 111.18612500000017,
+          "p95": 122.75645899999654
+        },
+        "completionMs": {
+          "p50": 120.33837499999936,
+          "p95": 130.20983400000114
+        },
+        "queueWaitMs": {
+          "p50": 5,
+          "p95": 6
+        },
+        "setupMs": {
+          "p50": 60,
+          "p95": 70
+        },
+        "modelToFirstTextMs": {
+          "p50": 37,
+          "p95": 39
+        },
+        "streamDeliveryMs": {
+          "p50": 3,
+          "p95": 5
+        },
+        "toolCount": {
+          "p50": 3,
+          "p95": 3
+        },
+        "toolSchemaBytes": {
+          "p50": 1085,
+          "p95": 1085
+        },
+        "promptBytes": {
+          "p50": 3672,
+          "p95": 3672
+        },
+        "modelCalls": {
+          "p50": 1,
+          "p95": 1
+        },
+        "streamReconnects": {
+          "p50": 0,
+          "p95": 0
+        },
+        "inputTokens": null,
+        "outputTokens": null,
+        "reasoningTokens": null,
+        "cacheReadTokens": null,
+        "cacheWriteTokens": null,
+        "provisions": {
+          "p50": 0,
+          "p95": 0
+        },
+        "preparations": {
+          "p50": 0,
+          "p95": 0
+        },
+        "discoveries": {
+          "p50": 0,
+          "p95": 0
+        }
+      }
+    ]
   }
 }

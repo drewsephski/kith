@@ -330,6 +330,26 @@ with zero computer startup or connector discovery and three tool schemas. Those
 runs shared resources with browser/type-check validation and are recorded as
 correctness evidence, not a new controlled latency comparison.
 
+A final controlled 80-trial simple-turn sweep on `bcf3e614` runs serially after
+review fixes, with the same local Postgres engine and injected delays as the
+original baseline and no concurrent local tests or builds. Remote CI runs
+separately. Rounded p50/p95 measurements are:
+
+| Scenario | Computer | Baseline first safe text | Final first safe text | Final completion | Final setup |
+| --- | --- | ---: | ---: | ---: | ---: |
+| greeting | cold | 356 / 435 | 114 / 134 | 125 / 143 | 60 / 80 |
+| greeting | warm | 345 / 359 | 112 / 120 | 123 / 131 | 59 / 63 |
+| arithmetic | cold | 350 / 536 | 109 / 144 | 119 / 161 | 58 / 80 |
+| arithmetic | warm | 358 / 513 | 111 / 123 | 120 / 130 | 60 / 70 |
+
+All values are milliseconds, with 20 trials per row. Cold arithmetic first-safe-text
+p50 remains 69% below baseline; its p95 is 144 ms in this final sweep rather than
+115 ms in the original updated sweep. Every row retains zero computer provisioning,
+preparation or connector discovery, three tool schemas (1,085 bytes), and one model
+call. The sanitized summary and raw-report checksum are in
+`docs/benchmarks/agent-latency.json`. These remain emulator measurements, without
+provider token/cache usage or physical iOS paint timing.
+
 The Postgres selection is reproducible with:
 
 ```bash
