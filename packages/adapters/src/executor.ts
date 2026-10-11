@@ -3410,6 +3410,19 @@ export function createRunExecutor(deps: ExecutorDeps) {
       };
       try {
         const readsStartedAt = performance.now();
+        const loadRunConnections = () =>
+          deps.prisma.connection.findMany({
+            where: { userId: run.userId, spaceId: run.spaceId },
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              connectorId: true,
+              provider: true,
+              providerRef: true,
+              displayName: true,
+              status: true,
+            },
+          });
         const sourceBlocks =
           run.trigger === "messaging" && run.sourceMessageId
             ? ((
@@ -3451,17 +3464,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             ? loadBotMessageContext(deps.prisma, run.sourceMessageId)
             : Promise.resolve(undefined),
           deps.prisma.task.findUniqueOrThrow({ where: { id: run.taskId } }),
-          deps.prisma.connection.findMany({
-            where: { userId: run.userId, spaceId: run.spaceId },
-            select: {
-              id: true,
-              connectorId: true,
-              provider: true,
-              providerRef: true,
-              displayName: true,
-              status: true,
-            },
-          }),
+          loadRunConnections(),
           findDefaultModelCredential(deps.prisma, run),
           deps.prisma.deploymentSettings.findUnique({
             where: { id: "default" },
@@ -3583,6 +3586,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           (connection) => connection.connectorId === "composio",
         );
         let liveSlugs: string[] = [];
+        let currentConnections = storedConnections;
         if (profile === "agent" && needsLivePluginSync(composioRows)) {
           const listing = await loadLivePluginSlugs(deps.listConnectedPluginSlugs, run.userId);
           if (listing.ok) {
@@ -3591,6 +3595,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
               () => undefined,
             );
           }
+          // A guarded update can lose to revocation. The old pending snapshot
+          // must not regain access from an upstream listing that still contains it.
+          currentConnections = await loadRunConnections();
         }
         let connectedPlugins: typeof storedConnections = [];
         const connectionContext = (rows: typeof storedConnections, slugs: string[]) => {
@@ -3637,7 +3644,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             });
             if (!active) throw new Error("Reconnect the sending account before continuing.");
           },
-          ...connectionContext(storedConnections, liveSlugs),
+          ...connectionContext(currentConnections, liveSlugs),
         };
         const memoryScope = configuredMemory
           ? effectiveMemoryScope(bot.memoryScope, configuredMemory.defaultScope)
@@ -3650,18 +3657,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const startedAt = performance.now();
             discoveredToolsPromise = (async () => {
               if (profile === "conversation" && deps.connector) {
-                const rows = await deps.prisma.connection.findMany({
-                  where: { spaceId: run.spaceId, userId: run.userId },
-                  orderBy: { createdAt: "asc" },
-                  select: {
-                    id: true,
-                    connectorId: true,
-                    provider: true,
-                    providerRef: true,
-                    displayName: true,
-                    status: true,
-                  },
-                });
+                const rows = await loadRunConnections();
                 const composio = rows.filter((row) => row.connectorId === "composio");
                 if (needsLivePluginSync(composio)) {
                   const listing = await loadLivePluginSlugs(
@@ -3677,18 +3673,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                     ).catch(() => undefined);
                 }
                 // Re-read after reconciliation: revocation during model generation must win.
-                const currentRows = await deps.prisma.connection.findMany({
-                  where: { spaceId: run.spaceId, userId: run.userId },
-                  orderBy: { createdAt: "asc" },
-                  select: {
-                    id: true,
-                    connectorId: true,
-                    provider: true,
-                    providerRef: true,
-                    displayName: true,
-                    status: true,
-                  },
-                });
+                const currentRows = await loadRunConnections();
                 Object.assign(context, connectionContext(currentRows, []));
               }
               return deps.connector ? deps.connector.discoverTools(context) : [];

@@ -299,8 +299,8 @@ screenshot behavior using the cached local computer image.
 | `pnpm check:agent-latency` | Benchmark CLI type check passed; the normal testkit check excludes CLI files |
 | `pnpm --filter @rakazo/mobile check` | Passed |
 | Focused adapter, runtime, executor, streaming, suggestion and queue regressions | 244 tests passed; additional fallback/idle-watchdog selection passed 61 tests |
-| `pnpm run test --maxWorkers=4` | Integrated revision: 8,466 passed, 300 skipped; one unchanged script test timed out under full-suite load and the deployment/backup selection passed in a focused 28-test rerun |
-| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 994 tests passed on the integrated revision, including shared attachment size retention |
+| `pnpm run test --maxWorkers=4` | Review revision `9dc36f02`: 8,477 passed, 300 skipped, zero failures. Earlier unchanged deployment-script timeouts passed in a focused 28-test rerun and in this complete run |
+| `pnpm --filter @rakazo/mobile run test --maxWorkers=2` | All 1,000 tests passed, including shared attachment size retention and late delivery/notification-setting regressions |
 | Selected Postgres integration suites | All 81 tests passed |
 | `pnpm test:computer-replay --image=rakazo/computer:local` | All three Docker/Chromium replay tests passed |
 | Final latency comparisons | 1,300 successful runs: 560 per revision, 80 concurrent per revision, 20 reconnect runs |
@@ -386,3 +386,12 @@ fixtures address portal fade-out by locating the requested value and waiting for
 closure, with an explicit pre-save thinking assertion. Android acceptance hides
 the restored keyboard after opening the real working notification before checking
 the stop control; notification delivery, navigation and cancellation remain required.
+
+Full-agent connection reconciliation now re-reads current scoped rows just as lazy
+escalation does, so an account revocation that wins the guarded update cannot be
+reintroduced from the upstream provider listing. One scoped loader supplies all
+three reads; no permission cache is introduced. Native CI passes screenshot capture
+and the complete live-notification demonstration on `9dc36f02`; its following smoke
+flow found the demonstration had left the system notification shade open. The
+demonstration now closes that shade after verifying notification removal. The smoke
+flow still requires actual cold introduction readiness and every subsequent assertion.

@@ -608,6 +608,27 @@ describe("response latency", () => {
     },
   );
 
+  it.each([false, true])(
+    "refreshes full-agent connection state after reconciliation and preserves revocation=%s",
+    async (revokedDuringSync) => {
+      const { request, listConnectedPluginSlugs, discoveryContexts, prisma } = await runWithModel(
+        TEXT_ONLY_MODEL,
+        undefined,
+        false,
+        false,
+        true,
+        undefined,
+        { prompt: "Read my email", pendingConnection: true, revokedDuringSync },
+      );
+      expect(request.executionProfile).toBe("agent");
+      expect(listConnectedPluginSlugs).toHaveBeenCalledOnce();
+      expect(prisma.connection.findMany).toHaveBeenCalledTimes(2);
+      expect(discoveryContexts[0]?.connectedConnections?.map((row) => row.id)).toEqual(
+        revokedDuringSync ? [] : ["gmail"],
+      );
+    },
+  );
+
   it("can dispatch a connector whose name matches a catalog wrapper without recursion", async () => {
     await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, true, undefined, {
       prompt: "Hi",

@@ -99,4 +99,6 @@ name: Android live working status demonstration
     timeout: 5000
 - assertNotVisible: "Researcher is working"
 - takeScreenshot: "31-live-working-stopped"
+# Leave system UI closed before the following cold-start smoke flow.
+- pressKey: BACK
 - stopRecording
