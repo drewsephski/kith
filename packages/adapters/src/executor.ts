@@ -3266,6 +3266,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
     },
 
     async continueRun(runId: string, workerId: string) {
+      const setupStartedAt = performance.now();
+      const setupStartedWallAt = Date.now();
       const run = await deps.prisma.run.findUnique({ where: { id: runId } });
       if (!run) return;
       if (isTerminal(run.status as RunStatus)) return;
@@ -3381,6 +3383,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
       heartbeat.unref?.();
 
       const runSecrets = [...deps.secrets];
+      let modelStartedAt: number | undefined;
+      let firstTextAt: number | undefined;
+      let responseTimingLogged = false;
       try {
         const sourceBlocks =
           run.trigger === "messaging" && run.sourceMessageId
@@ -3407,6 +3412,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
           agentSkills,
           agentSecretRows,
           initialBotCommandEnvironment,
+          approvedEffects,
+          priorProgress,
+          replyContext,
+          fallbackModels,
+          personalAssistant,
+          sourceNonce,
         ] = await Promise.all([
           deps.prisma.bot.findUniqueOrThrow({
             where: { id: run.botId },
@@ -3449,6 +3460,40 @@ export function createRunExecutor(deps: ExecutorDeps) {
             },
           }),
           loadBotCommandEnvironment(deps.prisma, deps.secretStore, run),
+          deps.prisma.externalEffect.findMany({
+            where: { runId, status: "approved" },
+            orderBy: APPROVED_EFFECT_REPLAY_ORDER,
+            select: { kind: true, request: true },
+          }),
+          deps.prisma.message.findMany({
+            where: { runId: run.id, role: "bot" },
+            orderBy: { seq: "asc" },
+            select: { blocks: true, clientNonce: true },
+          }),
+          loadReplyContext(deps.prisma, run.threadId, run.sourceMessageId),
+          (async () => {
+            if (deps.runtime.describe().capabilities.scripted) return [];
+            try {
+              return await deps.prisma.spaceBackupModel.findMany({
+                where: { userId: run.userId, spaceId: run.spaceId },
+                orderBy: { position: "asc" },
+                select: { provider: true, modelId: true },
+              });
+            } catch (error) {
+              getLogger().warn("Backup models could not be loaded", { runId, error });
+              return [];
+            }
+          })(),
+          deps.prisma.personalAssistant?.findFirst({
+            where: { botId: run.botId, spaceId: run.spaceId, userId: run.userId },
+            select: { botId: true },
+          }),
+          (run.trigger === "user" || run.trigger === "follow_up") && run.sourceMessageId
+            ? deps.prisma.message.findUnique({
+                where: { id: run.sourceMessageId },
+                select: { clientNonce: true },
+              })
+            : Promise.resolve(null),
         ]);
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
@@ -3862,15 +3907,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           }
         }
         // Calls carry no schema flag: the sending client encodes them in the clientNonce.
-        const sourceClientNonce =
-          (run.trigger === "user" || run.trigger === "follow_up") && run.sourceMessageId
-            ? ((
-                await deps.prisma.message.findUnique({
-                  where: { id: run.sourceMessageId },
-                  select: { clientNonce: true },
-                })
-              )?.clientNonce ?? null)
-            : null;
+        const sourceClientNonce = sourceNonce?.clientNonce ?? null;
         // A hang-up run has no source message: its own nonce carries the call it closes.
         const callEndRun = run.trigger === "call_end";
         const callClientNonceForRun = callEndRun ? run.clientNonce : sourceClientNonce;
@@ -3939,11 +3976,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const taskCatalogInstruction = tools.some((tool) => tool.name === "task_catalog")
           ? TASK_CATALOG_GUIDANCE
           : undefined;
-        const approvedEffects = await deps.prisma.externalEffect.findMany({
-          where: { runId, status: "approved" },
-          orderBy: APPROVED_EFFECT_REPLAY_ORDER,
-          select: { kind: true, request: true },
-        });
         const approvedEffectReplays = createApprovedEffectReplayQueue(approvedEffects);
         const baseComputerInstruction = persistentComputerInstruction({
           computerAvailable: Boolean(computer),
@@ -3980,27 +4012,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
         let discardedMidTurnNarration = false;
         const midTurnUserTexts: string[] = [];
         let midTurnProgressCount = 0;
-        {
-          const priorProgress = await deps.prisma.message.findMany({
-            where: { runId: run.id, role: "bot" },
-            orderBy: { seq: "asc" },
-            select: { blocks: true, clientNonce: true },
-          });
-          for (const message of priorProgress) {
-            if (!isUserProgressClientNonce(message.clientNonce)) continue;
-            const blocks = Array.isArray(message.blocks) ? (message.blocks as MessageBlock[]) : [];
-            const text = blocks
-              .filter(
-                (block): block is Extract<MessageBlock, { kind: "text" }> => block.kind === "text",
-              )
-              .map((block) => block.text)
-              .join("")
-              .trim();
-            if (!text) continue;
-            midTurnUserTexts.push(text);
-            publishedMidTurnUserMessage = true;
-            midTurnProgressCount += 1;
-          }
+        for (const message of priorProgress) {
+          if (!isUserProgressClientNonce(message.clientNonce)) continue;
+          const blocks = Array.isArray(message.blocks) ? (message.blocks as MessageBlock[]) : [];
+          const text = blocks
+            .filter(
+              (block): block is Extract<MessageBlock, { kind: "text" }> => block.kind === "text",
+            )
+            .map((block) => block.text)
+            .join("")
+            .trim();
+          if (!text) continue;
+          midTurnUserTexts.push(text);
+          publishedMidTurnUserMessage = true;
+          midTurnProgressCount += 1;
         }
         // Tool calls that land mid-sentence wait here until the narration catches up to a
         // sentence boundary, so the step chips never render in the middle of a clause.
@@ -4047,6 +4072,21 @@ export function createRunExecutor(deps: ExecutorDeps) {
           hasStreamedText = true;
           pendingProgress = "";
           lastProgressAt = Date.now();
+          if (!responseTimingLogged && modelStartedAt !== undefined && firstTextAt !== undefined) {
+            responseTimingLogged = true;
+            const visibleAt = performance.now();
+            getLogger().info("run response timing", {
+              runId,
+              // Resumed attempts cannot reconstruct the time spent waiting in the queue.
+              queueWaitMs:
+                !run.startedAt && run.createdAt
+                  ? Math.max(0, setupStartedWallAt - run.createdAt.getTime())
+                  : null,
+              setupMs: Math.round(modelStartedAt - setupStartedAt),
+              modelToFirstTextMs: Math.round(firstTextAt - modelStartedAt),
+              streamDeliveryMs: Math.round(visibleAt - firstTextAt),
+            });
+          }
         };
         const publishMidTurnNarration = async () => {
           const extracted = extractNarrationText(messageSegments, currentTextSegment);
@@ -6593,7 +6633,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
           (request) => redactSecrets(JSON.stringify(request), runSecrets),
           { exposedToolNames: new Set(tools.map((tool) => tool.name)) },
         );
-        const replyContext = await loadReplyContext(deps.prisma, thread.id, run.sourceMessageId);
         const prompt = [
           replyContext,
           basePrompt,
@@ -6698,18 +6737,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return;
         }
 
-        let fallbackModels: { provider: string; modelId: string }[] = [];
-        if (!scripted) {
-          try {
-            fallbackModels = await deps.prisma.spaceBackupModel.findMany({
-              where: { userId: run.userId, spaceId: run.spaceId },
-              orderBy: { position: "asc" },
-              select: { provider: true, modelId: true },
-            });
-          } catch (error) {
-            getLogger().warn("Backup models could not be loaded", { runId, error });
-          }
-        }
         const fallbackModelKeys = new Set(
           fallbackModels
             .filter(
@@ -6719,13 +6746,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
             .map((candidate) => JSON.stringify([candidate.provider, candidate.modelId])),
         );
 
-        const isPersonalAssistant = Boolean(
-          await deps.prisma.personalAssistant?.findFirst({
-            where: { botId: bot.id, spaceId: run.spaceId, userId: run.userId },
-            select: { botId: true },
-          }),
-        );
+        const isPersonalAssistant = Boolean(personalAssistant);
         try {
+          modelStartedAt = performance.now();
           const runtimeEvents = deps.runtime.run(
             {
               botId: bot.id,
@@ -6916,6 +6939,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             context,
           );
           for await (const event of withRuntimeCleanup(runtimeEvents, runAbortController)) {
+            if (event.type === "text" && event.text) firstTextAt ??= performance.now();
             if (approvalPausePending) return;
             if (!leaseValid) return;
             const now = Date.now();

@@ -179,6 +179,7 @@ import {
   threadSpaceRequest,
   threadSpaceSwitchResult,
 } from "../lib/notification-open";
+import { useScreenInteractive } from "../lib/observe";
 import type { PickedAttachment } from "../lib/pick-attachments";
 import { pickDocuments, pickFromLibrary, takePhoto } from "../lib/pick-attachments";
 import { threadRefreshDelayMs } from "../lib/refresh";
@@ -284,6 +285,7 @@ export default function ThreadRoute() {
   if (focusSync.activeSpaceId !== activeSpaceId) setActiveSpaceId(focusSync.activeSpaceId);
   if (focusSync.switchFailed !== switchFailed) setSwitchFailed(focusSync.switchFailed);
   const request = threadSpaceRequest(spaceId, focusSync.activeSpaceId);
+  useScreenInteractive(focusSync.switchFailed || request.action === "unavailable");
 
   useEffect(() => {
     if (!focused) return;
@@ -548,6 +550,7 @@ function Thread() {
   const pendingDeliveries = useRef(0);
   const feedback = useThreadFeedback(threadKey, newClientNonce);
   const { error, setError } = feedback;
+  useScreenInteractive(snap !== null || error !== null || (!botId && !groupId));
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [selectableText, setSelectableText] = useState<string | null>(null);
   const [loadingNewer, setLoadingNewer] = useState(false);

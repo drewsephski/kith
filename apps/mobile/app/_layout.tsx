@@ -5,13 +5,14 @@ import {
   NativeScrollViewContext,
   RemoteImagesContext,
 } from "@rakazo/chat-ui/native";
+import { Observe, ObserveRoot } from "expo-observe";
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Platform, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +21,7 @@ import { CallCard } from "../components/CallCard";
 import { ComputerUpdateProgress } from "../components/computer-update-progress";
 import { floatingHeaderOptions, glassHeaderOptions } from "../components/glass-title";
 import { ScrollView } from "../components/minimal-scroll";
+import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
 import { VoicePlayerBar } from "../components/voice-player-bar";
 import {
@@ -40,6 +42,7 @@ import {
   resumeLiveNotifications,
 } from "../lib/live-notifications";
 import { native, useMobileTokens, useResolvedAppearance } from "../lib/native";
+import { StartupReadyContext } from "../lib/observe";
 import { useNotificationResponses } from "../lib/open-notification";
 import {
   getCachedRemoteImagesEnabled,
@@ -47,6 +50,27 @@ import {
   subscribeRemoteImages,
 } from "../lib/remote-images-preference";
 import { loadResponseStreamingPreference } from "../lib/response-streaming";
+
+Observe.configure({
+  integrations: {
+    "expo-router": {
+      filteredParams: [
+        "spaceId",
+        "botId",
+        "groupId",
+        "threadId",
+        "messageId",
+        "artifactId",
+        "routineId",
+        "name",
+        "botName",
+        "endpoint",
+        "token",
+        "code",
+      ],
+    },
+  },
+});
 
 configureForegroundNotifications();
 // Keep the splash up until the saved appearance applies, so the first frame isn't in the OS scheme.
@@ -88,7 +112,7 @@ function ChatContentProviders({
   );
 }
 
-export default function Layout() {
+function Layout() {
   useEffect(() => {
     // The app is portrait-only; the computer screen unlocks rotation while it is open.
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
@@ -100,6 +124,7 @@ export default function Layout() {
   const [ready, setReady] = useState(false);
   useNotificationResponses(ready);
   const [appearanceReady, setAppearanceReady] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(false);
   const resolved = useResolvedAppearance();
   const loadRemoteImages = useSyncExternalStore(
     subscribeRemoteImages,
@@ -124,7 +149,16 @@ export default function Layout() {
   }, [resolved]);
 
   useEffect(() => {
-    if (appearanceReady && ready) void SplashScreen.hideAsync().catch(() => undefined);
+    if (!appearanceReady || !ready) return;
+    let active = true;
+    void SplashScreen.hideAsync()
+      .then(() => {
+        if (active) setSplashHidden(true);
+      })
+      .catch(() => Observe.reportError(new Error("Could not hide startup splash screen")));
+    return () => {
+      active = false;
+    };
   }, [appearanceReady, ready]);
 
   useEffect(() => {
@@ -149,116 +183,153 @@ export default function Layout() {
             selectedSpaceId() ?? "",
           ),
         )
-        .catch(() => undefined),
+        .catch(() => Observe.reportError(new Error("Could not restore startup preferences"))),
       bootstrapI18n(),
-    ]).finally(() => setReady(true));
+    ])
+      .catch(() => Observe.reportError(new Error("Could not initialize app language")))
+      .finally(() => setReady(true));
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         {ready ? (
-          <AvatarStyleProvider>
-            <ChatContentProviders loadRemoteImages={loadRemoteImages}>
-              <ThemeProvider value={navigationTheme}>
-                <StatusBar style={resolved === "light" ? "dark" : "light"} />
-                <View style={{ flex: 1 }}>
-                  <Stack
-                    screenOptions={{
-                      headerStyle: { backgroundColor: navigationTheme.colors.background },
-                      ...floatingHeaderOptions(),
-                      headerTintColor: navigationTheme.colors.text,
-                      headerShadowVisible: false,
-                      headerBackButtonDisplayMode: "minimal",
-                      contentStyle: { backgroundColor: String(native.page) },
-                    }}
-                  >
-                    <Stack.Screen name="index" options={{ headerShown: false, title: "Kith" }} />
-                    <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-                    <Stack.Screen
-                      name="(settings)"
-                      options={{
-                        headerShown: false,
-                        // One stack of settings pages in a sheet over the screen that opened it.
-                        // Android keeps pushed pages: it has no nested stack inside a formSheet.
-                        presentation: Platform.OS === "ios" ? "formSheet" : "card",
-                        sheetAllowedDetents: [0.95],
-                        sheetGrabberVisible: false,
-                        sheetExpandsWhenScrolledToEdge: false,
-                        contentStyle: { backgroundColor: native.groupedPage },
+          <StartupReadyContext.Provider value={splashHidden}>
+            <AvatarStyleProvider>
+              <ChatContentProviders loadRemoteImages={loadRemoteImages}>
+                <ThemeProvider value={navigationTheme}>
+                  <StatusBar style={resolved === "light" ? "dark" : "light"} />
+                  <View style={{ flex: 1 }}>
+                    <Stack
+                      screenOptions={{
+                        headerStyle: { backgroundColor: navigationTheme.colors.background },
+                        ...floatingHeaderOptions(),
+                        headerTintColor: navigationTheme.colors.text,
+                        headerShadowVisible: false,
+                        headerBackButtonDisplayMode: "minimal",
+                        contentStyle: { backgroundColor: String(native.page) },
                       }}
-                    />
-                    <Stack.Screen
-                      name="server"
-                      options={{
-                        title: t("Server"),
-                        // Android formSheet hides the native header, including Save/Cancel.
-                        presentation: Platform.OS === "ios" ? "formSheet" : "card",
-                        sheetAllowedDetents: [0.6, 1],
-                        sheetGrabberVisible: true,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="new"
-                      options={{
-                        title: t("New bot"),
-                        presentation: "modal",
-                        gestureEnabled: true,
-                        headerBackVisible: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="new-group"
-                      options={{
-                        title: t("New group"),
-                        presentation: "modal",
-                        gestureEnabled: true,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="new-space"
-                      options={{
-                        title: t("New space"),
-                        presentation: "modal",
-                        gestureEnabled: true,
-                        headerBackVisible: false,
-                      }}
-                    />
-                    <Stack.Screen name="for-you" options={{ title: t("For you") }} />
-                    <Stack.Screen name="artifacts" options={glassHeaderOptions(t("Artifacts"))} />
-                    <Stack.Screen name="artifact" options={{ title: t("Artifact") }} />
-                    <Stack.Screen name="group-thread" options={{ title: t("Group") }} />
-                    <Stack.Screen
-                      name="group-settings"
-                      options={glassHeaderOptions(t("Group settings"))}
-                    />
-                    <Stack.Screen
-                      name="bot-settings"
-                      options={glassHeaderOptions(t("Chat settings"))}
-                    />
-                    <Stack.Screen name="thread" options={{ title: t("Thread") }} />
-                    <Stack.Screen name="routine" options={glassHeaderOptions(t("Routine"))} />
-                    <Stack.Screen name="computer" options={{ title: t("Computer") }} />
-                    <Stack.Screen
-                      name="image"
-                      options={{
-                        headerShown: false,
-                        presentation: "fullScreenModal",
-                        animation: "fade",
-                      }}
-                    />
-                  </Stack>
-                  <VoicePlayerBar style={{ marginTop: 8, marginBottom: insets.bottom + 8 }} />
-                </View>
-                <ComputerUpdateProgress />
-                <CallCard />
-              </ThemeProvider>
-            </ChatContentProviders>
-          </AvatarStyleProvider>
+                    >
+                      <Stack.Screen name="index" options={{ headerShown: false, title: "Kith" }} />
+                      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="(settings)"
+                        options={{
+                          headerShown: false,
+                          // One stack of settings pages in a sheet over the screen that opened it.
+                          // Android keeps pushed pages: it has no nested stack inside a formSheet.
+                          presentation: Platform.OS === "ios" ? "formSheet" : "card",
+                          sheetAllowedDetents: [0.95],
+                          sheetGrabberVisible: false,
+                          sheetExpandsWhenScrolledToEdge: false,
+                          contentStyle: { backgroundColor: native.groupedPage },
+                        }}
+                      />
+                      <Stack.Screen
+                        name="server"
+                        options={{
+                          title: t("Server"),
+                          // Android formSheet hides the native header, including Save/Cancel.
+                          presentation: Platform.OS === "ios" ? "formSheet" : "card",
+                          sheetAllowedDetents: [0.6, 1],
+                          sheetGrabberVisible: true,
+                        }}
+                      />
+                      <Stack.Screen
+                        name="new"
+                        options={{
+                          title: t("New bot"),
+                          presentation: "modal",
+                          gestureEnabled: true,
+                          headerBackVisible: false,
+                        }}
+                      />
+                      <Stack.Screen
+                        name="new-group"
+                        options={{
+                          title: t("New group"),
+                          presentation: "modal",
+                          gestureEnabled: true,
+                        }}
+                      />
+                      <Stack.Screen
+                        name="new-space"
+                        options={{
+                          title: t("New space"),
+                          presentation: "modal",
+                          gestureEnabled: true,
+                          headerBackVisible: false,
+                        }}
+                      />
+                      <Stack.Screen name="for-you" options={{ title: t("For you") }} />
+                      <Stack.Screen name="artifacts" options={glassHeaderOptions(t("Artifacts"))} />
+                      <Stack.Screen name="artifact" options={{ title: t("Artifact") }} />
+                      <Stack.Screen name="group-thread" options={{ title: t("Group") }} />
+                      <Stack.Screen
+                        name="group-settings"
+                        options={glassHeaderOptions(t("Group settings"))}
+                      />
+                      <Stack.Screen
+                        name="bot-settings"
+                        options={glassHeaderOptions(t("Chat settings"))}
+                      />
+                      <Stack.Screen name="thread" options={{ title: t("Thread") }} />
+                      <Stack.Screen name="routine" options={glassHeaderOptions(t("Routine"))} />
+                      <Stack.Screen name="computer" options={{ title: t("Computer") }} />
+                      <Stack.Screen
+                        name="image"
+                        options={{
+                          headerShown: false,
+                          presentation: "fullScreenModal",
+                          animation: "fade",
+                        }}
+                      />
+                    </Stack>
+                    <VoicePlayerBar style={{ marginTop: 8, marginBottom: insets.bottom + 8 }} />
+                  </View>
+                  <ComputerUpdateProgress />
+                  <CallCard />
+                </ThemeProvider>
+              </ChatContentProviders>
+            </AvatarStyleProvider>
+          </StartupReadyContext.Provider>
         ) : (
           <View style={{ flex: 1, backgroundColor: String(native.page) }} />
         )}
       </KeyboardProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function StartupError({ onRetry }: { onRetry: () => void }) {
+  const tokens = useMobileTokens();
+  const { t } = useI18n();
+  useEffect(() => {
+    SplashScreen.hide();
+  }, []);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: tokens.background,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+        padding: 24,
+      }}
+    >
+      <Text accessibilityRole="alert" style={{ color: tokens.foreground }}>
+        {t("Could not continue")}
+      </Text>
+      <NativeActionButton label={t("Try again.")} onPress={onRetry} />
+    </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ObserveRoot errorBoundaryFallback={({ resetError }) => <StartupError onRetry={resetError} />}>
+      <Layout />
+    </ObserveRoot>
   );
 }

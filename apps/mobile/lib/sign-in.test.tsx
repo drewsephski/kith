@@ -79,6 +79,7 @@ vi.mock("./api", () => ({
   signUp: vi.fn(),
 }));
 vi.mock("./sso", () => ({ continueWithSso: vi.fn() }));
+vi.mock("./observe", () => ({ useScreenInteractive: vi.fn() }));
 vi.mock("./user-error", () => ({ credentialIssueText: vi.fn(), errorText: vi.fn() }));
 
 const capabilities = {

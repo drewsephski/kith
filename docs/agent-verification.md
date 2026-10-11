@@ -23,6 +23,36 @@ command. Nightly verification never starts computer sandboxes or requests model
 or sandbox credentials.
 Missing live credentials mean **not run**, not a passing model evaluation.
 
+## Response latency
+
+The worker logs one `run response timing` entry when the first safe text is
+published. It contains durations and a run ID, without prompt text, response
+text, or credentials:
+
+- `queueWaitMs`: time from run creation to executor entry; null for resumed attempts.
+- `setupMs`: executor entry to opening the runtime, including database reads,
+  tool discovery, memory, credentials, and computer provisioning.
+- `modelToFirstTextMs`: opening the runtime to its first text event, including
+  provider connection and reasoning time.
+- `streamDeliveryMs`: first text event to its first published streaming update,
+  including secret-prefix buffering and event persistence. Client rendering and
+  network delivery after publication are not measured.
+
+Independent setup reads run concurrently. Streaming redaction holds only suffixes
+that could complete a known secret, so long credentials do not delay unrelated
+reply text. Model choice, reasoning settings, and tool permissions remain explicit.
+
+Run the offline latency regressions with:
+
+```bash
+pnpm exec vitest run packages/core/src/events.test.ts packages/adapters/src/executor-recent-turn-images.test.ts
+```
+
+These tests verify immediate safe-text publication, split-secret protection,
+Unicode boundaries, and concurrent setup reads. They do not establish live
+provider latency; compare worker timings across real runs to identify remaining
+queue, setup, or inference bottlenecks.
+
 ## Deterministic Pi tests
 
 `packages/testkit/src/model-emulator.ts` serves a loopback OpenAI-compatible

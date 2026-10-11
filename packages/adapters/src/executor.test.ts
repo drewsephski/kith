@@ -2386,6 +2386,8 @@ description: Prepare standup notes
       botSecret: { findMany: vi.fn(async () => []) },
       agentSkill: { findMany: vi.fn(async () => []) },
       scratchpadItem: { findMany: vi.fn(async () => []) },
+      externalEffect: { findMany: vi.fn(async () => []) },
+      spaceBackupModel: { findMany: vi.fn(async () => []) },
     } as unknown as PrismaClient;
     const executor = createRunExecutor({
       prisma,
@@ -2492,6 +2494,8 @@ description: Prepare standup notes
       agentSecret: { findMany: vi.fn(async () => []) },
       agentSkill: { findMany: vi.fn(async () => []) },
       scratchpadItem: { findMany: vi.fn(async () => []) },
+      externalEffect: { findMany: vi.fn(async () => []) },
+      spaceBackupModel: { findMany: vi.fn(async () => []) },
     } as unknown as PrismaClient;
     const executor = createRunExecutor({
       prisma,
