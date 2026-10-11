@@ -119,6 +119,35 @@ export function writeConversationDraft(scope: DraftScope, text: string): Promise
   return next;
 }
 
+/** Settle the accepted nonce in its original scope, preserving any newer draft. */
+export function confirmConversationDelivery(scope: DraftScope, nonce: string): Promise<void> {
+  const generation = epoch;
+  const task = async () => {
+    if (generation !== epoch) return;
+    const key = conversationDraftKey(scope);
+    const keys = draftKeys(await SecureStore.getItemAsync(INDEX));
+    if (!keys.includes(key)) return;
+    const saved = parseSavedConversationDraft((await SecureStore.getItemAsync(key)) ?? "");
+    const delivery = saved.deliveries?.find((entry) => entry.input.clientNonce === nonce);
+    if (!delivery) return;
+    const deliveries = saved.deliveries?.filter((entry) => entry !== delivery) ?? [];
+    const unchanged =
+      saved.text === delivery.displayText &&
+      saved.replyTargetId === delivery.input.replyToMessageId &&
+      (saved.replyQuote ?? null) === (delivery.input.replyQuote ?? null);
+    const next = { ...(unchanged ? { text: "" } : saved), deliveries };
+    if (next.text || next.replyTargetId || deliveries.length) {
+      await SecureStore.setItemAsync(key, JSON.stringify(next));
+    } else {
+      await SecureStore.deleteItemAsync(key);
+      await SecureStore.setItemAsync(INDEX, JSON.stringify(keys.filter((entry) => entry !== key)));
+    }
+  };
+  const next = writes.then(task, task);
+  writes = next.catch(() => undefined);
+  return next;
+}
+
 /** Sign-out fences queued writes before wiping all encrypted local drafts. */
 export function clearConversationDrafts(): Promise<void> {
   epoch += 1;

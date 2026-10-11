@@ -1778,14 +1778,19 @@ function Thread() {
     if (readOnly || !feedback.start(attempt)) return;
     const { initialBotTarget, botTarget, groupTarget, reroutedToGroup, plan } = attempt.payload;
     const current = captureMobileScreenScope();
+    let confirmAccepted: (() => Promise<void>) | undefined;
     pendingDeliveries.current += 1;
     setSending(true);
     try {
       if (!current()) return;
       responseTiming.begin(mobileScreenScopeKey(), attempt.clientNonce);
-      await deliverSend(attempt.payload, attempt, rpc, (input) =>
-        draftPersistence.prepare(input, attempt.payload.displayText, attempt.payload.replyPreview),
-      );
+      await deliverSend(attempt.payload, attempt, rpc, async (input) => {
+        confirmAccepted = await draftPersistence.prepare(
+          input,
+          attempt.payload.displayText,
+          attempt.payload.replyPreview,
+        );
+      });
     } catch (err) {
       attempt.error = errorText(err, t("Failed to send message"));
       feedback.sendFailed(attempt);
@@ -1799,7 +1804,12 @@ function Thread() {
       pendingDeliveries.current -= 1;
       setSending(pendingDeliveries.current > 0);
     }
-    if (!current()) return;
+    if (!current()) {
+      // Acceptance belongs to the original delivery even after navigation/account changes.
+      await confirmAccepted?.().catch(() => undefined);
+      feedback.sent(attempt);
+      return;
+    }
     if (onSettled) onSettled();
     else if (
       attempt.payload.originThreadKey === (activeGroupId.current ?? activeBotId.current) &&

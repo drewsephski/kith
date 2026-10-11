@@ -11,6 +11,7 @@ import {
 } from "./api";
 import type { DraftScope, DurableDelivery, SavedConversationDraft } from "./conversation-drafts";
 import {
+  confirmConversationDelivery,
   parseSavedConversationDraft,
   readConversationDraft,
   writeConversationDraft,
@@ -130,11 +131,16 @@ export function useConversationDraft(
     error,
     deliveries,
     async prepare(input: ThreadSendInput, displayText: string, replyPreview: string | null) {
+      const scope = scopeRef.current;
+      const nonce = input.clientNonce;
+      if (!scope || !nonce || !ownsScope.current())
+        throw new Error(t("Draft recovery is not ready. Try again."));
       if (!pending.current.some((entry) => entry.input.clientNonce === input.clientNonce)) {
         pending.current = [...pending.current, { input, displayText, replyPreview }];
         setDeliveries(pending.current);
       }
       await persist();
+      return () => confirmConversationDelivery(scope, nonce);
     },
     confirmed(nonce: string, clearDraft = false) {
       pending.current = pending.current.filter((entry) => entry.input.clientNonce !== nonce);

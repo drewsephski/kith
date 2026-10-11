@@ -77,6 +77,7 @@ async function runWithModel(
     imageCurrent?: boolean;
     steeringAttachment?: "file" | "image";
     steeringBusy?: boolean;
+    computerWaitRetries?: number;
   },
 ) {
   const run = {
@@ -89,6 +90,7 @@ async function runWithModel(
     status: "queued",
     trigger: "user",
     leaseFence: 0,
+    checkpoint: null as string | null,
     sourceMessageId: scenario?.imageCurrent ? "current" : undefined,
   };
   const get = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
@@ -111,7 +113,7 @@ async function runWithModel(
         vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
       const steering = await next.claimSteering?.([]);
       expect(vi.mocked(provisionComputer).mock.calls.length).toBe(
-        prior + (scenario.steeringBusy ? 0 : 1),
+        prior + (scenario.steeringBusy || scenario.computerWaitRetries ? 0 : 1),
       );
       if (!scenario.steeringBusy) {
         expect(steering?.[0]?.text).toContain("attachments/art-1.png");
@@ -161,10 +163,25 @@ async function runWithModel(
     run: {
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
-      updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        Object.assign(run, data);
-        return { count: 1 };
-      }),
+      updateMany: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { checkpoint?: string | null | { in: string[] } };
+          data: Record<string, unknown>;
+        }) => {
+          if (
+            where.checkpoint &&
+            typeof where.checkpoint === "object" &&
+            !where.checkpoint.in.includes(run.checkpoint ?? "")
+          )
+            return { count: 0 };
+          if (where.checkpoint === null && run.checkpoint !== null) return { count: 0 };
+          Object.assign(run, data);
+          return { count: 1 };
+        },
+      ),
     },
     bot: {
       findUniqueOrThrow: vi.fn(async () => ({
@@ -403,6 +420,19 @@ async function runWithModel(
     }
   }
   await continuing;
+  if (scenario?.computerWaitRetries) {
+    expect(run.checkpoint).toBe("computer-required");
+    for (let retry = 0; retry < scenario.computerWaitRetries; retry++) {
+      vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
+      await executor.continueRun(run.id, "worker-1");
+      expect(runtimeRun).toHaveBeenCalledOnce();
+      expect(run.checkpoint).toBe("computer-required");
+      expect(run.status).toBe("queued");
+    }
+    scenario.steeringBusy = false;
+    await executor.continueRun(run.id, "worker-1");
+    expect(runtimeRun).toHaveBeenCalledTimes(2);
+  }
   expect(runtimeRun).toHaveBeenCalled();
   if (scenario?.steeringBusy) {
     expect(finalizeRun).not.toHaveBeenCalled();
@@ -482,6 +512,15 @@ describe("response latency", () => {
       steeringBusy: true,
     });
     expect(run.id).toBe("run-1");
+  });
+
+  it("does not repeat inference while a demanded computer remains leased elsewhere", async () => {
+    await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      steeringAttachment: "file",
+      steeringBusy: true,
+      computerWaitRetries: 3,
+    });
   });
 
   it("preserves the peer bot directory for conversational bot questions", async () => {

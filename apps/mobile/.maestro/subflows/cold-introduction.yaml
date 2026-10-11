@@ -8,7 +8,7 @@ appId: com.kith.agent
       - launchApp:
           stopApp: false
           permissions:
-            notifications: ${NOTIFICATIONS_PERMISSION}
+            notifications: deny
       - extendedWaitUntil:
           visible: "Meet Kith[.]|Pixel Launcher isn't responding"
           timeout: 30000
@@ -20,7 +20,15 @@ appId: com.kith.agent
             - launchApp:
                 stopApp: false
                 permissions:
-                  notifications: ${NOTIFICATIONS_PERMISSION}
+                  notifications: deny
       - extendedWaitUntil:
           visible: "Meet Kith[.]"
           timeout: 30000
+# Pinned Maestro 2.6.1 does not evaluate expressions inside permission maps.
+- runFlow:
+    when:
+      true: ${NOTIFICATIONS_PERMISSION === "allow"}
+    commands:
+      - setPermissions:
+          permissions:
+            notifications: allow

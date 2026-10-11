@@ -29,7 +29,16 @@ name: Android live working status demonstration
 - scrollUntilVisible:
     element: "Live working status"
     direction: DOWN
-- tapOn: "Live working status"
+- tapOn:
+    text: "Live working status"
+    index: 1
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      text: "Live working status"
+      checked: true
+      enabled: true
+    timeout: 30000
 - openLink: "rakazo:///thread?botId=${RAKAZO_SCREENSHOT_BOT_ID}&name=Researcher"
 - extendedWaitUntil:
     visible: "Message Researcher"
@@ -68,7 +77,17 @@ name: Android live working status demonstration
 - scrollUntilVisible:
     element: "Live working status"
     direction: DOWN
-- tapOn: "Live working status"
+- tapOn:
+    text: "Live working status"
+    checked: true
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      text: "Live working status"
+      index: 1
+      checked: false
+      enabled: true
+    timeout: 30000
 - pressKey: HOME
 - evalScript: ${output.expandNotifications = http.get(RAKAZO_EXPAND_NOTIFICATIONS_URL)}
 - assertTrue: ${output.expandNotifications.ok}

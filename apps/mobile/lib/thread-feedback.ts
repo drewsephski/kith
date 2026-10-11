@@ -49,6 +49,7 @@ export async function deliverSend(
   prepare?: (input: ThreadSendInput) => Promise<void>,
 ) {
   if (attempt.recoveredInput) {
+    await prepare?.(attempt.recoveredInput);
     await request("threads/send", attempt.recoveredInput);
     return;
   }

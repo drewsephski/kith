@@ -3284,6 +3284,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       if (isTerminal(run.status as RunStatus)) return;
       let { resumeCheckpoint, heldForTakeover, resumeHeldLease, takeoverResume } =
         takeoverContinuePlan(run);
+      const computerRequired = run.checkpoint === COMPUTER_REQUIRED_CHECKPOINT;
 
       const fence = nextFence(run.leaseFence);
       const now = new Date();
@@ -3332,7 +3333,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       });
       if (started.count !== 1) return;
       let computerLease: ComputerExecutionLease | null = null;
-      if (computerAvailable && (resumeCheckpoint || heldForTakeover)) {
+      if (computerAvailable && (resumeCheckpoint || heldForTakeover || computerRequired)) {
         const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
           where: { id: run.botId },
           select: { computerId: true, computerSwitching: true },
@@ -3968,7 +3969,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return computer;
         };
         // Recovery restores its held screen before resuming. New inference is demand-driven.
-        if (computerAvailable && (resumeCheckpoint || heldForTakeover)) await ensureComputer();
+        if (computerAvailable && (resumeCheckpoint || heldForTakeover || computerRequired))
+          await ensureComputer();
         const workspaceCheckpoint = createRunWorkspaceCheckpoint(async () => {
           if (computer && storedComputer) {
             await checkpointRunComputerWorkspace(deps, storedComputer, computer, context);
@@ -7772,6 +7774,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           resumeCheckpoint,
           heldForTakeover,
           retryForever ? null : "Run setup failed; retrying",
+          computerBusy || computerRequired,
         );
         if (released) {
           await deps.prisma.attempt.update({
@@ -8587,10 +8590,13 @@ export function subagentMarksUnread(trigger: string, status: "running" | "comple
   return status === "failed" || trigger !== "routine";
 }
 
+const COMPUTER_REQUIRED_CHECKPOINT = "computer-required";
+
 function computerRunRequeueData(
   resumeCheckpoint: TakeoverResumeCheckpoint | null,
   error: string | null = null,
   heldForTakeover = false,
+  computerRequired = false,
 ) {
   return {
     status:
@@ -8598,7 +8604,9 @@ function computerRunRequeueData(
     error,
     leaseOwner: null,
     leaseExpiresAt: null,
-    checkpoint: resumeCheckpoint,
+    checkpoint:
+      resumeCheckpoint ??
+      (computerRequired && !heldForTakeover ? COMPUTER_REQUIRED_CHECKPOINT : null),
   };
 }
 
@@ -8610,6 +8618,7 @@ async function writeComputerRunRequeue(
   resumeCheckpoint: TakeoverResumeCheckpoint | null,
   heldForTakeover = false,
   error: string | null = null,
+  computerRequired = false,
 ): Promise<boolean> {
   const whereLease = {
     id: runId,
@@ -8633,7 +8642,7 @@ async function writeComputerRunRequeue(
   if (preserve.count === 1) return true;
   const planned = await deps.prisma.run.updateMany({
     where: { ...whereLease, checkpoint: null },
-    data: computerRunRequeueData(resumeCheckpoint, error, heldForTakeover),
+    data: computerRunRequeueData(resumeCheckpoint, error, heldForTakeover, computerRequired),
   });
   if (planned.count === 1) return true;
   const retried = await deps.prisma.run.updateMany({
@@ -8661,6 +8670,8 @@ async function requeueComputerRun(
     fence,
     resumeCheckpoint,
     heldForTakeover,
+    null,
+    true,
   );
   if (!released) return;
   await deps.jobs.enqueue({

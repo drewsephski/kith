@@ -43,7 +43,11 @@ vi.mock("./session", () => ({
 }));
 vi.mock("./i18n", () => ({ t: (text: string) => text }));
 
-import { parseSavedConversationDraft, readConversationDraft } from "./conversation-drafts";
+import {
+  clearConversationDrafts,
+  parseSavedConversationDraft,
+  readConversationDraft,
+} from "./conversation-drafts";
 import { useConversationDraft } from "./use-conversation-draft";
 
 let hook: ReturnType<typeof useConversationDraft>;
@@ -124,6 +128,49 @@ it("does not erase text edited during an uncertain send", async () => {
   await act(async () => edit("Next message"));
   await act(async () => hook.confirmed("nonce"));
   expect(parseSavedConversationDraft(await readConversationDraft(scope)).text).toBe("Next message");
+});
+it.each([false, true])(
+  "settles acceptance after leaving its original scope, preserving newer text=%s",
+  async (edited) => {
+    await render();
+    await act(async () => edit("Submitted"));
+    let confirm!: () => Promise<void>;
+    await act(async () => {
+      confirm = await hook.prepare(
+        { botId: "one", text: "Submitted", clientNonce: "accepted" },
+        "Submitted",
+        null,
+      );
+    });
+    if (edited) await act(async () => edit("Newer draft"));
+    await render("group:two");
+    await act(async () => edit("Other conversation"));
+    await act(async () => confirm());
+    await render();
+    expect(hook.deliveries).toEqual([]);
+    expect(text).toBe(edited ? "Newer draft" : "");
+    expect(
+      parseSavedConversationDraft(
+        await readConversationDraft({ ...scope, conversation: "group:two" }),
+      ).text,
+    ).toBe("Other conversation");
+  },
+);
+it("does not recreate wiped drafts when an old account's accepted request finishes", async () => {
+  await render();
+  await act(async () => edit("Submitted"));
+  let confirm!: () => Promise<void>;
+  await act(async () => {
+    confirm = await hook.prepare(
+      { botId: "one", text: "Submitted", clientNonce: "accepted" },
+      "Submitted",
+      null,
+    );
+  });
+  state.generation += 1;
+  await clearConversationDrafts();
+  await confirm();
+  expect(await readConversationDraft(scope)).toBe("");
 });
 it("does not restore an old account's draft after a late identity response", async () => {
   let resolve!: (value: unknown) => void;

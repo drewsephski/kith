@@ -361,3 +361,19 @@ and live-provider quality, reasoning-token and cache measurements were not run.
 The concurrently used iOS simulator was left untouched. Electron E2E was not run
 on the maintainer's machine, as required by the repository workflow. No deployment
 or production release was performed.
+
+Later review adds a durable `computer-required` checkpoint when on-demand startup
+meets a busy lease. Retries acquire that lease before further inference; a regression
+keeps the runtime call count unchanged through three busy retries and resumes the
+same run after availability. The first discovery call is still accounted for, and
+ordinary fresh conversation remains demand-driven. Takeover checkpoints retain
+their original precedence and semantics.
+
+Late mobile acceptance now settles its captured delivery in the original encrypted
+draft scope, preserving newer text and respecting sign-out wipes. A bot-list refresh
+also preserves keyboard mention selection when option identities stay unchanged.
+Android acceptance uses literal permission values because pinned Maestro 2.6.1 does
+not evaluate permission-map expressions, and waits for the actual saved toggle state.
+Optional hosted push registration no longer blocks or rolls back the already-saved
+native notification setting. These fixes have focused deterministic regressions;
+native acceptance remains a CI gate rather than a local device claim.
