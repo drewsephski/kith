@@ -45,6 +45,7 @@ import {
   saveAvatarStyle,
 } from "./avatar-style.js";
 import { resumeLiveNotifications } from "./live-notifications.js";
+import { responseTiming } from "./response-timing.js";
 import {
   clearSessionToken,
   restoreSessionToken,
@@ -2170,6 +2171,34 @@ describe("mobile thread subscription", () => {
     vi.restoreAllMocks();
     vi.mocked(SecureStore.getItemAsync).mockReset();
     vi.mocked(SecureStore.getItemAsync).mockResolvedValue("");
+  });
+
+  it("times streamed assistant text and deltas while excluding preparation and tool activity", async () => {
+    const timing = vi.spyOn(responseTiming, "event").mockImplementation(() => undefined);
+    const encoder = new TextEncoder();
+    const payloads = [
+      { text: "Preparing a response", activity: true },
+      { text: "Reading a file", activity: true },
+      { text: "Hello", streaming: true },
+      { delta: " there", streaming: true },
+    ];
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const [seq, payload] of payloads.entries())
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ json: { type: "thread.progress", runId: "run", seq, payload } })}\n\n`,
+            ),
+          );
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(stream, { status: 200 })),
+    );
+    await subscribeThread({ botId: "bot-1" }, 0, vi.fn(), new AbortController().signal);
+    expect(timing.mock.calls.map((call) => call[2])).toEqual([false, false, true, true]);
   });
 
   it("parses fragmented SSE frames and ignores malformed data and completion markers", async () => {

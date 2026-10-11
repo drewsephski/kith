@@ -444,6 +444,10 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Internal optimization; explicit model thinking preferences still win. */
+  executionProfile?: "conversation" | "agent";
+  /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */
+  onTiming?: (timing: AgentModelTiming) => void;
   /** Awaited producer-side accounting, independent of event-consumer cancellation. */
   onUsage?: (event: Extract<AgentRuntimeEvent, { type: "usage" }>) => void | Promise<void>;
   contextStrategy?: AgentContextStrategy;
@@ -494,6 +498,20 @@ export interface AgentRunRequest {
   onToolCompleted?: (completion: AgentToolCompletion) => Promise<void> | void;
   /** Atomically claim durable user steering at the runtime's next safe turn boundary. */
   claimSteering?: (seenIds: string[]) => Promise<AgentSteeringMessage[]>;
+}
+
+export interface AgentModelTiming {
+  stage: "request" | "headers" | "reasoning" | "text" | "complete";
+  provider: string;
+  model: string;
+  callId: string;
+  elapsedMs: number;
+  thinkingLevel: string;
+  responseCount: number;
+  toolCount: number;
+  toolSchemaBytes: number;
+  systemBytes: number;
+  messageBytes: number;
 }
 
 export interface ScriptedTurn {

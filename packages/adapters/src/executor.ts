@@ -248,6 +248,7 @@ import { redactConnectorPayload, sanitizeConnectorError } from "./connector-safe
 import { formatCurrentTimeInstruction } from "./current-time.js";
 import { resolveDeploymentModel } from "./deployment-model.js";
 import { emailCardFromTool } from "./email-card.js";
+import { executionProfile } from "./execution-profile.js";
 import { handoffToGroupBot, loadGroupContext } from "./group-handoff.js";
 import {
   COMPACTION_BATCH_SIZE,
@@ -263,6 +264,12 @@ import {
 import {
   assertConnectorToolArgs,
   CATALOG_EXECUTE,
+  CATALOG_LOAD,
+  CATALOG_SEARCH,
+  catalogEntries,
+  lazyCatalogTools,
+  loadCatalogEntry,
+  searchCatalog,
   uniquifyInstalledToolName,
 } from "./lazy-tool-catalog.js";
 import {
@@ -3321,7 +3328,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       });
       if (started.count !== 1) return;
       let computerLease: ComputerExecutionLease | null = null;
-      if (computerAvailable) {
+      if (computerAvailable && (resumeCheckpoint || heldForTakeover)) {
         const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
           where: { id: run.botId },
           select: { computerId: true, computerSwitching: true },
@@ -3386,7 +3393,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
       let modelStartedAt: number | undefined;
       let firstTextAt: number | undefined;
       let responseTimingLogged = false;
+      let modelRequestCount = 0;
+      let providerResponseCount = 0;
+      let fallbackCount = 0;
+      const setupStages = {
+        leaseMs: Math.round(performance.now() - setupStartedAt),
+        initialReadsMs: 0,
+        connectorMs: 0,
+        contextMs: 0,
+        computerMs: 0,
+      };
       try {
+        const readsStartedAt = performance.now();
         const sourceBlocks =
           run.trigger === "messaging" && run.sourceMessageId
             ? ((
@@ -3417,7 +3435,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
           replyContext,
           fallbackModels,
           personalAssistant,
-          sourceNonce,
         ] = await Promise.all([
           deps.prisma.bot.findUniqueOrThrow({
             where: { id: run.botId },
@@ -3448,10 +3465,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           deps.prisma.taughtSkill.findMany({
             where: { botId: run.botId, spaceId: run.spaceId, status: "saved" },
           }),
-          listAgentSkillRecords(deps.prisma, {
-            spaceId: run.spaceId,
-            userId: run.userId,
-          }),
+          listAgentSkillRecords(deps.prisma, { spaceId: run.spaceId, userId: run.userId }),
           deps.prisma.agentSecret.findMany({
             where: { spaceId: run.spaceId },
             select: {
@@ -3488,13 +3502,23 @@ export function createRunExecutor(deps: ExecutorDeps) {
             where: { botId: run.botId, spaceId: run.spaceId, userId: run.userId },
             select: { botId: true },
           }),
-          (run.trigger === "user" || run.trigger === "follow_up") && run.sourceMessageId
-            ? deps.prisma.message.findUnique({
-                where: { id: run.sourceMessageId },
-                select: { clientNonce: true },
-              })
-            : Promise.resolve(null),
         ]);
+        const sourceNonce =
+          messages.find((message) => message.id === run.sourceMessageId) ??
+          ((run.trigger === "user" || run.trigger === "follow_up") && run.sourceMessageId
+            ? await deps.prisma.message.findUnique({
+                where: { id: run.sourceMessageId },
+                select: { clientNonce: true, blocks: true },
+              })
+            : null);
+        const profile = executionProfile({
+          trigger: run.trigger,
+          prompt: task.prompt,
+          resumed: fence > 1 || Boolean(resumeCheckpoint),
+          groupId: thread.groupId,
+          blocks: sourceNonce?.blocks as MessageBlock[] | undefined,
+        });
+        setupStages.initialReadsMs = Math.round(performance.now() - readsStartedAt);
         await deps.events.append({
           spaceId: run.spaceId,
           threadId: thread.id,
@@ -3534,12 +3558,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const hasModelOverride = Boolean(modelChoice.modelProvider && modelChoice.modelId);
         const overrideCredential =
           hasModelOverride && modelChoice.modelProvider
-            ? await findModelCredential(
-                deps.prisma,
-                run,
-                modelChoice.modelProvider,
-                modelChoice.modelId,
-              )
+            ? defaultCredential?.provider === modelChoice.modelProvider &&
+              defaultCredential.defaultModel === modelChoice.modelId
+              ? defaultCredential
+              : await findModelCredential(
+                  deps.prisma,
+                  run,
+                  modelChoice.modelProvider,
+                  modelChoice.modelId,
+                )
             : null;
         runAbortController = new AbortController();
         if (!leaseValid) runAbortController.abort();
@@ -3551,7 +3578,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           (connection) => connection.connectorId === "composio",
         );
         let liveSlugs: string[] = [];
-        if (needsLivePluginSync(composioRows)) {
+        if (profile === "agent" && needsLivePluginSync(composioRows)) {
           const listing = await loadLivePluginSlugs(deps.listConnectedPluginSlugs, run.userId);
           if (listing.ok) {
             liveSlugs = listing.slugs;
@@ -3603,9 +3630,21 @@ export function createRunExecutor(deps: ExecutorDeps) {
           : null;
         const semanticMemory: SemanticMemoryProvider | null = configuredMemory?.provider ?? null;
 
-        const discoveredPromise = deps.connector
-          ? deps.connector.discoverTools(context)
-          : Promise.resolve([]);
+        let discoveredToolsPromise: Promise<ConnectorTool[]> | undefined;
+        const discoverTools = () => {
+          if (!discoveredToolsPromise) {
+            const startedAt = performance.now();
+            discoveredToolsPromise = (
+              deps.connector ? deps.connector.discoverTools(context) : Promise.resolve([])
+            ).then((tools) => {
+              setupStages.connectorMs += Math.round(performance.now() - startedAt);
+              return tools;
+            });
+          }
+          return discoveredToolsPromise;
+        };
+        const discoveredPromise =
+          profile === "conversation" ? Promise.resolve([]) : discoverTools();
         const threadContext = threadContextForRun(
           run.trigger,
           {
@@ -3692,6 +3731,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 context,
               )
             : Promise.resolve(null);
+        const contextStartedAt = performance.now();
         const [discovered, currentTurnImages, memoryContext, scratchpadContext, recalled] =
           await Promise.all([
             discoveredPromise,
@@ -3707,6 +3747,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 }),
             recallPromise,
           ]);
+        setupStages.contextMs = Math.round(performance.now() - contextStartedAt);
         const semanticMemoryEnabled = Boolean(semanticMemory) && !messagingChannelRun;
         let recalledMemory = "";
         let recallSucceeded = false;
@@ -3830,18 +3871,49 @@ export function createRunExecutor(deps: ExecutorDeps) {
         if (computerAvailable && !bot.computer) throw new Error("Bot has no computer");
         const storedComputer = bot.computer;
         const computerMode = parseComputerMode(storedComputer?.scope ?? "dedicated");
-        const computer =
-          computerAvailable && storedComputer
-            ? await provisionComputer(deps, storedComputer.id, context, "bot")
-            : null;
+        let computer: ComputerRef | null = null;
+        let computerPromise: Promise<ComputerRef> | undefined;
+        const ensureComputer = (): Promise<ComputerRef> => {
+          computerPromise ??= (async () => {
+            context.signal.throwIfAborted();
+            const startedAt = performance.now();
+            if (!computerAvailable || !storedComputer) throw new Error("No computer is connected.");
+            // A bot can switch computers during model generation. Never use a stale binding.
+            const target = await deps.prisma.bot.findUniqueOrThrow({
+              where: { id: bot.id },
+              select: { computerId: true, computerSwitching: true },
+            });
+            if (target.computerSwitching || target.computerId !== storedComputer.id)
+              throw new ComputerBusyError();
+            if (!(await renewRunLease(deps, runId, workerId, fence))) {
+              leaseValid = false;
+              runAbortController?.abort();
+              throw new Error("Run lease was lost before using the computer");
+            }
+            if (!computerLease) {
+              computerLease = await acquireComputerExecutionLease(deps.prisma, {
+                computerId: storedComputer.id,
+                runId,
+                botId: bot.id,
+                resumeHeldLease,
+              });
+            }
+            context.screenLeaseId = screenLeaseIdForRun(computerLease, runId, fence);
+            computer = await provisionComputer(deps, storedComputer.id, context, "bot");
+            setupStages.computerMs += Math.round(performance.now() - startedAt);
+            screenRelease = { computer, context };
+            scheduleComputerSleep(deps.jobs, storedComputer.id);
+            context.signal.throwIfAborted();
+            return computer;
+          })();
+          return computerPromise;
+        };
         const requireComputer = (): ComputerRef => {
           if (!computer) throw new Error("No computer is connected.");
           return computer;
         };
-        if (computer && storedComputer) {
-          screenRelease = { computer, context };
-          scheduleComputerSleep(deps.jobs, storedComputer.id);
-        }
+        // Recovery restores its held screen before resuming. New inference is demand-driven.
+        if (computerAvailable && (resumeCheckpoint || heldForTakeover)) await ensureComputer();
         const workspaceCheckpoint = createRunWorkspaceCheckpoint(async () => {
           if (computer && storedComputer) {
             await checkpointRunComputerWorkspace(deps, storedComputer, computer, context);
@@ -3850,7 +3922,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
         let currentTurnFiles: Awaited<ReturnType<typeof materializeCurrentTurnFiles>>;
         try {
           currentTurnFiles =
-            deps.artifacts && computer
+            deps.artifacts &&
+            computerAvailable &&
+            turnBlocks?.some((block) => block.kind === "file")
               ? await materializeCurrentTurnFiles(
                   {
                     prisma: deps.prisma,
@@ -3860,7 +3934,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   turnBlocks,
                   {
                     context,
-                    computer,
+                    computer: await ensureComputer(),
                     computerMode,
                     markWorkspaceDirty: workspaceCheckpoint.markDirty,
                   },
@@ -3872,9 +3946,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
         }
         const attachedFilesPrompt =
           currentTurnFilesInstruction(currentTurnFiles) ||
-          (!computer ? unavailableComputerFilesInstruction(turnBlocks) : "");
+          (!computerAvailable ? unavailableComputerFilesInstruction(turnBlocks) : "");
         const graphical = Boolean(
-          computer && computer.kind !== "desktop" && deps.sandbox.describe().capabilities.graphical,
+          computerAvailable &&
+            storedComputer?.kind !== "desktop" &&
+            deps.sandbox.describe().capabilities.graphical,
         );
         // Gate on the model this run will actually call — the pair written to the run row
         // above. Deriving it a second time here dropped the deployment fallback, so a
@@ -3922,12 +3998,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const pageBrowserAllowed =
           graphical && browser.describe().capabilities.page && !heldForTakeover;
         const disabledBuiltinTools = disabledBuiltinToolSet(bot.disabledBuiltinTools);
-        if (!computer) {
+        if (!computerAvailable) {
           for (const name of COMPUTER_TOOL_NAMES) disabledBuiltinTools.add(name);
         }
         const builtins = [
           ...selectBuiltinToolsForRun({
-            computerAvailable: Boolean(computer),
+            computerAvailable,
             historyRetrievalEnabled: contextStrategy !== "current",
             graphicalToolsAllowed,
             pageBrowserAllowed,
@@ -3978,26 +4054,41 @@ export function createRunExecutor(deps: ExecutorDeps) {
         // The intro turn confirms how a bot read its own role before anyone hands it
         // real work — it must not be able to act on that reading (shell, computer,
         // scheduling, spawning another bot, ...) before the user has assigned any task.
-        const tools = run.trigger === "created" ? [] : [...builtins, ...exposedConnectorTools];
+        const availableTools = [...builtins, ...exposedConnectorTools];
+        const conversationCatalogTools = lazyCatalogTools("kith", "kith-run", "Kith capabilities");
+        const tools =
+          run.trigger === "created"
+            ? []
+            : profile === "conversation"
+              ? conversationCatalogTools
+              : availableTools;
+        let catalogPromise: Promise<ReturnType<typeof catalogEntries>> | undefined;
+        const loadRunCatalog = () =>
+          (catalogPromise ??= discoverTools().then((discovered) => {
+            for (const tool of discovered) {
+              if (!BUILTIN_AGENT_TOOL_NAMES.has(tool.name)) connectorTools.set(tool.name, tool);
+            }
+            return catalogEntries([...builtins, ...Array.from(connectorTools.values())]);
+          }));
         const taskCatalogInstruction = tools.some((tool) => tool.name === "task_catalog")
           ? TASK_CATALOG_GUIDANCE
           : undefined;
         const approvedEffectReplays = createApprovedEffectReplayQueue(approvedEffects);
         const baseComputerInstruction = persistentComputerInstruction({
-          computerAvailable: Boolean(computer),
+          computerAvailable,
           heldForTakeover,
           graphicalToolsAllowed,
           graphical,
           disabled: disabledBuiltinTools,
         });
         const dockerToolInstruction = dockerComputerToolInstruction(
-          computer?.kind ?? "none",
+          storedComputer?.kind ?? "none",
           disabledBuiltinTools,
         );
         const computerInstruction = dockerToolInstruction
           ? `${baseComputerInstruction} ${dockerToolInstruction}`
           : baseComputerInstruction;
-        const workspaceInstruction = !computer
+        const workspaceInstruction = !computerAvailable
           ? ""
           : computerMode === "team"
             ? `Your Team Computer home is ${teamBotWorkspaceDirectory(bot.id)}. Relative file paths and shell working directories start there. Put intentionally shared work under shared/. Other bots' folders are visible under bots/; treat them as their working areas.`
@@ -4091,6 +4182,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
               setupMs: Math.round(modelStartedAt - setupStartedAt),
               modelToFirstTextMs: Math.round(firstTextAt - modelStartedAt),
               streamDeliveryMs: Math.round(visibleAt - firstTextAt),
+              executionProfile: profile,
+              ...setupStages,
             });
           }
         };
@@ -4158,18 +4251,82 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return occurrence;
         };
 
+        const ensureToolComputer = async (name: string): Promise<boolean> => {
+          if (!COMPUTER_TOOL_NAMES.has(name)) return true;
+          try {
+            await ensureComputer();
+            if (
+              !(await renewRunLease(deps, runId, workerId, fence)) ||
+              !(await renewComputerExecutionLease(deps.prisma, computerLease))
+            ) {
+              leaseValid = false;
+              runAbortController?.abort();
+              return false;
+            }
+            return true;
+          } catch (error) {
+            if (!(error instanceof ComputerBusyError)) throw error;
+            // Retry under the same durable identity before claiming any new effect.
+            await workspaceCheckpoint.flush();
+            await requeueComputerRun(
+              deps,
+              runId,
+              workerId,
+              fence,
+              resumeCheckpoint,
+              heldForTakeover,
+            );
+            approvalPausePending = true;
+            runAbortController?.abort();
+            return false;
+          }
+        };
+
         const applyTool = async (
           name: string,
           args: Record<string, unknown>,
           executionId: string,
           _route?: unknown,
           observer?: AgentToolExecutionObserver,
-        ) => {
+          fromCatalog = false,
+        ): Promise<unknown> => {
           context.signal.throwIfAborted();
           if (handedOff) {
             return {
               error: "This stage was handed off. End the turn without more tool calls.",
             };
+          }
+          const catalogControl =
+            profile === "conversation" && !fromCatalog
+              ? conversationCatalogTools.find((tool) => tool.name === name)
+              : undefined;
+          if (catalogControl) {
+            const entries = await loadRunCatalog();
+            if (catalogControl.route?.toolName === CATALOG_SEARCH)
+              return searchCatalog(entries, args);
+            const entry = loadCatalogEntry(entries, args);
+            if (catalogControl.route?.toolName === CATALOG_LOAD)
+              return {
+                id: entry.id,
+                name: entry.tool.name,
+                description: entry.tool.description,
+                inputSchema: entry.tool.inputSchema,
+                readOnly: entry.tool.readOnly === true,
+              };
+            if (catalogControl.route?.toolName === CATALOG_EXECUTE) {
+              const innerArgs = args.arguments;
+              if (!innerArgs || typeof innerArgs !== "object" || Array.isArray(innerArgs))
+                return { error: "Tool arguments must be an object" };
+              assertConnectorToolArgs(entry.tool.inputSchema, innerArgs as Record<string, unknown>);
+              return applyTool(
+                entry.tool.name,
+                innerArgs as Record<string, unknown>,
+                executionId,
+                entry.tool.route,
+                observer,
+                true,
+              );
+            }
           }
           if (disabledBuiltinTools.has(name)) {
             return { error: "This tool is disabled for this bot." };
@@ -4706,6 +4863,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           const claimOrReturn = async (
             from: "approved" | "intended",
           ): Promise<unknown | undefined> => {
+            if (!(await ensureToolComputer(name))) return approvalPausedToolResult();
             const claim = from === "approved" ? claimApprovedEffect : claimIntendedEffect;
             if (await claim(deps.prisma, applied!.effect.id)) {
               claimedEffect = true;
@@ -4891,6 +5049,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const early = await claimOrReturn("intended");
             if (early !== undefined) return early;
           }
+          if (!(await ensureToolComputer(name))) return approvalPausedToolResult();
           const persistEffectResult = (result: unknown) =>
             applied
               ? completeEffect(
@@ -6681,34 +6840,35 @@ export function createRunExecutor(deps: ExecutorDeps) {
           : history;
         const runtimeHistory = [...historicalContext, ...historyWithImages];
         // Without a roster a bot only knows the bots it spawned itself.
-        const botDirectory = thread.groupId
-          ? undefined
-          : renderBotDirectory(
-              (
-                await deps.prisma.bot.findMany({
-                  where: {
-                    spaceId: run.spaceId,
-                    userId: run.userId,
-                    archivedAt: null,
-                    id: { not: bot.id },
-                    thread: { isNot: null },
-                  },
-                  select: {
-                    id: true,
-                    name: true,
-                    title: true,
-                    description: true,
-                  },
-                  orderBy: { createdAt: "asc" },
-                  take: BOT_DIRECTORY_LIMIT,
-                })
-              ).map((peer) => ({
-                id: peer.id,
-                name: peer.name,
-                title: peer.title,
-                description: peer.description,
-              })),
-            );
+        const botDirectory =
+          profile === "conversation" || thread.groupId
+            ? undefined
+            : renderBotDirectory(
+                (
+                  await deps.prisma.bot.findMany({
+                    where: {
+                      spaceId: run.spaceId,
+                      userId: run.userId,
+                      archivedAt: null,
+                      id: { not: bot.id },
+                      thread: { isNot: null },
+                    },
+                    select: {
+                      id: true,
+                      name: true,
+                      title: true,
+                      description: true,
+                    },
+                    orderBy: { createdAt: "asc" },
+                    take: BOT_DIRECTORY_LIMIT,
+                  })
+                ).map((peer) => ({
+                  id: peer.id,
+                  name: peer.name,
+                  title: peer.title,
+                  description: peer.description,
+                })),
+              );
 
         if (heldForTakeover) {
           const releasedCheckpoint = takeoverCheckpointOf(
@@ -6754,6 +6914,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
 
         const isPersonalAssistant = Boolean(personalAssistant);
         try {
+          getLogger().info("run context sizes", {
+            runId,
+            executionProfile: profile,
+            historyMessages: runtimeHistory.length,
+            historyBytes: Buffer.byteLength(JSON.stringify(runtimeHistory)),
+            memoryBytes: Buffer.byteLength(memoryContext ?? ""),
+            scratchpadBytes: Buffer.byteLength(scratchpadContext ?? ""),
+            recalledBytes: Buffer.byteLength(recalledMemory),
+            agentSkillsBytes: Buffer.byteLength(agentSkillsLine ?? ""),
+            taughtSkillsBytes: Buffer.byteLength(taughtSkillsLine ?? ""),
+            toolCount: tools.length,
+            toolSchemaBytes: Buffer.byteLength(JSON.stringify(tools)),
+            imageCount: currentTurnImages?.length ?? 0,
+          });
           modelStartedAt = performance.now();
           const runtimeEvents = deps.runtime.run(
             {
@@ -6761,7 +6935,24 @@ export function createRunExecutor(deps: ExecutorDeps) {
               threadId: thread.id,
               runId,
               sourceMessageId: run.sourceMessageId,
+              executionProfile: profile,
+              onTiming: (timing) => {
+                if (timing.stage === "request") modelRequestCount++;
+                if (timing.stage === "headers") providerResponseCount++;
+                getLogger().info("run model timing", { runId, ...timing });
+              },
               onUsage: async (event) => {
+                getLogger().info("run model usage", {
+                  runId,
+                  provider: event.provider,
+                  model: event.model,
+                  operationKind: event.operationKind ?? "answer",
+                  inputTokens: event.inputTokens,
+                  outputTokens: event.outputTokens,
+                  reasoningTokens: event.reasoningTokens ?? null,
+                  cacheReadTokens: event.cacheReadTokens ?? null,
+                  cacheWriteTokens: event.cacheWriteTokens ?? null,
+                });
                 await recordUsage(deps.prisma, event, {
                   spaceId: run.spaceId,
                   botId: bot.id,
@@ -6773,35 +6964,43 @@ export function createRunExecutor(deps: ExecutorDeps) {
               },
               prompt,
               contextStrategy,
-              instructions: userTurnInstructions({
-                botInstructions: [
-                  isPersonalAssistant ? PERSONAL_ASSISTANT_GUIDANCE : "",
-                  runIdentityInstruction(bot, run.trigger),
-                ]
-                  .filter(Boolean)
-                  .join("\n\n"),
-                groupContext,
-                messagingContext,
-                redactedMemoryContext: memoryContext
-                  ? redactSecrets(memoryContext, runSecrets)
-                  : undefined,
-                redactedScratchpadContext: scratchpadContext
-                  ? redactSecrets(scratchpadContext, runSecrets)
-                  : undefined,
-                hasHistoricalContext: historicalContext.length > 0,
-                historyRetrievalEnabled: contextStrategy !== "current",
-                computerInstruction,
-                pageBrowserAllowed,
-                taskCatalogInstruction,
-                workspaceInstruction,
-                agentEnvironmentInstruction,
-                botDirectory,
-                pluginLine,
-                agentSkillsLine,
-                taughtSkillsLine,
-                replyGuidance: runReplyGuidance(run.trigger),
-                disabledBuiltinTools,
-              })
+              instructions: [
+                profile === "conversation"
+                  ? "Answer conversational questions directly. When a request needs current data, saved work, tools or any external action, use kith_search_tools, kith_load_tool and kith_execute_tool to discover and perform it. The same computer, app, memory and approval capabilities remain available through this catalog. Never claim an action occurred without its confirmed tool result."
+                  : "",
+                ...userTurnInstructions({
+                  botInstructions: [
+                    isPersonalAssistant ? PERSONAL_ASSISTANT_GUIDANCE : "",
+                    runIdentityInstruction(bot, run.trigger),
+                  ]
+                    .filter(Boolean)
+                    .join("\n\n"),
+                  groupContext,
+                  messagingContext,
+                  redactedMemoryContext: memoryContext
+                    ? redactSecrets(memoryContext, runSecrets)
+                    : undefined,
+                  redactedScratchpadContext: scratchpadContext
+                    ? redactSecrets(scratchpadContext, runSecrets)
+                    : undefined,
+                  hasHistoricalContext: historicalContext.length > 0,
+                  historyRetrievalEnabled: contextStrategy !== "current",
+                  computerInstruction: profile === "conversation" ? "" : computerInstruction,
+                  pageBrowserAllowed: profile === "agent" && pageBrowserAllowed,
+                  taskCatalogInstruction,
+                  workspaceInstruction: profile === "conversation" ? "" : workspaceInstruction,
+                  agentEnvironmentInstruction,
+                  botDirectory,
+                  pluginLine: profile === "conversation" ? undefined : pluginLine,
+                  agentSkillsLine,
+                  taughtSkillsLine,
+                  replyGuidance: runReplyGuidance(run.trigger),
+                  disabledBuiltinTools:
+                    profile === "conversation"
+                      ? new Set([...disabledBuiltinTools, ...BUILTIN_AGENT_TOOL_NAMES])
+                      : disabledBuiltinTools,
+                }),
+              ]
                 .filter((instruction): instruction is string => Boolean(instruction))
                 .join("\n\n"),
               history: runtimeHistory,
@@ -6848,6 +7047,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   }
                 : undefined,
               onModelChange: async (provider, modelId) => {
+                fallbackCount++;
                 if (!fallbackModelKeys.has(JSON.stringify([provider, modelId]))) {
                   throw new Error("Backup model is not selected");
                 }
@@ -7051,6 +7251,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               });
               return;
             } else if (event.type === "takeover") {
+              if (!(await ensureToolComputer("request_takeover"))) return;
               if (!computer || !storedComputer) throw new Error("No computer is connected.");
               if (!(await renewRunLease(deps, runId, workerId, fence))) return;
               const safeReason = redactSecrets(event.reason, runSecrets);
@@ -7279,6 +7480,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
 
           for (const turn of script ?? []) {
             for (const file of turn.files ?? []) {
+              if (!(await ensureToolComputer("write_file"))) return;
               workspaceCheckpoint.markDirty();
               await deps.sandbox.writeFile(
                 requireComputer(),
@@ -7526,6 +7728,19 @@ export function createRunExecutor(deps: ExecutorDeps) {
           throw new Error("Run setup failed; retrying");
         }
       } finally {
+        getLogger().info("run completion timing", {
+          runId,
+          leaseFence: fence,
+          modelRequestCount,
+          providerResponseCount,
+          fallbackCount,
+          totalMs: Math.round(performance.now() - setupStartedAt),
+          setupMs:
+            modelStartedAt === undefined ? null : Math.round(modelStartedAt - setupStartedAt),
+          modelAndRunMs:
+            modelStartedAt === undefined ? null : Math.round(performance.now() - modelStartedAt),
+          ...setupStages,
+        });
         detachShutdown?.();
         clearInterval(heartbeat);
         if (!retainComputerLease) {

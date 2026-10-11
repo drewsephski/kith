@@ -1,13 +1,14 @@
-import {
-  type BackgroundJob,
-  type BackgroundJobHandlers,
-  dispatchBackgroundJob,
-  type JobPublisher,
-  type JobWorkerHost,
+import type {
+  BackgroundJob,
+  BackgroundJobHandlers,
+  JobPublisher,
+  JobWorkerHost,
 } from "@rakazo/adapter-kit";
+import { dispatchBackgroundJob } from "@rakazo/adapter-kit";
 import { isTooManyDatabaseConnections } from "@rakazo/db";
-import { runCorrelatedJob, unwrapJobPayload, wrapJobPayload } from "@rakazo/logging";
-import { makeWorkerUtils, type Runner, run, type WorkerUtils } from "graphile-worker";
+import { getLogger, runCorrelatedJob, unwrapJobPayload, wrapJobPayload } from "@rakazo/logging";
+import type { Runner, WorkerUtils } from "graphile-worker";
+import { makeWorkerUtils, run } from "graphile-worker";
 import type { Pool } from "pg";
 import { recordHistoryCompactAttemptsExhausted } from "./history-compaction.js";
 
@@ -63,7 +64,9 @@ export function databaseCapacityBackoffMs(attempt: number): number {
 }
 
 export class GraphileJobWorkerHost implements JobWorkerHost {
+  private activeJobs = 0;
   private runner: Runner | undefined;
+  private interactiveHost: GraphileJobWorkerHost | undefined;
   private handlers: BackgroundJobHandlers | undefined;
   private stopping = false;
   private superviseTask: Promise<void> | undefined;
@@ -75,6 +78,8 @@ export class GraphileJobWorkerHost implements JobWorkerHost {
       concurrency?: number;
       pollInterval?: number;
       noHandleSignals?: boolean;
+      /** Reserve one of the existing execution slots for run.continue. */
+      reserveInteractive?: boolean;
       /** Test seam: delay between 53300 restart attempts. */
       sleep?: (ms: number) => Promise<void>;
     } = {},
@@ -84,7 +89,28 @@ export class GraphileJobWorkerHost implements JobWorkerHost {
     if (this.runner || this.superviseTask) return;
     this.stopping = false;
     this.handlers = handlers;
-    await this.launchRunner();
+    const concurrency = this.options.concurrency ?? 4;
+    // Each runner holds a LISTEN connection. Leave room for leadership and DB work.
+    if (
+      this.options.reserveInteractive &&
+      concurrency >= 2 &&
+      (this.pgPool.options.max ?? 10) >= concurrency + 3
+    ) {
+      this.interactiveHost = new GraphileJobWorkerHost(this.pgPool, {
+        ...this.options,
+        reserveInteractive: false,
+        concurrency: 1,
+      });
+    }
+    try {
+      await this.launchRunner();
+      await this.interactiveHost?.start({
+        "run.continue": handlers["run.continue"],
+      } as BackgroundJobHandlers);
+    } catch (error) {
+      await this.stop().catch(() => undefined);
+      throw error;
+    }
     // run() resolves once the runner is up; runner.promise can still reject later
     // (e.g. Postgres 53300). Observe it so a dead runner cannot leave the worker
     // process idle forever while unhandledRejection swallows that same error.
@@ -95,10 +121,13 @@ export class GraphileJobWorkerHost implements JobWorkerHost {
     this.stopping = true;
     this.wakeSleep?.();
     try {
-      await this.runner?.stop();
+      const results = await Promise.allSettled([this.runner?.stop(), this.interactiveHost?.stop()]);
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
     } finally {
       await this.superviseTask?.catch(() => undefined);
       this.runner = undefined;
+      this.interactiveHost = undefined;
       this.superviseTask = undefined;
       this.handlers = undefined;
     }
@@ -112,18 +141,46 @@ export class GraphileJobWorkerHost implements JobWorkerHost {
         name,
         async (payload: unknown) => {
           const unpacked = unwrapJobPayload(payload);
-          await runCorrelatedJob({
-            name,
-            payload: unpacked.payload,
-            correlation: unpacked.correlation,
-            run: () => dispatchBackgroundJob(handlers, name, unpacked.payload),
+          const startedAt = performance.now();
+          this.activeJobs++;
+          const capacity = (this.options.concurrency ?? 4) - (this.interactiveHost ? 1 : 0);
+          const queueClass =
+            Object.keys(handlers).length === 1 && handlers["run.continue"]
+              ? "interactive"
+              : "shared";
+          let completed = false;
+          getLogger().info("worker task capacity", {
+            task: name,
+            queueClass,
+            phase: "start",
+            activeJobs: this.activeJobs,
+            capacity,
           });
+          try {
+            await runCorrelatedJob({
+              name,
+              payload: unpacked.payload,
+              correlation: unpacked.correlation,
+              run: () => dispatchBackgroundJob(handlers, name, unpacked.payload),
+            });
+            completed = true;
+          } finally {
+            this.activeJobs--;
+            getLogger().info("worker task capacity", {
+              task: name,
+              queueClass,
+              phase: completed ? "complete" : "failed",
+              activeJobs: this.activeJobs,
+              capacity,
+              durationMs: Math.round(performance.now() - startedAt),
+            });
+          }
         },
       ]),
     );
     const runner = await run({
       pgPool: this.pgPool,
-      concurrency: this.options.concurrency ?? 4,
+      concurrency: (this.options.concurrency ?? 4) - (this.interactiveHost ? 1 : 0),
       pollInterval: this.options.pollInterval ?? 500,
       noHandleSignals: this.options.noHandleSignals,
       taskList,

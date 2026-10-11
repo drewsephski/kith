@@ -120,10 +120,15 @@ const REASONING_MODEL_THINKING_LEVEL: ModelThinkingLevel = "medium";
 function thinkingLevelFor(
   model: Model<Api>,
   preferred?: ModelThinkingLevel | null,
+  profile?: AgentRunRequest["executionProfile"],
 ): ModelThinkingLevel {
   if (!model.reasoning) return "off";
   if (preferred) return clampThinkingLevel(model, preferred);
-  return clampThinkingLevel(model, REASONING_MODEL_THINKING_LEVEL);
+  const level = clampThinkingLevel(
+    model,
+    profile === "conversation" ? "low" : REASONING_MODEL_THINKING_LEVEL,
+  );
+  return level === "off" ? clampThinkingLevel(model, REASONING_MODEL_THINKING_LEVEL) : level;
 }
 // Pi forwards these names to OpenAI Responses, whose function-name contract is
 // ^[a-zA-Z0-9_-]+$ with a maximum length of 64 characters.
@@ -212,10 +217,11 @@ export class PiAgentRuntime implements AgentRuntime {
   }
 
   private async *runEvents(
-    request: AgentRunRequest,
+    inputRequest: AgentRunRequest,
     controller: AbortController,
     context?: Partial<AdapterContext>,
   ): AsyncGenerator<AgentRuntimeEvent, void> {
+    const request = { ...inputRequest };
     const signal = context?.signal
       ? AbortSignal.any([controller.signal, context.signal])
       : controller.signal;
@@ -271,6 +277,7 @@ export class PiAgentRuntime implements AgentRuntime {
         const seenSteeringIds: string[] = [];
         const initialSteering = request.claimSteering ? await request.claimSteering([]) : [];
         seenSteeringIds.push(...initialSteering.map((item) => item.id));
+        if (initialSteering.length) request.executionProfile = "agent";
         const history = toHistory(
           withoutSteeringMessages(request.history, initialSteering),
           request.prompt,
@@ -288,7 +295,11 @@ export class PiAgentRuntime implements AgentRuntime {
               : "You are a Kith assistant with a persistent sandbox filesystem and shell. Be concise."),
           TASK_COMPLETION_GUIDANCE,
         ].join("\n\n");
-        const thinkingLevel = thinkingLevelFor(model, request.model.thinkingLevel);
+        const thinkingLevel = thinkingLevelFor(
+          model,
+          request.model.thinkingLevel,
+          request.executionProfile,
+        );
         let piSession: PiSessionHandle | undefined;
         // Never write an unscoped transcript. Production requests carry userId;
         // callers without an authenticated context simply skip optional recording.
@@ -322,6 +333,7 @@ export class PiAgentRuntime implements AgentRuntime {
           prepareContext: contextPolicy.prepareContext,
           imageTokens: estimatePiImageTokens,
           recordUsage: request.onUsage,
+          onTiming: request.onTiming,
           onUsage: (usage: AgentUsage) => {
             contextPolicy.onUsage(usage);
             const decision = contextPolicy.getDecision();
@@ -385,6 +397,7 @@ export class PiAgentRuntime implements AgentRuntime {
             const nextThinkingLevel = thinkingLevelFor(
               target.model,
               target.config.thinkingLevel ?? request.model.thinkingLevel,
+              request.executionProfile,
             );
             agent.state.model = target.model;
             agent.state.thinkingLevel = nextThinkingLevel;
@@ -451,6 +464,7 @@ export class PiAgentRuntime implements AgentRuntime {
             if (!request.claimSteering) return undefined;
             const steering = await request.claimSteering([...seenSteeringIds]);
             if (steering.length === 0) return undefined;
+            promoteToAgent();
             seenSteeringIds.push(...steering.map((item) => item.id));
             for (const item of steering) {
               const images = toPiImages(item.images);
@@ -496,12 +510,21 @@ export class PiAgentRuntime implements AgentRuntime {
         // Text streamed before this point is tool-turn narration. Only text after
         // it counts as the final reply, including when the completed message omits it.
         let streamedBeforePendingFinal = 0;
+        function promoteToAgent() {
+          if (request.executionProfile !== "conversation") return;
+          request.executionProfile = "agent";
+          agent.state.thinkingLevel = thinkingLevelFor(
+            activeStreamTarget.model,
+            activeStreamTarget.config.thinkingLevel ?? request.model.thinkingLevel,
+          );
+        }
         agent.subscribe(async (event) => {
           if (event.type === "message_end") {
             await piSession?.appendMessage(event.message);
           }
           if (event.type === "tool_execution_start") {
             if (host.toolCallBudget.exceeded) return;
+            promoteToAgent();
             toolCalls += 1;
             // Live activity feedback: without this the thread shows a bare
             // "working…" for the whole tool call with nothing actionable.
@@ -931,6 +954,8 @@ export function normalizeAgentToolName(name: string): string {
 /** One human-readable line describing a tool call, shown live in the thread. */
 export function describeToolActivity(toolName: string, args: unknown): string {
   const record = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+  if (toolName === "kith_search_tools" || toolName === "kith_load_tool") return "Finding tools";
+  if (toolName === "kith_execute_tool") return "Using a tool";
   // Provider catalog metadata supplies the operation; never echo mail bodies,
   // recipients, queries or arbitrary model-written status into this label.
   const operation = toolName.replace(/^mcp__.+?__/, "").toUpperCase();
@@ -1534,6 +1559,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
               prepareContext: contextPolicy.prepareContext,
               imageTokens: estimatePiImageTokens,
               recordUsage: host.request.onUsage,
+              onTiming: host.request.onTiming,
               onUsage: (usage) => {
                 contextPolicy.onUsage(usage);
                 const decision = contextPolicy.getDecision();
@@ -2645,6 +2671,7 @@ function fallbackAwareModelStream(
               target.config.thinkingLevel ??
                 options?.reasoning ??
                 state.request.model.thinkingLevel,
+              state.request.executionProfile,
             )
           : "off";
         const reasoning = thinkingLevel === "off" ? undefined : thinkingLevel;

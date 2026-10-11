@@ -9,6 +9,7 @@ import * as SecureStore from "expo-secure-store";
 export type { ResponseStreamingPreference };
 
 let memoryPreference: ResponseStreamingPreference | null = null;
+let preferenceRevision = 0;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -24,10 +25,14 @@ export function getCachedResponseStreamingEnabled(): boolean {
 }
 
 export async function loadResponseStreamingPreference(): Promise<ResponseStreamingPreference> {
+  const revision = preferenceRevision;
   try {
     const stored = await SecureStore.getItemAsync(RESPONSE_STREAMING_STORAGE_KEY);
-    memoryPreference = normalizeResponseStreamingPreference(stored);
+    if (revision !== preferenceRevision) return getCachedResponseStreamingPreference();
+    // Missing is a new installation; a saved off (including legacy empty values) stays off.
+    memoryPreference = stored === null ? "on" : normalizeResponseStreamingPreference(stored);
   } catch {
+    if (revision !== preferenceRevision) return getCachedResponseStreamingPreference();
     memoryPreference = memoryPreference ?? "off";
   }
   notify();
@@ -37,6 +42,7 @@ export async function loadResponseStreamingPreference(): Promise<ResponseStreami
 export async function setResponseStreamingPreference(
   preference: ResponseStreamingPreference,
 ): Promise<ResponseStreamingPreference> {
+  preferenceRevision += 1;
   memoryPreference = preference;
   // Paint the switch before SecureStore resolves.
   notify();

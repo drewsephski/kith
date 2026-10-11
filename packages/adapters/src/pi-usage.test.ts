@@ -2,7 +2,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import type { Api, Context, Model } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
-import type { AgentRuntimeEvent } from "@rakazo/adapter-kit";
+import type { AgentModelTiming, AgentRuntimeEvent } from "@rakazo/adapter-kit";
 import { describe, expect, it, vi } from "vitest";
 import { createOpenAiCompatibleFetch } from "./pi-openai-compatible-provider.js";
 import { PiAgentRuntime } from "./pi-runtime.js";
@@ -32,7 +32,7 @@ const sse = (usage?: object) =>
     .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
     .join("")}data: [DONE]\n\n`;
 
-async function run(usage?: object) {
+async function run(usage?: object, onTiming?: (timing: AgentModelTiming) => void) {
   const events: AgentRuntimeEvent[] = [];
   const beforeCall = vi.fn((_call: { inputTokensEstimate: number }) => "reservation");
   const afterCall = vi.fn();
@@ -47,6 +47,8 @@ async function run(usage?: object) {
     },
     (event) => events.push(event),
     { beforeCall, afterCall },
+    undefined,
+    { onTiming },
   );
   for await (const _event of stream) {
     /* Real Pi provider parser consumes synthetic endpoint. */
@@ -55,6 +57,43 @@ async function run(usage?: object) {
 }
 
 describe("Pi usage accounting", () => {
+  it("records provider headers and first text using sizes only", async () => {
+    const timings: AgentModelTiming[] = [];
+    const result = await run(undefined, (timing) => timings.push(timing));
+    expect(timings.map((timing) => timing.stage)).toEqual([
+      "request",
+      "headers",
+      "text",
+      "complete",
+    ]);
+    expect(timings.at(-1)).toMatchObject({
+      provider: "openrouter",
+      model: "fixture",
+      responseCount: 1,
+      toolCount: 0,
+    });
+    expect(
+      timings.every(
+        (timing) => timing.elapsedMs >= 0 && timing.systemBytes > 0 && timing.messageBytes > 0,
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(timings)).not.toContain("fake-fixture-key");
+    expect(
+      timings.some(
+        (timing) => "messages" in timing || "systemPrompt" in timing || "content" in timing,
+      ),
+    ).toBe(false);
+    expect(result.result.stopReason).toBe("stop");
+  });
+  it("cannot fail inference or settlement when a timing sink throws", async () => {
+    const result = await run({ prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 }, () => {
+      throw new Error("Fixture telemetry unavailable");
+    });
+    expect(result.result.stopReason).toBe("stop");
+    expect(result.afterCall).toHaveBeenCalledTimes(1);
+    expect(result.events.filter((event) => event.type === "usage")).toHaveLength(1);
+  });
+
   it.each([false, true])(
     "acknowledges a producer sink only after successful accounting (fails=%s)",
     async (fails) => {

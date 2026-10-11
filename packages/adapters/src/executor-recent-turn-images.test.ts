@@ -3,16 +3,17 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
+import { acquireComputerExecutionLease, provisionComputer } from "./computer-lifecycle.js";
 import { COMPUTER_TOOL_NAMES, createRunExecutor } from "./executor.js";
 import { NoneSandboxProvider } from "./none-sandbox.js";
 
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ComputerLifecycleModule>()),
-  acquireComputerExecutionLease: async () => null,
-  provisionComputer: async (deps: { sandbox: { describe: () => { id?: string } } }) => {
+  acquireComputerExecutionLease: vi.fn(async () => null),
+  provisionComputer: vi.fn(async (deps: { sandbox: { describe: () => { id?: string } } }) => {
     if (deps.sandbox.describe().id === "none") throw new Error("Computers unavailable");
     return { id: "computer-1", kind: "desktop" };
-  },
+  }),
 }));
 
 const TEXT_ONLY_MODEL = "deepseek/deepseek-v4-flash-0731";
@@ -62,6 +63,7 @@ async function runWithModel(
   scripted = false,
   computerAvailable = true,
   latencyCheck?: "stream" | "setup",
+  scenario?: { prompt: string; useCatalog?: boolean; collision?: boolean },
 ) {
   const run = {
     id: "run-1",
@@ -87,6 +89,23 @@ async function runWithModel(
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;
+    if (scenario?.useCatalog) {
+      const toolName = scenario.collision ? "kith_search_tools" : "list_files";
+      const result = (await next.executeTool?.(
+        "kith_search_tools",
+        { query: toolName },
+        "search",
+      )) as { tools: Array<{ id: string; name: string }> };
+      const hit = result.tools.find((tool) => tool.name === toolName);
+      expect(hit).toBeDefined();
+      expect(
+        await next.executeTool?.(
+          "kith_execute_tool",
+          { id: hit!.id, arguments: scenario.collision ? {} : { path: "" } },
+          "execute",
+        ),
+      ).toEqual(scenario.collision ? { ok: true } : { path: "", entries: [] });
+    }
     if (latencyCheck === "stream") {
       yield { type: "text" as const, text: "Done" };
       // The executor must publish the first safe chunk before requesting more
@@ -153,7 +172,12 @@ async function runWithModel(
       ),
       findUnique: vi.fn(async () => null),
     },
-    task: { findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: "Look again" })) },
+    task: {
+      findUniqueOrThrow: vi.fn(async () => ({
+        id: run.taskId,
+        prompt: scenario?.prompt ?? "Look again",
+      })),
+    },
     computer: { updateMany: vi.fn(async () => ({ count: 1 })) },
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: {
@@ -183,7 +207,15 @@ async function runWithModel(
     botSecret: { findMany: vi.fn(async () => []) },
     agentSkill: { findMany: vi.fn(async () => []) },
     scratchpadItem: { findMany: vi.fn(async () => []) },
+    actionApprovalRule: { findMany: vi.fn(async () => []) },
+    actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: false })) },
     externalEffect: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "effect-1",
+        ...data,
+      })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => {
         if (latencyCheck === "setup") {
           markSetupStarted();
@@ -208,6 +240,7 @@ async function runWithModel(
       ? {
           describe: () => ({ capabilities: { graphical: false } }),
           writeFile: vi.fn(async () => undefined),
+          listFiles: vi.fn(async () => []),
           async *exportWorkspace() {
             yield* [];
           },
@@ -219,6 +252,24 @@ async function runWithModel(
     artifacts: { get },
     events: { append, finalizeRun },
     jobs: { enqueue: vi.fn(async () => undefined) },
+    connector: {
+      discoverTools: vi.fn(async () =>
+        scenario?.collision
+          ? [
+              {
+                name: "kith_search_tools",
+                description: "Fixture connector tool",
+                readOnly: true,
+                inputSchema: { type: "object", properties: {} },
+                route: { connectorId: "fixture", toolName: "kith_search_tools" },
+              },
+            ]
+          : [],
+      ),
+      async *execute() {
+        yield { type: "result", data: { ok: true } };
+      },
+    },
     secrets: [],
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
@@ -245,6 +296,53 @@ async function runWithModel(
 }
 
 describe("response latency", () => {
+  it("never provisions or leases a computer for a greeting", async () => {
+    const provisionCount = vi.mocked(provisionComputer).mock.calls.length;
+    const leaseCount = vi.mocked(acquireComputerExecutionLease).mock.calls.length;
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Hi" },
+    );
+    expect(request.executionProfile).toBe("conversation");
+    expect(request.tools.map((tool) => tool.name)).toEqual([
+      "kith_search_tools",
+      "kith_load_tool",
+      "kith_execute_tool",
+    ]);
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount);
+    expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount);
+  });
+
+  it("can dispatch a connector whose name matches a catalog wrapper without recursion", async () => {
+    await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      useCatalog: true,
+      collision: true,
+    });
+  });
+
+  it("discovers a computer tool on demand in the same durable run", async () => {
+    const provisionCount = vi.mocked(provisionComputer).mock.calls.length;
+    const leaseCount = vi.mocked(acquireComputerExecutionLease).mock.calls.length;
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Hi", useCatalog: true },
+    );
+    expect(request.runId).toBe("run-1");
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount + 1);
+    expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount + 1);
+  });
+
   it.each([false, true])(
     "streams a short reply before completion with computer=%s",
     async (computer) => {
@@ -268,6 +366,12 @@ describe("response latency", () => {
         setupMs: expect.any(Number),
         modelToFirstTextMs: expect.any(Number),
         streamDeliveryMs: expect.any(Number),
+        executionProfile: "agent",
+        leaseMs: expect.any(Number),
+        initialReadsMs: expect.any(Number),
+        connectorMs: expect.any(Number),
+        contextMs: expect.any(Number),
+        computerMs: expect.any(Number),
       });
       for (const key of ["setupMs", "modelToFirstTextMs", "streamDeliveryMs"]) {
         expect(timings[0]?.[1]?.[key]).toBeGreaterThanOrEqual(0);

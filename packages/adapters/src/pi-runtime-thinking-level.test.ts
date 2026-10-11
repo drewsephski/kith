@@ -65,6 +65,21 @@ vi.mock("@earendil-works/pi-ai/providers/all", () => ({
   builtinModels: () => ({
     getModel: (_provider: string, modelId: string) => {
       if (modelId === "reasoning-model") return { provider: "test", id: modelId, reasoning: true };
+      if (modelId === "medium-only")
+        return {
+          provider: "test",
+          id: modelId,
+          reasoning: true,
+          thinkingLevelMap: {
+            off: null,
+            minimal: null,
+            low: null,
+            medium: "medium",
+            high: null,
+            xhigh: null,
+            max: null,
+          },
+        };
       if (modelId === "plain-model") return { provider: "test", id: modelId, reasoning: false };
       if (modelId === "grok-4.6") {
         return {
@@ -123,6 +138,8 @@ async function runWithModel(
   }>,
   maxImagesPerPrompt?: number,
   limits?: { contextWindow?: number; maxTokens?: number },
+  executionProfile?: "conversation" | "agent",
+  steering = false,
 ) {
   const runtime = new PiAgentRuntime();
   for await (const _event of runtime.run(
@@ -134,6 +151,12 @@ async function runWithModel(
       instructions: "",
       history: [],
       tools: builtinAgentTools,
+      executionProfile,
+      claimSteering: steering
+        ? async () => [
+            { id: "steering", messageId: "steering-message", text: "Solve a difficult proof" },
+          ]
+        : undefined,
       model: {
         provider,
         id: modelId,
@@ -191,6 +214,69 @@ describe("Pi agent thinking level", () => {
     const levels = await runWithModel("reasoning-model");
     expect(levels).toEqual(["medium", "medium"]);
     expect(levels.every((level) => level !== "off")).toBe(true);
+  });
+
+  it("uses low default effort for conversation and balanced effort for a helper", async () => {
+    expect(
+      await runWithModel(
+        "reasoning-model",
+        "test",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        "conversation",
+      ),
+    ).toEqual(["low", "medium"]);
+  });
+
+  it("uses balanced implicit effort when a conversation receives additional steering", async () => {
+    expect(
+      await runWithModel(
+        "reasoning-model",
+        "test",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        "conversation",
+        true,
+      ),
+    ).toEqual(["medium", "medium"]);
+  });
+
+  it.each(["high", "xhigh"] as const)(
+    "preserves an explicit %s conversation preference",
+    async (level) => {
+      const levels = await runWithModel(
+        "grok-4.6",
+        "xai",
+        undefined,
+        level,
+        undefined,
+        undefined,
+        undefined,
+        "conversation",
+      );
+      expect(levels).toEqual([level, level]);
+    },
+  );
+
+  it("clamps low conversational effort to a supported level", async () => {
+    expect(
+      await runWithModel(
+        "medium-only",
+        "test",
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        "conversation",
+      ),
+    ).toEqual(["medium", "medium"]);
   });
 
   it("uses a stable provider session for each bot thread", async () => {

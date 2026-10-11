@@ -10,6 +10,7 @@ import type {
 } from "@earendil-works/pi-ai";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import type {
+  AgentModelTiming,
   AgentRuntimeEvent,
   AgentUsage,
   ModelCallObserver,
@@ -217,11 +218,32 @@ export function observedPiStream(
     recordUsage?: (event: Extract<AgentRuntimeEvent, { type: "usage" }>) => void | Promise<void>;
     /** Provider failures only; excludes context, reservations and usage settlement. */
     onProviderError?: (message: AssistantMessage) => void;
+    onTiming?: (timing: AgentModelTiming) => void;
   },
 ) {
   const stream = createAssistantMessageEventStream();
   const reported: ReportedUsageFields = new Set();
   const callId = randomUUID();
+  let requestedAt = 0;
+  let responseCount = 0;
+  let timingSizes = { toolCount: 0, toolSchemaBytes: 0, systemBytes: 0, messageBytes: 0 };
+  const markTiming = (stage: AgentModelTiming["stage"]) => {
+    if (!hooks?.onTiming) return;
+    try {
+      hooks.onTiming({
+        stage,
+        provider: model.provider,
+        model: model.id,
+        callId,
+        elapsedMs: Math.max(0, Math.round(performance.now() - requestedAt)),
+        thinkingLevel: options?.reasoning ?? "off",
+        responseCount,
+        ...timingSizes,
+      });
+    } catch {
+      /* Telemetry cannot affect inference or accounting. */
+    }
+  };
   const emitUsage = async (usage: AgentUsage, operationKind = attribution.operationKind) => {
     const event = {
       type: "usage" as const,
@@ -255,6 +277,13 @@ export function observedPiStream(
       // Reject an unsupported declared control before reserving or making any request.
       const cacheRetention = resolvePiCacheRetention(model, options?.cacheRetention);
       const preparedContext = hooks?.prepareContext?.(context, model) ?? context;
+      if (hooks?.onTiming)
+        timingSizes = {
+          toolCount: preparedContext.tools?.length ?? 0,
+          toolSchemaBytes: Buffer.byteLength(JSON.stringify(preparedContext.tools ?? [])),
+          systemBytes: Buffer.byteLength(preparedContext.systemPrompt ?? ""),
+          messageBytes: Buffer.byteLength(JSON.stringify(preparedContext.messages)),
+        };
       reservation = observer
         ? await observer.beforeCall({
             provider: model.provider,
@@ -266,14 +295,21 @@ export function observedPiStream(
         : undefined;
       options?.signal?.throwIfAborted();
       started = true;
+      requestedAt = performance.now();
+      markTiming("request");
       // Some Pi adapters reject custom fetch outright. Only audited SSE families opt in.
       const collectRawUsage =
         /^(openai-|anthropic-)/.test(model.api) && !model.provider.startsWith("google");
       // Each guarded reservation covers one HTTP attempt, not hidden SDK retries.
-      const streamOptions = {
+      const streamOptions: SimpleStreamOptions = {
         ...options,
         ...(cacheRetention ? { cacheRetention } : {}),
         ...(observer ? { maxRetries: 0 } : {}),
+        onResponse: (response, requestModel) => {
+          responseCount += 1;
+          markTiming("headers");
+          return options?.onResponse?.(response, requestModel);
+        },
       };
       let upstream: ReturnType<Models["streamSimple"]>;
       try {
@@ -303,7 +339,17 @@ export function observedPiStream(
             }
           })()
         : upstream;
+      let sawReasoning = false;
+      let sawText = false;
       for await (const event of events) {
+        if (event.type === "thinking_delta" && !sawReasoning) {
+          sawReasoning = true;
+          markTiming("reasoning");
+        }
+        if (event.type === "text_delta" && !sawText) {
+          sawText = true;
+          markTiming("text");
+        }
         if (hooks?.onProviderError) {
           partialMessage =
             event.type === "done"
@@ -313,6 +359,7 @@ export function observedPiStream(
                 : event.partial;
         }
         if (event.type === "done" || event.type === "error") {
+          markTiming("complete");
           const message = event.type === "done" ? event.message : event.error;
           normalized = normalizePiUsage(message.usage, model, reported);
           await emitUsage(

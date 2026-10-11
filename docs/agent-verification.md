@@ -31,16 +31,20 @@ text, or credentials:
 
 - `queueWaitMs`: time from run creation to executor entry; null for resumed attempts.
 - `setupMs`: executor entry to opening the runtime, including database reads,
-  tool discovery, memory, credentials, and computer provisioning.
+  tool discovery, memory and credentials. Computer startup is included only
+  when file attachments or recovery require it before inference.
 - `modelToFirstTextMs`: opening the runtime to its first text event, including
-  provider connection and reasoning time.
+  provider connection and reasoning time. It can also include preceding tool
+  turns and demand-driven computer startup; per-call `run model timing` traces
+  separate those costs from provider request/headers/text latency.
 - `streamDeliveryMs`: first text event to its first published streaming update,
   including secret-prefix buffering and event persistence. Client rendering and
   network delivery after publication are not measured.
 
 Independent setup reads run concurrently. Streaming redaction holds only suffixes
 that could complete a known secret, so long credentials do not delay unrelated
-reply text. Model choice, reasoning settings, and tool permissions remain explicit.
+reply text. Selected models, explicit reasoning preferences and tool permissions
+remain authoritative; implicit effort and preparation adapt conservatively.
 
 Run the offline latency regressions with:
 
@@ -52,6 +56,11 @@ These tests verify immediate safe-text publication, split-secret protection,
 Unicode boundaries, and concurrent setup reads. They do not establish live
 provider latency; compare worker timings across real runs to identify remaining
 queue, setup, or inference bottlenecks.
+
+For the durable API/worker latency benchmark, timing-stage coverage, measured
+comparisons and verification limits, see [Agent latency](agent-latency.md). Run
+`pnpm perf:agent --trials=20` to exercise real Postgres, Graphile and model SSE
+with deterministic provider and dependency delays.
 
 ## Deterministic Pi tests
 

@@ -190,6 +190,7 @@ import {
   getCachedResponseStreamingEnabled,
   subscribeResponseStreaming,
 } from "../lib/response-streaming";
+import { responseTiming } from "../lib/response-timing";
 import { secretDestinationLabel } from "../lib/secret-destination";
 import { selectableTextFromMarkdown } from "../lib/selectable-text";
 import { currentSessionGeneration } from "../lib/session";
@@ -524,6 +525,25 @@ function Thread() {
   useEffect(() => {
     setSnap(withLiveStreamingProgress(snapRef.current, streamResponses));
   }, [streamResponses]);
+  useEffect(() => {
+    const scope = mobileScreenScopeKey();
+    const runIds =
+      snap?.messages
+        .filter(
+          (message) =>
+            message.role === "bot" &&
+            message.runId &&
+            message.blocks.some((block) => block.kind === "text" && block.text.trim().length > 0),
+        )
+        .map((message) => message.runId!) ?? [];
+    const frame = requestAnimationFrame(() => {
+      for (const runId of runIds) {
+        const timing = responseTiming.frame(scope, runId);
+        if (__DEV__ && timing) console.info("run client timing", timing);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [snap]);
   const activeThreadId = useRef<string | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [taskStarterId, setTaskStarterId] = useState<TaskStarterId | null>(null);
@@ -652,15 +672,31 @@ function Thread() {
   useEffect(() => {
     for (const delivery of draftPersistence.deliveries) {
       if (pendingDeliveries.current > 0) continue;
-      if (feedback.failedSends.some((item) => item.clientNonce === delivery.input.clientNonce)) continue;
+      if (feedback.failedSends.some((item) => item.clientNonce === delivery.input.clientNonce))
+        continue;
       const input = delivery.input;
-      feedback.sendFailed({ clientNonce: input.clientNonce!, artifactIds: new Map(), sending: false,
-        recoveredInput: input, error: t("Delivery was not confirmed. Retry safely."),
-        payload: { originThreadKey: threadKey!, displayText: delivery.displayText, replyPreview: delivery.replyPreview,
-          initialBotTarget: botId, botTarget: input.botId, groupTarget: input.groupId,
+      feedback.sendFailed({
+        clientNonce: input.clientNonce!,
+        artifactIds: new Map(),
+        sending: false,
+        recoveredInput: input,
+        error: t("Delivery was not confirmed. Retry safely."),
+        payload: {
+          originThreadKey: threadKey!,
+          displayText: delivery.displayText,
+          replyPreview: delivery.replyPreview,
+          initialBotTarget: botId,
+          botTarget: input.botId,
+          groupTarget: input.groupId,
           reroutedToGroup: Boolean(input.groupId && input.groupId !== groupId),
-          plan: resolveComposerSendPlan({ text: input.text ?? "", mentions: [], hasAttachments: Boolean(input.artifactIds?.length) }),
-          attachments: [], replyTargetId: input.replyToMessageId, replyQuote: input.replyQuote ?? null,
+          plan: resolveComposerSendPlan({
+            text: input.text ?? "",
+            mentions: [],
+            hasAttachments: Boolean(input.artifactIds?.length),
+          }),
+          attachments: [],
+          replyTargetId: input.replyToMessageId,
+          replyQuote: input.replyQuote ?? null,
         },
       });
     }
@@ -1400,7 +1436,8 @@ function Thread() {
           threadId: notificationThreadId,
         }).catch(() => undefined);
         markReadIfVisible();
-        if (!jumpScrollTarget.current && !expandedHistoryThread.current) void refresh().catch((cause) => setError(errorText(cause)));
+        if (!jumpScrollTarget.current && !expandedHistoryThread.current)
+          void refresh().catch((cause) => setError(errorText(cause)));
         return;
       }
       void setOpenNotificationThread(null).catch(() => undefined);
@@ -1685,20 +1722,27 @@ function Thread() {
     );
     const groupTarget = plan.rerouteGroupId ?? initialGroupTarget;
     const botTarget = reroutedToGroup ? undefined : initialBotTarget;
-    const recovered = feedback.failedSends.find((item) => item.recoveredInput && item.payload.displayText === submitted.promptText && !attachments.length);
-    const attempt = recovered ?? feedback.sendAttempt({
-      originThreadKey: originThreadKey!,
-      displayText: submitted.promptText,
-      replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
-      initialBotTarget,
-      botTarget,
-      groupTarget,
-      reroutedToGroup,
-      plan,
-      attachments: attachments.map((attachment) => ({ ...attachment })),
-      replyTargetId: replyTarget?.id,
-      replyQuote,
-    });
+    const recovered = feedback.failedSends.find(
+      (item) =>
+        item.recoveredInput &&
+        item.payload.displayText === submitted.promptText &&
+        !attachments.length,
+    );
+    const attempt =
+      recovered ??
+      feedback.sendAttempt({
+        originThreadKey: originThreadKey!,
+        displayText: submitted.promptText,
+        replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
+        initialBotTarget,
+        botTarget,
+        groupTarget,
+        reroutedToGroup,
+        plan,
+        attachments: attachments.map((attachment) => ({ ...attachment })),
+        replyTargetId: replyTarget?.id,
+        replyQuote,
+      });
     await deliver(attempt, () => {
       if (originThreadKey !== (activeGroupId.current ?? activeBotId.current)) return;
       const settled = settleComposer(submitted, composerRef.current);
@@ -1726,7 +1770,10 @@ function Thread() {
     setSending(true);
     try {
       if (!current()) return;
-      await deliverSend(attempt.payload, attempt, rpc, (input) => draftPersistence.prepare(input, attempt.payload.displayText, attempt.payload.replyPreview));
+      responseTiming.begin(mobileScreenScopeKey(), attempt.clientNonce);
+      await deliverSend(attempt.payload, attempt, rpc, (input) =>
+        draftPersistence.prepare(input, attempt.payload.displayText, attempt.payload.replyPreview),
+      );
     } catch (err) {
       attempt.error = errorText(err, t("Failed to send message"));
       feedback.sendFailed(attempt);
@@ -2587,7 +2634,10 @@ function Thread() {
       key={attempt.clientNonce}
       attempt={attempt}
       onRetry={() => void deliver(attempt)}
-      onDelete={() => { draftPersistence.confirmed(attempt.clientNonce); feedback.discard(attempt); }}
+      onDelete={() => {
+        draftPersistence.confirmed(attempt.clientNonce);
+        feedback.discard(attempt);
+      }}
     />
   ));
 
@@ -2599,8 +2649,14 @@ function Thread() {
     >
       {error ? (
         <View style={{ marginTop: headerHeight + 28, gap: 8 }}>
-          <Text accessibilityRole="alert" style={{ color: tokens.mutedForeground }}>{error}</Text>
-          <NativeActionButton label={t("Retry")} prominence="plain" onPress={() => void refresh().catch((cause) => setError(errorText(cause)))} />
+          <Text accessibilityRole="alert" style={{ color: tokens.mutedForeground }}>
+            {error}
+          </Text>
+          <NativeActionButton
+            label={t("Retry")}
+            prominence="plain"
+            onPress={() => void refresh().catch((cause) => setError(errorText(cause)))}
+          />
         </View>
       ) : null}
       {runError ? (

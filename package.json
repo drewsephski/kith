@@ -37,7 +37,9 @@
     "compose:up": "docker compose --env-file .env -f infra/compose/docker-compose.yml up --build",
     "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down",
     "compose:reset": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v",
-    "test:desktop-packaged": "tsx packages/testkit/src/cli/harness.ts --desktop"
+    "test:desktop-packaged": "tsx packages/testkit/src/cli/harness.ts --desktop",
+    "perf:agent": "tsx packages/testkit/src/cli/agent-latency.ts",
+    "check:agent-latency": "tsc --noEmit -p packages/testkit/tsconfig.latency.json"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
