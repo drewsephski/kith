@@ -52,11 +52,11 @@ test("other bots retain their own avatars", async ({ page }) => {
   await page.goto(`${fixture}?stream=off&bot=other`);
   const glyph = page.getByTestId("active-bot-glyph");
   await expect(glyph).toBeVisible();
-  await expect(glyph.locator(".rakazo-bot-avatar")).toBeVisible();
+  await expect(glyph.locator(".rakazo-organic-avatar")).toBeVisible();
   await expect(glyph.locator("img")).toHaveCount(0);
   await page.goto(`${fixture}?stream=on&bot=other`);
   await expect(glyph).toBeVisible();
-  await expect(glyph.locator(".rakazo-bot-avatar")).toHaveCount(0);
+  await expect(glyph.locator(".rakazo-organic-avatar")).toHaveCount(0);
 });
 
 test("reduced motion and offscreen loading use the still companion", async ({ page }) => {

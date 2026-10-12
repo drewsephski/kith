@@ -75,6 +75,18 @@ describe("terminal run snapshot authority", () => {
       }),
     ).toBeNull();
   });
+  it("keeps a failed peer as the group headline while siblings remain active", () => {
+    const next = {
+      ...previous,
+      cursor: 9,
+      run: { id: "peer", status: "failed", error: "Could not finish" },
+      messages: [{ id: "peer-result", runId: "peer", seq: 9 }],
+    };
+    const result = reconcileTerminalRunSnapshot(previous, next);
+    expect(result?.run).toEqual(next.run);
+    expect(result?.activeRuns).toEqual([{ id: "run", status: "running" }]);
+    expect(result?.cursor).toBe(previous.cursor);
+  });
   it("settles a known group peer without replacing the newer run's authority", () => {
     const next = {
       ...previous,

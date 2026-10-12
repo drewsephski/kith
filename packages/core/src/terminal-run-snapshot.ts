@@ -38,11 +38,13 @@ export function reconcileTerminalRunSnapshot<T extends Snapshot>(previous: T, ne
   return {
     ...previous,
     run:
-      previous.run && terminal.has(previous.run.id)
-        ? next.run && known.has(next.run.id)
-          ? next.run
-          : null
-        : previous.run,
+      next.run?.status === "failed" && terminal.has(next.run.id)
+        ? next.run
+        : previous.run && terminal.has(previous.run.id)
+          ? next.run && known.has(next.run.id)
+            ? next.run
+            : null
+          : previous.run,
     activeRuns: previous.activeRuns?.filter((item) => !terminal.has(item.id)),
     settledRunIds: [...terminal].reduce(
       (ids, id) => settledRunIds(ids, id),

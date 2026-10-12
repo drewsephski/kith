@@ -22,6 +22,7 @@ import {
 import { mobileScreenScopeKey } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { native, useThemedStyles } from "../../lib/native";
+import { closeSettingsSheet } from "../../lib/settings-sheet";
 
 type Activity = Awaited<ReturnType<typeof fetchSpaceActivity>>;
 export default function ActivityScreen() {
@@ -125,7 +126,10 @@ export default function ActivityScreen() {
             {heading ? <Text style={styles.heading}>{heading}</Text> : null}
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push(activityDestination(run))}
+              onPress={() => {
+                closeSettingsSheet();
+                router.push(activityDestination(run));
+              }}
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
             >
               <View style={styles.top}>
