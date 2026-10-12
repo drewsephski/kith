@@ -237,6 +237,32 @@ describe("source-grounded recommendations", () => {
       "source changed",
     );
   });
+  it.each([
+    ["gmail", 2, false],
+    ["gmail", 3, true],
+    ["googlecalendar", 3, true],
+    ["other", 31, true],
+  ] as const)(
+    "reports bounded discovery coverage for %s / %s accounts",
+    async (provider, count, unavailable) => {
+      const { service, prisma, platform } = setup();
+      const accounts = Array.from({ length: count }, (_, index) => ({
+        ...account,
+        id: `account-${index}`,
+        provider,
+      }));
+      prisma.connection.findMany.mockResolvedValue(accounts);
+      prisma.connection.findFirst.mockResolvedValue(accounts[0]!);
+      prisma.scratchpadItem.findMany.mockResolvedValue([]);
+      platform.upcomingMeetings.mockResolvedValue({ meetings: [], complete: true });
+      const result = await service.discover(actor, "assistant");
+      expect(result).toEqual({ recommendations: [], unavailable });
+      expect(platform.searchMail).toHaveBeenCalledTimes(provider === "gmail" ? 2 : 0);
+      expect(platform.upcomingMeetings).toHaveBeenCalledTimes(
+        provider === "googlecalendar" ? 2 : 0,
+      );
+    },
+  );
   it("includes meetings later this week and reports incomplete provider coverage", async () => {
     const { service, platform } = setup();
     platform.upcomingMeetings.mockResolvedValue({

@@ -338,7 +338,7 @@ export class ForYouRecommendations {
           connectorId: { in: ["composio", "pipedream"] },
         },
         orderBy: { createdAt: "asc" },
-        take: 30,
+        take: 31,
       }),
       this.deps.prisma.scratchpadItem.findMany({
         where: {
@@ -385,8 +385,17 @@ export class ForYouRecommendations {
         updatedAt: row.updatedAt.toISOString(),
       },
     }));
-    const calendars = accounts.filter((c) => taskStarterApp(c.provider) === "calendar").slice(0, 2);
-    const inboxes = accounts.filter((c) => taskStarterApp(c.provider) === "gmail").slice(0, 2);
+    const sourceAccounts = accounts.slice(0, 30);
+    const calendarAccounts = sourceAccounts.filter(
+      (c) => taskStarterApp(c.provider) === "calendar",
+    );
+    const inboxAccounts = sourceAccounts.filter((c) => taskStarterApp(c.provider) === "gmail");
+    const calendars = calendarAccounts.slice(0, 2);
+    const inboxes = inboxAccounts.slice(0, 2);
+    const incomplete =
+      accounts.length > sourceAccounts.length ||
+      calendarAccounts.length > calendars.length ||
+      inboxAccounts.length > inboxes.length;
     const batches = await Promise.allSettled(
       [...calendars, ...inboxes].map(async (connection) => {
         const c = {
@@ -475,7 +484,7 @@ export class ForYouRecommendations {
         }
     return {
       candidates: candidates.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key)),
-      unavailable: batches.some((b) => b.status === "rejected" || !b.value.complete),
+      unavailable: incomplete || batches.some((b) => b.status === "rejected" || !b.value.complete),
       retrievedAt: now,
     };
   }

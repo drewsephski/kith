@@ -117,6 +117,25 @@ describe("background computer maintenance", () => {
     expect(row.status).toBe("cancelled");
     expect(computer.updateMany).toHaveBeenCalledOnce();
   });
+  it("schedules idle sleep when a successful replacement finishes after a late stop", async () => {
+    const { row, computer, deps, jobs } = fixture();
+    replacement.mockImplementationOnce(async () => {
+      row.status = "stopping";
+      return { kind: "e2b" } as Awaited<ReturnType<typeof replaceComputer>>;
+    });
+    await performComputerUpdate(deps, row.id);
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+    expect(jobs.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "computer.sleep",
+        payload: { computerId: row.computerId },
+      }),
+    );
+    await performComputerUpdate(deps, row.id);
+    expect(replacement).toHaveBeenCalledOnce();
+    expect(jobs.enqueue).toHaveBeenCalledOnce();
+  });
   it("persists stages and releases its reservation only after completion; redelivery is harmless", async () => {
     const { row, computer, deps } = fixture();
     replacement.mockImplementationOnce(async (_deps, _id, _mode, _ctx, _holder, progress) => {

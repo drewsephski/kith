@@ -607,7 +607,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
       update.computerId,
       stopped ? "cancelled" : "completed",
     );
-    if (!stopped) scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
+    scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
   } catch (error) {
     getLogger().error("computer update failed", error, { updateId, computerId: update.computerId });
     // Provider errors may contain credentials or private URLs. Expose only the failed stage.
