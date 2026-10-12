@@ -630,7 +630,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     selfHost: {
       eyebrow: "셀프 호스트",
       heading: "셀프 호스트. 컴퓨터는 당신 것",
-      copy: "Mac에서, 또는 당신이 관리하는 머신에서 실행하세요. 데스크톱 앱의 This computer가 Rakazo를 그곳에 설치합니다. Mac Mini는 켜 둔 채 둘 수 있습니다. 키, 모델, 데이터는 모두 당신 것.",
+      copy: "Mac에서, 또는 당신이 관리하는 머신에서 실행하세요. 데스크톱 앱의 This computer가 Kith를 그곳에 설치합니다. Mac Mini는 켜 둔 채 둘 수 있습니다. 키, 모델, 데이터는 모두 당신 것.",
       features: [
         {
           title: "당신 모델",
@@ -658,12 +658,12 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
         {
           question: "Claude Pro/Max 또는 ChatGPT Plus/Pro 구독을 쓸 수 있나요?",
           answer:
-            "네 — 그 구독으로 로그인하거나, API 키, OpenRouter, 로컬 OpenAI 호환 서버(Ollama, LM Studio 등)를 사용하세요. 모델 요금은 Rakazo가 내지 않습니다.",
+            "네 — 그 구독으로 로그인하거나, API 키, OpenRouter, 로컬 OpenAI 호환 서버(Ollama, LM Studio 등)를 사용하세요. 모델 요금은 Kith가 내지 않습니다.",
         },
         {
           question: "이미 Claude나 ChatGPT를 결제 중이면 API 키가 필요한가요?",
           answer:
-            "아니요. Claude Pro/Max 또는 ChatGPT Plus/Pro로 로그인하면 그 구독이 모델을 부담합니다. API 키는 Anthropic, OpenAI, OpenRouter, Grok을 쓰는 다른 경로입니다. 어느 쪽이든 Rakazo가 요금을 내지 않습니다.",
+            "아니요. Claude Pro/Max 또는 ChatGPT Plus/Pro로 로그인하면 그 구독이 모델을 부담합니다. API 키는 Anthropic, OpenAI, OpenRouter, Grok을 쓰는 다른 경로입니다. 어느 쪽이든 Kith가 요금을 내지 않습니다.",
         },
         {
           question: "로컬 모델을 쓸 수 있나요?",
@@ -675,7 +675,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     openSource: {
       eyebrow: "오픈소스",
       heading: "오픈소스. 리포만.",
-      copy: "Rakazo는 Apache-2.0 라이선스이며, 당신 머신에서 당신 모델 키로 실행됩니다. 잠긴 기능도, 외부로 연락하는 것도 없습니다.",
+      copy: "Kith는 Apache-2.0 라이선스이며, 당신 머신에서 당신 모델 키로 실행됩니다. 잠긴 기능도, 외부로 연락하는 것도 없습니다.",
       selfHostTitle: "셀프 호스트",
       selfHostMeta: "지금 사용 가능",
       selfHostItems: [
@@ -699,7 +699,7 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
     },
     cta: {
       heading: "첫 봇을 만나보세요",
-      copy: "미뤄 두었던 일을 Rakazo에 맡기고, 후속까지 맡기세요.",
+      copy: "미뤄 두었던 일을 Kith에 맡기고, 후속까지 맡기세요.",
       getStarted: "시작하기",
       viewOnGithub: "GitHub에서 보기",
       openSourceValue: "오픈소스",
@@ -719,11 +719,11 @@ const HOME_COPY: Record<Locale, HomeCopy> = {
       selfHostNow: "지금 셀프 호스트",
       selfHostHint: "설치 단계는 문서에 있습니다.",
       cloudWaitlist: "Cloud 대기열",
-      cloudHint: "호스팅 Rakazo가 곧 옵니다. 이메일을 남겨 주세요.",
+      cloudHint: "호스팅 Kith가 곧 옵니다. 이메일을 남겨 주세요.",
       back: "뒤로",
       successTitle: "등록되었습니다.",
       successCopy:
-        "호스팅 Rakazo가 준비되면 메일로 알려 드립니다. 오늘 시작하려면 이 페이지의 셀프 호스트 섹션으로 이동하세요.",
+        "호스팅 Kith가 준비되면 메일로 알려 드립니다. 오늘 시작하려면 이 페이지의 셀프 호스트 섹션으로 이동하세요.",
       done: "완료",
       viewOnGithub: "GitHub에서 보기",
     },

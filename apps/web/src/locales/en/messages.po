@@ -194,6 +194,10 @@ msgstr "@{0}"
 msgid "A little help with life."
 msgstr "A little help with life."
 
+#: src/pages/ForYou.tsx
+msgid "A recent unread conversation in your inbox."
+msgstr "A recent unread conversation in your inbox."
+
 #. placeholder {0}: oauth.verificationUri.replace(/^https:\/\//, "")
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -287,6 +291,7 @@ msgstr "Active users"
 
 #: src/components/computer/TerminalApp.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Activity"
 msgstr "Activity"
 
@@ -409,10 +414,6 @@ msgstr "Adding…"
 msgid "Advanced"
 msgstr "Advanced"
 
-#: src/pages/shell/kith-sidebar.tsx
-msgid "Advanced navigation"
-msgstr "Advanced navigation"
-
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr "Advanced..."
@@ -440,6 +441,10 @@ msgstr "All"
 #: src/pages/Artifacts.tsx
 msgid "All conversations"
 msgstr "All conversations"
+
+#: src/components/CalendarAgenda.tsx
+msgid "All day"
+msgstr "All day"
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "All providers"
@@ -923,7 +928,6 @@ msgstr "Can't reach the server."
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1483,9 +1487,7 @@ msgstr "Connection test failed."
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "Connection to {0} is still pending. You can close this and check again."
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
-#: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr "Connections"
 
@@ -1824,6 +1826,10 @@ msgstr "Could not load connections"
 #: src/pages/shell/bot-credentials.tsx
 msgid "Could not load credentials."
 msgstr "Could not load credentials."
+
+#: src/components/CalendarAgenda.tsx
+msgid "Could not load every calendar. Try refreshing."
+msgstr "Could not load every calendar. Try refreshing."
 
 #: src/components/integrations/IntegrationSetup.tsx
 #: src/pages/PluginsOverlay.tsx
@@ -2169,7 +2175,6 @@ msgstr "Couldn't update avatars"
 msgid "Couldn't update messaging settings"
 msgstr "Couldn't update messaging settings"
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
@@ -2610,6 +2615,10 @@ msgstr "Email subject"
 msgid "Email verification required"
 msgstr "Email verification required"
 
+#: src/components/CalendarConnection.tsx
+msgid "Enable briefing"
+msgstr "Enable briefing"
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
 msgstr "Ends {day}"
@@ -3038,6 +3047,10 @@ msgstr "Header value"
 msgid "Hear a sample"
 msgstr "Hear a sample"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Help"
+msgstr "Help"
+
 #: src/pages/Auth.tsx
 msgid "Help and privacy"
 msgstr "Help and privacy"
@@ -3153,6 +3166,7 @@ msgstr "Integration options"
 
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Integrations"
 msgstr "Integrations"
 
@@ -3341,6 +3355,10 @@ msgstr "Loading preview…"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Loading rules…"
 msgstr "Loading rules…"
+
+#: src/components/CalendarAgenda.tsx
+msgid "Loading schedule…"
+msgstr "Loading schedule…"
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading tools…"
@@ -3680,6 +3698,7 @@ msgid "More computer actions"
 msgstr "More computer actions"
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "More options"
 
@@ -3746,6 +3765,10 @@ msgstr "Needs attention"
 #: src/pages/Shell.tsx
 msgid "Needs you"
 msgstr "Needs you"
+
+#: src/pages/Shell.tsx
+msgid "New"
+msgstr "New"
 
 #: src/pages/shell/bot-panel.tsx
 msgid "New bot"
@@ -3838,9 +3861,9 @@ msgstr "No credentials saved for this bot."
 msgid "No events found in the checked window."
 msgstr "No events found in the checked window."
 
-#: src/pages/ForYou.tsx
-msgid "No grounded recommendations right now."
-msgstr "No grounded recommendations right now."
+#: src/components/CalendarAgenda.tsx
+msgid "No events in the next seven days."
+msgstr "No events in the next seven days."
 
 #: src/pages/MessagingSettingsOverlay.tsx
 msgid "No group chats yet."
@@ -3881,6 +3904,10 @@ msgstr "No model catalog is available."
 #: src/lib/model-connection-preflight.ts
 msgid "No models listed."
 msgstr "No models listed."
+
+#: src/pages/ForYou.tsx
+msgid "No new recommendations yet."
+msgstr "No new recommendations yet."
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "No providers found."
@@ -4284,10 +4311,6 @@ msgstr "Prepare me for my next meeting using my calendar, relevant emails, and H
 msgid "Prepare my next meeting"
 msgstr "Prepare my next meeting"
 
-#: src/components/ai/RunStatus.tsx
-msgid "Preparing a response…"
-msgstr "Preparing a response…"
-
 #: src/components/CalendarReceipt.tsx
 msgid "Preparing your briefing"
 msgstr "Preparing your briefing"
@@ -4318,6 +4341,7 @@ msgid "Priority"
 msgstr "Priority"
 
 #: src/pages/Auth.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Privacy"
 msgstr "Privacy"
 
@@ -4515,6 +4539,7 @@ msgid "Redirect URI"
 msgstr "Redirect URI"
 
 #: src/App.tsx
+#: src/components/CalendarAgenda.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -4824,6 +4849,11 @@ msgstr "rev {0}"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Revenue"
 msgstr "Revenue"
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Review “{0}”"
+msgstr "Review “{0}”"
 
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
@@ -5479,9 +5509,14 @@ msgstr "Status"
 msgid "Steps"
 msgstr "Steps"
 
+#: src/components/ComputerUpdateProgress.tsx
 #: src/pages/Shell.tsx
 msgid "Stop"
 msgstr "Stop"
+
+#: src/components/ComputerMaintenanceActions.tsx
+msgid "Stop computer"
+msgstr "Stop computer"
 
 #: src/pages/Shell.tsx
 msgid "Stop speaking"
@@ -5499,6 +5534,7 @@ msgid "Stop waiting"
 msgstr "Stop waiting"
 
 #: src/components/ai/RunStatus.tsx
+#: src/components/ComputerUpdateProgress.tsx
 msgid "Stopped"
 msgstr "Stopped"
 
@@ -5506,6 +5542,10 @@ msgstr "Stopped"
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
 msgstr "Stopped."
+
+#: src/components/ComputerUpdateProgress.tsx
+msgid "Stopping…"
+msgstr "Stopping…"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
@@ -5597,7 +5637,6 @@ msgstr "Task result"
 #: src/pages/ForYou.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
-#: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr "Tasks"
 
@@ -5964,6 +6003,10 @@ msgstr "Unsupported file type: {0}"
 msgid "Untitled email"
 msgstr "Untitled email"
 
+#: src/components/CalendarAgenda.tsx
+msgid "Untitled event"
+msgstr "Untitled event"
+
 #: src/components/EmailCard.tsx
 msgid "Unverified email preview"
 msgstr "Unverified email preview"
@@ -5972,6 +6015,14 @@ msgstr "Unverified email preview"
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Up to date"
 msgstr "Up to date"
+
+#: src/components/CalendarAgenda.tsx
+msgid "Upcoming"
+msgstr "Upcoming"
+
+#: src/components/CalendarAgenda.tsx
+msgid "Upcoming schedule"
+msgstr "Upcoming schedule"
 
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Update"
@@ -6239,6 +6290,7 @@ msgstr "When to use"
 msgid "Where should bots run?"
 msgstr "Where should bots run?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
@@ -6246,6 +6298,10 @@ msgstr "Where should bots run?"
 #: src/pages/Auth.tsx
 msgid "Working…"
 msgstr "Working…"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Workspace"
+msgstr "Workspace"
 
 #: src/components/computer/TerminalApp.tsx
 msgid "Wrote {path}"

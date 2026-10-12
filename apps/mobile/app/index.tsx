@@ -32,7 +32,7 @@ import {
   fetchSpaceActivity,
   formatActivityRelativeTime,
 } from "../lib/activity";
-import { loadActivityMode, saveActivityMode } from "../lib/activity-mode";
+import { saveActivityMode } from "../lib/activity-mode";
 import type {
   MobileBot,
   MobileBotSection,
@@ -140,10 +140,6 @@ export default function Home() {
       else next.add(botId);
       return next;
     });
-  }, []);
-
-  useEffect(() => {
-    void loadActivityMode().then(setActivityMode);
   }, []);
 
   const toggleActivityMode = useCallback(() => {

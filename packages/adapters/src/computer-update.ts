@@ -1,6 +1,7 @@
 import type { AdapterContext } from "@rakazo/adapter-kit";
 import { computerControlExpireJobKey } from "@rakazo/adapter-kit";
-import { type ComputerUpdate, ComputerUpdateSchema } from "@rakazo/contracts";
+import type { Actor, ComputerUpdate } from "@rakazo/contracts";
+import { ComputerUpdateSchema } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -26,6 +27,38 @@ const STALE_MS = 10 * 60_000;
 // revoked: provider release returned, lease write still missing.
 const UNCONFIRMED_HANDBACK_STATUSES = ["reserving", "revoking"] as const;
 const PENDING_HANDBACK_STATUSES = ["reserving", "revoking", "revoked"] as const;
+
+/** A stop request retains the fence until the worker's provider calls have settled. */
+export async function cancelComputerUpdate(prisma: PrismaClient, actor: Actor, id: string) {
+  const scope = {
+    id,
+    computer: {
+      spaceId: actor.spaceId,
+      bots: { some: { userId: actor.userId, archivedAt: null } },
+    },
+  };
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.computerUpdate.findFirst({
+      where: scope,
+    });
+    if (!row) throw new Error("Computer operation is unavailable");
+    const queued = await tx.computerUpdate.updateMany({
+      where: { ...scope, status: "queued" },
+      data: { status: "cancelled" },
+    });
+    if (queued.count === 1) {
+      await tx.computer.updateMany({
+        where: { id: row.computerId, maintenanceId: id },
+        data: { maintenanceId: null },
+      });
+    } else {
+      await tx.computerUpdate.updateMany({
+        where: { ...scope, status: { in: ["running", "interrupted"] } },
+        data: { status: "stopping" },
+      });
+    }
+  });
+}
 
 export function computerUpdateView(
   row: {
@@ -529,6 +562,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
     include: { computer: true },
   });
   const controller = new AbortController();
+  const operationSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]);
   const heartbeat = setInterval(() => {
     void deps.prisma.computerUpdate
       .updateMany({ where: { id: updateId, status: "running" }, data: { updatedAt: new Date() } })
@@ -536,7 +570,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         if (result.count !== 1) controller.abort();
       })
       .catch(() => controller.abort());
-  }, 30_000);
+  }, 1500);
   try {
     const bot = await deps.prisma.bot.findFirst({
       where: { id: update.botId, computerId: update.computerId, archivedAt: null },
@@ -553,11 +587,11 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         botId: update.botId,
         spaceId: update.computer.spaceId,
         userId: bot.userId,
-        signal: controller.signal,
+        signal: operationSignal,
       },
       "none",
       async (stage) => {
-        controller.signal.throwIfAborted();
+        operationSignal.throwIfAborted();
         const result = await deps.prisma.computerUpdate.updateMany({
           where: { id: updateId, status: "running" },
           data: { stage: update.action === "recover" && stage === "saving" ? "preparing" : stage },
@@ -565,12 +599,25 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         if (result.count !== 1) throw new Error("Computer update interrupted");
       },
     );
-    await finishUpdate(deps.prisma, updateId, update.computerId, "completed");
-    scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
+    const latest = await deps.prisma.computerUpdate.findUniqueOrThrow({ where: { id: updateId } });
+    const stopped = latest.status === "stopping";
+    await finishUpdate(
+      deps.prisma,
+      updateId,
+      update.computerId,
+      stopped ? "cancelled" : "completed",
+    );
+    if (!stopped) scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
   } catch (error) {
     getLogger().error("computer update failed", error, { updateId, computerId: update.computerId });
     // Provider errors may contain credentials or private URLs. Expose only the failed stage.
-    await finishUpdate(deps.prisma, updateId, update.computerId, "failed");
+    const latest = await deps.prisma.computerUpdate.findUniqueOrThrow({ where: { id: updateId } });
+    await finishUpdate(
+      deps.prisma,
+      updateId,
+      update.computerId,
+      latest.status === "stopping" ? "cancelled" : "failed",
+    );
   } finally {
     clearInterval(heartbeat);
   }
@@ -580,11 +627,11 @@ async function finishUpdate(
   prisma: PrismaClient,
   id: string,
   computerId: string,
-  status: "completed" | "failed",
+  status: "completed" | "failed" | "cancelled",
 ) {
   await prisma.$transaction(async (tx) => {
     const finished = await tx.computerUpdate.updateMany({
-      where: { id, status: { in: ["running", "interrupted"] } },
+      where: { id, status: { in: ["running", "interrupted", "stopping"] } },
       data: { status },
     });
     if (finished.count !== 1) return;
@@ -600,7 +647,10 @@ export async function reconcileComputerUpdates(deps: Pick<Deps, "prisma" | "jobs
     where: {
       OR: [
         { status: "queued" },
-        { status: "running", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
+        {
+          status: { in: ["running", "stopping"] },
+          updatedAt: { lt: new Date(Date.now() - STALE_MS) },
+        },
         { status: "reserving", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
         { status: "revoking", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
         { status: "revoked", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
@@ -655,7 +705,7 @@ export async function reconcileComputerUpdates(deps: Pick<Deps, "prisma" | "jobs
     } else {
       await deps.prisma.$transaction(async (tx) => {
         const stale = await tx.computerUpdate.updateMany({
-          where: { id: update.id, status: "running", updatedAt: update.updatedAt },
+          where: { id: update.id, status: update.status, updatedAt: update.updatedAt },
           data: { status: "interrupted" },
         });
         // A stale heartbeat is not proof that provider calls have stopped. Only

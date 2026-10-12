@@ -33,17 +33,21 @@ export function ComputerUpdateProgress() {
     t("Reconnecting"),
   ];
   const title = (update: ComputerUpdate) =>
-    computerUpdateNeedsAttention(update)
-      ? update.action === "recover"
-        ? t("Recovery failed")
-        : t("Update failed")
-      : update.action === "recover"
-        ? update.mode === "team"
-          ? t("Recovering Team Computer")
-          : t("Recovering {name}’s Computer", { name: update.name })
-        : update.mode === "team"
-          ? t("Updating Team Computer")
-          : t("Updating {name}’s Computer", { name: update.name });
+    update.status === "stopping"
+      ? t("Stopping…")
+      : update.status === "cancelled"
+        ? t("Stopped")
+        : computerUpdateNeedsAttention(update)
+          ? update.action === "recover"
+            ? t("Recovery failed")
+            : t("Update failed")
+          : update.action === "recover"
+            ? update.mode === "team"
+              ? t("Recovering Team Computer")
+              : t("Recovering {name}’s Computer", { name: update.name })
+            : update.mode === "team"
+              ? t("Updating Team Computer")
+              : t("Updating {name}’s Computer", { name: update.name });
   const selected = updates.find((item) => item.id === openId);
   if (!authenticated) return null;
   return (
@@ -91,6 +95,22 @@ export function ComputerUpdateProgress() {
             </Text>
             {computerUpdateNeedsAttention(selected) ? (
               <Text style={{ color: tokens.mutedForeground }}>
+                {["queued", "running", "stopping"].includes(selected.status) ? (
+                  <NativeActionButton
+                    label={selected.status === "stopping" ? t("Stopping…") : t("Stop")}
+                    prominence="secondary"
+                    fill
+                    busy={busy || selected.status === "stopping"}
+                    onPress={() => {
+                      setBusy(true);
+                      setError(false);
+                      void computerUpdates
+                        .cancel(selected.id)
+                        .catch(() => setError(true))
+                        .finally(() => setBusy(false));
+                    }}
+                  />
+                ) : null}
                 {selected.status === "interrupted"
                   ? t("Recovery is unavailable until the previous operation has stopped.")
                   : t("Recovery restores the last saved workspace. Unsaved work may be lost.")}
@@ -156,7 +176,7 @@ export function ComputerUpdateProgress() {
                 }
               />
             ) : null}
-            {selected.status === "failed" ? (
+            {["failed", "cancelled"].includes(selected.status) ? (
               <NativeActionButton
                 label={t("Recover computer")}
                 busy={busy}
@@ -171,11 +191,15 @@ export function ComputerUpdateProgress() {
               />
             ) : null}
             <NativeActionButton
-              label={selected.status === "failed" ? t("Dismiss") : t("Continue in Background")}
+              label={
+                ["failed", "cancelled"].includes(selected.status)
+                  ? t("Dismiss")
+                  : t("Continue in Background")
+              }
               prominence="secondary"
               fill
               onPress={() => {
-                if (selected.status === "failed")
+                if (["failed", "cancelled"].includes(selected.status))
                   void computerUpdates.dismiss(selected.id).catch(() => setError(true));
                 else computerUpdates.open(null);
               }}

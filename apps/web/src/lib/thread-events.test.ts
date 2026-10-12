@@ -23,6 +23,33 @@ import {
 } from "./thread-events.js";
 
 describe("thread event reduction", () => {
+  it("reconciles a terminal server run even when progress advanced the event cursor", () => {
+    const running = threadRun("run-1");
+    const previous: ThreadSnapshot = {
+      ...snapshot([]),
+      cursor: 20,
+      run: running,
+      activeRuns: [running],
+      messages: [
+        { ...message("progress:run-1", [{ kind: "text", text: "Result" }], 20), runId: running.id },
+      ],
+    };
+    const next = reconcileRefreshedThread(
+      previous,
+      {
+        ...previous,
+        cursor: 19,
+        run: { ...running, status: "completed" },
+        activeRuns: [],
+        messages: [],
+      },
+      null,
+    );
+    expect(next.snapshot.run?.status).toBe("completed");
+    expect(next.snapshot.activeRuns).toEqual([]);
+    expect(next.snapshot.cursor).toBe(20);
+    expect(next.snapshot.messages.some((row) => row.id.startsWith("progress:"))).toBe(false);
+  });
   it("keeps queued messages unread, reads exact inputs, and preserves receipts on updates", () => {
     const initial = snapshot([
       { ...message("user-1", [], 1), role: "user" },

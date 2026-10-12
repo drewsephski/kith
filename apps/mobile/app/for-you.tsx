@@ -1,10 +1,5 @@
 import { useForYouRecommendations } from "@rakazo/chat-ui/suggestions";
-import type {
-  Connection,
-  ConnectionCatalogItem,
-  ForYouDiscovery,
-  RunActivityRow,
-} from "@rakazo/contracts";
+import type { Connection, ConnectionCatalogItem, ForYouDiscovery } from "@rakazo/contracts";
 import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
   availableForYouSuggestions,
@@ -30,7 +25,6 @@ import { MenuPicker } from "../components/menu-picker";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
-import { activityDestination, activityStatusLabel, fetchSpaceActivity } from "../lib/activity";
 import type { MobileMe } from "../lib/api";
 import { captureMobileScreenScope, currentApiBase, rpc, selectedSpaceId } from "../lib/api";
 import { useI18n } from "../lib/i18n";
@@ -59,11 +53,6 @@ export default function ForYou() {
   const [refreshAttempt, setRefreshAttempt] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [work, setWork] = useState<{
-    active: RunActivityRow[];
-    recent: RunActivityRow[];
-    scope: string;
-  } | null>(null);
   const [context, setContext] = useState<{
     spaceId: string | null;
     endpoint: string;
@@ -79,7 +68,6 @@ export default function ForYou() {
       const spaceId = selectedSpaceId();
       const session = currentSessionGeneration();
       const endpoint = currentApiBase();
-      const scope = `${endpoint}:${spaceId}:${session}`;
       const current = () =>
         active &&
         scopeCurrent() &&
@@ -93,21 +81,19 @@ export default function ForYou() {
           ? previous
           : null,
       );
-      setWork((previous) => (previous?.scope === scope ? previous : null));
       const load = async () => {
         if (pending || !current()) return;
         pending = true;
         setLoading(true);
         setLoadError(null);
-        const [accounts, catalog, assistant, activity] = await Promise.allSettled([
+        const [accounts, catalog, assistant] = await Promise.allSettled([
           rpc<Connection[]>("connections/list"),
           rpc<ConnectionCatalogItem[]>("connections/catalog", {}),
           rpc<{ botId: string | null }>("assistant/get"),
-          fetchSpaceActivity(),
         ]);
         pending = false;
         if (!current()) return;
-        const failed = [accounts, catalog, assistant, activity].find(
+        const failed = [accounts, catalog, assistant].find(
           (result) => result.status === "rejected",
         );
         if (failed?.status === "rejected")
@@ -125,7 +111,6 @@ export default function ForYou() {
               ? (assistant.value.botId ?? undefined)
               : previous?.assistantId,
         }));
-        if (activity.status === "fulfilled") setWork({ ...activity.value, scope });
         setLoading(false);
         recommendationRefresh.current();
       };
@@ -153,30 +138,6 @@ export default function ForYou() {
   });
   recommendationRefresh.current = discovery.refresh;
   const services = currentContext?.services ?? [];
-  const currentWork =
-    work?.scope === `${currentApiBase()}:${selectedSpaceId()}:${currentSessionGeneration()}`
-      ? work
-      : null;
-  const rows = [...(currentWork?.active ?? []), ...(currentWork?.recent ?? [])];
-  const uniqueRows = [...new Map(rows.map((run) => [run.runId, run])).values()];
-  const sections = [
-    {
-      title: "Needs your attention",
-      rows: uniqueRows.filter(
-        (run) => run.status === "waiting_input" || run.status === "waiting_takeover",
-      ),
-    },
-    {
-      title: "Working on",
-      rows: uniqueRows.filter((run) => ["queued", "leased", "running"].includes(run.status)),
-    },
-    {
-      title: "Recent work",
-      rows: uniqueRows
-        .filter((run) => ["completed", "failed", "cancelled"].includes(run.status))
-        .slice(0, 5),
-    },
-  ];
   const choices = [
     { key: "all", label: t("All") },
     { key: "tasks", label: t("Tasks") },
@@ -262,37 +223,6 @@ export default function ForYou() {
             />
           </View>
         ) : null}
-        {sections
-          .filter((section) => section.rows.length)
-          .map((section) => (
-            <View key={section.title} style={styles.group}>
-              <Text accessibilityRole="header" style={styles.heading}>
-                {t(section.title)}
-              </Text>
-              {section.rows.map((run) => (
-                <Pressable
-                  key={run.runId}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${run.promptSnippet || run.botName}. ${activityStatusLabel(run.status)}`}
-                  onPress={() => router.push(activityDestination(run))}
-                  style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-                >
-                  <View style={styles.copy}>
-                    <Text style={styles.title}>{run.promptSnippet || run.botName}</Text>
-                    <Text style={styles.description}>
-                      {activityStatusLabel(run.status)} · {run.groupName ?? run.botName}
-                    </Text>
-                  </View>
-                  <NativeSymbol
-                    ios="chevron.right"
-                    android="chevron-forward"
-                    size={16}
-                    color={tokens.mutedForeground}
-                  />
-                </Pressable>
-              ))}
-            </View>
-          ))}
         <View style={styles.group}>
           <MenuPicker label={t("Show")} choices={choices} value={category} onChange={setCategory} />
         </View>
@@ -325,19 +255,23 @@ export default function ForYou() {
                 {t("Some sources are unavailable. Try refreshing.")}
               </Text>
             ) : !discovery.recommendations.length ? (
-              <Text style={styles.description}>{t("No grounded recommendations right now.")}</Text>
+              <Text style={styles.description}>{t("No new recommendations yet.")}</Text>
             ) : null}
             {discovery.recommendations.map((recommendation) => (
               <View key={recommendation.id} style={styles.group}>
                 <NativeActionButton
                   label={
-                    recommendation.kind === "meeting"
-                      ? t("Prepare for “{title}”", {
+                    recommendation.kind === "mail"
+                      ? t("Review “{title}”", {
                           title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
                         })
-                      : t("Continue “{title}”", {
-                          title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
-                        })
+                      : recommendation.kind === "meeting"
+                        ? t("Prepare for “{title}”", {
+                            title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
+                          })
+                        : t("Continue “{title}”", {
+                            title: recommendation.sources[0]?.title.slice(0, 120) ?? "",
+                          })
                   }
                   disabled={busy}
                   onPress={() =>
@@ -353,9 +287,11 @@ export default function ForYou() {
                   }
                 />
                 <Text style={styles.description}>
-                  {recommendation.kind === "meeting"
-                    ? t("An upcoming event on your calendar.")
-                    : t("An unfinished item in your saved work.")}
+                  {recommendation.kind === "mail"
+                    ? t("A recent unread conversation in your inbox.")
+                    : recommendation.kind === "meeting"
+                      ? t("An upcoming event on your calendar.")
+                      : t("An unfinished item in your saved work.")}
                 </Text>
                 {recommendation.startsAt ? (
                   <Text style={styles.description}>

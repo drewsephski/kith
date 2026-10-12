@@ -3,6 +3,34 @@ import type { ThreadEvent } from "./api";
 import { recoverThreadSubscription } from "./thread-subscription";
 
 afterEach(() => vi.useRealTimers());
+it("reconciles active runs on a healthy socket and stops when the screen scope changes", async () => {
+  vi.useFakeTimers();
+  const abort = new AbortController();
+  const reconcile = vi.fn(async () => {});
+  let settle: (() => void) | undefined;
+  let current = true;
+  const task = recoverThreadSubscription({
+    signal: abort.signal,
+    isCurrent: () => current,
+    snapshot: async () => ({ threadId: "owned", cursor: 1 }),
+    reconcile,
+    shouldReconcile: () => true,
+    subscribe: () =>
+      new Promise<void>((resolve) => {
+        settle = resolve;
+      }),
+    receive: vi.fn(),
+    reconnecting: vi.fn(),
+    failed: vi.fn(),
+  });
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(reconcile).toHaveBeenCalledOnce();
+  current = false;
+  await vi.advanceTimersByTimeAsync(15_000);
+  expect(reconcile).toHaveBeenCalledOnce();
+  settle?.();
+  await task;
+});
 it("recovers an initially failed snapshot before accepting live events and resumes without replay", async () => {
   vi.useFakeTimers();
   const abort = new AbortController();

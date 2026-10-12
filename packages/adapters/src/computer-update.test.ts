@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
 import { replaceComputer } from "./computer-lifecycle.js";
 import {
+  cancelComputerUpdate,
   performComputerUpdate,
   queueComputerUpdate,
   reconcileComputerUpdates,
@@ -39,6 +40,7 @@ function fixture(status = "queued") {
     findUniqueOrThrow: vi.fn(async () => row.computer),
   };
   const computerUpdate = {
+    findFirst: vi.fn(async () => row),
     create: vi.fn(async () => row),
     findUniqueOrThrow: vi.fn(async () => row),
     findMany: vi.fn(async () => [row]),
@@ -66,6 +68,55 @@ function fixture(status = "queued") {
   return { row, computer, computerUpdate, deps, jobs };
 }
 describe("background computer maintenance", () => {
+  it("stops queued work before the worker can claim it", async () => {
+    const { row, deps, computer } = fixture();
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+    await performComputerUpdate(deps, row.id);
+    expect(replacement).not.toHaveBeenCalled();
+  });
+  it("scopes a stop request and preserves a running worker's reservation", async () => {
+    const { row, deps, computer, computerUpdate } = fixture("running");
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(computerUpdate.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: row.id,
+        computer: { spaceId: "space", bots: { some: { userId: "user", archivedAt: null } } },
+      },
+    });
+    expect(row.status).toBe("stopping");
+    expect(computer.updateMany).not.toHaveBeenCalled();
+  });
+  it("keeps the reservation until a stopped provider operation settles", async () => {
+    vi.useFakeTimers();
+    const { row, computer, deps } = fixture();
+    let settle: (() => void) | undefined;
+    replacement.mockImplementationOnce(async (_deps, _id, _mode, context) => {
+      await new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      context.signal.throwIfAborted();
+      return {} as Awaited<ReturnType<typeof replaceComputer>>;
+    });
+    const running = performComputerUpdate(deps, row.id);
+    await vi.advanceTimersByTimeAsync(0);
+    row.status = "stopping";
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(computer.updateMany).not.toHaveBeenCalled();
+    settle?.();
+    await running;
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+  });
   it("persists stages and releases its reservation only after completion; redelivery is harmless", async () => {
     const { row, computer, deps } = fixture();
     replacement.mockImplementationOnce(async (_deps, _id, _mode, _ctx, _holder, progress) => {

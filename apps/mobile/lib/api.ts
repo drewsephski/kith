@@ -34,6 +34,7 @@ import {
   prependThreadHistoryPage,
   progressMessageId,
   readBoundedJsonResponse,
+  reconcileTerminalRunSnapshot,
   reduceLiveMessageBlocks,
   replyMetadata,
   runFailureError,
@@ -1047,7 +1048,8 @@ export function mergeMobileSnapshot(
   next: MobileSnapshot,
   preserveLoadedHistory = false,
 ): MobileSnapshot {
-  if (prev?.threadId === next.threadId && (prev.cursor ?? -1) > (next.cursor ?? -1)) return prev;
+  if (prev?.threadId === next.threadId && (prev.cursor ?? -1) > (next.cursor ?? -1))
+    return reconcileTerminalRunSnapshot(prev, next) ?? prev;
   return mergeThreadHistory(prev, next, preserveLoadedHistory);
 }
 

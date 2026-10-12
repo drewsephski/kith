@@ -1,3 +1,4 @@
+import type { MemoryStore } from "@rakazo/adapter-kit";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,7 +42,7 @@ const task = {
   status: "open",
   updatedAt: new Date("2026-10-10T12:00:00Z"),
 };
-function setup() {
+function setup(memory?: MemoryStore) {
   const rows = new Map<
     string,
     {
@@ -58,6 +59,22 @@ function setup() {
   >();
   const platform = {
     upcomingMeetings: vi.fn(async () => ({ meetings: [meeting], complete: true })),
+    searchMail: vi.fn(async () => ({
+      messages: [] as Array<{
+        id: string;
+        threadId: string;
+        connectionId: string;
+        accountLabel: string;
+        subject: string;
+        from: string;
+        date: string;
+        snippet: string;
+        url: string;
+        text: string;
+        to: string[];
+      }>,
+      complete: true,
+    })),
   };
   const prisma = {
     personalAssistant: { findUnique: vi.fn(async () => ({ botId: "assistant" })) },
@@ -133,7 +150,7 @@ function setup() {
     runtime,
   } as unknown as TaskStarterDependencies;
   return {
-    service: new ForYouRecommendations(deps),
+    service: new ForYouRecommendations({ ...deps, memory }),
     prisma,
     platform,
     runtime,
@@ -148,6 +165,88 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("source-grounded recommendations", () => {
+  it("uses scoped saved preferences to rank verified opportunities without creating facts", async () => {
+    const read = vi.fn(async () => ({
+      documents: [
+        {
+          path: "priorities.md",
+          revision: 1,
+          content: "Focus on portfolio introduction review.",
+          updatedAt: "2026-10-10T12:00:00Z",
+        },
+      ],
+    }));
+    const memory = { read } as unknown as MemoryStore;
+    const { service, platform } = setup(memory);
+    platform.upcomingMeetings.mockResolvedValue({
+      complete: true,
+      meetings: [
+        { ...meeting, id: "budget", title: "Budget meeting" },
+        { ...meeting, id: "portfolio", title: "Portfolio introduction review" },
+      ],
+    });
+    const result = await service.discover(actor, "assistant");
+    expect(result.recommendations[0]?.title).toBe("Prepare for “Portfolio introduction review”");
+    expect(read).toHaveBeenCalledWith(
+      { scope: "user" },
+      expect.objectContaining({ userId: actor.userId, spaceId: actor.spaceId }),
+    );
+    expect(read).toHaveBeenCalledWith(
+      { scope: "bot", botId: "assistant" },
+      expect.objectContaining({ userId: actor.userId, spaceId: actor.spaceId }),
+    );
+    expect(result.recommendations.every((card) => card.sources.length > 0)).toBe(true);
+  });
+  it("discovers and revalidates recent unread inbox evidence without claiming a reply is required", async () => {
+    const { service, prisma, platform } = setup();
+    const inbox = { ...account, id: "mail", provider: "gmail" };
+    prisma.connection.findMany.mockResolvedValue([inbox]);
+    prisma.connection.findFirst.mockResolvedValue(inbox);
+    prisma.scratchpadItem.findMany.mockResolvedValue([]);
+    platform.searchMail.mockResolvedValue({
+      complete: true,
+      messages: [
+        {
+          id: "email",
+          threadId: "email-thread",
+          connectionId: "mail",
+          accountLabel: "Inbox",
+          subject: "Portfolio review",
+          from: "reviewer@example.test",
+          date: "2026-10-10T12:00:00Z",
+          snippet: "Can we review the introduction?",
+          url: "https://mail.google.com/mail/u/0/#inbox/fixture",
+          text: "",
+          to: [],
+        },
+      ],
+    });
+    const result = await service.discover(actor, "assistant");
+    expect(result.recommendations).toMatchObject([
+      { kind: "mail", title: "Review “Portfolio review”", sources: [{ connectionId: "mail" }] },
+    ]);
+    expect(platform.searchMail).toHaveBeenCalledWith(
+      expect.objectContaining({ maxMessages: 10, includeThreadContext: false }),
+      expect.objectContaining({ userId: actor.userId, spaceId: actor.spaceId }),
+    );
+    const prepared = await service.launch(actor, "assistant", result.recommendations[0]!.id);
+    expect(prepared.source).toMatchObject({ kind: "connection", id: "mail" });
+    expect(prepared.prompt).toContain("Do not send messages");
+    platform.searchMail.mockResolvedValue({ complete: true, messages: [] });
+    await expect(service.launch(actor, "assistant", result.recommendations[0]!.id)).rejects.toThrow(
+      "source changed",
+    );
+  });
+  it("includes meetings later this week and reports incomplete provider coverage", async () => {
+    const { service, platform } = setup();
+    platform.upcomingMeetings.mockResolvedValue({
+      meetings: [{ ...meeting, start: "2026-10-15T16:00:00Z" }],
+      complete: false,
+    });
+    const result = await service.discover(actor, "assistant");
+    expect(result.unavailable).toBe(true);
+    expect(result.recommendations[0]).toMatchObject({ startsAt: "2026-10-15T16:00:00Z" });
+  });
   it("ranks exact upcoming events and saved work without inventing a company, date, role, or urgency", async () => {
     const { service, platform, runtime, prisma } = setup();
     const result = await service.discover(actor, "assistant");

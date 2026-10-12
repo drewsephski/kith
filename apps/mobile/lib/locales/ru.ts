@@ -1087,4 +1087,20 @@ export const RU_MESSAGES: Record<string, string> = {
   "An upcoming event on your calendar.": "Предстоящее событие в вашем календаре.",
   "An unfinished item in your saved work.": "Незавершённая задача в сохранённой работе.",
   "Waiting for approval": "Ожидание одобрения",
+  "A recent unread conversation in your inbox.":
+    "Недавняя непрочитанная переписка в вашем почтовом ящике.",
+  "No new recommendations yet.": "Новых рекомендаций пока нет.",
+  "Review “{title}”": "Просмотреть «{title}»",
+  "Stopping…": "Останавливаем…",
+  "Loading schedule…": "Загружаем расписание…",
+  "Could not load every calendar. Try refreshing.":
+    "Не удалось загрузить все календари. Попробуйте обновить.",
+  "No events in the next seven days.": "В ближайшие семь дней событий нет.",
+  "Untitled event": "Событие без названия",
+  "All day": "Весь день",
+  "Open event": "Открыть событие",
+  Calendar: "Календарь",
+  "Stop computer": "Остановить компьютер",
+  "View schedule": "Посмотреть расписание",
+  "Enable briefing": "Включить сводку",
 };

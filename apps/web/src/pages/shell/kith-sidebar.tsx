@@ -13,6 +13,11 @@ import {
   BrainIcon,
   Button,
   ConnectIcon,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   FoldersIcon,
   KithAvatar,
   NavigationButton,
@@ -123,6 +128,7 @@ export function KithSidebar({
   onIntegrations,
   onSettings,
   onAdvanced,
+  creationMenu,
   creating,
   forYouOpen = false,
   onForYou,
@@ -148,6 +154,7 @@ export function KithSidebar({
   onIntegrations: () => void;
   onSettings: () => void;
   onAdvanced: () => void;
+  creationMenu?: ReactNode;
   creating: boolean;
 }) {
   const { t } = useLingui();
@@ -257,15 +264,17 @@ export function KithSidebar({
             <Trans>Search</Trans>
             <kbd className="ms-auto text-xs">{modifier}K</kbd>
           </Button>
-          <Button
-            variant="ghost"
-            className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
-            onClick={onNewThread}
-            disabled={creating || !assistantId}
-          >
-            <Plus size={16} />
-            {creating ? <Trans>Opening…</Trans> : <Trans>New conversation</Trans>}
-          </Button>
+          {creationMenu ?? (
+            <Button
+              variant="ghost"
+              className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
+              onClick={onNewThread}
+              disabled={creating || !assistantId}
+            >
+              <Plus size={16} />
+              {creating ? <Trans>Opening…</Trans> : <Trans>New conversation</Trans>}
+            </Button>
+          )}
         </nav>
         <div className="rk-scroll min-h-0 flex-1 overflow-y-auto px-3 pt-6">
           {active.length ? (
@@ -312,7 +321,7 @@ export function KithSidebar({
               onClick={onActivity}
             >
               <ListTodo size={16} />
-              <Trans>Tasks</Trans>
+              <Trans>Activity</Trans>
             </NavigationButton>
             <NavigationButton
               selected={activeDetail === "memory"}
@@ -352,7 +361,7 @@ export function KithSidebar({
               onClick={onIntegrations}
             >
               <ConnectIcon ref={connectIcon} size={16} />
-              <Trans>Connections</Trans>
+              <Trans>Integrations</Trans>
             </NavigationButton>
             <div className="mt-3 flex items-center gap-1 border-t border-sidebar-border pt-3">
               <NavigationButton
@@ -369,15 +378,46 @@ export function KithSidebar({
                 <SettingsIcon ref={settingsIcon} size={16} />
                 <Trans>Settings</Trans>
               </NavigationButton>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onAdvanced}
-                aria-label={t`Advanced navigation`}
-                title={t`Advanced navigation`}
-              >
-                <MoreHorizontal size={17} />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon-sm" />}
+                  aria-label={t`More options`}
+                  title={t`More options`}
+                >
+                  <MoreHorizontal size={17} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top">
+                  <DropdownMenuItem onClick={onAdvanced}>
+                    <Trans>Workspace</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onIntegrations}>
+                    <Trans>Integrations</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    render={
+                      <a
+                        href="https://www.kith.surf/support/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    <Trans>Help</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <a
+                        href="https://www.kith.surf/privacy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    <Trans>Privacy</Trans>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </nav>
         </SelectionGroup>

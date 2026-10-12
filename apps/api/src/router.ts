@@ -51,6 +51,7 @@ import {
   ComputerBusyError,
   ComputerSuspendedError,
   cancelComputerRunWork,
+  cancelComputerUpdate,
   checkpointAndRecordComputerWorkspace,
   clearInactiveUserComputerControl,
   codexLiveCatalogsForSpace,
@@ -2662,10 +2663,14 @@ export function createRouter(deps: RouterDeps) {
           throw error;
         }
       }),
+      cancelUpdate: authed.computer.cancelUpdate.handler(async ({ context, input }) => {
+        await cancelComputerUpdate(deps.prisma, context.actor, input.id);
+        return { ok: true as const };
+      }),
       updates: authed.computer.updates.handler(async ({ context }) => {
         const rows = await deps.prisma.computerUpdate.findMany({
           where: {
-            status: { in: ["queued", "running", "interrupted", "failed"] },
+            status: { in: ["queued", "running", "stopping", "cancelled", "interrupted", "failed"] },
             computer: {
               spaceId: context.actor.spaceId,
               bots: { some: { userId: context.actor.userId, archivedAt: null } },
@@ -2718,7 +2723,7 @@ export function createRouter(deps: RouterDeps) {
         await deps.prisma.computerUpdate.updateMany({
           where: {
             id: input.id,
-            status: "failed",
+            status: { in: ["failed", "cancelled"] },
             computer: {
               spaceId: context.actor.spaceId,
               bots: { some: { userId: context.actor.userId, archivedAt: null } },
@@ -3260,6 +3265,14 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     calendar: {
+      agenda: authed.calendar.agenda.handler(async ({ context, input }) => {
+        if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
+        return deps.calendar.agenda(
+          context.actor,
+          input.timezone,
+          context.signal ?? new AbortController().signal,
+        );
+      }),
       status: authed.calendar.status.handler(async ({ context }) => {
         if (!deps.calendar) throw new ORPCError("NOT_IMPLEMENTED");
         return deps.calendar.status(context.actor);

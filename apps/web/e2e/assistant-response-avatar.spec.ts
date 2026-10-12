@@ -65,7 +65,7 @@ test("reduced motion and offscreen loading use the still companion", async ({ pa
   const avatar = page.getByTestId("active-bot-glyph").locator("img");
   await expect(avatar).toHaveAttribute("data-animated", "false");
   await expect(avatar).toHaveAttribute("src", /kith-companion\.webp/);
-  await expect(page.getByRole("status")).toContainText("Preparing a response…");
+  await expect(page.getByRole("status")).toContainText("Working…");
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await expect(avatar).toHaveAttribute("data-animated", "true");
   await avatar.evaluate((image: HTMLImageElement) => {

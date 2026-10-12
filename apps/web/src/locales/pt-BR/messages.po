@@ -194,6 +194,10 @@ msgstr "@{0}"
 msgid "A little help with life."
 msgstr ""
 
+#: src/pages/ForYou.tsx
+msgid "A recent unread conversation in your inbox."
+msgstr ""
+
 #. placeholder {0}: oauth.verificationUri.replace(/^https:\/\//, "")
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/Onboarding.tsx
@@ -287,6 +291,7 @@ msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Activity"
 msgstr "Atividade"
 
@@ -409,10 +414,6 @@ msgstr "Adicionando"
 msgid "Advanced"
 msgstr "Avançado"
 
-#: src/pages/shell/kith-sidebar.tsx
-msgid "Advanced navigation"
-msgstr ""
-
 #: src/pages/RoutineEditor.tsx
 msgid "Advanced..."
 msgstr ""
@@ -439,6 +440,10 @@ msgstr "Tudo"
 
 #: src/pages/Artifacts.tsx
 msgid "All conversations"
+msgstr ""
+
+#: src/components/CalendarAgenda.tsx
+msgid "All day"
 msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
@@ -923,7 +928,6 @@ msgstr "Não é possível acessar o servidor."
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1483,9 +1487,7 @@ msgstr "O teste de conexão falhou."
 msgid "Connection to {0} is still pending. You can close this and check again."
 msgstr "A conexão com o {0} ainda está pendente. Você pode fechar isso e verificar novamente."
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
-#: src/pages/shell/kith-sidebar.tsx
 msgid "Connections"
 msgstr ""
 
@@ -1823,6 +1825,10 @@ msgstr ""
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Could not load credentials."
+msgstr ""
+
+#: src/components/CalendarAgenda.tsx
+msgid "Could not load every calendar. Try refreshing."
 msgstr ""
 
 #: src/components/integrations/IntegrationSetup.tsx
@@ -2169,7 +2175,6 @@ msgstr ""
 msgid "Couldn't update messaging settings"
 msgstr ""
 
-#: src/pages/Shell.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
@@ -2610,6 +2615,10 @@ msgstr "Assunto do e-mail"
 msgid "Email verification required"
 msgstr "É necessário verificar o e-mail"
 
+#: src/components/CalendarConnection.tsx
+msgid "Enable briefing"
+msgstr ""
+
 #: src/pages/BillingSettingsPanel.tsx
 msgid "Ends {day}"
 msgstr ""
@@ -3038,6 +3047,10 @@ msgstr "Valor do cabeçalho"
 msgid "Hear a sample"
 msgstr "Ouvir uma amostra"
 
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Help"
+msgstr ""
+
 #: src/pages/Auth.tsx
 msgid "Help and privacy"
 msgstr ""
@@ -3153,6 +3166,7 @@ msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/Shell.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Integrations"
 msgstr "Integrações"
 
@@ -3341,6 +3355,10 @@ msgstr "Carregando Visualização…"
 #: src/components/ApprovalRulesSettings.tsx
 msgid "Loading rules…"
 msgstr "Carregando regras…"
+
+#: src/components/CalendarAgenda.tsx
+msgid "Loading schedule…"
+msgstr ""
 
 #: src/pages/PluginsOverlay.tsx
 msgid "Loading tools…"
@@ -3680,6 +3698,7 @@ msgid "More computer actions"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "Mais opções"
 
@@ -3745,6 +3764,10 @@ msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Needs you"
+msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "New"
 msgstr ""
 
 #: src/pages/shell/bot-panel.tsx
@@ -3838,8 +3861,8 @@ msgstr ""
 msgid "No events found in the checked window."
 msgstr "Nenhum evento no período verificado."
 
-#: src/pages/ForYou.tsx
-msgid "No grounded recommendations right now."
+#: src/components/CalendarAgenda.tsx
+msgid "No events in the next seven days."
 msgstr ""
 
 #: src/pages/MessagingSettingsOverlay.tsx
@@ -3881,6 +3904,10 @@ msgstr "Nenhum catálogo de modelos está disponível."
 #: src/lib/model-connection-preflight.ts
 msgid "No models listed."
 msgstr "Nenhum modelo listado."
+
+#: src/pages/ForYou.tsx
+msgid "No new recommendations yet."
+msgstr ""
 
 #: src/pages/ModelSettingsOverlay.tsx
 msgid "No providers found."
@@ -4284,10 +4311,6 @@ msgstr ""
 msgid "Prepare my next meeting"
 msgstr ""
 
-#: src/components/ai/RunStatus.tsx
-msgid "Preparing a response…"
-msgstr ""
-
 #: src/components/CalendarReceipt.tsx
 msgid "Preparing your briefing"
 msgstr "Preparando seu resumo"
@@ -4318,6 +4341,7 @@ msgid "Priority"
 msgstr ""
 
 #: src/pages/Auth.tsx
+#: src/pages/shell/kith-sidebar.tsx
 msgid "Privacy"
 msgstr ""
 
@@ -4515,6 +4539,7 @@ msgid "Redirect URI"
 msgstr ""
 
 #: src/App.tsx
+#: src/components/CalendarAgenda.tsx
 #: src/components/ErrorBoundary.tsx
 #: src/pages/ForYou.tsx
 #: src/pages/RoutineRunHistory.tsx
@@ -4823,6 +4848,11 @@ msgstr "rev {0}"
 
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "Revenue"
+msgstr ""
+
+#. placeholder {0}: recommendation.sources[0]?.title.slice(0, 120)
+#: src/pages/ForYou.tsx
+msgid "Review “{0}”"
 msgstr ""
 
 #. js-lingui-explicit-id
@@ -5479,9 +5509,14 @@ msgstr ""
 msgid "Steps"
 msgstr "Passos"
 
+#: src/components/ComputerUpdateProgress.tsx
 #: src/pages/Shell.tsx
 msgid "Stop"
 msgstr "Parar"
+
+#: src/components/ComputerMaintenanceActions.tsx
+msgid "Stop computer"
+msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Stop speaking"
@@ -5499,6 +5534,7 @@ msgid "Stop waiting"
 msgstr ""
 
 #: src/components/ai/RunStatus.tsx
+#: src/components/ComputerUpdateProgress.tsx
 msgid "Stopped"
 msgstr ""
 
@@ -5506,6 +5542,10 @@ msgstr ""
 #: src/lib/browser-notifications.ts
 msgid "Stopped."
 msgstr "Interrompido."
+
+#: src/components/ComputerUpdateProgress.tsx
+msgid "Stopping…"
+msgstr ""
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Stored encrypted"
@@ -5597,7 +5637,6 @@ msgstr ""
 #: src/pages/ForYou.tsx
 #: src/pages/Shell.tsx
 #: src/pages/shell/conversation-menu.tsx
-#: src/pages/shell/kith-sidebar.tsx
 msgid "Tasks"
 msgstr "Tarefas"
 
@@ -5964,6 +6003,10 @@ msgstr "Tipo de arquivo não suportado: {0}"
 msgid "Untitled email"
 msgstr ""
 
+#: src/components/CalendarAgenda.tsx
+msgid "Untitled event"
+msgstr ""
+
 #: src/components/EmailCard.tsx
 msgid "Unverified email preview"
 msgstr "Prévia de e-mail não verificada"
@@ -5971,6 +6014,14 @@ msgstr "Prévia de e-mail não verificada"
 #: src/components/DesktopUpdates.tsx
 #: src/components/SoftwareUpdateSection.tsx
 msgid "Up to date"
+msgstr ""
+
+#: src/components/CalendarAgenda.tsx
+msgid "Upcoming"
+msgstr ""
+
+#: src/components/CalendarAgenda.tsx
+msgid "Upcoming schedule"
 msgstr ""
 
 #: src/components/SoftwareUpdateSection.tsx
@@ -6239,6 +6290,7 @@ msgstr "Quando usar"
 msgid "Where should bots run?"
 msgstr "Onde os bots devem ser executados?"
 
+#: src/components/ai/RunStatus.tsx
 #: src/components/task-starters/TaskStarterSetup.tsx
 #: src/components/TaskReceiptHeader.tsx
 #: src/components/ToolActivityDisclosure.tsx
@@ -6246,6 +6298,10 @@ msgstr "Onde os bots devem ser executados?"
 #: src/pages/Auth.tsx
 msgid "Working…"
 msgstr "Trabalhando…"
+
+#: src/pages/shell/kith-sidebar.tsx
+msgid "Workspace"
+msgstr ""
 
 #: src/components/computer/TerminalApp.tsx
 msgid "Wrote {path}"

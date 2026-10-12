@@ -19,7 +19,13 @@ import { rpc, selectedSpaceId } from "../lib/rpc";
 import { useConnectedServices } from "./shell/assistant-suggestions";
 
 const loadRecommendations = (assistantId: string, signal: AbortSignal) =>
-  rpc.forYou.discover({ assistantId }, { signal, context: { spaceId: selectedSpaceId() } });
+  rpc.forYou.discover(
+    { assistantId },
+    {
+      signal: AbortSignal.any([signal, AbortSignal.timeout(25_000)]),
+      context: { spaceId: selectedSpaceId() },
+    },
+  );
 const dismissRecommendation = (
   assistantId: string,
   recommendationId: string,
@@ -207,7 +213,7 @@ export function ForYouPage({
                   </p>
                 ) : !discovery.recommendations.length ? (
                   <p className="px-2 text-sm text-muted-foreground">
-                    <Trans>No grounded recommendations right now.</Trans>
+                    <Trans>No new recommendations yet.</Trans>
                   </p>
                 ) : null}
                 {dispositionError ? (
@@ -233,14 +239,18 @@ export function ForYouPage({
                         })
                       }
                     >
-                      {recommendation.kind === "meeting"
-                        ? t`Prepare for “${recommendation.sources[0]?.title.slice(0, 120)}”`
-                        : t`Continue “${recommendation.sources[0]?.title.slice(0, 120)}”`}
+                      {recommendation.kind === "mail"
+                        ? t`Review “${recommendation.sources[0]?.title.slice(0, 120)}”`
+                        : recommendation.kind === "meeting"
+                          ? t`Prepare for “${recommendation.sources[0]?.title.slice(0, 120)}”`
+                          : t`Continue “${recommendation.sources[0]?.title.slice(0, 120)}”`}
                     </Button>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {recommendation.kind === "meeting"
-                        ? t`An upcoming event on your calendar.`
-                        : t`An unfinished item in your saved work.`}
+                      {recommendation.kind === "mail"
+                        ? t`A recent unread conversation in your inbox.`
+                        : recommendation.kind === "meeting"
+                          ? t`An upcoming event on your calendar.`
+                          : t`An unfinished item in your saved work.`}
                     </p>
                     {recommendation.startsAt ? (
                       <p className="mt-1 text-xs text-muted-foreground">

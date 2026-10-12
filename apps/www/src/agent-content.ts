@@ -34,7 +34,7 @@ Kith is an open source Grok Bot alternative for persistent AI teammates: bots th
 
 The project started from a simple premise: useful agents should be understandable and controllable by the people who run them. Kith keeps routines in readable Markdown, supports multiple model providers, records actions in an audit log, and lets operators keep model keys, browser sessions, and deployment infrastructure under their own control.
 
-Kith targets the web, macOS, Linux, iOS, and Android. The source is available under the Apache-2.0 license and accepts public issues and contributions on GitHub. Kith is a fork of upstream Rakazo. Contact your service operator for account help.
+Kith targets the web, macOS, Linux, iOS, and Android. The source is available under the Apache-2.0 license and accepts public issues and contributions on GitHub. Contact your service operator for account help.
 
 - [Source code](${GITHUB_URL})
 - [Self-hosting guide](${SITE_URL}/self-hosted-ai-agent/)
@@ -80,10 +80,9 @@ Contact us through the [support page](${SITE_URL}/support/).
 
 export const TERMS_MARKDOWN = `# Kith terms
 
-The operator of the Kith service you use is responsible for its policies and commercial terms. This fork does not operate the upstream Rakazo service.
+The operator of the Kith service you use is responsible for its policies and commercial terms. This project does not operate services managed by other providers.
 
 - [Deployment guide](${GITHUB_URL}/blob/main/docs/hosted-deployment.md)
-- [Upstream terms policy](https://rakazo.com/terms/) applies to that upstream service, not this fork.
 `;
 
 export const AGENT_INSTRUCTIONS = `# Kith

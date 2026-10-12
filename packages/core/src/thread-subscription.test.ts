@@ -55,6 +55,24 @@ function setup(committed: typeof head | null = head) {
 afterEach(() => vi.useRealTimers());
 
 describe("thread subscription recovery", () => {
+  it("reconciles active work even while heartbeat frames keep a socket alive", async () => {
+    vi.useFakeTimers();
+    const { abort, channel, callbacks } = setup();
+    let active = true;
+    const running = runThreadSubscription({ ...callbacks, shouldReconcile: () => active });
+    await vi.advanceTimersByTimeAsync(0);
+    channel.send(heartbeat());
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(callbacks.refresh).toHaveBeenCalledOnce();
+    active = false;
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(callbacks.refresh).toHaveBeenCalledOnce();
+    abort.abort();
+    channel.end();
+    await running;
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(callbacks.refresh).toHaveBeenCalledOnce();
+  });
   it("falls back to head with backoff and buffers until a snapshot commits", async () => {
     vi.useFakeTimers();
     const { abort, channel, state, callbacks } = setup(null);

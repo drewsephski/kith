@@ -8,7 +8,7 @@ category: "roundups"
 tldr: "There is no single best open source agent. Kith, OpenClaw, Hermes Agent, OpenHands, and Goose are projects you can run. LangGraph and CrewAI are libraries for building your own. Dify's license is a modified Apache-2.0 with extra conditions. Pick the shape, then read that project's license."
 sources:
   - label: "Kith source"
-    href: "https://github.com/elie222/rakazo"
+    href: "https://github.com/drewsephski/kith"
   - label: "OpenClaw"
     href: "https://docs.openclaw.ai/"
   - label: "Hermes Agent"

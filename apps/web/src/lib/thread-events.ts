@@ -15,6 +15,7 @@ import {
   mergeThreadHistory,
   prependThreadHistoryPage,
   progressMessageId,
+  reconcileTerminalRunSnapshot,
   reduceLiveMessageBlocks,
   replyMetadata,
   runFailureError,
@@ -181,6 +182,8 @@ export function reconcileRefreshedThread(
   const sameThread = Boolean(prev && prev.threadId === snap.threadId);
 
   if (sameThread && prev && snap.cursor < prev.cursor) {
+    const terminal = reconcileTerminalRunSnapshot(prev, snap);
+    if (terminal) return { snapshot: terminal, computer: prevComputer };
     // A subscription can advance the cursor with progress before the send-triggered refresh
     // returns the new run record. Hydrate that matching run without rolling the transcript back.
     // Optimistic stop removes the matching progress message, so an older refresh cannot revive it.

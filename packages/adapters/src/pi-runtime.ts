@@ -546,7 +546,7 @@ export class PiAgentRuntime implements AgentRuntime {
               toolActivityShowing = true;
               queue.push({
                 type: "progress",
-                text: [...activeTools.values()].at(-1) ?? "Preparing a response…",
+                text: [...activeTools.values()].at(-1) ?? "Working…",
                 activity: true,
               });
             }
@@ -563,7 +563,7 @@ export class PiAgentRuntime implements AgentRuntime {
               if (toolActivityShowing) {
                 // Real text replaces the activity line instead of appending to it.
                 toolActivityShowing = false;
-                queue.push({ type: "progress", text: "Preparing a response…", activity: true });
+                queue.push({ type: "progress", text: "Working…", activity: true });
               }
               streamed += delta;
               currentMessageStreamed += delta;
@@ -660,7 +660,7 @@ export class PiAgentRuntime implements AgentRuntime {
 
         // Activity is rendered in the run-status row, separately from reply text.
         if (!request.allowSilentEmpty)
-          queue.push({ type: "progress", text: "Preparing a response…", activity: true });
+          queue.push({ type: "progress", text: "Working…", activity: true });
         const images = toPiImages([
           ...(request.currentTurnImages ?? []),
           ...initialSteering.flatMap((item) => item.images ?? []),

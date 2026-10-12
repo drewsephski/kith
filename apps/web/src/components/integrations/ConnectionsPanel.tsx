@@ -18,6 +18,7 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { rpc } from "../../lib/rpc";
+import { CalendarAgenda } from "../CalendarAgenda";
 import { CalendarConnection } from "../CalendarConnection";
 import { lazyOverlay } from "../ErrorBoundary";
 
@@ -35,6 +36,7 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
   const [services, setServices] = useState<ReturnType<typeof connectedAppServices>>([]);
   const [nativeCalendar, setNativeCalendar] = useState(false);
   const [calendarAvailable, setCalendarAvailable] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
@@ -67,6 +69,10 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
       setCalendarAvailable(
         calendar.status === "fulfilled" &&
           (calendar.value.configured || calendar.value.canConfigure),
+      );
+      setCalendarConnected(
+        calendar.status === "fulfilled" &&
+          (calendar.value.status === "connected" || calendar.value.managedConnections.length > 0),
       );
       setError([rows, catalog, calendar].some((result) => result.status === "rejected"));
       setLoading(false);
@@ -188,6 +194,7 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
           </CollapsibleContent>
         </Collapsible>
       ) : null}
+      {calendarConnected ? <CalendarAgenda key={`${botId}:${revision}`} /> : null}
       <AlertDialog
         open={Boolean(removing)}
         onOpenChange={(nextOpen) => {

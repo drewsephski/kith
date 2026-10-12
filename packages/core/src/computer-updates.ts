@@ -6,6 +6,7 @@ export function createComputerUpdates(client: {
   start: (botId: string, action: "update" | "recover") => Promise<ComputerUpdate>;
   dismiss: (id: string) => Promise<unknown>;
   releaseInterrupted: (id: string) => Promise<unknown>;
+  cancel?: (id: string) => Promise<unknown>;
 }) {
   let state: { updates: ComputerUpdate[]; openId: string | null } = { updates: [], openId: null };
   const listeners = new Set<() => void>();
@@ -76,6 +77,14 @@ export function createComputerUpdates(client: {
       revision++;
       await poll(epoch);
     },
+    async cancel(id: string) {
+      if (!client.cancel) throw new Error("Stopping this operation is unavailable");
+      const epoch = generation;
+      await client.cancel(id);
+      if (epoch !== generation) return;
+      revision++;
+      await poll(epoch);
+    },
     async dismiss(id: string) {
       const epoch = generation;
       await client.dismiss(id);
@@ -99,5 +108,7 @@ export function computerUpdateStages(
 }
 
 export function computerUpdateNeedsAttention(update: ComputerUpdate): boolean {
-  return update.status === "failed" || update.status === "interrupted";
+  return (
+    update.status === "failed" || update.status === "interrupted" || update.status === "cancelled"
+  );
 }

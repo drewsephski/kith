@@ -170,43 +170,13 @@ it("rejects an old account/space launch while loading the assistant", async () =
   expect(state.rpc.mock.calls.some(([proc]) => proc === "bots/launchForYou")).toBe(false);
   expect(state.push).not.toHaveBeenCalled();
 });
-it("shows verified waiting work and opens its recorded message destination", async () => {
-  const original = state.rpc.getMockImplementation()!;
-  state.rpc.mockImplementation((proc: string, input: unknown) =>
-    proc === "runs/list"
-      ? Promise.resolve({
-          runs: [
-            {
-              runId: "run-1",
-              botId: "bot-1",
-              botName: "Draft review",
-              groupId: null,
-              groupName: null,
-              threadId: "thread-1",
-              messageId: "approval-1",
-              status: "waiting_input",
-              trigger: "user",
-              notificationsEnabled: false,
-              promptSnippet: "Review the draft",
-              updatedAt: "2026-10-09T12:00:00Z",
-            },
-          ],
-        })
-      : original(proc, input),
-  );
+it("keeps activity out of For you and does not fetch run history", async () => {
   await render();
-  expect(host.textContent).toContain("Review the draft");
-  expect(host.textContent).toContain("Needs your attention");
-  expect(state.rpc.mock.calls.some(([proc]) => proc === "runs/list")).toBe(true);
-  await act(async () =>
-    (
-      host.querySelector('button[aria-label="Review the draft. Needs input"]') as HTMLButtonElement
-    ).click(),
-  );
-  expect(state.push).toHaveBeenCalledWith({
-    pathname: "/thread",
-    params: { botId: "bot-1", name: "Draft review", threadId: "thread-1", messageId: "approval-1" },
-  });
+  expect(host.textContent).not.toContain("Needs your attention");
+  expect(host.textContent).not.toContain("Working on");
+  expect(host.textContent).not.toContain("Recent work");
+  expect(state.rpc.mock.calls.some(([proc]) => proc === "runs/list")).toBe(false);
+  expect(host.textContent).toContain("Recommended");
 });
 
 it("offers conversational suggestions without unavailable service tasks", async () => {
@@ -245,7 +215,7 @@ it("keeps successful context visible when another source fails and retries the f
     return original(proc, input);
   });
   await render();
-  expect(host.textContent).toContain("Research my idea");
+  expect(host.textContent).toContain("Recommended");
   expect(host.textContent).toContain("Offline");
   expect(host.textContent).not.toContain("Gmail");
   failed = false;
@@ -257,7 +227,7 @@ it("keeps successful context visible when another source fails and retries the f
     retry!.click();
   });
   expect(host.textContent).not.toContain("Offline");
-  expect(host.textContent).toContain("Research my idea");
+  expect(host.textContent).toContain("Recommended");
 });
 
 it("shows actual connected account labels and filters tasks by their service", async () => {

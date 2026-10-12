@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { COMPUTER_UPDATE_STAGES, type ComputerUpdate } from "@rakazo/contracts";
+import type { ComputerUpdate } from "@rakazo/contracts";
+import { COMPUTER_UPDATE_STAGES } from "@rakazo/contracts";
 import { computerUpdateNeedsAttention, computerUpdateStages } from "@rakazo/core";
 import {
   AlertDialog,
@@ -54,17 +55,21 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
     t`Reconnecting`,
   ];
   const title = (update: ComputerUpdate) =>
-    computerUpdateNeedsAttention(update)
-      ? update.action === "recover"
-        ? t`Recovery failed`
-        : t`Update failed`
-      : update.action === "recover"
-        ? update.mode === "team"
-          ? t`Recovering Team Computer`
-          : t`Recovering ${update.name}’s Computer`
-        : update.mode === "team"
-          ? t`Updating Team Computer`
-          : t`Updating ${update.name}’s Computer`;
+    update.status === "stopping"
+      ? t`Stopping…`
+      : update.status === "cancelled"
+        ? t`Stopped`
+        : computerUpdateNeedsAttention(update)
+          ? update.action === "recover"
+            ? t`Recovery failed`
+            : t`Update failed`
+          : update.action === "recover"
+            ? update.mode === "team"
+              ? t`Recovering Team Computer`
+              : t`Recovering ${update.name}’s Computer`
+            : update.mode === "team"
+              ? t`Updating Team Computer`
+              : t`Updating ${update.name}’s Computer`;
   const selected = updates.find((update) => update.id === openId);
   return (
     <>
@@ -175,12 +180,28 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               </p>
             ) : null}
             <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+              {["queued", "running", "stopping"].includes(selected.status) ? (
+                <Button
+                  variant="outline"
+                  disabled={recovering || selected.status === "stopping"}
+                  onClick={() => {
+                    setRecovering(true);
+                    setError(false);
+                    void computerUpdates
+                      .cancel(selected.id)
+                      .catch(() => setError(true))
+                      .finally(() => setRecovering(false));
+                  }}
+                >
+                  {selected.status === "stopping" ? <Trans>Stopping…</Trans> : <Trans>Stop</Trans>}
+                </Button>
+              ) : null}
               {selected.status === "interrupted" && selected.canReleaseReservation ? (
                 <Button variant="outline" onClick={() => setReleaseId(selected.id)}>
                   <Trans>Release computer</Trans>
                 </Button>
               ) : null}
-              {selected.status === "failed" ? (
+              {["failed", "cancelled"].includes(selected.status) ? (
                 <Button
                   variant="outline"
                   onClick={() =>
@@ -194,7 +215,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                   <Trans>Continue in Background</Trans>
                 </Button>
               )}
-              {selected.status === "failed" ? (
+              {["failed", "cancelled"].includes(selected.status) ? (
                 <Button
                   disabled={recovering}
                   onClick={() => {

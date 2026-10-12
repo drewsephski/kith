@@ -836,7 +836,15 @@ export const ComputerUpdateSchema = z.object({
   botId: Id,
   name: z.string(),
   mode: ComputerModeSchema,
-  status: z.enum(["queued", "running", "interrupted", "completed", "failed"]),
+  status: z.enum([
+    "queued",
+    "running",
+    "stopping",
+    "cancelled",
+    "interrupted",
+    "completed",
+    "failed",
+  ]),
   stage: z.enum(COMPUTER_UPDATE_STAGES),
 });
 export type ComputerUpdate = z.infer<typeof ComputerUpdateSchema>;

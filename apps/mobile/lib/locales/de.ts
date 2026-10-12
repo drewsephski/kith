@@ -1089,4 +1089,20 @@ export const DE_MESSAGES: Record<string, string> = {
   "An upcoming event on your calendar.": "Ein bevorstehender Termin in deinem Kalender.",
   "An unfinished item in your saved work.": "Eine offene Aufgabe in deiner gespeicherten Arbeit.",
   "Waiting for approval": "Warten auf Freigabe",
+  "A recent unread conversation in your inbox.":
+    "Eine kürzlich eingegangene ungelesene Unterhaltung in deinem Posteingang.",
+  "No new recommendations yet.": "Noch keine neuen Empfehlungen.",
+  "Review “{title}”": "„{title}“ prüfen",
+  "Stopping…": "Wird gestoppt…",
+  "Loading schedule…": "Kalender wird geladen…",
+  "Could not load every calendar. Try refreshing.":
+    "Nicht alle Kalender konnten geladen werden. Versuche zu aktualisieren.",
+  "No events in the next seven days.": "Keine Termine in den nächsten sieben Tagen.",
+  "Untitled event": "Termin ohne Titel",
+  "All day": "Ganztägig",
+  "Open event": "Termin öffnen",
+  Calendar: "Kalender",
+  "Stop computer": "Computer stoppen",
+  "View schedule": "Kalender ansehen",
+  "Enable briefing": "Tagesübersicht aktivieren",
 };

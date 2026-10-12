@@ -104,6 +104,7 @@ import {
 } from "@rakazo/ui-web";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Bell,
   Box,
@@ -116,6 +117,7 @@ import {
   Lock,
   LogOut,
   Menu,
+  MessageCircle,
   Mic,
   Monitor,
   MoreHorizontal,
@@ -188,7 +190,7 @@ import { SkillDraftCard } from "../components/teach/SkillDraftCard";
 import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../components/teach/TeachComputerOverlay";
 import { TeachRecordingChrome, TeachStopButton } from "../components/teach/TeachRecordingChrome";
-import { readActivityMode, writeActivityMode } from "../lib/activity-mode";
+import { writeActivityMode } from "../lib/activity-mode";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { authClient } from "../lib/auth";
 import { takeInitialBootstrap } from "../lib/bootstrap";
@@ -709,7 +711,7 @@ export function ShellPage({
     desktop.addEventListener("change", closeMobileSidebar);
     return () => desktop.removeEventListener("change", closeMobileSidebar);
   }, []);
-  const [activityMode, setActivityMode] = useState(readActivityMode);
+  const [activityMode, setActivityMode] = useState(false);
   const toggleActivityMode = useCallback(() => {
     setActivityMode((on) => {
       const next = !on;
@@ -1521,6 +1523,9 @@ export function ShellPage({
         rpc.threads.head({ botId: active.id }, { signal: threadSnapshotSignal(abort.signal) }),
       refresh: () => refreshThread(active.id, threadSnapshotSignal(abort.signal)),
       currentSnapshot: () => snapshotRef.current,
+      shouldReconcile: () =>
+        document.visibilityState === "visible" &&
+        activeThreadRuns(snapshotRef.current).some((run) => isActive(run.status)),
       subscribe: (cursor) =>
         rpc.threads.subscribe({ botId: active.id, cursor }, { signal: abort.signal }),
       beforeEvent: (event) => {
@@ -1638,6 +1643,9 @@ export function ShellPage({
       loadHead: () => rpc.threads.head({ groupId }, { signal: threadSnapshotSignal(abort.signal) }),
       refresh: () => refreshGroupThread(groupId, threadSnapshotSignal(abort.signal)),
       currentSnapshot: () => snapshotRef.current,
+      shouldReconcile: () =>
+        document.visibilityState === "visible" &&
+        activeThreadRuns(snapshotRef.current).some((run) => isActive(run.status)),
       subscribe: (cursor) => rpc.threads.subscribe({ groupId, cursor }, { signal: abort.signal }),
       applyEvent: (event) =>
         applyThreadEvent(
@@ -2719,17 +2727,20 @@ export function ShellPage({
       if (needsBoot) {
         const status = await rpc.computer.boot(
           { botId: targetBotId },
-          { signal: controller.signal },
+          { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(120_000)]) },
         );
         if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
         commitComputer(status);
         cacheComputerFor(targetBotId, { computer: status });
       }
       if (takeControl) {
-        await rpc.computer.takeover({ botId: targetBotId });
+        await rpc.computer.takeover(
+          { botId: targetBotId },
+          { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]) },
+        );
         if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
       }
-      await refreshComputerFor(targetBotId);
+      if (!controller.signal.aborted) await refreshComputerFor(targetBotId);
     } catch (error) {
       if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
       setComputerError(
@@ -3124,6 +3135,72 @@ export function ShellPage({
     .slice(0, 2)
     .toUpperCase();
 
+  const creationMenu = (
+    <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
+          />
+        }
+        disabled={creatingThread}
+        aria-label={t`New`}
+        data-testid="create-menu-trigger"
+      >
+        <Plus size={16} />
+        <Trans>New</Trans>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="app-no-drag w-auto gap-0 overflow-hidden p-0">
+        <Button
+          variant="ghost"
+          className="m-1 h-10 justify-start"
+          disabled={creatingThread || !assistantId}
+          onClick={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            void newConversation();
+          }}
+        >
+          <MessageCircle size={16} />
+          <Trans>New conversation</Trans>
+        </Button>
+        <BotCreatePicker
+          bots={bots}
+          onCreateBot={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            setPanel("create");
+          }}
+          onOpenBot={(id) => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            navigate(`/app/${id}`);
+          }}
+          onCreateGroup={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            setPanel("create-group");
+          }}
+          onCreateSpace={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            setNewSpaceOpen(true);
+          }}
+          onShowGroupInfo={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            setPickerInfoTopic("group");
+          }}
+          onShowSpaceInfo={() => {
+            setCreateMenuOpen(false);
+            setMobileSidebarOpen(false);
+            setPickerInfoTopic("space");
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
   const shell = (
     <div
       data-testid="shell-root"
@@ -3248,6 +3325,7 @@ export function ShellPage({
               void newConversation();
             }}
             creating={creatingThread}
+            creationMenu={creationMenu}
             onMemory={() => {
               setMobileSidebarOpen(false);
               setPanel(panel === "memory" ? null : "memory");
@@ -3272,16 +3350,21 @@ export function ShellPage({
               setMobileSidebarOpen(false);
               openSettings("general");
             }}
-            onAdvanced={() => setAdvancedNavigation(true)}
+            onAdvanced={() => {
+              setActivityMode(false);
+              writeActivityMode(false);
+              setAdvancedNavigation(true);
+            }}
           />
         ) : (
           <>
             <Button
               variant="ghost"
               size="sm"
-              className="mx-3 mb-2 justify-start"
+              className="mx-3 h-16 shrink-0 justify-start gap-2"
               onClick={() => setAdvancedNavigation(false)}
             >
+              <ArrowLeft size={16} aria-hidden="true" />
               <Trans>Back to Kith</Trans>
             </Button>
             <div className="app-drag flex items-center justify-between px-[18px] pb-3 pt-4">
@@ -3317,53 +3400,7 @@ export function ShellPage({
                 >
                   <PanelLeftClose size={15} strokeWidth={1.8} aria-hidden="true" />
                 </button>
-                <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
-                  <PopoverTrigger
-                    className="app-no-drag text-[21px] text-muted-foreground/70 hover:text-foreground/75"
-                    title={t`Create`}
-                    data-testid="create-menu-trigger"
-                  >
-                    +
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    className="app-no-drag w-auto gap-0 overflow-hidden p-0"
-                  >
-                    <BotCreatePicker
-                      bots={bots}
-                      onCreateBot={() => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        setPanel("create");
-                      }}
-                      onOpenBot={(id) => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        navigate(`/app/${id}`);
-                      }}
-                      onCreateGroup={() => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        setPanel("create-group");
-                      }}
-                      onCreateSpace={() => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        setNewSpaceOpen(true);
-                      }}
-                      onShowGroupInfo={() => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        setPickerInfoTopic("group");
-                      }}
-                      onShowSpaceInfo={() => {
-                        setCreateMenuOpen(false);
-                        setMobileSidebarOpen(false);
-                        setPickerInfoTopic("space");
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
+                {creationMenu}
               </div>
             </div>
             <InputGroup
@@ -4320,7 +4357,7 @@ export function ShellPage({
                   {panel === "settings" ? (
                     <Trans>Settings</Trans>
                   ) : panel === "connections" ? (
-                    <Trans>Connections</Trans>
+                    <Trans>Integrations</Trans>
                   ) : panel === "memory" ? (
                     <Trans>Memory</Trans>
                   ) : panel === "activity" ? (
@@ -5298,10 +5335,20 @@ export function ShellPage({
       </Suspense>
 
       {booting ? (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[22px] bg-background/95">
+        <div
+          data-testid="computer-boot-progress"
+          className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[22px] bg-background/95"
+        >
           <LoadingState label={t`Booting live desktop…`} />
-          <Button variant="outline" onClick={() => computerBootAbort.current?.abort()}>
-            <Trans>Cancel</Trans>
+          <Button
+            variant="outline"
+            onClick={() => {
+              computerBootAbort.current?.abort();
+              setBooting(false);
+              setComputerOpen(false);
+            }}
+          >
+            <Trans>Stop</Trans>
           </Button>
         </div>
       ) : computerOpen && computerBot ? (

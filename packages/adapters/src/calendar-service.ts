@@ -107,6 +107,64 @@ export class CalendarService {
         }),
     );
   }
+  async agenda(actor: Actor, timezone: string, signal: AbortSignal) {
+    const context = {
+      ...contextFor(actor, "calendar.agenda"),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
+    };
+    const status = await this.status(actor);
+    const ids = status.managedConnections.length
+      ? status.managedConnections.slice(0, 3).map((row) => row.id)
+      : status.status === "connected" && status.connectionId
+        ? [status.connectionId]
+        : [];
+    const now = new Date();
+    const window = {
+      date: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(now),
+      timezone,
+      timeMin: now.toISOString(),
+      timeMax: new Date(now.getTime() + 7 * 86400_000).toISOString(),
+    };
+    const results = await Promise.allSettled(
+      ids.map(async (id) => {
+        const row = await this.deps.prisma.connection.findFirst({
+          where: { id, userId: actor.userId, spaceId: actor.spaceId, status: "connected" },
+        });
+        if (!row) throw new CalendarAccessError();
+        const reader =
+          row.connectorId === CALENDAR_CONNECTOR_ID
+            ? await this.reader(id, actor, context)
+            : row.providerRef &&
+                this.deps.managed &&
+                matchFeaturedConnectorId(row.provider) === "google-calendar"
+              ? await this.deps.managed.reader({ ...row, providerRef: row.providerRef }, context)
+              : null;
+        if (!reader) throw new CalendarAccessError();
+        const sources = (await reader.sources(context)).slice(0, 8);
+        const snapshot = CalendarSnapshotSchema.parse(
+          await reader.events({ ...window, sources }, context),
+        );
+        const current = await this.deps.prisma.connection.findFirst({
+          where: {
+            id,
+            userId: actor.userId,
+            spaceId: actor.spaceId,
+            status: "connected",
+            updatedAt: row.updatedAt,
+            providerRef: row.providerRef,
+          },
+        });
+        if (!current) throw new CalendarAccessError();
+        context.signal.throwIfAborted();
+        return snapshot;
+      }),
+    );
+    return {
+      snapshots: results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
+      unavailable: results.some((result) => result.status === "rejected"),
+    };
+  }
+
   async status(actor: Actor) {
     const row = await this.deps.prisma.connection.findFirst({
       where: { userId: actor.userId, spaceId: actor.spaceId, connectorId: CALENDAR_CONNECTOR_ID },

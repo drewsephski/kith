@@ -32,7 +32,7 @@ export function ToolSteps({
         const index = hidden + offset;
         const isCurrent = index === currentIndex;
         return (
-          <div key={index} className="flex min-w-0 items-center gap-2 leading-5">
+          <div key={index} className="flex min-w-0 items-start gap-2 leading-5">
             <span
               className={`text-[12px] motion-reduce:animate-none ${isCurrent ? "text-warning" : "text-success"}`}
               style={{ animation: isCurrent ? "rkPulse 1.2s ease-in-out infinite" : undefined }}
@@ -40,7 +40,7 @@ export function ToolSteps({
               {isCurrent ? "◷" : "✓"}
             </span>
             <span
-              className={`min-w-0 flex-1 truncate text-[13px] ${
+              className={`min-w-0 flex-1 whitespace-normal break-words text-[13px] ${
                 isCurrent ? "text-foreground" : "text-muted-foreground"
               }`}
               title={step.label}

@@ -78,6 +78,7 @@ export * from "./task-starter-repeat.js";
 export * from "./task-starters.js";
 export * from "./teach-playbook.js";
 export * from "./teach-recording.js";
+export * from "./terminal-run-snapshot.js";
 export * from "./text-direction.js";
 export * from "./thread-message-updates.js";
 export * from "./thread-subscription.js";

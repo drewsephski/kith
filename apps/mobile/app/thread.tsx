@@ -1488,6 +1488,20 @@ function Thread() {
     void recoverThreadSubscription({
       signal: abort.signal,
       isCurrent,
+      reconcile: refresh,
+      shouldReconcile: () =>
+        AppState.currentState === "active" &&
+        navigation.isFocused() &&
+        Boolean(
+          snapRef.current?.activeRuns?.some((run) =>
+            ["queued", "leased", "running", "waiting_input", "waiting_takeover"].includes(
+              run.status,
+            ),
+          ) ||
+            ["queued", "leased", "running", "waiting_input", "waiting_takeover"].includes(
+              snapRef.current?.run?.status ?? "",
+            ),
+        ),
       snapshot: async () => {
         if (
           snapRef.current &&
@@ -2534,7 +2548,7 @@ function Thread() {
                 ? t("Queued…")
                 : currentBotStatus === "leased"
                   ? t("Starting…")
-                  : t("Preparing a response…")))}
+                  : t("Working…")))}
         </Text>
       </View>
     ) : inGroup && (workingGroupBots.length > 0 || waitingGroupRuns.length > 0) ? (
@@ -2608,7 +2622,7 @@ function Thread() {
                     ? t("Queued…")
                     : bot.status === "leased"
                       ? t("Starting…")
-                      : t("Preparing a response…")))}
+                      : t("Working…")))}
             </Text>
           ))}
         </View>

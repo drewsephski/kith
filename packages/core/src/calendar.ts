@@ -2,6 +2,29 @@ import type { CalendarEvent, CalendarSnapshot, CalendarSuggestion } from "@rakaz
 
 export const CALENDAR_PREFERENCES_PATH = "calendar/preferences.md";
 
+export function calendarAgendaEvents(snapshots: readonly CalendarSnapshot[]): CalendarEvent[] {
+  const seen = new Set<string>();
+  return snapshots
+    .flatMap((snapshot) => snapshot.events)
+    .filter((event) => {
+      const key = JSON.stringify([event.title, event.start, event.end]);
+      if (event.response === "declined" || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
+export function calendarEventUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export function localCalendarDate(now: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
