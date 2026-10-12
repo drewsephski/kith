@@ -19,6 +19,8 @@ vi.mock("../components/minimal-scroll", async () => {
   };
 });
 
+const scope = vi.hoisted(() => ({ key: "fixture-scope" }));
+
 vi.mock("react-native", () => {
   function MockView(props: { children?: ReactNode }) {
     return createElement("div", null, props.children);
@@ -47,6 +49,7 @@ vi.mock("react-native", () => {
   }
 
   return {
+    ActivityIndicator: () => createElement("div", { role: "status" }),
     AppState: { currentState: "active", addEventListener: () => ({ remove: () => undefined }) },
     Modal: MockModal,
     Pressable: MockPressable,
@@ -107,10 +110,20 @@ vi.mock("expo-screen-orientation", () => ({
 
 vi.mock("../components/native-action-button", () => {
   return {
-    NativeActionButton: (props: { label: string; onPress: () => void; prominence?: string }) =>
+    NativeActionButton: (props: {
+      label: string;
+      onPress: () => void;
+      prominence?: string;
+      disabled?: boolean;
+    }) =>
       createElement(
         "button",
-        { type: "button", "data-prominence": props.prominence, onClick: props.onPress },
+        {
+          type: "button",
+          "data-prominence": props.prominence,
+          disabled: props.disabled,
+          onClick: props.onPress,
+        },
         props.label,
       ),
   };
@@ -133,7 +146,15 @@ vi.mock("../components/computer-maintenance-actions", () => ({
 
 vi.mock("../components/computer-mode-picker", () => ({ ComputerModePicker: () => null }));
 
-vi.mock("./api", () => ({ currentApiBase: () => "https://api.example.test", rpc }));
+vi.mock("./api", () => ({
+  currentApiBase: () => "https://api.example.test",
+  rpc,
+  mobileScreenScopeKey: () => scope.key,
+  captureMobileScreenScope: () => {
+    const key = scope.key;
+    return () => scope.key === key;
+  },
+}));
 
 vi.mock("./i18n", () => {
   const t = (text: string, values?: Record<string, string>) =>
@@ -191,6 +212,7 @@ describe("computer screen", () => {
 
   beforeEach(() => {
     rpc.mockReset();
+    scope.key = "fixture-scope";
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   });
 
@@ -266,17 +288,117 @@ describe("computer screen", () => {
     expect(fullWindow?.querySelector("[data-keyboard-bar]")).not.toBeNull();
   });
 
-  it("wakes a sleeping computer from the preview without taking control", async () => {
-    respond({ ...botWorking, state: "suspended", busyBotName: null });
-    const view = await render();
+  it.each(["stopped", "suspended"] as const)(
+    "opening a %s route stays passive until explicit Start/Resume",
+    async (state) => {
+      respond({ ...botWorking, state, busyBotName: null });
+      const view = await render();
+      expect(calls("computer/boot")).toEqual([]);
+      expect(calls("computer/screenUrl")).toEqual([]);
+      expect(view.querySelector('[aria-label="Open computer"]')).toBeNull();
+      const label = state === "suspended" ? "Resume computer" : "Start computer";
+      const start = Array.from(view.querySelectorAll("button")).find(
+        (button) => button.textContent === label,
+      );
+      expect(start).toBeDefined();
+      respond(botWorking);
+      await act(async () => {
+        start?.click();
+        start?.click();
+      });
+      await settle();
+      expect(calls("computer/boot")).toHaveLength(1);
+    },
+  );
+
+  it("unmounting a stopped route never starts a computer", async () => {
+    respond({ ...botWorking, state: "stopped" });
+    await render();
+    act(() => root?.unmount());
+    root = undefined;
     expect(calls("computer/boot")).toEqual([]);
+  });
 
-    await act(async () => preview(view).click());
+  it("shows loading without allowing a start from stale state", async () => {
+    rpc.mockImplementation(() => new Promise(() => {}));
+    const view = await render();
+    const start = Array.from(view.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start computer",
+    );
+    expect(start?.disabled).toBe(true);
+    start?.click();
+    expect(calls("computer/boot")).toEqual([]);
+  });
+
+  it("reports a failed explicit start without automatically retrying", async () => {
+    respond({ ...botWorking, state: "stopped", busyBotName: null });
+    const view = await render();
+    rpc.mockImplementation(async (method: string) => {
+      if (method === "computer/boot") throw new Error("Fixture computer unavailable");
+      return { ...botWorking, state: "stopped" };
+    });
+    const start = Array.from(view.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start computer",
+    );
+    await act(async () => start?.click());
     await settle();
+    expect(view.textContent).toContain("Fixture computer unavailable");
+    expect(calls("computer/boot")).toHaveLength(1);
+  });
 
+  it("cancels a pending explicit start without retrying or taking control", async () => {
+    respond({ ...botWorking, state: "stopped", busyBotName: null });
+    const view = await render();
+    rpc.mockImplementation(
+      async (method: string, _body: unknown, options?: { signal?: AbortSignal }) => {
+        if (method === "computer/boot")
+          await new Promise((_resolve, reject) =>
+            options?.signal?.addEventListener("abort", () => reject(new Error("Cancelled")), {
+              once: true,
+            }),
+          );
+        return { ...botWorking, state: "stopped" };
+      },
+    );
+    const start = Array.from(view.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start computer",
+    );
+    await act(async () => start?.click());
+    await settle();
+    const cancel = Array.from(view.querySelectorAll("button")).find(
+      (button) => button.textContent === "Cancel",
+    );
+    expect(cancel).toBeDefined();
+    await act(async () => cancel?.click());
+    await settle();
+    expect(view.querySelector("section")).toBeNull();
     expect(calls("computer/boot")).toHaveLength(1);
     expect(calls("computer/takeover")).toEqual([]);
-    expect(view.querySelector("[data-keyboard-bar]")).toBeNull();
+  });
+
+  it("ignores a start response after account or Space epoch changes", async () => {
+    respond({ ...botWorking, state: "stopped", busyBotName: null });
+    const view = await render();
+    let finish!: () => void;
+    rpc.mockImplementation(async (method: string) => {
+      if (method === "computer/boot")
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+        });
+      return { ...botWorking, state: "stopped" };
+    });
+    const start = Array.from(view.querySelectorAll("button")).find(
+      (button) => button.textContent === "Start computer",
+    );
+    await act(async () => start?.click());
+    scope.key = "replacement-scope";
+    act(() => root?.render(<Computer />));
+    await settle();
+    await act(async () => finish());
+    await settle();
+    expect(view.querySelector("section")).toBeNull();
+    expect(calls("computer/takeover")).toEqual([]);
+    expect(calls("computer/boot")).toHaveLength(1);
   });
 
   it("takes control only from the Take control button", async () => {

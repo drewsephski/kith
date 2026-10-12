@@ -38,6 +38,7 @@
     "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down",
     "compose:reset": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v",
     "test:desktop-packaged": "tsx packages/testkit/src/cli/harness.ts --desktop",
+    "eval:computer-routing": "tsx packages/testkit/src/cli/computer-routing-evaluation.ts",
     "perf:agent": "tsx packages/testkit/src/cli/agent-latency.ts",
     "check:agent-latency": "tsc --noEmit -p packages/testkit/tsconfig.latency.json"
   },

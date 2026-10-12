@@ -11,6 +11,7 @@ import {
   attachWorkspaceFileToThread,
   currentTurnFilesInstruction,
   materializeCurrentTurnFiles,
+  materializeMissingThreadAttachments,
 } from "./thread-artifacts.js";
 
 describe("current-turn thread files", () => {
@@ -185,5 +186,112 @@ describe("current-turn thread files", () => {
     expect(files).toEqual([
       { name: "photo.png", mimeType: "image/png", size: 4, path: "attachments/image-1.png" },
     ]);
+  });
+});
+
+describe("images deferred across turns", () => {
+  const image = {
+    kind: "image" as const,
+    artifactId: "image-1",
+    mimeType: "image/png",
+    name: "photo.png",
+  };
+  const context = {
+    operationId: "fixture",
+    traceId: "fixture",
+    spaceId: "space",
+    userId: "owner",
+    botId: "bot",
+    signal: new AbortController().signal,
+  };
+  const computer = { id: "computer", providerRef: "computer", kind: "fake" as const, botId: "bot" };
+  function fixture(existing = false, authorized = true) {
+    const writeFile = vi.fn().mockResolvedValue(undefined);
+    const get = vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3]));
+    const findMany = vi.fn().mockResolvedValue(
+      authorized
+        ? [
+            {
+              id: "image-1",
+              mimeType: "image/png",
+              storageKey: "image",
+              name: "photo.png",
+              size: 3,
+            },
+          ]
+        : [],
+    );
+    const listFiles = vi.fn(async (_computer, directory) =>
+      existing
+        ? directory === "bots/bot"
+          ? [{ kind: "dir", path: "bots/bot/attachments" }]
+          : [{ kind: "file", path: "bots/bot/attachments/image-1.png" }]
+        : [],
+    );
+    return {
+      get,
+      writeFile,
+      findMany,
+      deps: {
+        prisma: { artifact: { findMany } } as unknown as PrismaClient,
+        artifacts: { get } as unknown as ArtifactStore,
+        sandbox: { listFiles, writeFile } as unknown as SandboxProvider,
+      },
+    };
+  }
+  it("copies a previously inspected image for a later workspace tool", async () => {
+    const f = fixture();
+    const result = await materializeMissingThreadAttachments(
+      f.deps,
+      [image],
+      { path: "attachments/image-1.png" },
+      { context, computer, computerMode: "team" },
+    );
+    expect(result).toHaveLength(1);
+    expect(f.writeFile).toHaveBeenCalledWith(
+      computer,
+      expect.objectContaining({ path: "bots/bot/attachments/image-1.png" }),
+      context,
+    );
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ spaceId: "space", userId: "owner" }),
+      }),
+    );
+  });
+  it("preserves an existing or edited workspace copy", async () => {
+    const f = fixture(true);
+    expect(
+      await materializeMissingThreadAttachments(
+        f.deps,
+        [image],
+        { path: "attachments/image-1.png" },
+        { context, computer, computerMode: "team" },
+      ),
+    ).toEqual([]);
+    expect(f.get).not.toHaveBeenCalled();
+    expect(f.writeFile).not.toHaveBeenCalled();
+  });
+  it("does not restore unrelated images or expose foreign/deleted artifacts", async () => {
+    const f = fixture(false, false);
+    expect(
+      await materializeMissingThreadAttachments(
+        f.deps,
+        [image],
+        { command: "pwd" },
+        { context, computer, computerMode: "team" },
+      ),
+    ).toEqual([]);
+    expect(f.findMany).not.toHaveBeenCalled();
+    expect(
+      await materializeMissingThreadAttachments(
+        f.deps,
+        [image],
+        { path: "attachments/image-1.png" },
+        { context, computer, computerMode: "team" },
+      ),
+    ).toEqual([]);
+    expect(f.get).not.toHaveBeenCalled();
+    expect(f.writeFile).not.toHaveBeenCalled();
   });
 });

@@ -811,11 +811,6 @@ msgstr ""
 msgid "Booting live desktop…"
 msgstr "लाइव डेस्कटॉप शुरू हो रहा है…"
 
-#. placeholder {0}: computerBot?.name ?? active?.name
-#: src/pages/Shell.tsx
-msgid "Booting up {0}’s computer"
-msgstr "{0} का कंप्यूटर शुरू हो रहा है"
-
 #: src/pages/Shell.tsx
 msgid "bot"
 msgstr "बॉट"
@@ -928,6 +923,7 @@ msgstr "सर्वर तक नहीं पहुंचा जा सका�
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1300,10 +1296,6 @@ msgstr "कंप्यूटर शुरू नहीं हो सका"
 #: src/pages/Shell.tsx
 msgid "Computer is asleep"
 msgstr "कंप्यूटर निष्क्रिय है"
-
-#: src/pages/Shell.tsx
-msgid "Computer is asleep. Open it to wake."
-msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Computer is stopped"
@@ -2092,6 +2084,10 @@ msgstr "रीसेट ईमेल नहीं भेजा जा सका"
 #: src/lib/call-session.ts
 msgid "Could not send that"
 msgstr "वह भेजा नहीं जा सका"
+
+#: src/pages/Shell.tsx
+msgid "Could not start computer"
+msgstr "कंप्यूटर शुरू नहीं किया जा सका"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
@@ -4404,6 +4400,10 @@ msgstr "प्रतिक्रिया दें"
 msgid "Reactions"
 msgstr "प्रतिक्रियाएँ"
 
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "पढ़ा गया"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "उत्तर पढ़कर सुनाएं"
@@ -4779,6 +4779,10 @@ msgstr "अंतिम सहेजे गए वर्कस्पेस क�
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Restoring your workspace"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Resume computer"
+msgstr "कंप्यूटर फिर चालू करें"
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
@@ -5433,6 +5437,10 @@ msgstr "SSO अस्थायी रूप से उपलब्ध नही�
 #: src/pages/Paywall.tsx
 msgid "Start {trialDays}-day free trial"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Start computer"
+msgstr "कंप्यूटर शुरू करें"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
@@ -6283,7 +6291,3 @@ msgstr "आपका ईमेल पता"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "आपका नाम"
-
-#: src/pages/Shell.tsx
-msgid "Read"
-msgstr "पढ़ा गया"

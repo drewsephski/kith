@@ -1449,11 +1449,12 @@ describe("computer screen url", () => {
 
   const callScreenUrl = async (
     connectScreen: () => Promise<unknown>,
-    updateMany = vi.fn(),
+    updateMany = vi.fn().mockResolvedValue({ count: 1 }),
     sessionId: string | null = "session-1",
   ) => {
     const prisma = {
       bot: {
+        findMany: vi.fn().mockResolvedValue([]),
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
           screenGeneration: 2,
@@ -1540,7 +1541,7 @@ describe("computer screen url", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ json: { url: null } });
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: "computer-1", providerRef: "sandbox-ref-1" },
+      where: { id: "computer-1", providerRef: "sandbox-ref-1", state: "running" },
       data: { state: "stopped", providerRef: null },
     });
   });
@@ -1592,6 +1593,7 @@ describe("computer terminal and file transfer", () => {
     };
     const prisma = {
       bot: {
+        findMany: vi.fn().mockResolvedValue([]),
         findFirst: vi.fn().mockResolvedValue({
           id: "bot-1",
           screenGeneration: 2,
@@ -1687,7 +1689,7 @@ describe("computer terminal and file transfer", () => {
       body: { json: { url: null } },
     });
     expect(gone.prisma.computer.updateMany).toHaveBeenCalledWith({
-      where: { id: "computer-1", providerRef: "sandbox-ref-1" },
+      where: { id: "computer-1", providerRef: "sandbox-ref-1", state: "running" },
       data: { state: "stopped", providerRef: null },
     });
 

@@ -3,7 +3,12 @@ import { Sandbox, SandboxNotFoundError, TimeoutError } from "@e2b/desktop";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldSkipPortableWorkspaceFile } from "./computer-workspace.js";
 import type { E2BSandboxSdk } from "./e2b-sandbox.js";
-import { E2BSandboxProvider, isSandboxGoneError } from "./e2b-sandbox.js";
+import {
+  attachRunningE2BSandbox,
+  ComputerSuspendedError,
+  E2BSandboxProvider,
+  isSandboxGoneError,
+} from "./e2b-sandbox.js";
 import { desktopCommandResponder } from "./linux-desktop.test-support.js";
 
 const context = {
@@ -15,14 +20,73 @@ const context = {
 };
 
 describe("E2B computer backend", () => {
+  it.each(["running", "paused"] as const)(
+    "passive attachment to %s uses GET only",
+    async (state) => {
+      const requests: string[] = [];
+      const server = createServer((request, response) => {
+        requests.push(`${request.method} ${request.url}`);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            sandboxID: "fixture",
+            state,
+            envdVersion: "0.1.0",
+            envdAccessToken: "fixture-envd-token",
+            domain: "e2b.test",
+          }),
+        );
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("Missing fixture address");
+        const attachment = attachRunningE2BSandbox("fixture", {
+          apiKey: "fixture-key",
+          apiUrl: `http://127.0.0.1:${address.port}`,
+        });
+        if (state === "paused")
+          await expect(attachment).rejects.toBeInstanceOf(ComputerSuspendedError);
+        else await expect(attachment).resolves.toMatchObject({ sandboxId: "fixture" });
+        expect(requests).toEqual(["GET /sandboxes/fixture"]);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+      }
+    },
+  );
+
+  it("a cancelled demand cannot create or resume", async () => {
+    const sdk = withPassiveAttach({
+      create: vi.fn(),
+      connect: vi.fn(),
+      getInfo: vi.fn(),
+      pause: vi.fn(),
+      kill: vi.fn(),
+    });
+    const provider = new E2BSandboxProvider("fixture", sdk);
+    await expect(
+      provider.provision(
+        { botId: "bot", homePath: "/unused", providerRef: "paused", providerKind: "e2b" },
+        { ...context, signal: AbortSignal.abort() },
+      ),
+    ).rejects.toThrow();
+    expect(sdk.create).not.toHaveBeenCalled();
+    expect(sdk.connect).not.toHaveBeenCalled();
+    expect(sdk.getInfo).not.toHaveBeenCalled();
+  });
+
   it("removes inherited variables after the command environment overlay", async () => {
     const run = vi.fn(async () => ({ stdout: "", stderr: "", exitCode: 0 }));
-    const provider = new E2BSandboxProvider("test-key", {
-      connect: vi.fn(async () => ({
-        sandboxId: "existing",
-        commands: { run },
-      })),
-    } as unknown as E2BSandboxSdk);
+    const provider = new E2BSandboxProvider(
+      "test-key",
+      withPassiveAttach({
+        getInfo: vi.fn(async () => ({ state: "running" as const })),
+        connect: vi.fn(async () => ({
+          sandboxId: "existing",
+          commands: { run },
+        })),
+      } as unknown as E2BSandboxSdk),
+    );
     const events = [];
     for await (const event of provider.execute(
       { id: "existing", providerRef: "existing", kind: "e2b", botId: "bot" },
@@ -47,13 +111,17 @@ describe("E2B computer backend", () => {
       }
       return { stdout: "", stderr: "", exitCode: 0 };
     });
-    const provider = new E2BSandboxProvider("test-key", {
-      connect: vi.fn(async () => ({
-        sandboxId: "existing",
-        display: ":0",
-        commands: { run: command },
-      })),
-    } as unknown as E2BSandboxSdk);
+    const provider = new E2BSandboxProvider(
+      "test-key",
+      withPassiveAttach({
+        getInfo: vi.fn(async () => ({ state: "running" as const })),
+        connect: vi.fn(async () => ({
+          sandboxId: "existing",
+          display: ":0",
+          commands: { run: command },
+        })),
+      } as unknown as E2BSandboxSdk),
+    );
 
     await expect(
       provider.setScreenControl(
@@ -80,6 +148,7 @@ describe("E2B computer backend", () => {
       throw new Error("Stream is already running");
     });
     const sdk = {
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn(async () => ({
         sandboxId: "existing",
         display: ":0",
@@ -94,17 +163,18 @@ describe("E2B computer backend", () => {
       kind: "e2b" as const,
       botId: "bot",
     };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const [first, second] = await Promise.all([
       provider.connectScreen(computer, { view: "stream" }, context),
       provider.connectScreen(computer, { view: "stream" }, context),
       provider.provision({ ...computer, providerKind: "e2b", homePath: "/unused" }, context),
     ]);
-    expect(sdk.connect).toHaveBeenCalledTimes(1);
+    expect(sdk.connect).not.toHaveBeenCalled();
+    expect(sdk.attachRunning).toHaveBeenCalledOnce();
     expect(first.url).toBe(second.url);
     expect(new URL(first.url!).searchParams.get("path")).toBe("websockify?token=savedkey");
 
-    const restarted = new E2BSandboxProvider("test-key", sdk);
+    const restarted = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const restored = await restarted.connectScreen(computer, { view: "stream" }, context);
     expect(restored.url).toBe(first.url);
     const commandsBeforeClose = command.mock.calls.length;
@@ -135,13 +205,14 @@ describe("E2B computer backend", () => {
     const failure = new Error("fetch failed", {
       cause: Object.assign(new Error("transport unavailable"), { code }),
     });
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn().mockRejectedValueOnce(failure).mockResolvedValue({ sandboxId: "existing" }),
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
 
     const request = {
       botId: "bot-1",
@@ -159,8 +230,9 @@ describe("E2B computer backend", () => {
   });
 
   it("creates a replacement when the provider confirms the sandbox no longer exists", async () => {
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn().mockResolvedValue({ sandboxId: "replacement" }),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn().mockRejectedValue(
         Object.assign(new Error("Sandbox not found"), {
           name: "SandboxNotFoundError",
@@ -168,8 +240,8 @@ describe("E2B computer backend", () => {
       ),
       pause: vi.fn(),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     await expect(
       provider.provision(
         {
@@ -206,13 +278,14 @@ describe("E2B computer backend", () => {
           proxy: "",
           apiUrl: `http://127.0.0.1:${address.port}`,
         });
-        const sdk: E2BSandboxSdk = {
+        const sdk = {
           create: vi.fn().mockResolvedValue(desktop),
+          getInfo: vi.fn(async () => ({ state: "running" as const })),
           connect: vi.fn(),
           pause: vi.fn(),
           kill: vi.fn(async () => true),
-        };
-        const provider = new E2BSandboxProvider("test-key", sdk);
+        } as unknown as E2BSandboxSdk;
+        const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
         const computer = await provider.provision({ botId: "bot", homePath: "/unused" }, context);
         if (status === 404) {
           await expect(provider.destroy(computer, context)).resolves.toBeUndefined();
@@ -248,13 +321,14 @@ describe("E2B computer backend", () => {
       display: ":0",
       commands: { run },
     } as unknown as Sandbox;
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const computer = {
       id: "screen-e2b-box",
       botId: "bot-1",
@@ -278,13 +352,14 @@ describe("E2B computer backend", () => {
       display: ":0",
       commands: { run },
     } as unknown as Sandbox;
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const computer = {
       id: "timeout-e2b-box",
       botId: "bot-1",
@@ -313,13 +388,14 @@ describe("E2B computer backend", () => {
       launch: vi.fn(async () => undefined),
       open: vi.fn(async () => undefined),
     } as unknown as Sandbox;
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const computer = await provider.provision(
       {
         botId: "bot-1",
@@ -352,12 +428,16 @@ describe("E2B computer backend", () => {
       launch,
       open,
     } as unknown as Sandbox;
-    const provider = new E2BSandboxProvider("test-key", {
-      create: vi.fn(async () => desktop),
-      connect: vi.fn(async () => desktop),
-      pause: vi.fn(async () => undefined),
-      kill: vi.fn(async () => true),
-    });
+    const provider = new E2BSandboxProvider(
+      "test-key",
+      withPassiveAttach({
+        create: vi.fn(async () => desktop),
+        getInfo: vi.fn(async () => ({ state: "running" as const })),
+        connect: vi.fn(async () => desktop),
+        pause: vi.fn(async () => undefined),
+        kill: vi.fn(async () => true),
+      }),
+    );
     const computer = await provider.provision(
       { botId: "bot-1", homePath: "/unused", providerKind: "e2b" },
       context,
@@ -402,12 +482,16 @@ describe("E2B computer backend", () => {
       files: { makeDir: vi.fn(async () => undefined) },
       getHost: (port: number) => `${port}-e2b-terminal-box.e2b.test`,
     } as unknown as Sandbox;
-    const provider = new E2BSandboxProvider("test-key", {
-      create: vi.fn(async () => desktop),
-      connect: vi.fn(async () => desktop),
-      pause: vi.fn(async () => undefined),
-      kill: vi.fn(async () => true),
-    });
+    const provider = new E2BSandboxProvider(
+      "test-key",
+      withPassiveAttach({
+        create: vi.fn(async () => desktop),
+        getInfo: vi.fn(async () => ({ state: "running" as const })),
+        connect: vi.fn(async () => desktop),
+        pause: vi.fn(async () => undefined),
+        kill: vi.fn(async () => true),
+      }),
+    );
     const computer = await provider.provision(
       { botId: "bot-1", homePath: "/unused", providerKind: "e2b" },
       context,
@@ -507,13 +591,14 @@ describe("E2B computer backend", () => {
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => undefined),
     } as unknown as Sandbox;
-    const sdk: E2BSandboxSdk = {
+    const sdk = {
       create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn(async () => desktop),
       pause: vi.fn(async () => undefined),
       kill: vi.fn(async () => true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const computer = await provider.provision(
       {
         botId: "bot-1",
@@ -657,12 +742,16 @@ describe("E2B computer backend", () => {
       write: vi.fn(async () => undefined),
       wait: vi.fn(async () => undefined),
     };
-    const provider = new E2BSandboxProvider("e2b_test", {
-      create: vi.fn(async () => desktop as never),
-      connect: vi.fn(),
-      pause: vi.fn(),
-      kill: vi.fn(async () => true),
-    } as unknown as E2BSandboxSdk);
+    const provider = new E2BSandboxProvider(
+      "e2b_test",
+      withPassiveAttach({
+        create: vi.fn(async () => desktop as never),
+        getInfo: vi.fn(async () => ({ state: "running" as const })),
+        connect: vi.fn(),
+        pause: vi.fn(),
+        kill: vi.fn(async () => true),
+      } as unknown as E2BSandboxSdk),
+    );
     const computer = await provider.provision({ botId: "team-home", homePath: "/tmp" }, context);
     const writer = { ...context, botId: "writer" };
     const researcher = { ...context, botId: "researcher" };
@@ -778,21 +867,28 @@ describe("sandbox-gone detection", () => {
     expect(isSandboxGoneError(new Error("fetch failed"))).toBe(false);
   });
 
-  it.each(gone)("reconnects a cached expired handle after %s", async (error) => {
+  it.each(gone)("does not resume an expired handle from a heartbeat after %s", async (error) => {
     const dead = { sandboxId: "box-1", setTimeout: vi.fn().mockRejectedValue(error) };
     const revived = { sandboxId: "box-1", setTimeout: vi.fn().mockResolvedValue(undefined) };
     const sdk = {
       create: vi.fn().mockResolvedValue(dead),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn().mockResolvedValue(revived),
       pause: vi.fn(),
       kill: vi.fn(),
     } as unknown as E2BSandboxSdk;
-    const provider = new E2BSandboxProvider("test-key", sdk);
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const ref = await provider.provision({ botId: "bot-1", homePath: "/unused" }, context);
     vi.setSystemTime(Date.now() + 61_000);
     try {
+      vi.mocked(sdk.getInfo).mockRejectedValueOnce(new SandboxNotFoundError("Sandbox not found"));
       await provider.keepAlive(ref);
       expect(dead.setTimeout).toHaveBeenCalledOnce();
+      expect(sdk.connect).not.toHaveBeenCalled();
+      await provider.provision(
+        { botId: "bot-1", homePath: "/unused", providerRef: ref.providerRef, providerKind: "e2b" },
+        context,
+      );
       expect(sdk.connect).toHaveBeenCalledOnce();
       expect(revived.setTimeout).not.toHaveBeenCalled();
     } finally {
@@ -821,11 +917,12 @@ describe("E2B resource lifecycle", () => {
     };
     const sdk = {
       create: vi.fn().mockResolvedValue(desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
       connect: vi.fn().mockResolvedValue(desktop),
       pause: vi.fn().mockResolvedValue(true),
       kill: vi.fn().mockResolvedValue(true),
-    };
-    const provider = new E2BSandboxProvider("test-key", sdk as unknown as E2BSandboxSdk);
+    } as unknown as E2BSandboxSdk;
+    const provider = new E2BSandboxProvider("test-key", withPassiveAttach(sdk));
     const ref = { id: "saved-box", providerRef: "saved-box", botId: "bot", kind: "e2b" as const };
     return { desktop, sdk, provider, ref };
   }
@@ -839,7 +936,7 @@ describe("E2B resource lifecycle", () => {
     await vi.advanceTimersByTimeAsync(60_000);
     await Promise.all([f.provider.keepAlive(f.ref), f.provider.keepAlive(f.ref)]);
     expect(f.desktop.setTimeout).toHaveBeenCalledOnce();
-    expect(f.desktop.setTimeout).toHaveBeenCalledWith(360_000);
+    expect(f.desktop.setTimeout).toHaveBeenCalledWith(150_000);
     await f.provider.keepAlive(f.ref);
     expect(f.desktop.setTimeout).toHaveBeenCalledOnce();
   });
@@ -880,7 +977,7 @@ describe("E2B resource lifecycle", () => {
 
   it("keeps a long command running at the shortest supported idle timeout and clears its timer", async () => {
     vi.useFakeTimers();
-    vi.stubEnv("SANDBOX_IDLE_MS", "30000");
+    vi.stubEnv("E2B_IDLE_MS", "30000");
     const f = fixture();
     let finish!: (result: { stdout: string; stderr: string; exitCode: number }) => void;
     f.desktop.commands.run.mockImplementationOnce(
@@ -894,13 +991,13 @@ describe("E2B resource lifecycle", () => {
       [Symbol.asyncIterator]();
     const result = command.next();
     await vi.advanceTimersByTimeAsync(120_000);
-    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(8);
+    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(9);
     expect(f.desktop.setTimeout).toHaveBeenLastCalledWith(90_000);
     finish({ stdout: "", stderr: "", exitCode: 0 });
     await expect(result).resolves.toEqual({ done: false, value: { type: "exit", code: 0 } });
     await command.return?.();
     await vi.advanceTimersByTimeAsync(120_000);
-    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(8);
+    expect(f.desktop.setTimeout).toHaveBeenCalledTimes(9);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -924,9 +1021,23 @@ describe("E2B resource lifecycle", () => {
     const f = fixture();
     if (cached) await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
     f.desktop.pause.mockRejectedValueOnce(new Error("provider busy"));
-    f.sdk.pause.mockRejectedValueOnce(new Error("provider busy"));
+    vi.mocked(f.sdk.pause).mockRejectedValueOnce(new Error("provider busy"));
     await expect(f.provider.stop(f.ref, context)).rejects.toThrow("provider busy");
     expect(f.sdk.connect).not.toHaveBeenCalled();
+  });
+
+  it("keeps a paused provider reference distinguishable from a destroyed sandbox", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    await f.provider.provision({ botId: "bot", homePath: "/unused" }, context);
+    f.desktop.setTimeout.mockRejectedValueOnce(
+      new SandboxNotFoundError("Sandbox is probably not running anymore"),
+    );
+    vi.mocked(f.sdk.getInfo).mockResolvedValueOnce({ state: "paused" });
+    await vi.advanceTimersByTimeAsync(60_000);
+    await expect(f.provider.keepAlive(f.ref)).rejects.toBeInstanceOf(ComputerSuspendedError);
+    expect(f.sdk.connect).not.toHaveBeenCalled();
+    expect(f.sdk.create).toHaveBeenCalledOnce();
   });
 
   it("deletes an uncached paused sandbox directly without resuming it", async () => {
@@ -939,8 +1050,22 @@ describe("E2B resource lifecycle", () => {
 
   it("does not swallow deletion failures for uncached sandboxes", async () => {
     const f = fixture();
-    f.sdk.kill.mockRejectedValueOnce(new Error("provider unavailable"));
+    vi.mocked(f.sdk.kill).mockRejectedValueOnce(new Error("provider unavailable"));
     await expect(f.provider.destroy(f.ref, context)).rejects.toThrow("provider unavailable");
     expect(f.sdk.connect).not.toHaveBeenCalled();
   });
 });
+
+function withPassiveAttach(
+  sdk: Omit<E2BSandboxSdk, "attachRunning"> & Partial<Pick<E2BSandboxSdk, "attachRunning">>,
+): E2BSandboxSdk {
+  sdk.attachRunning ??= vi.fn(async (id, options) => {
+    if ((await sdk.getInfo(id, options)).state !== "running") throw new ComputerSuspendedError();
+    const connect = vi.mocked(sdk.connect).getMockImplementation();
+    if (!connect) throw new Error("Missing SDK fixture connection");
+    const connected = await connect(id, { ...options, timeoutMs: 150_000 });
+    connected.setTimeout ??= vi.fn().mockResolvedValue(undefined);
+    return connected;
+  });
+  return sdk as E2BSandboxSdk;
+}

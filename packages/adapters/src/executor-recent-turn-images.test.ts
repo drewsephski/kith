@@ -75,6 +75,8 @@ async function runWithModel(
     revokedDuringSync?: boolean;
     peerDirectory?: boolean;
     imageCurrent?: boolean;
+    fileCurrent?: boolean;
+    processSteering?: boolean;
     steeringAttachment?: "file" | "image";
     steeringBusy?: boolean;
     computerWaitRetries?: number;
@@ -95,7 +97,7 @@ async function runWithModel(
     trigger: "user",
     leaseFence: 0,
     checkpoint: null as string | null,
-    sourceMessageId: scenario?.imageCurrent ? "current" : undefined,
+    sourceMessageId: scenario?.imageCurrent || scenario?.fileCurrent ? "current" : undefined,
   };
   const get = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
   const append = vi.fn(async () => undefined);
@@ -144,15 +146,15 @@ async function runWithModel(
     }
     if (scenario?.steeringAttachment) {
       const prior = vi.mocked(provisionComputer).mock.calls.length;
-      if (scenario.steeringBusy)
-        vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
       const steering = await next.claimSteering?.([]);
-      expect(vi.mocked(provisionComputer).mock.calls.length).toBe(
-        prior + (scenario.steeringBusy || scenario.computerWaitRetries ? 0 : 1),
-      );
-      if (!scenario.steeringBusy) {
-        expect(steering?.[0]?.text).toContain("attachments/art-1.png");
-        expect(writeFile).toHaveBeenCalledOnce();
+      expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior);
+      expect(steering?.[0]?.text).toContain("attachments/art-1.png");
+      if (!scenario.computerWaitRetries) expect(writeFile).not.toHaveBeenCalled();
+      if (scenario.processSteering || scenario.steeringBusy) {
+        if (scenario.steeringBusy)
+          vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
+        await next.executeTool?.("read_file", { path: "attachments/art-1.png" }, "steering-read");
+        if (!scenario.steeringBusy) expect(writeFile).toHaveBeenCalled();
       }
     }
     if (scenario?.useCatalog) {
@@ -275,12 +277,12 @@ async function runWithModel(
       findMany: vi.fn(async (args: { where?: { threadId?: string } }) =>
         args.where?.threadId
           ? historyMessages().map((message) =>
-              scenario?.imageCurrent && message.id === "current"
+              (scenario?.imageCurrent || scenario?.fileCurrent) && message.id === "current"
                 ? {
                     ...message,
                     blocks: [
                       {
-                        kind: "image" as const,
+                        kind: scenario.fileCurrent ? ("file" as const) : ("image" as const),
                         artifactId: "art-1",
                         mimeType: "image/png",
                         name: "shot.png",
@@ -395,6 +397,7 @@ async function runWithModel(
       ? {
           describe: () => ({ capabilities: { graphical: false } }),
           writeFile,
+          readFile: vi.fn(async () => new TextEncoder().encode("fixture content")),
           listFiles: vi.fn(async () => []),
           async *exportWorkspace() {
             yield* [];
@@ -556,7 +559,7 @@ describe("response latency", () => {
     expect(prisma.externalEffect.create).not.toHaveBeenCalled();
   });
 
-  it("materializes an image-only current turn before inference", async () => {
+  it("inspects an image-only current turn without activating a computer", async () => {
     const prior = vi.mocked(provisionComputer).mock.calls.length;
     const { request, writeFile } = await runWithModel(
       VISION_MODEL,
@@ -567,17 +570,45 @@ describe("response latency", () => {
       undefined,
       { prompt: "Inspect this image", imageCurrent: true },
     );
-    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior + 1);
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior);
+    expect(request.currentTurnImages).toHaveLength(1);
     expect(request.prompt).toContain("attachments/art-1.png");
-    expect(writeFile).toHaveBeenCalledOnce();
+    expect(writeFile).not.toHaveBeenCalled();
   });
 
   it.each(["file", "image"] as const)(
-    "provisions for a %s added during a conversational reply",
+    "does not provision for steering %s before tool demand",
     async (steeringAttachment) => {
       await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
         prompt: "Hi",
         steeringAttachment,
+      });
+    },
+  );
+
+  it("keeps file attachment metadata without provisioning before tool demand", async () => {
+    const prior = vi.mocked(provisionComputer).mock.calls.length;
+    const { request, writeFile } = await runWithModel(
+      VISION_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Keep this file for later", fileCurrent: true },
+    );
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior);
+    expect(request.prompt).toContain("attachments/art-1.png");
+    expect(writeFile).not.toHaveBeenCalled();
+  });
+
+  it.each(["file", "image"] as const)(
+    "materializes steering %s for an authorized file tool",
+    async (steeringAttachment) => {
+      await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+        prompt: "Inspect attachment",
+        steeringAttachment,
+        processSteering: true,
       });
     },
   );

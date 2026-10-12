@@ -95,6 +95,8 @@ test("user control leaves another Team bot's screen available", async ({ page },
 
   await openBot(page, "Kith");
   await page.getByTitle("Agent computer").click();
+  const start = page.getByRole("button", { name: /^(Start|Resume) computer$/ });
+  if (await start.isVisible()) await start.click();
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   await expect(page.getByRole("button", { name: "Close computer" })).toBeVisible();
@@ -132,7 +134,7 @@ test("a failed control release keeps the computer open for retry", async ({ page
   await signup(page, `team-release-${Date.now()}@rakazo.test`, "password12", "Team Release");
   await completeOnboarding(page);
   await openAdvancedNavigation(page);
-  await page.getByTitle("Agent computer").click();
+  await openComputerPanel(page);
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   const chrome = page.getByTestId("computer-chrome");
@@ -282,6 +284,8 @@ async function openBot(page: Page, name: string) {
 async function openComputerPanel(page: Page) {
   await page.getByTitle("Agent computer").click();
   await expect(page.getByTestId("computer-preview")).toBeVisible();
+  const start = page.getByRole("button", { name: /^(Start|Resume) computer$/ });
+  if (await start.isVisible()) await start.click();
   await expect(page.getByTestId("computer-preview-open")).toHaveCount(1);
 }
 

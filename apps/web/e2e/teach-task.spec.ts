@@ -9,6 +9,8 @@ test("teach a task records interaction and saves a draft", async ({ page }, test
   await page.getByTitle("Agent computer").click();
   const sidePanel = page.getByTestId("side-panel");
   await expect(sidePanel).toHaveAttribute("data-panel", "computer");
+  await sidePanel.getByRole("button", { name: "Start computer", exact: true }).click();
+  await expect(sidePanel.getByTestId("computer-preview-open")).toBeVisible();
   await expect(sidePanel.getByText("Teach a task")).toHaveCount(0);
   await expect(sidePanel.getByTestId("teach-start-button")).toHaveCount(0);
   await expect(sidePanel.getByRole("button", { name: "Recover computer" })).toHaveCount(0);

@@ -1,4 +1,7 @@
 export const RU_MESSAGES: Record<string, string> = {
+  "Start computer": "Запустить компьютер",
+  "Resume computer": "Возобновить компьютер",
+
   Off: "Выключены",
   "Delivery was not confirmed. Retry safely.":
     "Доставка не подтверждена. Можно безопасно повторить.",

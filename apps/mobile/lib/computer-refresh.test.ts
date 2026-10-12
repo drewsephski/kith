@@ -96,6 +96,9 @@ describe("computer refresh lifecycle", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(fixture.onStatus).toHaveBeenLastCalledWith(stopped);
     expect(fixture.onScreen).toHaveBeenCalledExactlyOnceWith(null);
+    expect(fixture.readScreen).toHaveBeenCalledOnce();
+    fixture.readStatus.mockResolvedValue(running);
+    await fixture.controller.refresh({ screenAttempts: 5 });
     expect(fixture.readScreen).toHaveBeenLastCalledWith(5);
     fixture.controller.dispose();
   });
@@ -325,12 +328,12 @@ describe("screen URL reuse", () => {
     fixture.readScreen.mockResolvedValue(null);
     fixture.controller.start();
     await vi.advanceTimersByTimeAsync(6000);
-    expect(fixture.readScreen).toHaveBeenCalledTimes(1);
+    expect(fixture.readScreen).not.toHaveBeenCalled();
     expect(fixture.onScreen).toHaveBeenCalledExactlyOnceWith(null);
     fixture.readStatus.mockResolvedValue(running);
     fixture.readScreen.mockResolvedValue("https://screen.example.test");
     await vi.advanceTimersByTimeAsync(2000);
-    expect(fixture.readScreen).toHaveBeenCalledTimes(2);
+    expect(fixture.readScreen).toHaveBeenCalledTimes(1);
     expect(fixture.onScreen).toHaveBeenLastCalledWith("https://screen.example.test");
     fixture.controller.dispose();
   });

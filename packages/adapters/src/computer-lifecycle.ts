@@ -23,6 +23,7 @@ import {
   isIdleOwnComputerTakeover,
   revokeScreenControl,
 } from "./computer-control.js";
+import { claimComputerActivation } from "./computer-demand.js";
 import { toComputerRef } from "./computer-support.js";
 import {
   checkpointComputerWorkspace,
@@ -162,6 +163,7 @@ export async function provisionComputer(
   controlHolder: "bot" | "none" = "none",
   onProgress?: ComputerUpdateProgress,
 ): Promise<ComputerRef> {
+  context.signal.throwIfAborted();
   let existing = await deps.prisma.computer.findUniqueOrThrow({ where: { id: computerId } });
   if (existing.maintenanceId && existing.maintenanceId !== context.operationId)
     throw new ComputerBusyError();
@@ -191,7 +193,7 @@ export async function provisionComputer(
           maintenanceId: existing.maintenanceId ?? null,
           ...(context.botId ? { bots: { some: { id: context.botId, archivedAt: null } } } : {}),
         },
-        data: { updatedAt: new Date() },
+        data: { lastUsedAt: new Date(), updatedAt: new Date() },
       });
       if (retained.count !== 1) throw new ComputerBusyError();
       await deps.sandbox.prepare(ref, context);
@@ -304,7 +306,10 @@ export async function provisionComputer(
   // worker that observed the same stamp could also claim and provision.
   const observedStamp = reclaimStamp ?? suspendStamp ?? existing.updatedAt;
   const claimStamp = new Date(Math.max(Date.now(), observedStamp.getTime() + 1));
-  const claimed = await deps.prisma.computer.updateMany({
+  const claimed = await claimComputerActivation(deps.prisma, {
+    userId: existing.userId,
+    computerId,
+    kind: existing.kind,
     where: {
       id: computerId,
       ...claimWhere,
@@ -317,6 +322,7 @@ export async function provisionComputer(
   let provisioned: ComputerRef | undefined;
   try {
     await onProgress?.("recreating");
+    context.signal.throwIfAborted();
     const ref = await deps.sandbox.provision(
       {
         botId: existing.homeKey,
@@ -327,6 +333,7 @@ export async function provisionComputer(
       context,
     );
     provisioned = ref;
+    context.signal.throwIfAborted();
     await deps.sandbox.prepare(ref, context);
     const replacement =
       ref.fresh === true ||
@@ -352,6 +359,7 @@ export async function provisionComputer(
         getLogger().error("team bot folder cleanup", error);
       });
     }
+    context.signal.throwIfAborted();
     const activeControl = hasActiveComputerControl(existing);
     const activated = await deps.prisma.computer.updateMany({
       where: {
@@ -364,6 +372,7 @@ export async function provisionComputer(
       },
       data: {
         state: "running",
+        lastUsedAt: new Date(),
         providerRef: ref.providerRef,
         kind: ref.kind,
         ...(!reconnecting
@@ -388,7 +397,7 @@ export async function provisionComputer(
   } catch (error) {
     // A failed reconnect never owns an existing workspace, even if setup failed.
     const rollbackError =
-      provisioned && (!reconnecting || provisioned.fresh === true)
+      provisioned && (!reconnecting || provisioned.fresh === true || provisioned.started === true)
         ? await rollbackProvisionedComputer(deps.sandbox, provisioned, context, error)
         : undefined;
     try {
@@ -492,7 +501,7 @@ export async function acquireComputerExecutionLease(
   const computer = await prisma.computer.findUniqueOrThrow({ where: { id: input.computerId } });
   if (computer.maintenanceId && computer.maintenanceId !== input.runId)
     throw new ComputerBusyError();
-  if (computer.scope !== "team") return null;
+  // Private computers need the same idle-suspension fence as Team computers.
   if (isLiveSuspending(computer)) throw new ComputerBusyError();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + EXECUTION_LEASE_MS);
@@ -691,8 +700,8 @@ export async function replaceComputer(
     throw new ComputerBusyError();
   }
   // Allow Reset on a stale "booting" or "suspending" row unless another bot still holds a live
-  // lease. Dedicated computers never create an execution-lease row, so the foreign-lease check
-  // alone cannot see an in-flight dedicated boot or idle stop. Refuse claim stamps younger than
+  // lease. Claim timestamps also protect legacy/manual operations without a lease row.
+  // Refuse claim stamps younger than
   // an execution-lease TTL (not merely the boot-wait poll) so a slow dedicated provision or
   // suspend is not destroyed mid-flight. Also refuse while a run still uses the computer —
   // before claiming suspending — so rollback cannot bump @updatedAt under an in-flight boot.

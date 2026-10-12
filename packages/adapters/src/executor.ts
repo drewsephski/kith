@@ -50,6 +50,7 @@ import {
   HistoryReadInputSchema,
   HistorySearchInputSchema,
   isAttachmentImageMimeType,
+  MessageBlock as MessageBlockSchema,
   OPENAI_COMPATIBLE_PROVIDER_ID,
   TaskStarterSpecSchema,
 } from "@rakazo/contracts";
@@ -59,6 +60,7 @@ import {
   appendToolCallSegment,
   applyJudgeDecision,
   assertTransition,
+  attachmentExtensionForMimeType,
   blocksToAgentHistoryText,
   botMessageAllowsSilence,
   CALL_CLIENT_NONCE_PREFIX,
@@ -220,6 +222,13 @@ import {
   type PluginConnectionRow,
   planLiveConnectionSync,
 } from "./composio-connector.js";
+import {
+  COMPUTER_DEMAND_GUIDANCE,
+  COMPUTER_TOOL_NAMES,
+  computerIntent,
+  toolNeedsComputer,
+} from "./computer-demand.js";
+
 import { BACKGROUND_WORK_LAUNCH, scheduleComputerSleep } from "./computer-idle.js";
 import {
   acquireComputerExecutionLease,
@@ -384,6 +393,7 @@ import {
   attachWorkspaceFileToThread,
   currentTurnFilesInstruction,
   materializeCurrentTurnFiles,
+  materializeMissingThreadAttachments,
 } from "./thread-artifacts.js";
 import { advanceToolCallLoopGuard } from "./tool-loop.js";
 import { textContentArg } from "./tool-text.js";
@@ -3527,13 +3537,19 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 select: { clientNonce: true, blocks: true },
               })
             : null);
-        const profile = executionProfile({
+        const routingInput = {
           trigger: run.trigger,
           prompt: task.prompt,
           resumed: fence > 1 || Boolean(resumeCheckpoint),
           groupId: thread.groupId,
           blocks: sourceNonce?.blocks as MessageBlock[] | undefined,
+        };
+        const intent = computerIntent({
+          ...routingInput,
+          computerTask: computerRequired || heldForTakeover,
+          connectedSources: storedConnections.map((connection) => connection.provider),
         });
+        const profile = intent === "conversation" ? "conversation" : executionProfile(routingInput);
         setupStages.initialReadsMs = Math.round(performance.now() - readsStartedAt);
         await deps.events.append({
           spaceId: run.spaceId,
@@ -3736,6 +3752,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
           run.sourceMessageId,
         );
         const turnBlocks = currentTurnMessage?.blocks;
+        const earlierAttachmentBlocks = messages.flatMap((message) =>
+          message.role === "user" &&
+          message.id !== currentTurnMessage?.id &&
+          Array.isArray(message.blocks)
+            ? message.blocks.flatMap((block) => {
+                const parsed = MessageBlockSchema.safeParse(block);
+                return parsed.success &&
+                  (parsed.data.kind === "image" || parsed.data.kind === "file")
+                  ? [parsed.data]
+                  : [];
+              })
+            : [],
+        );
+
         const sourceEmail = currentTurnMessage?.blocks.filter(
           (block) => block.kind === "email" && block.mode === "draft",
         );
@@ -3959,7 +3989,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
             setupStages.computerMs += Math.round(performance.now() - startedAt);
             screenRelease = { computer, context };
-            scheduleComputerSleep(deps.jobs, storedComputer.id);
+            scheduleComputerSleep(deps.jobs, storedComputer.id, computer.kind);
             context.signal.throwIfAborted();
             return computer;
           })();
@@ -3977,34 +4007,40 @@ export function createRunExecutor(deps: ExecutorDeps) {
             await checkpointRunComputerWorkspace(deps, storedComputer, computer, context);
           }
         });
-        let currentTurnFiles: Awaited<ReturnType<typeof materializeCurrentTurnFiles>>;
-        try {
-          currentTurnFiles =
-            deps.artifacts &&
-            computerAvailable &&
-            turnBlocks?.some((block) => block.kind === "file" || block.kind === "image")
-              ? await materializeCurrentTurnFiles(
-                  {
-                    prisma: deps.prisma,
-                    artifacts: deps.artifacts,
-                    sandbox: deps.sandbox,
-                  },
-                  turnBlocks,
-                  {
-                    context,
-                    computer: await ensureComputer(),
-                    computerMode,
-                    markWorkspaceDirty: workspaceCheckpoint.markDirty,
-                  },
-                )
-              : [];
-        } catch (error) {
-          await workspaceCheckpoint.flush().catch(() => undefined);
-          throw error;
-        }
-        const attachedFilesPrompt =
-          currentTurnFilesInstruction(currentTurnFiles) ||
-          (!computerAvailable ? unavailableComputerFilesInstruction(turnBlocks) : "");
+        const pendingAttachmentBlocks = [...(turnBlocks ?? [])];
+        let attachmentMaterialization: Promise<void> | undefined;
+        const materializePendingAttachments = async (): Promise<void> => {
+          if (attachmentMaterialization) {
+            await attachmentMaterialization;
+            if (pendingAttachmentBlocks.length) await materializePendingAttachments();
+            return;
+          }
+          if (!deps.artifacts || !computer || !pendingAttachmentBlocks.length) return;
+          const blocks = pendingAttachmentBlocks.slice();
+          const materializing = (async () => {
+            const files = await materializeCurrentTurnFiles(
+              { prisma: deps.prisma, artifacts: deps.artifacts!, sandbox: deps.sandbox },
+              blocks,
+              {
+                context,
+                computer: computer!,
+                computerMode,
+                markWorkspaceDirty: workspaceCheckpoint.markDirty,
+              },
+            );
+            workspaceCheckpoint.markFiles(files);
+            pendingAttachmentBlocks.splice(0, blocks.length);
+          })();
+          attachmentMaterialization = materializing;
+          try {
+            await materializing;
+          } finally {
+            if (attachmentMaterialization === materializing) attachmentMaterialization = undefined;
+          }
+        };
+        const attachedFilesPrompt = !computerAvailable
+          ? unavailableComputerFilesInstruction(turnBlocks)
+          : deferredAttachmentFilesInstruction([...(turnBlocks ?? []), ...earlierAttachmentBlocks]);
         const graphical = Boolean(
           computerAvailable &&
             storedComputer?.kind !== "desktop" &&
@@ -4315,10 +4351,37 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return occurrence;
         };
 
-        const ensureToolComputer = async (name: string): Promise<boolean> => {
-          if (!COMPUTER_TOOL_NAMES.has(name)) return true;
+        const ensureToolComputer = async (
+          name: string,
+          args: Record<string, unknown> = {},
+        ): Promise<boolean> => {
+          if (!toolNeedsComputer(name, computerAvailable)) return true;
           try {
             await ensureComputer();
+            if (deps.artifacts) {
+              const restored = await materializeMissingThreadAttachments(
+                { prisma: deps.prisma, artifacts: deps.artifacts, sandbox: deps.sandbox },
+                earlierAttachmentBlocks,
+                args,
+                {
+                  context,
+                  computer: requireComputer(),
+                  computerMode,
+                  markWorkspaceDirty: workspaceCheckpoint.markDirty,
+                },
+              );
+              workspaceCheckpoint.markFiles(restored);
+            }
+            await materializePendingAttachments();
+            const touched = await deps.prisma.computer.updateMany({
+              where: {
+                id: storedComputer!.id,
+                state: "running",
+                providerRef: computer!.providerRef,
+              },
+              data: { lastUsedAt: new Date() },
+            });
+            if (touched.count !== 1) throw new ComputerBusyError();
             if (
               !(await renewRunLease(deps, runId, workerId, fence)) ||
               !(await renewComputerExecutionLease(deps.prisma, computerLease))
@@ -4933,7 +4996,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           const claimOrReturn = async (
             from: "approved" | "intended",
           ): Promise<unknown | undefined> => {
-            if (!(await ensureToolComputer(name))) return approvalPausedToolResult();
+            if (!(await ensureToolComputer(name, args))) return approvalPausedToolResult();
             const claim = from === "approved" ? claimApprovedEffect : claimIntendedEffect;
             if (await claim(deps.prisma, applied!.effect.id)) {
               claimedEffect = true;
@@ -5119,7 +5182,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const early = await claimOrReturn("intended");
             if (early !== undefined) return early;
           }
-          if (!(await ensureToolComputer(name))) return approvalPausedToolResult();
+          if (!(await ensureToolComputer(name, args))) return approvalPausedToolResult();
           const persistEffectResult = (result: unknown) =>
             applied
               ? completeEffect(
@@ -7034,6 +7097,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               prompt,
               contextStrategy,
               instructions: [
+                COMPUTER_DEMAND_GUIDANCE,
                 profile === "conversation"
                   ? "Answer conversational questions directly. When a request needs current data, saved work, tools or any external action, use kith_search_tools, kith_load_tool and kith_execute_tool to discover and perform it. The same computer, app, memory and approval capabilities remain available through this catalog. Never claim an action occurred without its confirmed tool result."
                   : "",
@@ -7165,15 +7229,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   leaseFence: fence,
                   seenIds,
                 });
-                if (
-                  deps.artifacts &&
-                  computerAvailable &&
-                  steering.some((item) =>
-                    item.blocks?.some((block) => block.kind === "file" || block.kind === "image"),
-                  ) &&
-                  !(await ensureToolComputer("write_file"))
-                )
-                  return [];
                 return Promise.all(
                   steering.map(async (item) => {
                     const { images, files, unavailableInstruction } =
@@ -7199,9 +7254,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
                         context.signal,
                       );
                     workspaceCheckpoint.markFiles(files);
+                    if (!computer && item.blocks) pendingAttachmentBlocks.push(...item.blocks);
                     const filesInstruction =
                       currentTurnFilesInstruction(files) ||
-                      (!computer ? unavailableComputerFilesInstruction(item.blocks) : "");
+                      (!computerAvailable
+                        ? unavailableComputerFilesInstruction(item.blocks)
+                        : deferredAttachmentFilesInstruction(item.blocks));
                     return {
                       id: item.id,
                       messageId: item.messageId,
@@ -7834,6 +7892,29 @@ export function createRunExecutor(deps: ExecutorDeps) {
             await deps.sandbox
               .releaseScreen?.(screenRelease.computer, screenRelease.context)
               .catch(() => undefined);
+            if (computerLease) {
+              // The idle interval starts after real computer work/teardown ends,
+              // not at the beginning of a long command. A stale attempt cannot
+              // touch a replacement lease or provider reference.
+              await deps.prisma.computer
+                .updateMany({
+                  where: {
+                    id: computerLease.computerId,
+                    state: "running",
+                    providerRef: screenRelease.computer.providerRef,
+                    executionLeases: {
+                      some: { runId, botId: computerLease.botId, fence: computerLease.fence },
+                    },
+                  },
+                  data: { lastUsedAt: new Date() },
+                })
+                .catch(() => undefined);
+              scheduleComputerSleep(
+                deps.jobs,
+                computerLease.computerId,
+                screenRelease.computer.kind,
+              );
+            }
           }
           await releaseComputerExecutionLease(deps.prisma, computerLease).catch(() => undefined);
         }
@@ -8051,23 +8132,19 @@ export function selectBuiltinToolsForRun(options: {
   );
 }
 
-/** Tools that require a leased computer, never the API host filesystem or shell. */
-export const COMPUTER_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "computer_observe",
-  "computer_act",
-  "browser_navigate",
-  "browser_snapshot",
-  "browser_act",
-  "list_files",
-  "read_file",
-  "write_file",
-  "attach_file",
-  "shell",
-  "open_path",
-  "launch_app",
-  "request_takeover",
-  "render_plot",
-]);
+export { COMPUTER_TOOL_NAMES } from "./computer-demand.js";
+
+function deferredAttachmentFilesInstruction(blocks: MessageBlock[] | undefined): string {
+  const files = blocks?.filter((block) => block.kind === "image" || block.kind === "file");
+  if (!files?.length) return "";
+  return [
+    "Use inline image content when available. To inspect or process file contents, use an available file or shell tool. Attachments are copied only when a computer tool needs them, under these workspace paths:",
+    ...files.map(
+      (image) =>
+        `- ${JSON.stringify(image.name)}: ${JSON.stringify(`attachments/${image.artifactId}${attachmentExtensionForMimeType(image.mimeType)}`)}`,
+    ),
+  ].join("\n");
+}
 
 function unavailableComputerFilesInstruction(blocks: MessageBlock[] | undefined): string {
   const files = blocks?.filter((block) => block.kind === "file");

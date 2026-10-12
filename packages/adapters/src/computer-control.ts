@@ -8,7 +8,7 @@ import {
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { toComputerRef } from "./computer-support.js";
-import { isSandboxGoneError } from "./e2b-sandbox.js";
+import { ComputerSuspendedError, isSandboxGoneError } from "./e2b-sandbox.js";
 
 export const DEFAULT_TAKEOVER_LEASE_MS = 15 * 60 * 1000;
 
@@ -155,6 +155,8 @@ export async function revokeScreenControl(
   try {
     await deps.sandbox?.setScreenControl?.(toComputerRef(computer), false, context, leaseId);
   } catch (error) {
+    // Logical lease revocation is sufficient while paused; retain the portable provider ref.
+    if (error instanceof ComputerSuspendedError) return;
     if (!isSandboxGoneError(error)) throw error;
     if (opts?.clearGoneRef === false) return;
     getLogger().error(`computer ${computer.id} sandbox ${computer.providerRef} is gone`, error);

@@ -811,11 +811,6 @@ msgstr "Billing"
 msgid "Booting live desktop…"
 msgstr "Booting live desktop…"
 
-#. placeholder {0}: computerBot?.name ?? active?.name
-#: src/pages/Shell.tsx
-msgid "Booting up {0}’s computer"
-msgstr "Booting up {0}’s computer"
-
 #: src/pages/Shell.tsx
 msgid "bot"
 msgstr "bot"
@@ -928,6 +923,7 @@ msgstr "Can't reach the server."
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1300,10 +1296,6 @@ msgstr "Computer failed to boot"
 #: src/pages/Shell.tsx
 msgid "Computer is asleep"
 msgstr "Computer is asleep"
-
-#: src/pages/Shell.tsx
-msgid "Computer is asleep. Open it to wake."
-msgstr "Computer is asleep. Open it to wake."
 
 #: src/pages/Shell.tsx
 msgid "Computer is stopped"
@@ -2092,6 +2084,10 @@ msgstr "Could not send reset email"
 #: src/lib/call-session.ts
 msgid "Could not send that"
 msgstr "Could not send that"
+
+#: src/pages/Shell.tsx
+msgid "Could not start computer"
+msgstr "Could not start computer"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
@@ -4404,6 +4400,10 @@ msgstr "React"
 msgid "Reactions"
 msgstr "Reactions"
 
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "Read"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "Read replies aloud"
@@ -4779,6 +4779,10 @@ msgstr "Restore the last saved workspace. Unsaved work on the computer is lost."
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Restoring your workspace"
 msgstr "Restoring your workspace"
+
+#: src/pages/Shell.tsx
+msgid "Resume computer"
+msgstr "Resume computer"
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
@@ -5433,6 +5437,10 @@ msgstr "SSO is temporarily unavailable. Try again."
 #: src/pages/Paywall.tsx
 msgid "Start {trialDays}-day free trial"
 msgstr "Start {trialDays}-day free trial"
+
+#: src/pages/Shell.tsx
+msgid "Start computer"
+msgstr "Start computer"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
@@ -6283,7 +6291,3 @@ msgstr "Your email address"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "Your name"
-
-#: src/pages/Shell.tsx
-msgid "Read"
-msgstr "Read"

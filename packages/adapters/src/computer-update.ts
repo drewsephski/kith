@@ -543,7 +543,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
       select: { userId: true },
     });
     if (!bot) throw new Error("Computer update target is unavailable");
-    await replaceComputer(
+    const replaced = await replaceComputer(
       deps,
       update.computerId,
       update.action === "recover" ? "recover" : "update",
@@ -566,7 +566,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
       },
     );
     await finishUpdate(deps.prisma, updateId, update.computerId, "completed");
-    scheduleComputerSleep(deps.jobs, update.computerId);
+    scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
   } catch (error) {
     getLogger().error("computer update failed", error, { updateId, computerId: update.computerId });
     // Provider errors may contain credentials or private URLs. Expose only the failed stage.
