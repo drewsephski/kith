@@ -52,7 +52,7 @@ Four new cases also passed one real-model trial each using an isolated connector
 
 ## Verification record
 
-Local environment: macOS arm64, Node 26.3.0, pnpm 9.15.0, Docker Postgres 16, configured OpenRouter `openai/gpt-6-luna`; live max output 4096 tokens. Live credentials/configuration and detailed artifacts remain ignored. Builds and other tests overlapped early live trials, so their response timings are not controlled latency comparisons.
+Local environment: macOS arm64, Node 26.3.0, pnpm 9.15.0, Docker Postgres 16, configured OpenRouter `openai/gpt-6-luna`; live max output 4096 tokens. Live credentials/configuration and detailed artifacts remain ignored. The installed iOS journey used the real model with an isolated fake computer; real E2B execution is established by the separate combined product suite, not native remote-screen acceptance. Builds and other tests overlapped early live trials, so their response timings are not controlled latency comparisons.
 
 | Evidence | Outcome |
 | --- | --- |
