@@ -284,13 +284,15 @@ export class PiAgentRuntime implements AgentRuntime {
         const initialSteering = request.claimSteering ? await request.claimSteering([]) : [];
         let freshMemoryWrite = needsFreshMemoryWrite(request.prompt);
         const acceptMemorySteering = (steering: AgentSteeringMessage[]) => {
-          if (!steering.some((item) => needsFreshMemoryWrite(item.historyText ?? item.text)))
-            return;
+          const latestSave = steering
+            .filter((item) => needsFreshMemoryWrite(item.historyText ?? item.text))
+            .at(-1);
+          if (!latestSave) return;
           freshMemoryWrite = true;
           // An earlier receipt in this execution cannot satisfy a new user save.
           // Mutate shared state so helper agents retain the same receipt boundary.
           host.memoryWrite.attempted = false;
-          host.memoryWrite.confirmed = false;
+          host.memoryWrite.confirmed = latestSave.memoryWriteConfirmed === true;
         };
         acceptMemorySteering(initialSteering);
         seenSteeringIds.push(...initialSteering.map((item) => item.id));

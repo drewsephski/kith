@@ -557,8 +557,45 @@ describe("Pi connector tool dispatch", () => {
   });
 
   it.each([
+    "Remember I prefer dark mode.",
+    "Remember my birthday for future conversations.",
+    "Save this to memory.",
+  ])("rejects an unexecuted explicit save: %s", async (prompt) => {
+    fakeAgentState.memoryMode = "no-write";
+    const executeTool = vi.fn(async () => ({ ok: true }));
+    const consume = async () => {
+      for await (const _event of new PiAgentRuntime().run(
+        {
+          botId: "b",
+          threadId: "t",
+          runId: "explicit-save",
+          prompt,
+          history: [],
+          instructions: "Use durable memory.",
+          model: { provider: "test", id: "dispatch-test-model" },
+          tools: [
+            {
+              name: "remember",
+              description: "Save a durable fact",
+              inputSchema: { type: "object" },
+            },
+          ],
+          executeTool,
+        },
+        { signal: new AbortController().signal },
+      )) {
+        /* exhaust */
+      }
+    };
+    await expect(consume()).rejects.toThrow("Memory wasn't saved");
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(fakeAgentState.followUpMessages).toHaveLength(2);
+  });
+
+  it.each([
     "I can't save this. Nothing was saved or stored.",
     "I can't save this because the note was stored elsewhere.",
+    "Serenity writes are disabled for this Space. Enable writing in Memory settings to save durable facts.",
   ])("preserves an honest refusal with incidental save wording: %s", async (reply) => {
     fakeAgentState.memoryMode = "blocked";
     fakeAgentState.blockedReply = reply;
@@ -662,6 +699,43 @@ describe("Pi connector tool dispatch", () => {
     else await consume();
     expect(executeTool).toHaveBeenCalledTimes(mode === "recover" ? 1 : 0);
     expect(fakeAgentState.followUpMessages).toHaveLength(mode === "recover" ? 1 : 2);
+  });
+
+  it("does not repeat a confirmed memory save replayed after a worker restart", async () => {
+    fakeAgentState.memoryMode = "no-write";
+    const executeTool = vi.fn(async () => ({ ok: true }));
+    for await (const _event of new PiAgentRuntime().run(
+      {
+        botId: "b",
+        threadId: "t",
+        runId: "replayed-save",
+        prompt: "What is two plus two?",
+        history: [],
+        instructions: "Use durable memory.",
+        model: { provider: "test", id: "dispatch-test-model" },
+        tools: [
+          { name: "remember", description: "Save a durable fact", inputSchema: { type: "object" } },
+        ],
+        memoryWriteConfirmed: true,
+        claimSteering: async (seenIds) =>
+          seenIds.length
+            ? []
+            : [
+                {
+                  id: "already-claimed",
+                  messageId: "earlier-save",
+                  text: "Remember I prefer cobalt.",
+                  memoryWriteConfirmed: true,
+                },
+              ],
+        executeTool,
+      },
+      { signal: new AbortController().signal },
+    )) {
+      /* exhaust */
+    }
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(fakeAgentState.followUpMessages).toHaveLength(0);
   });
 
   it("injects durable steering at Pi's next safe turn boundary", async () => {

@@ -19,7 +19,10 @@ export function needsFreshMemoryWrite(prompt: string): boolean {
     /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
       directive,
     ) ||
-    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember(?:\s+that\s+\S|\s+(?:this|it)\s+for\s+(?:future(?:\s+conversations)?|later|next\s+time)\b)/i.test(
+    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/i.test(
+      directive,
+    ) ||
+    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/i.test(
       directive,
     )
   );
@@ -29,7 +32,7 @@ export function memoryReplyIsBlocked(text: string): boolean {
   // Incidental failure wording is not evidence that this save was blocked.
   // Be conservative: contradictory success language still requires a receipt.
   const refusal =
-    /\b(?:(?:I|we) (?:cannot|can['’]t|could not|couldn['’]t|am unable to|are unable to|was unable to) (?:save|store|remember)\b|(?:I|we) (?:do not|don['’]t) have (?:permission|access|authorization) to (?:save|store|remember)\b|(?:the )?memory (?:provider|tool) (?:rejected|denied|failed) (?:the |this )?(?:write|save)\b|(?:memory|(?:your|the|this) preference) (?:was not|wasn['’]t|is not|isn['’]t|has not been|hasn['’]t been|not) (?:saved|stored)\b)/gi;
+    /\b(?:(?:I|we) (?:cannot|can['’]t|could not|couldn['’]t|am unable to|are unable to|was unable to) (?:save|store|remember)\b|(?:I|we) (?:do not|don['’]t) have (?:permission|access|authorization) to (?:save|store|remember)\b|(?:the )?memory (?:provider|tool) (?:rejected|denied|failed) (?:the |this )?(?:write|save)\b|writes? (?:are|is) disabled\b|(?:memory|(?:your|the|this) preference) (?:was not|wasn['’]t|is not|isn['’]t|has not been|hasn['’]t been|not) (?:saved|stored)\b)/gi;
   if (!refusal.test(text)) return false;
   return !/\b(?:I|we)(?: have|['’]ve)? (?:saved|stored|remembered)\b|(?:^|[.!?]\s*)(?:successfully )?(?:saved|stored|remembered)\b|\b(?:your|the|this) (?:memory|preference) (?:was|is|has been) (?:saved|stored)\b/i.test(
     text.replace(refusal, ""),

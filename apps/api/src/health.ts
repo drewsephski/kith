@@ -1,4 +1,31 @@
+import type { Pool } from "@rakazo/db";
 import { Hono } from "hono";
+
+/** Destroy only the probe's checked-out connection when its read stalls. */
+export async function checkDatabaseReadiness(pool: Pool, signal: AbortSignal) {
+  signal.throwIfAborted();
+  const client = await pool.connect();
+  let released = false;
+  const destroy = () => {
+    if (released) return;
+    released = true;
+    client.release(true);
+  };
+  if (signal.aborted) {
+    destroy();
+    throw new Error("Readiness probe expired");
+  }
+  signal.addEventListener("abort", destroy, { once: true });
+  try {
+    await client.query("SELECT 1");
+  } catch (error) {
+    destroy();
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", destroy);
+    if (!released) client.release();
+  }
+}
 
 /**
  * `/health` is public liveness, so it stays a constant body. Deployment details are for
@@ -7,33 +34,36 @@ import { Hono } from "hono";
  */
 export function healthRoutes(
   details: () => Record<string, unknown>,
-  checkDatabase?: () => Promise<unknown>,
+  checkDatabase?: (signal: AbortSignal) => Promise<unknown>,
 ) {
   const app = new Hono();
   let pendingProbe: Promise<boolean> | undefined;
   const databaseReady = async () => {
     if (!checkDatabase) return true;
     // Share a slow probe rather than consuming another pool slot per health read.
-    pendingProbe ??= Promise.resolve()
-      .then(checkDatabase)
-      .then(
-        () => true,
-        () => false,
-      )
-      .finally(() => {
-        pendingProbe = undefined;
-      });
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        pendingProbe,
+    if (!pendingProbe) {
+      const controller = new AbortController();
+      let timeout: ReturnType<typeof setTimeout>;
+      const probe = Promise.race([
+        Promise.resolve()
+          .then(() => checkDatabase(controller.signal))
+          .then(
+            () => true,
+            () => false,
+          ),
         new Promise<false>((resolve) => {
-          timeout = setTimeout(() => resolve(false), 3_000);
+          timeout = setTimeout(() => {
+            controller.abort();
+            resolve(false);
+          }, 3_000);
         }),
-      ]);
-    } finally {
-      clearTimeout(timeout);
+      ]).finally(() => {
+        clearTimeout(timeout);
+        if (pendingProbe === probe) pendingProbe = undefined;
+      });
+      pendingProbe = probe;
     }
+    return pendingProbe;
   };
   app.get("/ready", async (c) => {
     c.header("cache-control", "no-store");

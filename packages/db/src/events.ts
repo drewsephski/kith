@@ -106,6 +106,8 @@ export interface ClaimedSteeringMessage {
   messageId: string;
   text: string;
   blocks: MessageBlock[];
+  /** Present only when replaying a directive claimed by an earlier attempt. */
+  claimedAt?: Date;
 }
 
 export interface FinalizeRunResult {
@@ -599,6 +601,7 @@ export async function claimSteering(
         messageId: item.messageId,
         text: blocksToAgentHistoryText(item.message.blocks as MessageBlock[]),
         blocks: item.message.blocks as MessageBlock[],
+        ...(item.claimedAt ? { claimedAt: item.claimedAt } : {}),
       })),
     };
   });

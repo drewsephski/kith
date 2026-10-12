@@ -13,8 +13,12 @@ command -v timeout >/dev/null
 # Reject known authentication incompatibility before changing the running image.
 curl --fail --silent --show-error --max-time 10 \
   "$HOSTED_ORIGIN/api/auth/capabilities" | jq -e ' .passwordAuth == false or .passwordReset == true' >/dev/null
-# Read-only readiness and session probes catch DB/provider quota outages before rollout.
-node scripts/verify-for-you-api.mjs "$HOSTED_ORIGIN"
+# Preserve upgrade compatibility with older gateways that do not expose /ready.
+# Session probes still exercise the DB; readiness is checked directly on the API.
+# New-client publishing and post-deploy acceptance always require public /ready.
+node scripts/verify-for-you-api.mjs "$HOSTED_ORIGIN" --preflight
+timeout --kill-after=5s 30s flyctl ssh console --app "$FLY_APP" --command \
+  "node --input-type=module -e 'const r = await fetch(\"http://127.0.0.1:3100/ready\", { signal: AbortSignal.timeout(10000) }); const b = await r.json(); if (!r.ok || b.ok !== true || b.degraded !== false) throw new Error(\"Backend readiness unavailable\");'"
 
 # Capture the exact prior image for operator rollback. Never replace volumes,
 # rotate secrets, destroy Machines, or roll database migrations backwards.

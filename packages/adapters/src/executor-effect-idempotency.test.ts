@@ -30,6 +30,7 @@ type Effect = {
   status: string;
   request: unknown;
   result?: unknown;
+  updatedAt?: Date;
   reviewDecision?: string;
 };
 
@@ -101,7 +102,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
           (effect) => effect.id === where.id && effect.status === where.status,
         );
         if (!effect) return { count: 0 };
-        Object.assign(effect, data);
+        Object.assign(effect, data, { updatedAt: new Date() });
         return { count: 1 };
       },
     ),
@@ -132,7 +133,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     thread: { findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })) },
-    message: { findMany: vi.fn(async () => []) },
+    message: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     task: {
       findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt })),
     },
@@ -186,6 +187,13 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
   });
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
   let calls: ToolCall[] = [];
+  const steering: Array<{
+    id: string;
+    messageId: string;
+    text: string;
+    blocks: [];
+    claimedAt?: Date;
+  }> = [];
   const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
     for (const call of calls) {
       const result = await request.executeTool!(call.name, call.args, call.executionId);
@@ -217,6 +225,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
       append: vi.fn(async () => undefined),
       pauseRunForInput,
       finalizeRun,
+      claimSteering: vi.fn(async () => steering),
     },
     jobs: { enqueue: vi.fn(async () => undefined) },
     secrets: [],
@@ -228,6 +237,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     results,
     scratchpadRows,
     memoryCommit,
+    steering,
     setCalls(next: ToolCall[]) {
       calls = next;
     },
@@ -263,6 +273,30 @@ describe("mutating tool effect idempotency keys", () => {
     f.effects[0]!.runId = "other-run";
     await f.run();
     expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+  });
+  it("restores a steered save only when its receipt follows the previous claim", async () => {
+    const f = fixture("steered-receipt-retry", "What is two plus two?");
+    f.setCalls([
+      { name: "remember", args: { path: "MEMORY.md", content: "cobalt" }, executionId: "memory-1" },
+    ]);
+    await f.run();
+    const completedAt = f.effects[0]!.updatedAt!;
+    f.setCalls([]);
+    f.steering.push({
+      id: "steer",
+      messageId: "message",
+      text: "Remember I prefer cobalt.",
+      blocks: [],
+      claimedAt: new Date(completedAt.getTime() - 1),
+    });
+    await f.run();
+    const request = f.runtimeRun.mock.calls.at(-1)![0];
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(true);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+    f.steering[0]!.claimedAt = new Date(completedAt.getTime() + 1);
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
+    delete f.steering[0]!.claimedAt;
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
   });
   it("executes different tools that share a reused provider tool-call id", async () => {
     const f = fixture("run-a");

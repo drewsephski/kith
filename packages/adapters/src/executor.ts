@@ -389,11 +389,7 @@ import {
   takeoverContinuePlan,
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
-import {
-  isMemorySaveCall,
-  needsFreshMemoryWrite,
-  UNVERIFIED_MEMORY_ERROR,
-} from "./task-completion.js";
+import { isMemorySaveCall, UNVERIFIED_MEMORY_ERROR } from "./task-completion.js";
 import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
 import {
   attachWorkspaceFileToThread,
@@ -3611,13 +3607,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return;
         }
         const completedMemoryEffects =
-          fence > 1 && needsFreshMemoryWrite(task.prompt)
+          fence > 1
             ? await deps.prisma.externalEffect.findMany({
                 where: { runId, status: "completed" },
-                select: { kind: true, result: true },
+                select: { kind: true, result: true, updatedAt: true },
               })
             : [];
-        const memoryWriteConfirmed = completedMemoryEffects.some((effect) => {
+        const confirmedMemoryEffects = completedMemoryEffects.filter((effect) => {
           const result = effect.result as {
             ok?: boolean;
             error?: unknown;
@@ -3630,6 +3626,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             result.uncertain !== true
           );
         });
+        const memoryWriteConfirmed = confirmedMemoryEffects.length > 0;
 
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
@@ -7333,10 +7330,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       (!computerAvailable
                         ? unavailableComputerFilesInstruction(item.blocks)
                         : deferredAttachmentFilesInstruction(item.blocks));
+                    const previousClaim = item.claimedAt;
                     return {
                       id: item.id,
                       messageId: item.messageId,
                       historyText: item.text,
+                      memoryWriteConfirmed: Boolean(
+                        previousClaim &&
+                          confirmedMemoryEffects.some(
+                            (effect) => effect.updatedAt >= previousClaim,
+                          ),
+                      ),
                       text: [
                         await loadReplyContext(deps.prisma, thread.id, item.messageId),
                         item.text,

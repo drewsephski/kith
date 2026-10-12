@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { verifyForYouApi, verifyHostedApi } from "./verify-for-you-api.mjs";
+import { verifyForYouApi, verifyHostedApi, verifyHostedPreflight } from "./verify-for-you-api.mjs";
 
 const unauthorized = () =>
   Response.json({ json: { code: "UNAUTHORIZED", status: 401 } }, { status: 401 });
@@ -12,13 +12,23 @@ const hosted = async (url) =>
       ? Response.json(null)
       : unauthorized();
 
+test("legacy-gateway preflight checks session compatibility while readiness remains mandatory for publishing", async () => {
+  const legacy = async (url) =>
+    url.pathname === "/ready" ? new Response("<html>old gateway</html>") : hosted(url);
+  await verifyHostedPreflight("https://api.example.test", legacy);
+  await assert.rejects(
+    verifyHostedApi("https://api.example.test", legacy),
+    /Hosted API unavailable: \/ready/,
+  );
+});
+
 test("checks an anonymous session as well as compatible routes", async () => {
   const requests = [];
   await verifyHostedApi("https://api.example.test", async (url, init) => {
     requests.push({ url, init });
     return hosted(url);
   });
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 5);
   for (const { init } of requests.filter(({ url }) => !url.pathname.startsWith("/rpc/"))) {
     assert.equal(init.credentials, "omit");
     assert.equal(init.redirect, "error");
@@ -27,11 +37,12 @@ test("checks an anonymous session as well as compatible routes", async () => {
   }
 });
 
-for (const route of ["/api/auth/get-session"]) {
+for (const route of ["/api/auth/get-session", "/ready"]) {
   for (const response of [
     () => new Response("private database quota details", { status: 500 }),
     () => new Response("<html>SPA fallback</html>"),
     () => Response.json({ ok: false }),
+    () => Response.json({ ok: true, degraded: true }),
     () => Response.json({ session: { token: "synthetic-session" } }),
   ]) {
     test(`rejects unavailable or invalid ${route} without disclosing response data`, async () => {

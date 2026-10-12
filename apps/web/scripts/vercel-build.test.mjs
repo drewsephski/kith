@@ -20,7 +20,7 @@ test("production publishing stops before building when the backend lacks For you
     buildVercelWeb({ API_PROXY_TARGET: "https://api.example.com", VERCEL_ENV: "production" }),
     /(?:Deploy|Restore) the compatible backend first/,
   );
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 5);
 });
 
 test("accepts public HTTPS roots and canonicalizes only a trailing slash", () => {

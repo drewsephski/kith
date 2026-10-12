@@ -109,7 +109,7 @@ import { mountBillingRoutes } from "./billing-webhook.js";
 import { AUTH_CLIENT_IP_HEADER, authRequestWithClientIp } from "./client-ip.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
-import { healthRoutes } from "./health.js";
+import { checkDatabaseReadiness, healthRoutes } from "./health.js";
 import { mountLocalSettings } from "./local-settings.js";
 import {
   createMessagingInboundHandler,
@@ -1017,7 +1017,10 @@ export async function createApp(
         degraded: secrets.describe().capabilities.degraded ?? false,
         revision: env.gitSha ?? null,
       }),
-      () => prisma.$queryRaw`SELECT 1`,
+      (signal) =>
+        created.pool
+          ? checkDatabaseReadiness(created.pool, signal)
+          : prisma.$transaction((tx) => tx.$queryRaw`SELECT 1`, { maxWait: 2_500, timeout: 2_500 }),
     ),
   );
 

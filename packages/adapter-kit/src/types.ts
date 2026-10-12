@@ -401,6 +401,8 @@ export interface AgentSteeringMessage {
   text: string;
   /** Persisted history text before attachment paths are appended. */
   historyText?: string;
+  /** Backend confirmation for a previously claimed save, never for fresh steering. */
+  memoryWriteConfirmed?: boolean;
   images?: AgentInputImage[];
 }
 

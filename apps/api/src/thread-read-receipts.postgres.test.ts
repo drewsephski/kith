@@ -171,9 +171,11 @@ databaseSuite("Message read receipts (PostgreSQL, offline)", () => {
     expect(await events.claimSteering({ ...claim, leaseFence: 2 })).toEqual([]);
     const consumed = await events.claimSteering(claim);
     expect(consumed.map((message) => message.messageId)).toEqual([updateMessage.id]);
+    expect(consumed[0]?.claimedAt).toBeUndefined();
     const read = await threadSnapshot({ prisma }, target);
     expect(read.messages[1]?.readAt).toEqual(expect.any(String));
-    await events.claimSteering(claim);
+    const replayed = await events.claimSteering(claim);
+    expect(replayed[0]?.claimedAt?.toISOString()).toBe(read.messages[1]?.readAt);
     expect(
       await prisma.event.count({
         where: { threadId: target.threadId, type: "thread.message.read" },

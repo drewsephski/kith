@@ -1,7 +1,8 @@
 import { InfisicalSecretStore } from "@rakazo/adapters";
+import type { Pool } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import { infisicalFake } from "../../../packages/adapters/src/secret-store-fake.js";
-import { healthRoutes } from "./health.js";
+import { checkDatabaseReadiness, healthRoutes } from "./health.js";
 
 const app = healthRoutes(() => ({ runtime: "pi", sandbox: "docker", revision: "abc123" }));
 
@@ -9,13 +10,44 @@ describe("health routes", () => {
   it("bounds readiness latency and shares an in-flight database probe", async () => {
     vi.useFakeTimers();
     try {
-      const check = vi.fn(() => new Promise(() => {}));
+      let signal: AbortSignal | undefined;
+      const check = vi.fn((nextSignal: AbortSignal) => {
+        signal = nextSignal;
+        return new Promise(() => {});
+      });
       const health = healthRoutes(() => ({}), check);
       const reads = [health.request("/ready"), health.request("/ready")];
       await vi.advanceTimersByTimeAsync(3_000);
       expect((await Promise.all(reads)).map((response) => response.status)).toEqual([503, 503]);
       expect(check).toHaveBeenCalledTimes(1);
+      expect(signal?.aborted).toBe(true);
       expect((await health.request("/health")).status).toBe(200);
+      check.mockImplementation(async () => undefined);
+      expect((await health.request("/ready")).status).toBe(200);
+      expect(check).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("destroys a stalled probe connection and recovers without leaking pool slots", async () => {
+    vi.useFakeTimers();
+    try {
+      const release = vi.fn();
+      const query = vi.fn(() => new Promise<void>(() => {}));
+      const pool = { connect: vi.fn(async () => ({ query, release })) } as unknown as Pool;
+      const health = healthRoutes(
+        () => ({}),
+        (signal) => checkDatabaseReadiness(pool, signal),
+      );
+      const reads = [health.request("/ready"), health.request("/ready")];
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect((await Promise.all(reads)).map((r) => r.status)).toEqual([503, 503]);
+      expect(release).toHaveBeenCalledExactlyOnceWith(true);
+      query.mockImplementation(async () => undefined);
+      expect((await health.request("/ready")).status).toBe(200);
+      expect(pool.connect).toHaveBeenCalledTimes(2);
+      expect(release).toHaveBeenCalledTimes(2);
+      expect(release).toHaveBeenLastCalledWith();
     } finally {
       vi.useRealTimers();
     }

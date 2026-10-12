@@ -40,6 +40,10 @@ describe("fresh memory receipt boundary", () => {
     expect(needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.")).toBe(true);
     expect(needsFreshMemoryWrite("Remember: cobalt.")).toBe(true);
     expect(needsFreshMemoryWrite("Remember that I prefer cobalt notebooks.")).toBe(true);
+    expect(needsFreshMemoryWrite("Remember I prefer dark mode.")).toBe(true);
+    expect(needsFreshMemoryWrite("Remember my birthday for future conversations.")).toBe(true);
+    expect(needsFreshMemoryWrite("Save this to memory.")).toBe(true);
+    expect(needsFreshMemoryWrite("Please store my preference in durable memory.")).toBe(true);
     expect(
       needsFreshMemoryWrite(
         "Update my preference to cobalt. Remember this for future conversations.",
@@ -50,6 +54,8 @@ describe("fresh memory receipt boundary", () => {
     ).toBe(true);
     expect(needsFreshMemoryWrite("Do you remember my preference?")).toBe(false);
     expect(needsFreshMemoryWrite("Remember to ask me tomorrow.")).toBe(false);
+    expect(needsFreshMemoryWrite("Remember my birthday?")).toBe(false);
+    expect(needsFreshMemoryWrite("Save this to memory?")).toBe(false);
     expect(needsFreshMemoryWrite("Explain the phrase 'Remember that I prefer cobalt'.")).toBe(
       false,
     );
@@ -80,6 +86,11 @@ describe("fresh memory receipt boundary", () => {
     expect(memoryReplyIsBlocked("Memory wasn't saved.")).toBe(true);
     expect(memoryReplyIsBlocked("I don't have permission to save that preference.")).toBe(true);
     expect(memoryReplyIsBlocked("The memory provider rejected the write.")).toBe(true);
+    expect(
+      memoryReplyIsBlocked(
+        "Serenity writes are disabled for this Space. Enable writing in Memory settings to save durable facts.",
+      ),
+    ).toBe(true);
     expect(memoryReplyIsBlocked("I can't save this. Nothing was saved or stored.")).toBe(true);
     expect(memoryReplyIsBlocked("I can't save this because the note was stored elsewhere.")).toBe(
       true,
