@@ -811,11 +811,6 @@ msgstr ""
 msgid "Booting live desktop…"
 msgstr "라이브 데스크톱 시작 중…"
 
-#. placeholder {0}: computerBot?.name ?? active?.name
-#: src/pages/Shell.tsx
-msgid "Booting up {0}’s computer"
-msgstr "{0}의 컴퓨터를 켜는 중"
-
 #: src/pages/Shell.tsx
 msgid "bot"
 msgstr "Bot"
@@ -928,6 +923,7 @@ msgstr "서버에 연결할 수 없습니다."
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1300,10 +1296,6 @@ msgstr "컴퓨터를 시작하지 못했습니다"
 #: src/pages/Shell.tsx
 msgid "Computer is asleep"
 msgstr "컴퓨터가 절전 상태입니다"
-
-#: src/pages/Shell.tsx
-msgid "Computer is asleep. Open it to wake."
-msgstr "컴퓨터가 절전 상태입니다. 열어 깨우세요."
 
 #: src/pages/Shell.tsx
 msgid "Computer is stopped"
@@ -2092,6 +2084,10 @@ msgstr "재설정 이메일을 보낼 수 없습니다"
 #: src/lib/call-session.ts
 msgid "Could not send that"
 msgstr "메시지를 보내지 못했습니다."
+
+#: src/pages/Shell.tsx
+msgid "Could not start computer"
+msgstr "컴퓨터를 시작할 수 없습니다"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
@@ -4404,6 +4400,10 @@ msgstr "반응하기"
 msgid "Reactions"
 msgstr "반응"
 
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "읽음"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "답변을 자동으로 읽기"
@@ -4779,6 +4779,10 @@ msgstr "마지막으로 저장된 작업 공간을 복원합니다. 컴퓨터에
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Restoring your workspace"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Resume computer"
+msgstr "컴퓨터 재개"
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
@@ -5433,6 +5437,10 @@ msgstr "SSO를 일시적으로 사용할 수 없습니다. 다시 시도하세�
 #: src/pages/Paywall.tsx
 msgid "Start {trialDays}-day free trial"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Start computer"
+msgstr "컴퓨터 시작"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
@@ -6283,7 +6291,3 @@ msgstr "이메일 주소"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "이름"
-
-#: src/pages/Shell.tsx
-msgid "Read"
-msgstr "읽음"

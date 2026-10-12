@@ -3,7 +3,7 @@ import { useLocalSearchParams, useNavigation } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import type { RefObject } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { AppState, Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Modal, Pressable, Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
   initialWindowMetrics,
@@ -17,7 +17,7 @@ import { ComputerModePicker } from "../components/computer-mode-picker";
 import { GlassIconButton } from "../components/glass-icon-button";
 import { ScrollView } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
-import { currentApiBase, rpc } from "../lib/api";
+import { captureMobileScreenScope, currentApiBase, mobileScreenScopeKey, rpc } from "../lib/api";
 import type { ComputerStatus } from "../lib/computer";
 import {
   COMPUTER_HEARTBEAT_MS,
@@ -51,6 +51,8 @@ export default function Computer() {
   const navigation = useNavigation();
   const { botId, name: nameParam } = useLocalSearchParams<{ botId?: string; name?: string }>();
   const name = nameParam || t("Bot");
+  const scopeKey = mobileScreenScopeKey();
+  const scopeActive = useMemo(() => captureMobileScreenScope(), [scopeKey]);
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
   const [screenUrl, setScreenUrl] = useState<string | null>(null);
   const [screenError, setScreenError] = useState<string | null>(null);
@@ -61,7 +63,8 @@ export default function Computer() {
   const booting = bootingCount > 0;
   const switching = switchingCount > 0;
   const [computerOpen, setComputerOpen] = useState(false);
-  const autoBooted = useRef<string | null>(null);
+  const starting = useRef(false);
+  const bootAbort = useRef<AbortController | null>(null);
   const screenWebViewRef = useRef<WebView>(null);
   const keyboardGate = useRef({
     key: "",
@@ -118,18 +121,33 @@ export default function Computer() {
   const refreshController = useMemo(
     () =>
       createComputerRefresh({
-        canPoll: () => AppState.currentState === "active" && navigation.isFocused(),
+        canPoll: () =>
+          scopeActive() && AppState.currentState === "active" && navigation.isFocused(),
         readStatus: () => rpc<ComputerStatus>("computer/status", { botId }),
         readScreen: (attempts) =>
-          readScreenUrl(() => rpc<{ url: string | null }>("computer/screenUrl", { botId }), {
-            attempts,
-          }),
-        onStatus: setComputer,
-        onScreen: setScreenUrl,
-        onReady: () => setReadyBotId(botId ?? null),
-        onInitialError: (err) => setError(errorText(err)),
+          readScreenUrl(
+            () =>
+              scopeActive()
+                ? rpc<{ url: string | null }>("computer/screenUrl", { botId })
+                : Promise.resolve({ url: null }),
+            {
+              attempts,
+            },
+          ),
+        onStatus: (status) => {
+          if (scopeActive()) setComputer(status);
+        },
+        onScreen: (url) => {
+          if (scopeActive()) setScreenUrl(url);
+        },
+        onReady: () => {
+          if (scopeActive()) setReadyBotId(botId ?? null);
+        },
+        onInitialError: (err) => {
+          if (scopeActive()) setError(errorText(err));
+        },
       }),
-    [botId, navigation],
+    [botId, navigation, scopeActive],
   );
   const refresh = refreshController.refresh;
   const refreshAfterMaintenance = useCallback(async () => {
@@ -145,9 +163,12 @@ export default function Computer() {
     setBootingCount(0);
     setSwitchingCount(0);
     setComputerOpen(false);
-    autoBooted.current = null;
+    starting.current = false;
     if (botId) refreshController.start();
-    return () => refreshController.dispose();
+    return () => {
+      refreshController.dispose();
+      bootAbort.current?.abort();
+    };
   }, [botId, refreshController]);
 
   async function bootComputer({
@@ -159,42 +180,39 @@ export default function Computer() {
     overlay: boolean;
     force?: boolean;
   }) {
-    if (!botId || !refreshController.isActive()) return false;
+    if (!botId || !refreshController.isActive() || !scopeActive() || starting.current) return false;
+    starting.current = true;
+    const controller = new AbortController();
+    bootAbort.current = controller;
     const action = refreshController.beginAction();
-    const needsBoot = force || computer?.state !== "running" || !screenUrl;
+    const needsBoot = force || computer?.state !== "running";
     const showBooting = overlay && needsBoot;
     if (showBooting) setBootingCount((count) => count + 1);
     try {
       if (needsBoot)
-        await rpc("computer/boot", { botId }, { timeoutMs: COMPUTER_LIFECYCLE_TIMEOUT_MS });
-      if (!action.isActive()) return false;
+        await rpc(
+          "computer/boot",
+          { botId },
+          { timeoutMs: COMPUTER_LIFECYCLE_TIMEOUT_MS, signal: controller.signal },
+        );
+      if (!action.isActive() || !scopeActive() || controller.signal.aborted) return false;
       if (takeControl) await rpc("computer/takeover", { botId });
-      if (!action.isActive()) return false;
+      if (!action.isActive() || !scopeActive() || controller.signal.aborted) return false;
       await action.refresh({ screenAttempts: SCREEN_URL_OPEN_ATTEMPTS });
-      if (!action.isActive()) return false;
+      if (!action.isActive() || !scopeActive() || controller.signal.aborted) return false;
       setError(null);
       return true;
     } catch (err) {
-      if (!action.isActive()) return false;
+      if (!action.isActive() || !scopeActive() || controller.signal.aborted) return false;
       setError(errorText(err, t("Could not open computer")));
       throw err;
     } finally {
+      if (bootAbort.current === controller) bootAbort.current = null;
+      if (action.isActive()) starting.current = false;
       if (action.isActive() && showBooting) setBootingCount((count) => count - 1);
       action.finish();
     }
   }
-
-  useEffect(() => {
-    if (!botId || readyBotId !== botId || switching) return;
-    if (computer?.state === "booting" || computer?.state === "suspended") return;
-    if (autoBooted.current === botId) return;
-    autoBooted.current = botId;
-    void bootComputer({
-      takeControl: false,
-      overlay: computer?.state !== "running",
-      force: true,
-    }).catch(() => undefined);
-  }, [readyBotId, botId, computer?.state, switching]);
 
   useEffect(() => {
     // Let the full-screen desktop rotate to landscape; the rest of the app stays portrait.
@@ -210,9 +228,9 @@ export default function Computer() {
   }, [computerOpen]);
 
   useEffect(() => {
-    if (!botId || computer?.state !== "running") return;
+    if (!botId || !scopeActive() || computer?.state !== "running") return;
     const ping = () => {
-      if (AppState.currentState === "active" && navigation.isFocused()) {
+      if (scopeActive() && AppState.currentState === "active" && navigation.isFocused()) {
         void rpc("computer/heartbeat", { botId }).catch(() => undefined);
       }
     };
@@ -230,7 +248,7 @@ export default function Computer() {
       subscription.remove();
       unsubscribeFocus();
     };
-  }, [botId, computer?.state, navigation, refresh]);
+  }, [botId, computer?.state, navigation, refresh, scopeActive]);
 
   /** Open the full window. Only an explicit Take control asks for the lease. */
   async function openComputer({ takeControl }: { takeControl: boolean }) {
@@ -251,7 +269,7 @@ export default function Computer() {
   }
 
   async function releaseComputer(reason?: ComputerReleaseReason) {
-    if (!botId || !refreshController.isActive()) return;
+    if (!botId || !refreshController.isActive() || !scopeActive()) return;
     const action = refreshController.beginAction();
     try {
       await rpc("computer/release", { botId, reason });
@@ -266,7 +284,8 @@ export default function Computer() {
   }
 
   async function setComputerMode(mode: ComputerMode) {
-    if (!botId || !refreshController.isActive() || mode === computer?.mode) return;
+    if (!botId || !refreshController.isActive() || !scopeActive() || mode === computer?.mode)
+      return;
     const action = refreshController.beginAction();
     setSwitchingCount((count) => count + 1);
     setError(null);
@@ -282,7 +301,7 @@ export default function Computer() {
       if (!action.isActive()) return;
       setComputer(null);
       setScreenUrl(null);
-      autoBooted.current = null;
+      starting.current = false;
       await action.refresh();
     } catch (err) {
       if (!action.isActive()) return;
@@ -336,12 +355,14 @@ export default function Computer() {
             </Text>
           </View>
         )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("Open computer")}
-          onPress={() => void openComputer({ takeControl: false })}
-          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
-        />
+        {computer?.state === "running" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("Open computer")}
+            onPress={() => void openComputer({ takeControl: false })}
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
+          />
+        ) : null}
       </View>
       <View
         style={{
@@ -362,10 +383,17 @@ export default function Computer() {
           />
         ) : (
           <NativeActionButton
-            label={t("Take control")}
-            prominence="secondary"
+            label={
+              computer?.state === "running"
+                ? t("Take control")
+                : computer?.state === "suspended"
+                  ? t("Resume computer")
+                  : t("Start computer")
+            }
+            disabled={readyBotId !== botId || booting || switching || computer?.state === "booting"}
+            prominence={computer?.state === "running" ? "secondary" : "primary"}
             style={{ alignSelf: "center" }}
-            onPress={() => void openComputer({ takeControl: true })}
+            onPress={() => void openComputer({ takeControl: computer?.state === "running" })}
           />
         )}
       </View>
@@ -388,7 +416,8 @@ export default function Computer() {
         presentationStyle="fullScreen"
         supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
         onRequestClose={() => {
-          if (!booting) setComputerOpen(false);
+          if (booting) bootAbort.current?.abort();
+          setComputerOpen(false);
         }}
       >
         <SafeAreaProvider initialMetrics={initialWindowMetrics}>
@@ -414,25 +443,15 @@ export default function Computer() {
               >
                 {t("Booting {label}", { label })}
               </Text>
-              <View
-                style={{
-                  height: 5,
-                  width: "70%",
-                  maxWidth: 420,
-                  overflow: "hidden",
-                  borderRadius: 999,
-                  backgroundColor: tokens.muted,
-                }}
-              >
-                <View
-                  style={{
-                    height: "100%",
-                    width: "66%",
-                    borderRadius: 999,
-                    backgroundColor: tokens.primary,
-                  }}
-                />
-              </View>
+              <ActivityIndicator
+                accessibilityLabel={t("Booting live desktop…")}
+                color={tokens.primary}
+              />
+              <NativeActionButton
+                label={t("Cancel")}
+                prominence="secondary"
+                onPress={() => bootAbort.current?.abort()}
+              />
             </SafeAreaView>
           ) : (
             <KeyboardAvoidingView

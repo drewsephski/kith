@@ -84,7 +84,7 @@ export function createComputerRefresh(options: {
       options.onStatus(status);
       if (screenStale(status, !poll)) {
         try {
-          const url = await options.readScreen(screenAttempts);
+          const url = status.state === "running" ? await options.readScreen(screenAttempts) : null;
           if (!current()) return;
           screenLoaded = true;
           screenStatus = screenKey(status);

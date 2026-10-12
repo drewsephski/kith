@@ -19,6 +19,7 @@ import { e2bCreateOptions } from "./e2b-sandbox.js";
 describe("sandbox idle", () => {
   beforeEach(() => {
     vi.stubEnv("SANDBOX_IDLE_MS", undefined);
+    vi.stubEnv("E2B_IDLE_MS", undefined);
   });
 
   afterEach(() => {
@@ -36,14 +37,15 @@ describe("sandbox idle", () => {
     vi.stubEnv("SANDBOX_IDLE_MS", value);
     const harness = idleHarness();
 
+    harness.computer.kind = "docker";
     expect(computerIdleSleepEnabled()).toBe(false);
     expect(sandboxIdleMs()).toBe(DEFAULT_SANDBOX_IDLE_MS);
-    scheduleComputerSleep(harness.deps.jobs, harness.computer.id);
+    scheduleComputerSleep(harness.deps.jobs, harness.computer.id, "docker");
     await sleepComputerIfIdle(harness.deps, harness.computer.id);
 
     expect(harness.jobs.enqueue).not.toHaveBeenCalled();
     expect(harness.computer.state).toBe("running");
-    expect(harness.prisma.computer.findUnique).not.toHaveBeenCalled();
+    expect(harness.prisma.computer.findUnique).toHaveBeenCalledOnce();
     expect(harness.prisma.computer.updateMany).not.toHaveBeenCalled();
     expect(harness.prisma.computer.update).not.toHaveBeenCalled();
     expect(harness.home.commit).not.toHaveBeenCalled();
@@ -68,12 +70,50 @@ describe("sandbox idle", () => {
 
     expect(computerIdleSleepEnabled()).toBe(true);
     expect(sandboxIdleMs()).toBe(Number(value));
-    scheduleComputerSleep(harness.deps.jobs, harness.computer.id);
+    scheduleComputerSleep(harness.deps.jobs, harness.computer.id, "docker");
 
     expect(harness.jobs.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ availableAt: new Date(now + Number(value)) }),
     );
   });
+
+  it("uses E2B's independent 90 second default", () => {
+    vi.stubEnv("SANDBOX_IDLE_MS", "600000");
+    expect(sandboxIdleMs("e2b")).toBe(90_000);
+    expect(sandboxIdleMs("docker")).toBe(600_000);
+    vi.stubEnv("E2B_IDLE_MS", "120000");
+    expect(sandboxIdleMs("e2b")).toBe(120_000);
+  });
+
+  it("suspends after 90 seconds even when incidental updates and unrelated reasoning continue", async () => {
+    const harness = idleHarness();
+    harness.computer.lastUsedAt = new Date(Date.now() - 90_001);
+    harness.computer.updatedAt = new Date();
+    harness.prisma.computerExecutionLease.findMany.mockResolvedValue([]);
+    harness.prisma.run.findFirst.mockResolvedValue({ id: "unrelated-run" });
+    await sleepComputerIfIdle(harness.deps, harness.computer.id);
+    expect(harness.prisma.run.findFirst).not.toHaveBeenCalled();
+    expect(harness.sandbox.stop).toHaveBeenCalledOnce();
+  });
+
+  it.each(["control", "maintenance"])(
+    "protects active %s without assuming a Team run lease",
+    async (activity) => {
+      const harness = idleHarness();
+      harness.prisma.computerExecutionLease.findMany.mockResolvedValue([]);
+      if (activity === "maintenance") harness.computer.maintenanceId = "update";
+      else
+        Object.assign(harness.computer, {
+          controlHolder: "user",
+          controlBotId: "bot",
+          controlLeaseId: "control",
+          controlLeaseExpiresAt: new Date(Date.now() + 60_000),
+        });
+      await sleepComputerIfIdle(harness.deps, harness.computer.id);
+      expect(harness.sandbox.stop).not.toHaveBeenCalled();
+      expect(harness.sandbox.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not suspend a computer while a run is active", async () => {
     const harness = idleHarness();
@@ -88,13 +128,13 @@ describe("sandbox idle", () => {
 
   it("defers an already-dequeued sleep job after recent viewer activity", async () => {
     const harness = idleHarness();
-    harness.computer.updatedAt = new Date(Date.now() - 1_000);
+    harness.computer.lastUsedAt = new Date(Date.now() - 1_000);
     await sleepComputerIfIdle(harness.deps, harness.computer.id);
     expect(harness.sandbox.execute).not.toHaveBeenCalled();
     expect(harness.sandbox.stop).not.toHaveBeenCalled();
     expect(harness.jobs.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        availableAt: new Date(harness.computer.updatedAt.getTime() + sandboxIdleMs()),
+        availableAt: new Date(harness.computer.lastUsedAt.getTime() + sandboxIdleMs("e2b")),
       }),
     );
   });
@@ -116,7 +156,7 @@ describe("sandbox idle", () => {
     expect(harness.computer.state).toBe("running");
     expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
     expect(harness.events.append).not.toHaveBeenCalled();
-    harness.computer.updatedAt = new Date(Date.now() - sandboxIdleMs());
+    harness.computer.lastUsedAt = new Date(Date.now() - sandboxIdleMs("e2b"));
     await sleepComputerIfIdle(harness.deps, harness.computer.id);
     expect(harness.computer.state).toBe("suspended");
   });
@@ -174,10 +214,23 @@ describe("sandbox idle", () => {
       harness.prisma.run.findFirst.mockImplementation(async ({ where }) =>
         where.status.in.includes(status) ? { id: "waiting" } : null,
       );
+      harness.prisma.run.findMany.mockResolvedValue([{ id: "run", botId: "bot" }]);
 
       await sleepComputerIfIdle(harness.deps, harness.computer.id);
 
       expect(harness.sandbox.stop).toHaveBeenCalledOnce();
+      expect(harness.prisma.computer.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            executionLeases: {
+              none: {
+                expiresAt: { gt: expect.any(Date) },
+                NOT: { OR: [{ runId: "run", botId: "bot", fence: 3 }] },
+              },
+            },
+          }),
+        }),
+      );
     },
   );
 
@@ -245,12 +298,17 @@ describe("sandbox idle", () => {
       },
     });
     expect(harness.events.append).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "computer.status", payload: { status: "suspended" } }),
+      expect.objectContaining({
+        type: "computer.status",
+        payload: { status: "suspended" },
+      }),
     );
   });
 
   it("never stops the computer when checkpoint export fails", async () => {
-    const harness = idleHarness({ exportError: new Error("checkpoint unavailable") });
+    const harness = idleHarness({
+      exportError: new Error("checkpoint unavailable"),
+    });
     harness.prisma.run.findFirst.mockResolvedValueOnce(null);
 
     await expect(sleepComputerIfIdle(harness.deps, harness.computer.id)).rejects.toThrow(
@@ -536,7 +594,7 @@ describe("e2b create options", () => {
   it("pauses on timeout instead of killing the sandbox", () => {
     const opts = e2bCreateOptions("bot-1", "e2b_test");
     expect(opts.lifecycle).toEqual({ onTimeout: "pause", autoResume: false });
-    expect(opts.timeoutMs).toBe(sandboxIdleMs() + 60_000);
+    expect(opts.timeoutMs).toBe(sandboxIdleMs("e2b") + 60_000);
     expect(opts.metadata.botId).toBe("bot-1");
   });
 });
@@ -565,6 +623,8 @@ function idleHarness(
     controlLeaseExpiresAt: null,
     controlBotId: null,
     executionBotId: null,
+    maintenanceId: null as string | null,
+    lastUsedAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   };
   const prisma = {
@@ -585,7 +645,13 @@ function idleHarness(
         return computer;
       }),
     },
-    run: { findFirst: vi.fn().mockResolvedValue(null) },
+    computerExecutionLease: {
+      findMany: vi.fn(async () => [{ runId: "run", botId: "bot", fence: 3 }]),
+    },
+    run: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     agentHome: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     bot: {
       findMany: vi.fn().mockResolvedValue([{ id: "bot", thread: { id: "thread" } }]),
@@ -602,7 +668,10 @@ function idleHarness(
     keepAlive: vi.fn().mockResolvedValue(undefined),
     exportWorkspace: vi.fn(async function* () {
       if (options.exportError) throw options.exportError;
-      yield { path: "notes/result.txt", content: new TextEncoder().encode("durable") };
+      yield {
+        path: "notes/result.txt",
+        content: new TextEncoder().encode("durable"),
+      };
     }),
     stop: vi.fn().mockResolvedValue(undefined),
     ...(options.providerBackgroundWorkStatus

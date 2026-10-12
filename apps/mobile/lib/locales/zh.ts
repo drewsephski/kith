@@ -1,4 +1,7 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  "Start computer": "启动电脑",
+  "Resume computer": "唤醒电脑",
+
   Off: "关闭",
   "Delivery was not confirmed. Retry safely.": "尚未确认送达，可以安全重试。",
   "Draft recovery is not ready. Try again.": "草稿恢复尚未就绪，请重试。",

@@ -8,10 +8,12 @@ import type {
 import { computerSleepJob } from "@rakazo/adapter-kit";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
+import { getLogger } from "@rakazo/logging";
 import { expireComputerControl, hasActiveComputerControl } from "./computer-control.js";
 import { toComputerRef } from "./computer-lifecycle.js";
 import { checkpointComputerWorkspace } from "./computer-workspace.js";
 
+export const DEFAULT_E2B_IDLE_MS = 90_000;
 export const DEFAULT_SANDBOX_IDLE_MS = 5 * 60 * 1000;
 const BACKGROUND_WORK_MARKER_PREFIX = "/tmp/rakazo-background-";
 const BACKGROUND_WORK_IDLE_SENTINEL = "rakazo-background-idle";
@@ -164,25 +166,33 @@ export const BACKGROUND_WORK_PROBE = [
   "exit 2",
 ].join("\n");
 
-export function sandboxIdleMs(): number {
-  const raw = Number(process.env.SANDBOX_IDLE_MS ?? DEFAULT_SANDBOX_IDLE_MS);
-  return Number.isSafeInteger(raw) && raw >= 30_000 ? raw : DEFAULT_SANDBOX_IDLE_MS;
+export function sandboxIdleMs(kind?: string): number {
+  const fallback = kind === "e2b" ? DEFAULT_E2B_IDLE_MS : DEFAULT_SANDBOX_IDLE_MS;
+  const raw = Number(
+    (kind === "e2b" ? process.env.E2B_IDLE_MS : process.env.SANDBOX_IDLE_MS) ?? fallback,
+  );
+  return Number.isSafeInteger(raw) && raw >= 30_000 ? raw : fallback;
 }
 
-export function computerIdleSleepEnabled(): boolean {
-  return process.env.SANDBOX_IDLE_MS?.trim() !== "0";
+export function computerIdleSleepEnabled(kind?: string): boolean {
+  return (kind === "e2b" ? process.env.E2B_IDLE_MS : process.env.SANDBOX_IDLE_MS)?.trim() !== "0";
 }
 
-export function scheduleComputerSleep(jobs: JobPublisher, computerId: string): void {
-  if (!computerId || !computerIdleSleepEnabled()) return;
-  void jobs.enqueue(computerSleepJob(computerId, new Date(Date.now() + sandboxIdleMs())));
+export function scheduleComputerSleep(jobs: JobPublisher, computerId: string, kind?: string): void {
+  if (!computerId || !computerIdleSleepEnabled(kind)) return;
+  // Callers without a provider hint schedule the earliest deadline. The job reloads
+  // the authoritative provider and last-used timestamp before doing anything.
+  const idleMs = kind ? sandboxIdleMs(kind) : Math.min(sandboxIdleMs(), sandboxIdleMs("e2b"));
+  void jobs.enqueue(computerSleepJob(computerId, new Date(Date.now() + idleMs))).catch((error) => {
+    getLogger().error("computer sleep enqueue", error);
+  });
 }
 
 export async function touchRunningComputer(
   deps: { sandbox: SandboxProvider; jobs: JobPublisher },
   computer: { id: string; homeKey: string; providerRef: string; kind: string },
 ): Promise<void> {
-  scheduleComputerSleep(deps.jobs, computer.id);
+  scheduleComputerSleep(deps.jobs, computer.id, computer.kind);
   await deps.sandbox.keepAlive?.(toComputerRef(computer));
 }
 
@@ -196,9 +206,13 @@ export async function sleepComputerIfIdle(
   },
   computerId: string,
 ): Promise<void> {
-  if (!computerIdleSleepEnabled()) return;
   let computer = await loadComputer(deps.prisma, computerId);
-  if (!computer?.providerRef || computer.state !== "running") return;
+  if (
+    !computer?.providerRef ||
+    computer.state !== "running" ||
+    !computerIdleSleepEnabled(computer.kind)
+  )
+    return;
 
   if (computer.controlBotId && computer.controlLeaseId && !hasActiveComputerControl(computer)) {
     await expireComputerControl(deps, computer.id, computer.controlLeaseId);
@@ -212,13 +226,17 @@ export async function sleepComputerIfIdle(
       status !== "waiting_input" &&
       (status !== "waiting_takeover" || hasActiveComputerControl(computer)),
   );
-  if (await findActiveRun(deps.prisma, computerId, activeStatuses)) {
+  if (
+    computer.maintenanceId ||
+    hasActiveComputerControl(computer) ||
+    (await findActiveRun(deps.prisma, computerId, activeStatuses))
+  ) {
     await deps.sandbox.keepAlive?.(toComputerRef(computer));
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     return;
   }
 
-  const idleAt = computer.updatedAt.getTime() + sandboxIdleMs();
+  const idleAt = computer.lastUsedAt.getTime() + sandboxIdleMs(computer.kind);
   if (idleAt > Date.now()) {
     await deps.jobs.enqueue(computerSleepJob(computerId, new Date(idleAt)));
     return;
@@ -234,11 +252,15 @@ export async function sleepComputerIfIdle(
     signal: new AbortController().signal,
   };
   if (await hasActiveBackgroundWork(deps.sandbox, ref, ctx, computerId)) {
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     await deps.sandbox.keepAlive?.(ref);
     return;
   }
 
+  // Waiting checkpoints retain their fencing tombstone, but do not own live work.
+  // Exclude only the observed lease versions; a continuation reacquires a higher
+  // fence, which must prevent this suspension claim from succeeding.
+  const dormantLeases = await findDormantComputerLeases(deps.prisma, computerId);
   const checkpointedAt = new Date();
   const recorded = await deps.prisma.computer.updateMany({
     where: {
@@ -247,13 +269,24 @@ export async function sleepComputerIfIdle(
       maintenanceId: null,
       providerRef: computer.providerRef,
       updatedAt: computer.updatedAt,
+      lastUsedAt: computer.lastUsedAt,
+      OR: [
+        { controlHolder: { not: "user" } },
+        { controlLeaseId: null },
+        { controlLeaseExpiresAt: { lte: checkpointedAt } },
+      ],
       executionRunId: null,
-      executionLeases: { none: { expiresAt: { gt: checkpointedAt } } },
+      executionLeases: {
+        none: {
+          expiresAt: { gt: checkpointedAt },
+          ...(dormantLeases.length ? { NOT: { OR: dormantLeases } } : {}),
+        },
+      },
     },
     data: { state: "suspending", updatedAt: checkpointedAt },
   });
   if (recorded.count !== 1) {
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     return;
   }
   const suspensionClaim = {
@@ -280,7 +313,7 @@ export async function sleepComputerIfIdle(
         where: suspensionClaim,
         data: { state: "running" },
       });
-      scheduleComputerSleep(deps.jobs, computerId);
+      scheduleComputerSleep(deps.jobs, computerId, computer.kind);
       return;
     }
   } catch (error) {
@@ -288,7 +321,7 @@ export async function sleepComputerIfIdle(
       where: suspensionClaim,
       data: { state: "running" },
     });
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     throw error;
   }
 
@@ -305,7 +338,7 @@ export async function sleepComputerIfIdle(
       where: suspensionClaim,
       data: { state: "running" },
     });
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     if (backgroundAfterCheckpoint) await deps.sandbox.keepAlive?.(ref);
     return;
   }
@@ -318,7 +351,7 @@ export async function sleepComputerIfIdle(
       where: suspensionClaim,
       data: { state: "running" },
     });
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     return;
   }
 
@@ -329,7 +362,7 @@ export async function sleepComputerIfIdle(
       where: suspensionClaim,
       data: { state: "running" },
     });
-    scheduleComputerSleep(deps.jobs, computerId);
+    scheduleComputerSleep(deps.jobs, computerId, computer.kind);
     throw error;
   }
   await deps.prisma.computer.update({
@@ -342,6 +375,14 @@ export async function sleepComputerIfIdle(
       controlBotId: null,
       controlRunId: null,
     },
+  });
+  getLogger().info("computer.idle", {
+    provider: computer.kind,
+    result: "suspended",
+    idle_ms_before_checkpoint: Math.max(
+      0,
+      checkpointedAt.getTime() - computer.lastUsedAt.getTime(),
+    ),
   });
   const bots = await deps.prisma.bot.findMany({
     where: { computerId },
@@ -357,6 +398,24 @@ export async function sleepComputerIfIdle(
       payload: { status: "suspended" },
     });
   }
+}
+
+async function findDormantComputerLeases(prisma: PrismaClient, computerId: string) {
+  const leases = await prisma.computerExecutionLease.findMany({
+    where: { computerId, expiresAt: { gt: new Date() } },
+    select: { runId: true, botId: true, fence: true },
+  });
+  if (!leases.length) return [];
+  const waiting = await prisma.run.findMany({
+    where: {
+      id: { in: leases.map((lease) => lease.runId) },
+      status: { in: ["waiting_input", "waiting_takeover"] },
+    },
+    select: { id: true, botId: true },
+  });
+  return leases.filter((lease) =>
+    waiting.some((run) => run.id === lease.runId && run.botId === lease.botId),
+  );
 }
 
 function loadComputer(prisma: PrismaClient, computerId: string) {
@@ -375,18 +434,34 @@ function loadComputer(prisma: PrismaClient, computerId: string) {
       controlLeaseExpiresAt: true,
       controlBotId: true,
       updatedAt: true,
+      lastUsedAt: true,
+      maintenanceId: true,
     },
   });
 }
 
-function findActiveRun(prisma: PrismaClient, computerId: string, statuses: readonly string[]) {
-  return prisma.run.findFirst({
-    where: {
-      bot: { computerId },
-      status: { in: statuses as (typeof ACTIVE_RUN_STATUSES)[number][] },
-    },
-    select: { id: true },
+async function findActiveRun(
+  prisma: PrismaClient,
+  computerId: string,
+  statuses: readonly string[],
+) {
+  const leases = await prisma.computerExecutionLease.findMany({
+    where: { computerId, expiresAt: { gt: new Date() } },
+    select: { runId: true },
   });
+  // Explicit boot/teaching reservations have no Run row and are genuine operations.
+  if (leases.some((lease) => /^(?:boot|teach|recover|reset|update):/.test(lease.runId)))
+    return true;
+  if (!leases.length) return false;
+  return Boolean(
+    await prisma.run.findFirst({
+      where: {
+        id: { in: leases.map((lease) => lease.runId) },
+        status: { in: statuses as (typeof ACTIVE_RUN_STATUSES)[number][] },
+      },
+      select: { id: true },
+    }),
+  );
 }
 
 async function hasActiveBackgroundWork(

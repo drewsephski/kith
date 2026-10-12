@@ -183,3 +183,47 @@ export function currentTurnFilesInstruction(files: readonly MaterializedThreadFi
     ),
   ].join("\n");
 }
+
+/** Restore deferred attachments only when a workspace tool refers to them. */
+export async function materializeMissingThreadAttachments(
+  deps: Parameters<typeof materializeCurrentTurnFiles>[0],
+  blocks: readonly MessageBlock[],
+  args: Record<string, unknown>,
+  input: Parameters<typeof materializeCurrentTurnFiles>[2],
+): Promise<MaterializedThreadFile[]> {
+  const requested = JSON.stringify(args);
+  const files = blocks.filter(
+    (block): block is Extract<MessageBlock, { kind: "image" | "file" }> =>
+      (block.kind === "image" || block.kind === "file") &&
+      (args.path === "" ||
+        args.path === "." ||
+        args.path === "attachments" ||
+        requested.includes(`attachments/${block.artifactId}`) ||
+        requested.includes("attachments/*")),
+  );
+  if (!files.length) return [];
+  const rows = await deps.prisma.artifact.findMany({
+    where: {
+      id: { in: files.map((image) => image.artifactId) },
+      spaceId: input.context.spaceId,
+      userId: input.context.userId,
+    },
+    select: { id: true, mimeType: true },
+  });
+  const authorized = new Map(rows.map((row) => [row.id, row.mimeType]));
+  const directory = resolveBotWorkspacePath(input.computerMode, input.context.botId, "attachments");
+  const root = resolveBotWorkspacePath(input.computerMode, input.context.botId, "");
+  const roots = await deps.sandbox.listFiles(input.computer, root, input.context);
+  const entries = roots.some((entry) => entry.kind === "dir" && entry.path === directory)
+    ? await deps.sandbox.listFiles(input.computer, directory, input.context)
+    : [];
+  const existing = new Set(entries.map((entry) => entry.path));
+  const missing = new Map<string, Extract<MessageBlock, { kind: "image" | "file" }>>();
+  for (const image of files) {
+    const mimeType = authorized.get(image.artifactId);
+    if (!mimeType) continue; // Deleted/foreign historical artifacts are not copied or exposed.
+    const target = `${directory}/${image.artifactId}${attachmentExtensionForMimeType(mimeType)}`;
+    if (!existing.has(target)) missing.set(image.artifactId, image);
+  }
+  return materializeCurrentTurnFiles(deps, [...missing.values()], input);
+}

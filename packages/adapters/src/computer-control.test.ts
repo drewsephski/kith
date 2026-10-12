@@ -18,6 +18,7 @@ import {
   takeoverLeaseMs,
   teachingControlLeaseExpiresAt,
 } from "./computer-control.js";
+import { ComputerSuspendedError } from "./e2b-sandbox.js";
 
 describe("computer control leases", () => {
   it("defaults to fifteen minutes and rejects unsafe configuration", () => {
@@ -226,6 +227,23 @@ describe("computer control leases", () => {
     );
     expect(harness.setScreenControl).not.toHaveBeenCalled();
     expect(harness.prisma.computer.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("revokes logical control while paused without dropping its retained workspace reference", async () => {
+    const updateMany = vi.fn();
+    const prisma = { computer: { updateMany } } as unknown as PrismaClient;
+    const sandbox = {
+      setScreenControl: vi.fn().mockRejectedValue(new ComputerSuspendedError()),
+    } as unknown as SandboxProvider;
+    await expect(
+      revokeScreenControl(
+        { prisma, sandbox },
+        { id: "computer", homeKey: "home", kind: "e2b", providerRef: "paused" },
+        contextStub(),
+        "lease",
+      ),
+    ).resolves.toBeUndefined();
+    expect(updateMany).not.toHaveBeenCalled();
   });
 
   it("revokes screen control, counting a gone sandbox as released", async () => {

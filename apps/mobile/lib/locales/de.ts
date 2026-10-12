@@ -1,4 +1,8 @@
 export const DE_MESSAGES: Record<string, string> = {
+  "Start computer": "Computer starten",
+  "Resume computer": "Computer fortsetzen",
+  "Computer is asleep": "Computer schläft",
+
   Off: "Aus",
   "Delivery was not confirmed. Retry safely.":
     "Die Zustellung wurde nicht bestätigt. Versuche es sicher erneut.",

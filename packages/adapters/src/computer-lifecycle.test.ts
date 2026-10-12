@@ -1007,7 +1007,12 @@ describe("computer provisioning", () => {
             updatedAt: expect.any(Date),
             bots: { some: { id: "bot-1", archivedAt: null } },
           },
-          data: { state: "running", providerRef: next.providerRef, kind: next.kind },
+          data: {
+            state: "running",
+            providerRef: next.providerRef,
+            kind: next.kind,
+            lastUsedAt: expect.any(Date),
+          },
         });
         expect(destroy).not.toHaveBeenCalled();
         expect(stop).not.toHaveBeenCalled();
@@ -1399,7 +1404,7 @@ describe("Team Computer wake", () => {
     return { ref, prisma, sandbox, execute, findMany };
   }
 
-  async function boot(harness: ReturnType<typeof wakeHarness>) {
+  async function boot(harness: ReturnType<typeof wakeHarness>, signal = context.signal) {
     const dataDir = await mkdtemp(path.join(tmpdir(), "rakazo-team-wake-"));
     try {
       return await provisionComputer(
@@ -1414,7 +1419,7 @@ describe("Team Computer wake", () => {
           dataDir,
         },
         "computer-1",
-        context,
+        { ...context, signal },
       );
     } finally {
       await rm(dataDir, { recursive: true, force: true });
@@ -1439,6 +1444,28 @@ describe("Team Computer wake", () => {
       expect.objectContaining({ botId: "bot-1" }),
     );
   });
+
+  it.each(["fresh", "resumed"] as const)(
+    "cancellation cleans up a %s provider response before preparation",
+    async (kind) => {
+      const controller = new AbortController();
+      const harness = wakeHarness(kind === "fresh" ? "stopped" : "running", undefined, {
+        fresh: kind === "fresh",
+        started: kind === "resumed",
+      });
+      harness.sandbox.destroy = vi.fn().mockResolvedValue(undefined);
+      harness.sandbox.stop = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(harness.sandbox.provision).mockImplementationOnce(async () => {
+        controller.abort();
+        return harness.ref;
+      });
+      await expect(boot(harness, controller.signal)).rejects.toThrow();
+      expect(harness.sandbox.prepare).not.toHaveBeenCalled();
+      expect(
+        kind === "fresh" ? harness.sandbox.destroy : harness.sandbox.stop,
+      ).toHaveBeenCalledOnce();
+    },
+  );
 
   it("does not look for deleted bots' folders when reconnecting to a running Team Computer", async () => {
     const harness = wakeHarness("running");
@@ -1510,18 +1537,15 @@ describe("Team Computer wake", () => {
 });
 
 describe("computer execution leases", () => {
-  it("does not serialize dedicated computers", async () => {
+  it("fences dedicated computer demand against idle suspension", async () => {
     const prisma = leasePrisma({ scope: "dedicated" });
-
-    await expect(
-      acquireComputerExecutionLease(prisma.client, {
-        computerId: "computer-1",
-        runId: "run-1",
-        botId: "bot-1",
-      }),
-    ).resolves.toBeNull();
-    expect(prisma.updateManyAndReturn).not.toHaveBeenCalled();
-    expect(prisma.create).not.toHaveBeenCalled();
+    const lease = await acquireComputerExecutionLease(prisma.client, {
+      computerId: "computer-1",
+      runId: "run-1",
+      botId: "bot-1",
+    });
+    expect(lease).toMatchObject({ computerId: "computer-1", runId: "run-1", fence: 1 });
+    expect(prisma.create).toHaveBeenCalledOnce();
   });
 
   it("fences one Team bot's screen and expires only the matching lease", async () => {

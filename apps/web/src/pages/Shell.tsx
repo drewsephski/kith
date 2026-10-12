@@ -156,6 +156,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from "react-rout
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import { AskCard } from "../components/AskCard";
 import { AssistantResponseRow, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import { LoadingState } from "../components/ai/primitives";
 import { RunStatus } from "../components/ai/RunStatus";
 import { CalendarReceipt } from "../components/CalendarReceipt";
 import { CloudAgentCard } from "../components/CloudAgentCard";
@@ -238,8 +239,6 @@ import {
   activeThreadRuns,
   applyThreadSendReceipt,
   clearActiveThreadRuns,
-  computerPanelAutoBoot,
-  computerPanelAutoUsesBoot,
   computerPanelNeedsMaintenance,
   computerTakeoverBlocked,
   isComputerStatusEvent,
@@ -882,7 +881,8 @@ export function ShellPage({
       .then(setUsage)
       .catch(() => undefined);
   }, []);
-  const autoBooted = useRef<string | null>(null);
+  const computerStarts = useRef(new Set<string>());
+  const computerBootAbort = useRef<AbortController | null>(null);
   const routineSavePending = useRef(false);
   const webhookSecretProvisionRef = useRef(new Map<string, Promise<string>>());
   const ensureWebhookSecret = (botId: string) =>
@@ -2701,35 +2701,45 @@ export function ShellPage({
     overlay: boolean;
     force?: boolean;
   }) {
+    if (computerStarts.current.has(targetBotId)) return;
+    computerStarts.current.add(targetBotId);
+    const controller = new AbortController();
+    computerBootAbort.current = controller;
     const epoch = ++computerBootEpoch.current;
     const stillThisBoot = () => computerBootEpoch.current === epoch;
     const stillThisBot = () =>
       computerBotIdRef.current === targetBotId || activeBotId.current === targetBotId;
     const cached = computerCacheRef.current.get(targetBotId);
     const targetComputer = computer?.botId === targetBotId ? computer : (cached?.computer ?? null);
-    const targetScreen = computer?.botId === targetBotId ? screenUrl : (cached?.screenUrl ?? null);
-    const needsBoot = force || targetComputer?.state !== "running" || !targetScreen;
+    const needsBoot = force || targetComputer?.state !== "running";
     if (overlay && needsBoot) setBooting(true);
     setComputerError(null);
     setComputerErrorFromScreen(false);
     try {
       if (needsBoot) {
-        const status = await rpc.computer.boot({ botId: targetBotId });
-        if (!stillThisBoot() || !stillThisBot()) return;
+        const status = await rpc.computer.boot(
+          { botId: targetBotId },
+          { signal: controller.signal },
+        );
+        if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
         commitComputer(status);
         cacheComputerFor(targetBotId, { computer: status });
       }
       if (takeControl) {
         await rpc.computer.takeover({ botId: targetBotId });
-        if (!stillThisBoot() || !stillThisBot()) return;
+        if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
       }
       await refreshComputerFor(targetBotId);
     } catch (error) {
-      if (!stillThisBoot() || !stillThisBot()) return;
-      setComputerError(errorText(error, t`Could not take control`));
+      if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
+      setComputerError(
+        errorText(error, needsBoot ? t`Could not start computer` : t`Could not take control`),
+      );
       setComputerErrorFromScreen(false);
       throw error;
     } finally {
+      if (computerBootAbort.current === controller) computerBootAbort.current = null;
+      computerStarts.current.delete(targetBotId);
       if (stillThisBoot()) setBooting(false);
     }
   }
@@ -2748,35 +2758,13 @@ export function ShellPage({
   }
 
   useEffect(() => {
-    if (panel !== "computer") {
-      autoBooted.current = null;
-      return;
-    }
-    if (!active) return;
+    if (panel !== "computer" || !active) return;
     const botId = active.id;
     let cancelled = false;
     void (async () => {
-      // Refresh from the server first. A stale SSE "booting" snapshot used to
-      // skip this effect, so an RPC takeover never showed "You have control".
       const snap = await refreshThread(botId).catch(() => null);
       if (cancelled || activeBotId.current !== botId) return;
-      const state = snap?.computer?.state;
-      const screen = state === "running" ? await refreshComputerScreen(botId) : null;
-      if (cancelled || activeBotId.current !== botId) return;
-      const action = computerPanelAutoBoot(state, screen);
-      if (action === "wait") {
-        if (state === "running") autoBooted.current = botId;
-        return;
-      }
-      if (action === "boot" && autoBooted.current === botId) return;
-      autoBooted.current = botId;
-      if (!computerPanelAutoUsesBoot(action)) return;
-      await bootComputer({
-        botId,
-        takeControl: false,
-        overlay: action === "boot",
-        force: true,
-      }).catch(() => undefined);
+      if (snap?.computer?.state === "running") await refreshComputerScreen(botId);
     })();
     return () => {
       cancelled = true;
@@ -2784,10 +2772,14 @@ export function ShellPage({
   }, [panel, active?.id]);
 
   useEffect(() => {
+    computerBootAbort.current?.abort();
+    computerBootEpoch.current += 1;
+    setBooting(false);
     setComputerOpen(false);
     setComputerError(null);
     setComputerErrorFromScreen(false);
     setComputerBotId(active?.id);
+    return () => computerBootAbort.current?.abort();
   }, [active?.id]);
 
   useEffect(() => {
@@ -3009,9 +3001,22 @@ export function ShellPage({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => computerBot && void refreshComputerScreen(computerBot.id)}
+          onClick={() => {
+            if (!computerBot) return;
+            if (computer?.state === "running") void refreshComputerScreen(computerBot.id);
+            else
+              void bootComputer({ botId: computerBot.id, takeControl: false, overlay: true }).catch(
+                () => undefined,
+              );
+          }}
         >
-          <Trans>Retry screen</Trans>
+          {computer?.state === "running" ? (
+            <Trans>Retry screen</Trans>
+          ) : computer?.state === "suspended" ? (
+            <Trans>Resume computer</Trans>
+          ) : (
+            <Trans>Start computer</Trans>
+          )}
         </Button>
       </div>
     ) : null;
@@ -4465,7 +4470,40 @@ export function ShellPage({
                         ))}
                     </div>
                   )}
-                  {!computerScreenError && !showingRecoveryHint ? (
+                  {!showingRecoveryHint &&
+                  !computerScreenError &&
+                  computer?.kind !== "desktop" &&
+                  computer?.state !== "running" &&
+                  !booting &&
+                  computer?.state !== "booting" ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background">
+                      <Monitor
+                        size={26}
+                        strokeWidth={1.4}
+                        className="text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <Button
+                        disabled={booting || !computer}
+                        onClick={() =>
+                          void bootComputer({
+                            botId: active.id,
+                            takeControl: false,
+                            overlay: true,
+                          }).catch(() => undefined)
+                        }
+                      >
+                        {computer?.state === "suspended" ? (
+                          <Trans>Resume computer</Trans>
+                        ) : (
+                          <Trans>Start computer</Trans>
+                        )}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {!computerScreenError &&
+                  !showingRecoveryHint &&
+                  (computer?.state === "running" || computer?.kind === "desktop") ? (
                     <button
                       type="button"
                       data-testid="computer-preview-open"
@@ -5261,12 +5299,10 @@ export function ShellPage({
 
       {booting ? (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[22px] bg-background/95">
-          <div className="text-[19px] font-medium text-foreground">
-            <Trans>Booting up {computerBot?.name ?? active?.name}’s computer</Trans>
-          </div>
-          <div className="h-[5px] w-[min(420px,70%)] overflow-hidden rounded-full bg-accent">
-            <div className="h-full w-2/3 rounded-full bg-primary" />
-          </div>
+          <LoadingState label={t`Booting live desktop…`} />
+          <Button variant="outline" onClick={() => computerBootAbort.current?.abort()}>
+            <Trans>Cancel</Trans>
+          </Button>
         </div>
       ) : computerOpen && computerBot ? (
         <div className="fixed inset-0 z-30 bg-background">
@@ -7923,7 +7959,7 @@ function computerPlaceholder(
 ) {
   if (state === "booting" || booting) return t`Booting live desktop…`;
   if (state === "running") return label;
-  if (state === "suspended") return t`Computer is asleep. Open it to wake.`;
+  if (state === "suspended") return t`Computer is asleep`;
   if (state === "error") return t`Computer failed to boot`;
   return t`Computer is stopped`;
 }

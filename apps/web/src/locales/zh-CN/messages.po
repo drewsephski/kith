@@ -811,11 +811,6 @@ msgstr ""
 msgid "Booting live desktop…"
 msgstr "正在启动实时桌面…"
 
-#. placeholder {0}: computerBot?.name ?? active?.name
-#: src/pages/Shell.tsx
-msgid "Booting up {0}’s computer"
-msgstr "正在启动 {0} 的电脑"
-
 #: src/pages/Shell.tsx
 msgid "bot"
 msgstr "Bot"
@@ -928,6 +923,7 @@ msgstr "无法连接服务器。"
 #: src/pages/Onboarding.tsx
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/bot-credentials.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
@@ -1300,10 +1296,6 @@ msgstr "电脑启动失败"
 #: src/pages/Shell.tsx
 msgid "Computer is asleep"
 msgstr "电脑已休眠"
-
-#: src/pages/Shell.tsx
-msgid "Computer is asleep. Open it to wake."
-msgstr ""
 
 #: src/pages/Shell.tsx
 msgid "Computer is stopped"
@@ -2092,6 +2084,10 @@ msgstr "无法发送重置邮件"
 #: src/lib/call-session.ts
 msgid "Could not send that"
 msgstr "无法发送"
+
+#: src/pages/Shell.tsx
+msgid "Could not start computer"
+msgstr "无法启动电脑"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Could not start OAuth"
@@ -4404,6 +4400,10 @@ msgstr "回应"
 msgid "Reactions"
 msgstr "表情回应"
 
+#: src/pages/Shell.tsx
+msgid "Read"
+msgstr "已读"
+
 #: src/pages/shell/bot-panel.tsx
 msgid "Read replies aloud"
 msgstr "朗读回复"
@@ -4779,6 +4779,10 @@ msgstr "还原上次保存的工作区。电脑上未保存的工作会丢失。
 #: src/components/ComputerUpdateProgress.tsx
 msgid "Restoring your workspace"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Resume computer"
+msgstr "唤醒电脑"
 
 #: src/components/AccountAccess.tsx
 #: src/pages/Auth.tsx
@@ -5433,6 +5437,10 @@ msgstr "SSO 暂时不可用，请重试。"
 #: src/pages/Paywall.tsx
 msgid "Start {trialDays}-day free trial"
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "Start computer"
+msgstr "启动电脑"
 
 #: src/components/teach/TeachComputerOverlay.tsx
 msgid "Start recording"
@@ -6283,7 +6291,3 @@ msgstr "你的邮箱"
 #: src/pages/Auth.tsx
 msgid "Your name"
 msgstr "你的名字"
-
-#: src/pages/Shell.tsx
-msgid "Read"
-msgstr "已读"

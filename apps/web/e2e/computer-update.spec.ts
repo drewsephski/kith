@@ -48,6 +48,8 @@ test("computer maintenance shows durable background progress and failure recover
   });
   await page.getByTitle("Agent computer").click();
   await expect(page.getByTestId("computer-preview")).toBeVisible();
+  await page.getByRole("button", { name: "Start computer", exact: true }).click();
+  await expect(page.getByTestId("computer-preview-open")).toBeVisible();
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   await page.getByTestId("computer-more-button").click();
