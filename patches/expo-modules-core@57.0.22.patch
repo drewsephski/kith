@@ -1,0 +1,17 @@
+diff --git a/android/src/main/cpp/JNIUtils.cpp b/android/src/main/cpp/JNIUtils.cpp
+index 349376744edf5445ba7bad568f4636bf75636d12..d7bade4c4b894156210a6ca14edc7ec88176761f 100644
+--- a/android/src/main/cpp/JNIUtils.cpp
++++ b/android/src/main/cpp/JNIUtils.cpp
+@@ -19,3 +19,11 @@ jsi::Value convertSharedObject(
+   if (id != 0) {
+-    return jsi::Value(rt, *jsiContext->getSharedObject(id)->cthis()->get());
++    auto jsObject = jsiContext->getSharedObject(id);
++    if (jsObject != nullptr) {
++      return jsi::Value(rt, *jsObject->cthis()->get());
++    }
++
++    // Hermes can clear the weak JS peer before its NativeState destructor removes
++    // the pairing. Remove the stale pairing before registering a fresh peer, so
++    // the old destructor cannot reset the new id (expo/expo#47787).
++    JSIContext::deleteSharedObject(jsiContext->javaPart_, id);
+   }
