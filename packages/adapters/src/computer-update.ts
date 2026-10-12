@@ -599,25 +599,12 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         if (result.count !== 1) throw new Error("Computer update interrupted");
       },
     );
-    const latest = await deps.prisma.computerUpdate.findUniqueOrThrow({ where: { id: updateId } });
-    const stopped = latest.status === "stopping";
-    await finishUpdate(
-      deps.prisma,
-      updateId,
-      update.computerId,
-      stopped ? "cancelled" : "completed",
-    );
+    await finishUpdate(deps.prisma, updateId, update.computerId, "completed");
     scheduleComputerSleep(deps.jobs, update.computerId, replaced.kind);
   } catch (error) {
     getLogger().error("computer update failed", error, { updateId, computerId: update.computerId });
     // Provider errors may contain credentials or private URLs. Expose only the failed stage.
-    const latest = await deps.prisma.computerUpdate.findUniqueOrThrow({ where: { id: updateId } });
-    await finishUpdate(
-      deps.prisma,
-      updateId,
-      update.computerId,
-      latest.status === "stopping" ? "cancelled" : "failed",
-    );
+    await finishUpdate(deps.prisma, updateId, update.computerId, "failed");
   } finally {
     clearInterval(heartbeat);
   }
@@ -627,13 +614,21 @@ async function finishUpdate(
   prisma: PrismaClient,
   id: string,
   computerId: string,
-  status: "completed" | "failed" | "cancelled",
+  status: "completed" | "failed",
 ) {
   await prisma.$transaction(async (tx) => {
-    const finished = await tx.computerUpdate.updateMany({
-      where: { id, status: { in: ["running", "interrupted", "stopping"] } },
+    let finished = await tx.computerUpdate.updateMany({
+      where: { id, status: { in: ["running", "interrupted"] } },
       data: { status },
     });
+    // The row predicate determines which intent won; a read before this write
+    // cannot safely decide whether Stop arrived while the provider was settling.
+    if (finished.count !== 1) {
+      finished = await tx.computerUpdate.updateMany({
+        where: { id, status: "stopping" },
+        data: { status: "cancelled" },
+      });
+    }
     if (finished.count !== 1) return;
     await tx.computer.updateMany({
       where: { id: computerId, maintenanceId: id },

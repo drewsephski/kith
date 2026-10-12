@@ -13,6 +13,34 @@ const update: ComputerUpdate = {
 };
 afterEach(() => vi.useRealTimers());
 describe("computer update presentation", () => {
+  it.each(["cancelled", "failed", "removed"] as const)(
+    "notifies mounted consumers once when running work becomes %s",
+    async (terminal) => {
+      vi.useFakeTimers();
+      let rows = [update];
+      const store = createComputerUpdates({
+        list: async () => rows,
+        start: async () => update,
+        dismiss: async () => {},
+        releaseInterrupted: async () => {},
+      });
+      const settled = vi.fn();
+      const unsubscribe = store.subscribeSettled(settled);
+      const stop = store.watch();
+      await vi.advanceTimersByTimeAsync(0);
+      rows = [{ ...update, status: "stopping" }];
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(settled).not.toHaveBeenCalled();
+      rows = terminal === "removed" ? [] : [{ ...update, status: terminal }];
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(settled).toHaveBeenCalledOnce();
+      store.open(update.id);
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(settled).toHaveBeenCalledOnce();
+      unsubscribe();
+      stop();
+    },
+  );
   it.each([
     ["cancelled", false],
     ["running", false],

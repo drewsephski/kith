@@ -136,6 +136,27 @@ describe("background computer maintenance", () => {
     expect(replacement).toHaveBeenCalledOnce();
     expect(jobs.enqueue).toHaveBeenCalledOnce();
   });
+  it.each(["completed", "failed"] as const)(
+    "preserves Stop arriving at the %s terminal write",
+    async (terminal) => {
+      const { row, computer, computerUpdate, deps } = fixture();
+      const write = computerUpdate.updateMany.getMockImplementation()!;
+      computerUpdate.updateMany.mockImplementation(async (args) => {
+        if (args.data.status === terminal) row.status = "stopping";
+        return write(args);
+      });
+      if (terminal === "failed") replacement.mockRejectedValueOnce(new Error("offline"));
+      else
+        replacement.mockResolvedValueOnce({ kind: "fake" } as Awaited<
+          ReturnType<typeof replaceComputer>
+        >);
+      await performComputerUpdate(deps, row.id);
+      expect(row.status).toBe("cancelled");
+      expect(computer.updateMany).toHaveBeenCalledOnce();
+      await performComputerUpdate(deps, row.id);
+      expect(replacement).toHaveBeenCalledOnce();
+    },
+  );
   it("persists stages and releases its reservation only after completion; redelivery is harmless", async () => {
     const { row, computer, deps } = fixture();
     replacement.mockImplementationOnce(async (_deps, _id, _mode, _ctx, _holder, progress) => {

@@ -153,6 +153,7 @@ import { confirmDeleteBot, restoreArchivedBot } from "../lib/bot-lifecycle";
 import { findSwitchTarget, ringOnArrival, takeRingOnArrival } from "../lib/bot-switch";
 import { setCallProviderTranscribe, startCall, useCallSession } from "../lib/call-session";
 import { transparentColor } from "../lib/color";
+import { computerUpdates } from "../lib/computer-updates";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
@@ -1586,6 +1587,14 @@ function Thread() {
       abort.abort();
     };
   }, [botId, groupId, readOnly, markReadIfVisible, refreshMentionBots]);
+
+  useEffect(() => {
+    if (!botId && !groupId) return;
+    const scopeCurrent = captureMobileScreenScope();
+    return computerUpdates.subscribeSettled(() => {
+      if (scopeCurrent()) void refresh().catch(() => undefined);
+    });
+  }, [botId, groupId]);
 
   useEffect(() => {
     if (!botId && !groupId) return;

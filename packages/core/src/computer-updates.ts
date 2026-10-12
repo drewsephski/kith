@@ -45,6 +45,22 @@ export function createComputerUpdates(client: {
         listeners.delete(listener);
       };
     },
+    subscribeSettled(listener: () => void) {
+      let previous = state.updates;
+      const receive = () => {
+        const settled = previous.some((old) => {
+          if (["failed", "cancelled"].includes(old.status)) return false;
+          const current = state.updates.find((item) => item.id === old.id);
+          return !current || ["failed", "cancelled"].includes(current.status);
+        });
+        previous = state.updates;
+        if (settled) listener();
+      };
+      listeners.add(receive);
+      return () => {
+        listeners.delete(receive);
+      };
+    },
     watch() {
       const epoch = ++generation;
       void poll(epoch);

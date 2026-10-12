@@ -28,27 +28,13 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
     computerUpdates.subscribe,
     computerUpdates.getSnapshot,
   );
-  const previous = useRef<ComputerUpdate[]>([]);
   const completed = useRef(onCompleted);
   completed.current = onCompleted;
   const [error, setError] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const [releaseId, setReleaseId] = useState<string | null>(null);
   useEffect(() => computerUpdates.watch(), []);
-  useEffect(() => {
-    if (
-      previous.current.some(
-        (old) =>
-          !["failed", "cancelled"].includes(old.status) &&
-          (!updates.some((item) => item.id === old.id) ||
-            updates.some(
-              (item) => item.id === old.id && ["failed", "cancelled"].includes(item.status),
-            )),
-      )
-    )
-      completed.current();
-    previous.current = updates;
-  }, [updates]);
+  useEffect(() => computerUpdates.subscribeSettled(() => completed.current()), []);
   const labels = [
     t`Getting ready`,
     t`Saving your workspace`,
