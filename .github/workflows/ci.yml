@@ -240,12 +240,19 @@ jobs:
             fi
           done
 
+          if [[ "$publish" == true && "$blocked" == false ]]; then
+            runtime_needs_bump="$(node --input-type=module -e 'import { requiresNewNativeRuntime } from "./scripts/preview-mobile-update.mjs"; console.log(requiresNewNativeRuntime())')"
+            if [[ "$runtime_needs_bump" == true ]]; then
+              blocked=true
+            fi
+          fi
+
           if [[ "$blocked" == true ]]; then
             publish=false
             {
               echo "### Mobile OTA skipped"
               echo
-              echo "This revision changes native-sensitive mobile configuration, dependencies, modules, assets, or workflow files. Create new iOS and Android builds instead of publishing it to an older native runtime."
+              echo "Native-sensitive mobile changes require an app-version bump and new iOS and Android builds before publishing to the new runtime."
             } >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$publish" == true ]]; then
             {

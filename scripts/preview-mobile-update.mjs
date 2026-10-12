@@ -30,7 +30,11 @@ export function classifyPreviewChanges(files) {
     } else if (file.startsWith("packages/chat-ui/src/") && file.endsWith(".css")) {
       changed = true;
     } else {
-      return { publish: false, reason: "Native-sensitive changes require a new preview build." };
+      return {
+        publish: false,
+        requiresBuild: true,
+        reason: "Native-sensitive changes require a new preview build.",
+      };
     }
   }
   return {
@@ -59,6 +63,51 @@ export function previewBuildSource(builds, platform, version) {
   return build.gitCommitHash;
 }
 
+/** A fresh binary cannot make older installations sharing its runtime compatible. */
+export function requiresNewNativeRuntime(cwd = process.cwd()) {
+  if (
+    execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+      cwd,
+      encoding: "utf8",
+    }).trim() !== "false"
+  )
+    throw new Error("Mobile publication requires complete source history");
+  const config = JSON.parse(readFileSync(`${cwd}/apps/mobile/app.json`, "utf8")).expo;
+  if (config.runtimeVersion?.policy !== "appVersion") {
+    throw new Error("Mobile publication requires the appVersion runtime policy");
+  }
+  const sources = execFileSync(
+    "git",
+    ["log", "--full-history", "--format=%H", "HEAD", "--", "apps/mobile/app.json"],
+    { cwd, encoding: "utf8" },
+  )
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+  let knownRuntime = false;
+  for (const source of sources) {
+    const previous = JSON.parse(
+      execFileSync("git", ["show", `${source}:apps/mobile/app.json`], {
+        cwd,
+        encoding: "utf8",
+        stdio: "pipe",
+      }),
+    ).expo;
+    if (previous.version !== config.version) continue;
+    knownRuntime = true;
+    const files = execFileSync(
+      "git",
+      ["diff", "--name-only", "-z", source, "HEAD", "--", ...mobilePaths],
+      { cwd, encoding: "utf8" },
+    )
+      .split("\0")
+      .filter(Boolean);
+    if (classifyPreviewChanges(files).requiresBuild) return true;
+  }
+  if (!knownRuntime) throw new Error("The committed mobile runtime history is unavailable");
+  return false;
+}
+
 export function planPreviewUpdate(builds, platform, cwd = process.cwd()) {
   if (!["ios", "android"].includes(platform)) throw new Error("Invalid mobile platform");
   const config = JSON.parse(readFileSync(`${cwd}/apps/mobile/app.json`, "utf8")).expo;
@@ -75,6 +124,13 @@ export function planPreviewUpdate(builds, platform, cwd = process.cwd()) {
     return {
       publish: false,
       reason: "Preview build source is unavailable or is outside this history.",
+    };
+  }
+  if (requiresNewNativeRuntime(cwd)) {
+    return {
+      publish: false,
+      reason:
+        "Native changes within this runtime require an app-version bump and a new preview build.",
     };
   }
   const files = execFileSync(

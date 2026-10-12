@@ -1,10 +1,16 @@
 import type { Pool } from "@rakazo/db";
 import { Hono } from "hono";
 
+const pendingCheckouts = new WeakSet<Pool>();
+
 /** Destroy only the probe's checked-out connection when its read stalls. */
 export async function checkDatabaseReadiness(pool: Pool, signal: AbortSignal) {
   signal.throwIfAborted();
-  const client = await pool.connect();
+  // Expiry cannot cancel the shared pool's connection/retry queue. Keep only
+  // one checkout pending until it settles, even after the HTTP deadline.
+  if (pendingCheckouts.has(pool)) throw new Error("Readiness checkout pending");
+  pendingCheckouts.add(pool);
+  const client = await pool.connect().finally(() => pendingCheckouts.delete(pool));
   let released = false;
   const destroy = () => {
     if (released) return;
@@ -12,7 +18,8 @@ export async function checkDatabaseReadiness(pool: Pool, signal: AbortSignal) {
     client.release(true);
   };
   if (signal.aborted) {
-    destroy();
+    // No query ran: this recovered connection is healthy and can be reused.
+    client.release();
     throw new Error("Readiness probe expired");
   }
   signal.addEventListener("abort", destroy, { once: true });

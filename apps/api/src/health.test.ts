@@ -7,6 +7,85 @@ import { checkDatabaseReadiness, healthRoutes } from "./health.js";
 const app = healthRoutes(() => ({ runtime: "pi", sandbox: "docker", revision: "abc123" }));
 
 describe("health routes", () => {
+  it("recovers after checkout rejection without retaining a pending probe", async () => {
+    const query = vi.fn(async () => undefined);
+    const release = vi.fn();
+    const connect = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValue({ query, release });
+    const pool = { connect } as unknown as Pool;
+    const health = healthRoutes(
+      () => ({}),
+      (signal) => checkDatabaseReadiness(pool, signal),
+    );
+    expect((await health.request("/ready")).status).toBe(503);
+    expect((await health.request("/ready")).status).toBe(200);
+    expect(connect).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledExactlyOnceWith();
+  });
+  it("returns an expired checkout without destroying a healthy connection", async () => {
+    const query = vi.fn(async () => undefined);
+    const release = vi.fn();
+    const client = { query, release };
+    let finishCheckout!: () => void;
+    const pool = {
+      connect: vi.fn(
+        () =>
+          new Promise<typeof client>((resolve) => {
+            finishCheckout = () => resolve(client);
+          }),
+      ),
+    } as unknown as Pool;
+    const controller = new AbortController();
+    const check = checkDatabaseReadiness(pool, controller.signal);
+    controller.abort();
+    finishCheckout();
+    await expect(check).rejects.toThrow("expired");
+    expect(query).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledExactlyOnceWith();
+  });
+  it("does not queue additional probes while an expired checkout is still pending", async () => {
+    vi.useFakeTimers();
+    try {
+      const query = vi.fn(async () => undefined);
+      const release = vi.fn();
+      const client = { query, release };
+      const checkouts: Array<() => void> = [];
+      const connect = vi.fn(
+        () =>
+          new Promise<typeof client>((resolve) => {
+            checkouts.push(() => resolve(client));
+          }),
+      );
+      // Reuse the same pool identity across readiness reads.
+      const pool = { connect } as unknown as Pool;
+      const sharedHealth = healthRoutes(
+        () => ({}),
+        (signal) => checkDatabaseReadiness(pool, signal),
+      );
+      const first = sharedHealth.request("/ready");
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect((await first).status).toBe(503);
+      const later = sharedHealth.request("/ready");
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect((await later).status).toBe(503);
+      expect(connect).toHaveBeenCalledTimes(1);
+      for (const complete of checkouts) complete();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(release).toHaveBeenCalledExactlyOnceWith();
+      expect(query).not.toHaveBeenCalled();
+      connect.mockImplementation(async () => client);
+      expect((await sharedHealth.request("/ready")).status).toBe(200);
+      expect(connect).toHaveBeenCalledTimes(2);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(release).toHaveBeenCalledTimes(2);
+      expect((await sharedHealth.request("/health")).status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("bounds readiness latency and shares an in-flight database probe", async () => {
     vi.useFakeTimers();
     try {

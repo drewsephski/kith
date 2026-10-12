@@ -137,11 +137,37 @@ test("checks the full build-to-head history, including native changes in an earl
   save("apps/mobile/app/thread.tsx", "another UI change");
   commit();
   assert.equal(planPreviewUpdate(builds, "ios", cwd).publish, false);
-  // A fresh build is the only way to establish the new native baseline.
+  // A fresh build alone cannot separate older installations sharing this runtime.
   const freshBuilds = [{ ...build, gitCommitHash: git("rev-parse", "HEAD") }];
   save("apps/mobile/app/thread.tsx", "compatible with the new build");
   commit();
-  assert.equal(planPreviewUpdate(freshBuilds, "ios", cwd).publish, true);
+  assert.equal(planPreviewUpdate(freshBuilds, "ios", cwd).publish, false);
+  save(
+    "apps/mobile/app.json",
+    JSON.stringify({ expo: { version: "1.0.9", runtimeVersion: { policy: "appVersion" } } }),
+  );
+  const newRuntimeSource = commit();
+  const newRuntimeBuilds = [
+    {
+      ...build,
+      appVersion: "1.0.9",
+      runtime: { version: "1.0.9" },
+      gitCommitHash: newRuntimeSource,
+    },
+  ];
+  save("apps/mobile/app/thread.tsx", "compatible with the bumped native runtime");
+  commit();
+  assert.equal(planPreviewUpdate(newRuntimeBuilds, "ios", cwd).publish, true);
+  // Reusing an earlier runtime cannot erase its original native baseline.
+  save(
+    "apps/mobile/app.json",
+    JSON.stringify({ expo: { version: "1.0.8", runtimeVersion: { policy: "appVersion" } } }),
+  );
+  const reusedRuntimeSource = commit();
+  assert.equal(
+    planPreviewUpdate([{ ...build, gitCommitHash: reusedRuntimeSource }], "ios", cwd).publish,
+    false,
+  );
   assert.equal(planPreviewUpdate([{ ...build, gitCommitHash: source }], "ios", cwd).publish, false);
   assert.throws(() => planPreviewUpdate(builds, "all", cwd));
 });
