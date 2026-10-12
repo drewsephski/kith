@@ -45,4 +45,15 @@ describe("terminal run snapshot authority", () => {
       }),
     ).toBeNull();
   });
+  it("settles a known group peer without replacing the newer run's authority", () => {
+    const next = {
+      ...previous,
+      run: { id: "peer", status: "completed" },
+      messages: [{ id: "peer-result", runId: "peer", seq: 9 }],
+    };
+    const result = reconcileTerminalRunSnapshot(previous, next);
+    expect(result?.run).toEqual(previous.run);
+    expect(result?.activeRuns).toEqual([{ id: "run", status: "running" }]);
+    expect(result?.messages.map((row) => row.id)).toEqual(["peer-result", "progress:run"]);
+  });
 });

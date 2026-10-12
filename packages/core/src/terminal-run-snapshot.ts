@@ -16,7 +16,7 @@ export function reconcileTerminalRunSnapshot<T extends Snapshot>(previous: T, ne
   if (
     previous.threadId !== next.threadId ||
     !run ||
-    previous.run?.id !== run.id ||
+    (previous.run?.id !== run.id && !previous.activeRuns?.some((item) => item.id === run.id)) ||
     !["completed", "failed", "cancelled"].includes(run.status)
   )
     return null;
@@ -31,7 +31,7 @@ export function reconcileTerminalRunSnapshot<T extends Snapshot>(previous: T, ne
   }
   return {
     ...previous,
-    run: next.run,
+    run: previous.run?.id === run.id ? next.run : previous.run,
     activeRuns: previous.activeRuns?.filter((item) => item.id !== run.id),
     settledRunIds: settledRunIds(previous.settledRunIds, run.id),
     messages: messages.sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)),

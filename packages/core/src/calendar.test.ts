@@ -1,7 +1,9 @@
 import type { CalendarEvent, CalendarSnapshot } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  calendarAgendaEvents,
   calendarConflicts,
+  calendarEventUrl,
   calendarTime,
   renderCalendarBriefing,
   tomorrowWindow,
@@ -30,6 +32,23 @@ const snapshot = (events: CalendarEvent[]): CalendarSnapshot => ({
 });
 
 describe("calendar briefing facts", () => {
+  it("keeps distinct simultaneous events, removes exact duplicates, and excludes declined invitations", () => {
+    const events = [
+      event(),
+      event({ id: "another" }),
+      event(),
+      event({ id: "declined", response: "declined" }),
+    ];
+    expect(calendarAgendaEvents([snapshot(events)]).map((item) => item.id)).toEqual([
+      "event-a",
+      "another",
+    ]);
+  });
+  it("opens only credential-free HTTPS event links on every surface", () => {
+    expect(calendarEventUrl("https://calendar.google.com/calendar/event?eid=fixture")).toBeTruthy();
+    expect(calendarEventUrl("javascript:alert(1)")).toBeNull();
+    expect(calendarEventUrl("https://name:password@example.test/event")).toBeNull();
+  });
   it("makes overnight meeting dates explicit", () => {
     expect(
       calendarTime(

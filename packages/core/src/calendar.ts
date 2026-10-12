@@ -7,7 +7,7 @@ export function calendarAgendaEvents(snapshots: readonly CalendarSnapshot[]): Ca
   return snapshots
     .flatMap((snapshot) => snapshot.events)
     .filter((event) => {
-      const key = JSON.stringify([event.title, event.start, event.end]);
+      const key = JSON.stringify([event.calendarId, event.id, event.start, event.end]);
       if (event.response === "declined" || seen.has(key)) return false;
       seen.add(key);
       return true;
