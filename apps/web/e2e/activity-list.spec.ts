@@ -68,6 +68,8 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   // Remount ActivityList so the first poll sees the in-flight run (15s interval otherwise).
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
@@ -86,6 +88,8 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
 
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
