@@ -20,7 +20,8 @@ const fakeAgentState = vi.hoisted(() => ({
     | "no-write"
     | "failed-write"
     | "blocked"
-    | "incidental-failure",
+    | "incidental-failure"
+    | "failed-blocked-write",
   terminalMessage: undefined as
     | {
         role: "assistant";
@@ -88,24 +89,31 @@ vi.mock("@earendil-works/pi-agent-core", () => ({
       fakeAgentState.promptInputs.push(prompt);
       fakeAgentState.promptImages.push(images ?? []);
       if (fakeAgentState.memoryMode !== "none") {
-        const end = (text: string) =>
+        const end = (text: string) => {
+          const message = {
+            role: "assistant",
+            content: [{ type: "text", text }],
+            stopReason: "stop",
+          };
+          this.state.messages.push(message);
           this.emit({
             type: "turn_end",
-            message: {
-              role: "assistant",
-              content: [{ type: "text", text }],
-              stopReason: "stop",
-            },
+            message,
             toolResults: [],
           });
-        if (fakeAgentState.memoryMode === "failed-write") {
+        };
+        if (
+          fakeAgentState.memoryMode === "failed-write" ||
+          fakeAgentState.memoryMode === "failed-blocked-write"
+        ) {
           await this.tools
             .find((tool) => tool.name === "remember")!
             .execute("memory-1", { content: "cobalt" });
         }
         end(
-          fakeAgentState.memoryMode === "blocked"
-            ? "I cannot save memory without permission."
+          fakeAgentState.memoryMode === "blocked" ||
+            fakeAgentState.memoryMode === "failed-blocked-write"
+            ? "I don't have permission to save that preference."
             : fakeAgentState.memoryMode === "incidental-failure"
               ? "Saved it; the previous attempt failed."
               : "Remembered.",
@@ -494,13 +502,17 @@ describe("Pi connector tool dispatch", () => {
     "blocked",
     "confirmed-write",
     "incidental-failure",
+    "failed-blocked-write",
   ] as const)("requires a successful fresh memory receipt: %s", async (mode) => {
     fakeAgentState.memoryMode = mode === "confirmed-write" ? "no-write" : mode;
     const executeTool = vi.fn(async () =>
-      mode === "failed-write" ? { ok: false, uncertain: true } : { ok: true },
+      mode === "failed-write" || mode === "failed-blocked-write"
+        ? { ok: false, error: "Permission denied", uncertain: mode === "failed-write" }
+        : { ok: true },
     );
     const consume = async () => {
-      for await (const _event of new PiAgentRuntime().run(
+      const events: unknown[] = [];
+      for await (const event of new PiAgentRuntime().run(
         {
           botId: "b",
           threadId: "t",
@@ -522,14 +534,19 @@ describe("Pi connector tool dispatch", () => {
         },
         { signal: new AbortController().signal },
       )) {
-        /* exhaust */
+        events.push(event);
       }
+      if (mode === "failed-blocked-write")
+        expect(events.at(-1)).toEqual({
+          type: "done",
+          text: "I don't have permission to save that preference.",
+        });
     };
     if (mode === "no-write" || mode === "failed-write" || mode === "incidental-failure")
       await expect(consume()).rejects.toThrow("Memory wasn't saved");
     else await consume();
     expect(executeTool).toHaveBeenCalledTimes(
-      mode === "recover" || mode === "failed-write" ? 1 : 0,
+      mode === "recover" || mode === "failed-write" || mode === "failed-blocked-write" ? 1 : 0,
     );
     expect(fakeAgentState.followUpMessages).toHaveLength(
       mode === "recover" ? 1 : mode === "no-write" || mode === "incidental-failure" ? 2 : 0,

@@ -22,7 +22,7 @@ export function memoryReplyIsBlocked(text: string): boolean {
   // Incidental failure wording is not evidence that this save was blocked.
   // Be conservative: contradictory success language still requires a receipt.
   const refusal =
-    /\b(?:(?:I|we) (?:cannot|can['’]t|could not|couldn['’]t|am unable to|are unable to|was unable to) (?:save|store|remember)\b|(?:memory|(?:your|the|this) preference) (?:was not|wasn['’]t|is not|isn['’]t|has not been|hasn['’]t been|not) (?:saved|stored)\b)/gi;
+    /\b(?:(?:I|we) (?:cannot|can['’]t|could not|couldn['’]t|am unable to|are unable to|was unable to) (?:save|store|remember)\b|(?:I|we) (?:do not|don['’]t) have (?:permission|access|authorization) to (?:save|store|remember)\b|(?:the )?memory (?:provider|tool) (?:rejected|denied|failed) (?:the |this )?(?:write|save)\b|(?:memory|(?:your|the|this) preference) (?:was not|wasn['’]t|is not|isn['’]t|has not been|hasn['’]t been|not) (?:saved|stored)\b)/gi;
   if (!refusal.test(text)) return false;
   return !/\b(?:saved|stored|remembered)\b/i.test(text.replace(refusal, ""));
 }

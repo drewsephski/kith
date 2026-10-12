@@ -54,6 +54,8 @@ describe("fresh memory receipt boundary", () => {
   it("leaves an honest permission or failure blocker terminal", () => {
     expect(memoryReplyIsBlocked("I can't save this without permission.")).toBe(true);
     expect(memoryReplyIsBlocked("Memory wasn't saved.")).toBe(true);
+    expect(memoryReplyIsBlocked("I don't have permission to save that preference.")).toBe(true);
+    expect(memoryReplyIsBlocked("The memory provider rejected the write.")).toBe(true);
     expect(memoryReplyIsBlocked("Remembered for next time.")).toBe(false);
   });
 
@@ -62,6 +64,7 @@ describe("fresh memory receipt boundary", () => {
     "Remembered. I need your favorite color next.",
     "The connector is unavailable, but I saved the preference.",
     "I can't save this. Saved it anyway.",
+    "The memory provider rejected the write. Remembered it anyway.",
   ])("does not accept incidental or contradictory blockers: %s", (text) => {
     expect(memoryReplyIsBlocked(text)).toBe(false);
   });
