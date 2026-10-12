@@ -3,13 +3,13 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { fetchGithubStars, formatStarCount } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { GITHUB_URL, SELF_HOST_GUIDE_PATH, SUPPORT_EMAIL } from "../site";
+import { GITHUB_URL, SUPPORT_EMAIL } from "../site";
 
 const stars = await fetchGithubStars();
 const starsLabel = stars === null ? "Star" : formatStarCount(stars);
 ---
 
-<BaseLayout title="Support · Kith" description="Get help with the Kith app and self-hosted Kith.">
+<BaseLayout title="Support · Kith" description="Get help with your account, connected apps, and conversations.">
   <div class="container">
     <Header starsLabel={starsLabel} />
     <main id="main" class="privacy-copy">
@@ -19,12 +19,7 @@ const starsLabel = stars === null ? "Star" : formatStarCount(stars);
       </p>
       {SUPPORT_EMAIL && <p>Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> for private support or privacy requests. Include your app version and a short description of the problem. Never send passwords, API keys, or access tokens.</p>}
       <h2>Sign-in and connections</h2>
-      <p>Use <strong>Forgot password?</strong> on the sign-in screen to reset your password. If you use your own server, contact its operator. You can disconnect services in the app and revoke access in the connected service's settings.</p>
-      <h2>Self-hosted Kith</h2>
-      <p>
-        Start with the <a href={SELF_HOST_GUIDE_PATH}>self-hosting guide</a>. For reproducible bugs or feature requests,
-        open an issue in the <a href={`${GITHUB_URL}/issues`}>Kith GitHub repository</a>.
-      </p>
+      <p>Use <strong>Forgot password?</strong> on the sign-in screen to reset your password. You can disconnect services in the app and revoke access in the connected service's settings.</p>
       <h2>Account deletion</h2>
       <p>
         Open <strong>Account</strong> in the mobile app, choose <strong>Delete account</strong>,

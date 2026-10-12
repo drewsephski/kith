@@ -1,22 +1,21 @@
 ---
 import { COMPARED_ON, GET_STARTED } from "../alternatives";
 import { ogPublicPath } from "../og-pages";
-import { DOCS_URL, GITHUB_URL } from "../site";
+import { WEB_START_URL, GITHUB_URL } from "../site";
 import {
   ROUNDUP_CARDS,
-  ROUNDUP_CHANGELOG,
   ROUNDUP_COLUMNS,
   ROUNDUP_DESCRIPTION,
   ROUNDUP_FAQ,
   ROUNDUP_H1,
   ROUNDUP_HOWTO,
   ROUNDUP_ROWS,
-  ROUNDUP_TIMELINE,
   ROUNDUP_TITLE,
   ROUNDUP_TLDR,
   roundupStructuredData,
 } from "../roundup";
 import Button from "./Button.astro";
+import FaqSection from "./FaqSection.astro";
 import SiteFrame from "./SiteFrame.astro";
 
 const columns = ROUNDUP_COLUMNS;
@@ -30,14 +29,11 @@ const columns = ROUNDUP_COLUMNS;
 >
   <h1>{ROUNDUP_H1}</h1>
   <p class="alt-note">Updated {COMPARED_ON}.</p>
-  <ul>
-    {ROUNDUP_CHANGELOG.map((line) => <li>{line}</li>)}
-  </ul>
 
-  <h2>TL;DR</h2>
+  <h2>Start with what you need</h2>
   {ROUNDUP_TLDR.map((paragraph) => <p>{paragraph}</p>)}
 
-  <h2>Comparison</h2>
+  <h2>At a glance</h2>
   <div class="alt-table-wrap">
     <table class="alt-table">
       <caption class="sr-only">Personal AI agents compared from public descriptions</caption>
@@ -54,12 +50,9 @@ const columns = ROUNDUP_COLUMNS;
               <th scope="row">
                 <a href={row.href}>{row.product}</a>
               </th>
-              <td>{row.license}</td>
-              <td>{row.selfHost}</td>
-              <td>{row.model}</td>
-              <td>{row.price}</td>
-              <td>{row.setup}</td>
-              <td>{row.chat}</td>
+              <td>{row.focus}</td>
+              <td>{row.where}</td>
+              <td>{row.consider}</td>
             </tr>
           ))
         }
@@ -88,34 +81,15 @@ const columns = ROUNDUP_COLUMNS;
     }
   </ul>
 
-  <h2>Launch timeline</h2>
-  <ul>
-    {
-      ROUNDUP_TIMELINE.map((item) => (
-        <li>
-          <strong>{item.when}.</strong> {item.what}
-        </li>
-      ))
-    }
-  </ul>
-
   <h2>How to choose</h2>
   {ROUNDUP_HOWTO.map((paragraph) => <p>{paragraph}</p>)}
 
-  <h2 id="faq">FAQ</h2>
-  {
-    ROUNDUP_FAQ.map((item, index) => (
-      <section aria-labelledby={`roundup-faq-${index}`}>
-        <h3 id={`roundup-faq-${index}`}>{item.question}</h3>
-        <p>{item.answer}</p>
-      </section>
-    ))
-  }
+  <FaqSection items={ROUNDUP_FAQ} />
 
   <h2>{GET_STARTED.heading}</h2>
   <p>{GET_STARTED.copy}</p>
   <div class="alt-actions">
-    <Button href={DOCS_URL} external>{GET_STARTED.docsLabel}</Button>
+    <Button href={WEB_START_URL}>{GET_STARTED.appLabel}</Button>
     <Button href={GITHUB_URL} variant="secondary" external>{GET_STARTED.githubLabel}</Button>
   </div>
 </SiteFrame>

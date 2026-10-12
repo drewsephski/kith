@@ -1,24 +1,12 @@
 ---
-import type { FaqItem } from "../guide";
-import InlineCode from "./InlineCode.astro";
+import type { FaqItem } from "../alternatives";
+import FaqAccordion from "./FaqAccordion.astro";
 
-type Props = {
-  items: readonly FaqItem[];
-};
-
-const { items } = Astro.props;
+type Props = { items: readonly FaqItem[]; headingId?: string };
+const { items, headingId = "faq" } = Astro.props;
 ---
 
-<section aria-labelledby="faq-heading">
-  <h2 id="faq-heading">FAQ</h2>
-  {
-    items.map((item) => (
-      <div>
-        <h3>{item.question}</h3>
-        <p>
-          <InlineCode text={item.answer} />
-        </p>
-      </div>
-    ))
-  }
+<section aria-labelledby={headingId}>
+  <h2 id={headingId}>FAQ</h2>
+  <FaqAccordion items={items} />
 </section>

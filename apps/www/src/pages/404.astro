@@ -4,7 +4,7 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { fetchGithubStars, formatStarCount } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { SELF_HOST_GUIDE_PATH } from "../site";
+import { WEB_START_URL } from "../site";
 
 const stars = await fetchGithubStars();
 const starsLabel = stars === null ? "Star" : formatStarCount(stars);
@@ -19,10 +19,10 @@ const starsLabel = stars === null ? "Star" : formatStarCount(stars);
     <Header starsLabel={starsLabel} />
     <main id="main" class="privacy-copy">
       <h1>Page not found</h1>
-      <p>The page you requested does not exist. Return home or continue with the self-hosting guide.</p>
+      <p>The page you requested does not exist. Return home or open Kith to continue with your assistant.</p>
       <div class="cta-actions">
         <Button href="/">Home</Button>
-        <Button href={SELF_HOST_GUIDE_PATH} variant="secondary">Read the docs</Button>
+        <Button href={WEB_START_URL} variant="secondary">Open Kith</Button>
       </div>
     </main>
     <Footer />

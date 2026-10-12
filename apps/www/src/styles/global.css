@@ -841,7 +841,7 @@ button.button--secondary:focus-visible {
   color: var(--ink);
 }
 
-.selfhost-cta {
+.journey-choice-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -2199,10 +2199,13 @@ button.button--secondary:focus-visible {
 .privacy-copy > ol,
 .privacy-copy section > p,
 .privacy-copy section > ul,
+.alt-page > p,
+.alt-page > ul,
+.alt-page section p,
 .blog-body > p,
 .blog-body > ul,
 .blog-body > ol {
-  max-width: 80ch;
+  max-width: 72ch;
 }
 
 .blog-body {
@@ -2263,7 +2266,7 @@ button.button--secondary:focus-visible {
   margin: 0 0 18px;
   color: var(--ink);
   font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(2rem, 4vw, 40px);
+  font-size: clamp(2.25rem, 5vw, 44px);
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.15;
@@ -2446,6 +2449,8 @@ button.button--secondary:focus-visible {
 
 .guide h1 {
   margin-bottom: 18px;
+  font-size: clamp(2.25rem, 5vw, 44px);
+  line-height: 1.1;
 }
 
 .guide h2 {
@@ -3140,7 +3145,7 @@ button.button--secondary:focus-visible {
   max-width: 60ch;
   margin-block-end: 0;
 }
-.journey-open .selfhost-cta {
+.journey-open .journey-choice-actions {
   flex-direction: column;
   margin: 0;
 }
@@ -3310,7 +3315,7 @@ button.button--secondary:focus-visible {
   .journey-open {
     grid-template-columns: 1fr;
   }
-  .journey-open .selfhost-cta {
+  .journey-open .journey-choice-actions {
     flex-direction: row;
     flex-wrap: wrap;
   }
@@ -3350,7 +3355,7 @@ button.button--secondary:focus-visible {
     grid-template-columns: 1fr;
     gap: 32px;
   }
-  .journey-open .selfhost-cta {
+  .journey-open .journey-choice-actions {
     align-items: stretch;
   }
   .journey-faq summary {

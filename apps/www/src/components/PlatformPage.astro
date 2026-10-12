@@ -4,9 +4,8 @@ import Footer from "./Footer.astro";
 import Button from "./Button.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getJourneyCopy } from "../i18n/journey";
-import { getHomeCopy } from "../i18n/home";
 import type { Locale } from "../i18n/locales";
-import { APP_URL, webStartHref, DESKTOP_DOWNLOADS, GITHUB_URL, SELF_HOST_GUIDE_PATH } from "../site";
+import { APP_URL, webStartHref, DESKTOP_DOWNLOADS, GITHUB_URL } from "../site";
 type Props = { locale?: Locale; platform: "web" | "desktop" };
 const { locale = "en", platform } = Astro.props;
 const copy = getJourneyCopy(locale);
@@ -27,11 +26,9 @@ const hasInstallers = platforms.some((item) => item.url);
       <div class="hero__actions">
         {platform === "desktop" ? <>
           <Button href={`${GITHUB_URL}/releases`} variant={APP_URL || hasInstallers ? "secondary" : "primary"} external>{copy.releases}</Button>
-          <Button href={`${GITHUB_URL}/blob/main/docs/desktop-release.md#build-from-source`} variant="secondary" external>{copy.source}</Button>
           {APP_URL && <Button href={webHref}>{copy.web}</Button>}
         </> : <>
           <Button href={desktopHref}>{copy.desktop}</Button>
-          <Button href={SELF_HOST_GUIDE_PATH} variant="secondary">{getHomeCopy(locale).nav.selfHost}</Button>
         </>}
       </div>
     </main><Footer locale={locale} />

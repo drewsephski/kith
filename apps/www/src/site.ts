@@ -1,5 +1,5 @@
-import type { Locale } from "./i18n/locales.js";
 import { resolvePublicConfig } from "../public-config.mjs";
+import type { Locale } from "./i18n/locales.js";
 
 const env = { ...process.env, ...import.meta.env };
 const config = resolvePublicConfig(env);
@@ -23,12 +23,5 @@ export const SITE_DESCRIPTION =
 
 export const GITHUB_URL = "https://github.com/drewsephski/kith";
 export const GITHUB_API_REPO = "https://api.github.com/repos/drewsephski/kith";
-export const DOCS_URL = "https://github.com/drewsephski/kith/blob/main/docs/self-host.md";
-export const SELF_HOST_SECRETS_URL =
-  "https://github.com/drewsephski/kith/blob/main/docs/self-host-secrets.md";
-export const SELF_HOST_RESTRICTED_URL =
-  "https://github.com/drewsephski/kith/blob/main/docs/self-host-restricted-network.md";
-export const SETUP_PROMPT_URL = "https://github.com/drewsephski/kith/blob/main/SETUP_PROMPT.md";
-export const SELF_HOST_GUIDE_PATH = "/self-hosted-ai-agent/";
 export const OPENCLAW_ALTERNATIVE_PATH = "/openclaw-alternative/";
 export const CHANGELOG_URL = "https://github.com/drewsephski/kith/releases";

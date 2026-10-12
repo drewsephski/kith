@@ -13,7 +13,6 @@ import {
   CHANGELOG_URL,
   GITHUB_URL,
   OPENCLAW_ALTERNATIVE_PATH,
-  SELF_HOST_GUIDE_PATH,
 } from "../site";
 import Logo from "./Logo.astro";
 
@@ -24,7 +23,6 @@ type Props = {
   homeHref?: string;
   homeLabel?: string;
   linkLabels?: {
-    docs: string;
     openClaw: string;
     changelog: string;
     alternatives: string;
@@ -47,7 +45,6 @@ const {
   homeHref = localeHomePath(currentLocale),
   homeLabel = "Kith home",
   linkLabels = {
-    docs: "Docs",
     openClaw: "OpenClaw alternative",
     changelog: "Changelog",
     alternatives: "Alternatives",
@@ -91,9 +88,6 @@ function isCurrentPage(href: string): boolean {
     <nav class="site-footer__links" aria-label={navLabel}>
       <div class="site-footer__group">
       <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
-      <a href={SELF_HOST_GUIDE_PATH} aria-current={isCurrentPage(SELF_HOST_GUIDE_PATH) ? "page" : undefined}>
-        {linkLabels.docs}
-      </a>
       <a href={CHANGELOG_URL} target="_blank" rel="noreferrer">{linkLabels.changelog}</a>
       <a href="/blog/" aria-current={isCurrentPage("/blog/") ? "page" : undefined}>{linkLabels.blog}</a>
       </div>

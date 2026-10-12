@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { markdownResponse } from "../agent-content";
-import { OPENCLAW_MARKDOWN } from "../guide";
+import { alternativeMarkdown } from "../alternatives";
+import { OPENCLAW_PAGE } from "../guide";
 
 export const GET: APIRoute = ({ request }) =>
-  markdownResponse(OPENCLAW_MARKDOWN, request.method);
+  markdownResponse(alternativeMarkdown(OPENCLAW_PAGE), request.method);

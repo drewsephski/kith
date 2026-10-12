@@ -1,5 +1,5 @@
 export type VsPoints = {
-  rakazo: readonly string[];
+  kith: readonly string[];
   other: readonly string[];
 };
 
@@ -9,32 +9,32 @@ export type VsPoints = {
  */
 export const VS_CARDS: Record<string, VsPoints> = {
   "muse-alternative": {
-    rakazo: ["You host it", "You bring the model", "Apache-2.0"],
-    other: ["Meta hosts it", "Muse Spark", "Muse app and WhatsApp"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Muse app and WhatsApp", "Everyday tasks", "Meta’s connected services"],
   },
   "dots-alternative": {
-    rakazo: ["You host it", "Any supported model", "Apache-2.0"],
-    other: ["OpenAI hosts it", "Eligible ChatGPT plans", "Not open source"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["ChatGPT and work chats", "Background project work", "Eligible ChatGPT plans"],
   },
   "grok-bot-alternative": {
-    rakazo: ["You host it", "You bring the model", "Apache-2.0"],
-    other: ["xAI hosts it", "Paid Cursor and SuperGrok", "No source to run"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Named bots and routines", "A cloud computer", "Eligible paid plans"],
   },
   "openclaw-alternative": {
-    rakazo: ["Chat in the Kith app", "Docker installer, then chat", "Apache-2.0"],
-    other: ["Gateway for chat apps", "CLI, onboarding, config file", "MIT"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Chat in existing apps", "Gateway setup", "Configurable tools"],
   },
   "hermes-alternative": {
-    rakazo: ["Chat in the Kith app", "Docker installer, then chat", "Apache-2.0"],
-    other: ["Desktop app and a CLI", "Config under ~/.hermes", "MIT"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Desktop or terminal", "Memory and saved skills", "Configurable tools"],
   },
   "instinct-alternative": {
-    rakazo: ["You host it", "You bring the model", "Apache-2.0"],
-    other: ["Hosted assistant", "Text or call", "Not self-hosted"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Text or call", "Everyday errands", "A hosted assistant"],
   },
   "hark-alternative": {
-    rakazo: ["You host it", "You bring the model", "Apache-2.0"],
-    other: ["Hark hosts it", "Free, with paid usage tiers", "Not self-hosted"],
+    kith: ["One continuing chat", "Memory you can edit", "Sources and approvals"],
+    other: ["Projects and Panels", "Handoff computer work", "Browser and mobile apps"],
   },
 };
 

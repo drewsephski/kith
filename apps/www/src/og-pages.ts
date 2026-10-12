@@ -10,19 +10,19 @@ export type OgPage = {
 
 const BLOG_OG: readonly OgPage[] = [
   {
-    id: "blog-best-open-source-ai-agents-2026",
+    id: "blog-choosing-an-ai-assistant",
     kicker: "Roundup",
-    title: "Best open source AI agents in 2026",
+    title: "How to choose an AI assistant",
   },
   {
-    id: "blog-openclaw-vs-hermes-vs-rakazo",
+    id: "blog-openclaw-vs-hermes-vs-kith",
     kicker: "Comparison",
     title: "OpenClaw vs Hermes Agent vs Kith",
   },
   {
-    id: "blog-self-host-an-ai-agent",
+    id: "blog-getting-started-with-kith",
     kicker: "Guide",
-    title: "How to self-host an AI agent",
+    title: "Your first useful task with Kith",
   },
 ];
 
@@ -37,11 +37,6 @@ export function ogPages(): OgPage[] {
     })),
     { id: "grok-bot-alternative", kicker: "Comparison", title: GROK_ALTERNATIVE_H1 },
     { id: "openclaw-alternative", kicker: "Comparison", title: OPENCLAW_H1 },
-    {
-      id: "self-hosted-ai-agent",
-      kicker: "Guide",
-      title: "Self-hosted AI agent",
-    },
     ...BLOG_OG,
   ];
 }

@@ -12,8 +12,8 @@ export const CATEGORY_INDEX_MIN = 3;
 export const CATEGORY_LABEL: Record<BlogCategory, string> = {
   comparisons: "Comparisons",
   guides: "Guides",
-  roundups: "Roundups",
-  product: "Product",
+  roundups: "Choosing an assistant",
+  product: "Product updates",
 };
 
 const blogDir = join(dirname(fileURLToPath(import.meta.url)), "../content/blog");

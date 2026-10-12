@@ -56,8 +56,8 @@ const posts = (await getCollection("blog")).sort(
 const categoryPosts = category ? posts.filter((entry) => entry.data.category === category) : [];
 const indexed = category ? categoryIsIndexed(category) : true;
 const toc = [
-  { slug: "tldr", text: "TL;DR" },
-  { slug: "comparison", text: "Comparison" },
+  { slug: "tldr", text: "The short version" },
+  { slug: "comparison", text: "At a glance" },
   ...headings.filter((heading) => heading.depth === 2).map((heading) => ({
     slug: heading.slug,
     text: heading.text,
@@ -103,7 +103,7 @@ const structuredData = post
         <span>{post.data.author}</span>
       </p>
       <aside class="tldr">
-        <h2 id="tldr">TL;DR</h2>
+        <h2 id="tldr">The short version</h2>
         <p>{post.data.tldr}</p>
       </aside>
       {
@@ -120,7 +120,7 @@ const structuredData = post
           </nav>
         )
       }
-      <h2 id="comparison">Comparison</h2>
+      <h2 id="comparison">At a glance</h2>
       <ComparisonTable
         caption={post.data.comparison.caption}
         columns={post.data.comparison.columns}
@@ -163,6 +163,7 @@ const structuredData = post
           <a href="/blog/">Blog</a>
         </p>
         <h1>{CATEGORY_LABEL[category]}</h1>
+        {categoryPosts.length === 0 && <p>Explore the <a href="/blog/">guides and comparisons</a> for practical ways to use Kith.</p>}
         <ul class="blog-index">
           {categoryPosts.map((entry) => (
             <li>

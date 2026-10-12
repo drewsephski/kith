@@ -9,7 +9,7 @@ import {
 } from "../i18n/locales";
 import { getJourneyCopy } from "../i18n/journey";
 
-import { GITHUB_URL, SELF_HOST_GUIDE_PATH, webStartHref, signInHref } from "../site";
+import { webStartHref, signInHref } from "../site";
 import Button from "./Button.astro";
 import Logo from "./Logo.astro";
 
@@ -30,9 +30,9 @@ const startHref = webStartHref(locale);
 const NAV_LINKS: Array<{ href: string; label: string; external?: boolean }> = [
   { href: localeHashPath(locale, "product"), label: copy.product },
   { href: localeHashPath(locale, "how-it-works"), label: journey.how },
-  { href: GITHUB_URL, label: "GitHub", external: true },
+  { href: "/blog/", label: getHomeCopy(locale).footer.links.blog },
 ];
-const menuLinks = [...NAV_LINKS, { href: SELF_HOST_GUIDE_PATH, label: copy.selfHost }];
+const menuLinks = NAV_LINKS;
 
 const currentPath = Astro.url.pathname.replace(/\/+$/, "") || "/";
 
