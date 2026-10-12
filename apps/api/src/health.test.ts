@@ -34,6 +34,7 @@ describe("health routes", () => {
     expect(probes).toBe(0);
     const unavailable = await health.request("/ready");
     expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get("cache-control")).toBe("no-store");
     await expect(unavailable.json()).resolves.toEqual({ ok: false, degraded: true });
     const internal = await health.request("/internal/health");
     await expect(internal.json()).resolves.toEqual({

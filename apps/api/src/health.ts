@@ -36,12 +36,14 @@ export function healthRoutes(
     }
   };
   app.get("/ready", async (c) => {
+    c.header("cache-control", "no-store");
     const degraded = details().degraded === true || !(await databaseReady());
     return c.json({ ok: !degraded, degraded }, degraded ? 503 : 200);
   });
   app.get("/health", (c) => c.json({ ok: true }));
   app.get("/internal/health", async (c) => {
     if (c.req.header("x-forwarded-for") || c.req.header("forwarded")) return c.notFound();
+    c.header("cache-control", "no-store");
     const state = details();
     const database = await databaseReady();
     return c.json({
