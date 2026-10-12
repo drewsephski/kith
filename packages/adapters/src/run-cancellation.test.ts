@@ -1,6 +1,9 @@
+import type { RealtimeFanout } from "@rakazo/adapter-kit";
 import type { ProductEvent } from "@rakazo/contracts";
 import { abortableDelay } from "@rakazo/core";
-import { expect, it } from "vitest";
+import type { PrismaClient } from "@rakazo/db";
+import { createThreadEvents } from "@rakazo/db";
+import { expect, it, vi } from "vitest";
 import { watchRunCancellation } from "./run-cancellation.js";
 
 function event(threadId: string, runId: string): ProductEvent {
@@ -97,3 +100,61 @@ it("fails closed if durable cancellation observation fails", async () => {
   await expect.poll(() => execution.signal.aborted).toBe(true);
   await stop();
 });
+
+it.each(["rejected", "silent", "pending"])(
+  "observes durable Stop promptly with %s realtime",
+  async (mode) => {
+    vi.useFakeTimers();
+    try {
+      let cancelled = false;
+      let detached = false;
+      let finishSubscription: ((release: () => Promise<void>) => void) | undefined;
+      const release = async () => {
+        detached = true;
+      };
+      const realtime: RealtimeFanout = {
+        describe: () => ({
+          id: "fixture",
+          contractVersion: "1",
+          adapterVersion: "1",
+          capabilities: { distributed: false, push: true },
+        }),
+        publish: async () => {},
+        close: async () => {},
+        subscribe: async () => {
+          if (mode === "rejected") throw new Error("fixture subscription unavailable");
+          if (mode === "pending")
+            return new Promise<() => Promise<void>>((resolve) => {
+              finishSubscription = resolve;
+            });
+          return release;
+        },
+      };
+      const prisma = {
+        event: {
+          findMany: vi.fn(async () =>
+            cancelled ? [{ ...event("thread", "run"), createdAt: new Date() }] : [],
+          ),
+        },
+      } as unknown as PrismaClient;
+      const execution = new AbortController();
+      const stop = watchRunCancellation(
+        createThreadEvents(prisma, realtime),
+        "thread",
+        "run",
+        0,
+        execution,
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      cancelled = true;
+      await vi.advanceTimersByTimeAsync(400);
+      expect(execution.signal.aborted).toBe(true);
+      await stop();
+      finishSubscription?.(release);
+      await vi.advanceTimersByTimeAsync(0);
+      if (mode !== "rejected") expect(detached).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);

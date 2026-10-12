@@ -3612,11 +3612,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
           return;
         }
-        const completedMemoryEffects =
+        const priorMemoryEffects =
           fence > 1
             ? await deps.prisma.externalEffect.findMany({
-                where: { runId, status: "completed" },
-                select: { kind: true, result: true, updatedAt: true },
+                where: { runId },
+                select: { kind: true, status: true, request: true, result: true, updatedAt: true },
               })
             : [];
         // An ordinary human answer replaces task.prompt. Earlier completed work
@@ -3647,13 +3647,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const promptChanged = answeredQuestions.find((event) =>
           hasAnsweredOrdinaryQuestion((event.payload as { blocks?: unknown })?.blocks),
         );
-        const confirmedMemoryEffects = completedMemoryEffects.filter((effect) => {
+        const confirmedMemoryEffects = priorMemoryEffects.filter((effect) => {
           const result = effect.result as {
             ok?: boolean;
             error?: unknown;
             uncertain?: boolean;
           } | null;
           return (
+            effect.status === "completed" &&
             isMemorySaveCall(effect.kind, {}, false) &&
             result?.ok === true &&
             !result.error &&
@@ -3669,6 +3670,25 @@ export function createRunExecutor(deps: ExecutorDeps) {
               ? receiptId === initialMemoryRequestId
               : !promptChanged || effect.updatedAt >= promptChanged.createdAt;
           });
+
+        const uncertainMemoryInputs = new Set<string>();
+        let legacyUncertainMemory = false;
+        for (const effect of priorMemoryEffects) {
+          if (!isMemorySaveCall(effect.kind, {}, false)) continue;
+          const result = effect.result as { uncertain?: boolean } | null;
+          if (
+            effect.status !== "applying" &&
+            effect.status !== "failed" &&
+            result?.uncertain !== true
+          )
+            continue;
+          const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;
+          if (id) uncertainMemoryInputs.add(id);
+          else legacyUncertainMemory = true;
+        }
+        const memoryWriteAttempted =
+          uncertainMemoryInputs.has(initialMemoryRequestId) ||
+          (legacyUncertainMemory && !promptChanged);
 
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
@@ -4771,6 +4791,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
           const memorySave = isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId));
+          if (memorySave && memoryRequestId && uncertainMemoryInputs.has(memoryRequestId))
+            return uncertainEffectResult(name);
           if (memorySave) {
             if (hasAnsweredQuestion && !promptChanged && memoryRequestId === initialMemoryRequestId)
               return { error: UNVERIFIED_MEMORY_ERROR, uncertain: true };
@@ -4946,7 +4968,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           // key) cannot collide with a later identical-args call in this attempt.
           // request_secret stays single-use: retries must reuse the same card.
           const occurrence =
-            name === "request_secret"
+            name === "request_secret" || (memorySave && memoryRequestId)
               ? 0
               : nextMutatingEffectOccurrence(replayEffectToolName, effectIdentityArgs);
           let effectKey = emailSendAuthorized
@@ -5359,6 +5381,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 details && typeof details === "object"
                   ? { ...record, details: { ...details, memoryRequestId } }
                   : { ...record, memoryRequestId };
+            }
+            if (memorySave && memoryRequestId) {
+              const record =
+                boundResult && typeof boundResult === "object"
+                  ? (boundResult as Record<string, unknown>)
+                  : undefined;
+              const outcome =
+                record?.kind === "agent_tool_result"
+                  ? (record.details as Record<string, unknown> | undefined)
+                  : record;
+              if (outcome?.ok !== true || outcome.error || outcome.uncertain === true)
+                uncertainMemoryInputs.add(memoryRequestId);
             }
             return (await persistEffectResult(boundResult))
               ? boundResult
@@ -7371,6 +7405,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               script,
               allowSilentEmpty: allowSilentEmptyRun,
               memoryWriteConfirmed,
+              memoryWriteAttempted,
               memoryRequestId: initialMemoryRequestId,
               emptyResponseText,
               executeTool: scripted ? undefined : applyTool,
@@ -7437,6 +7472,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       id: item.id,
                       messageId: item.messageId,
                       historyText: item.text,
+                      memoryWriteAttempted: Boolean(
+                        previousClaim &&
+                          (uncertainMemoryInputs.has(item.id) || legacyUncertainMemory),
+                      ),
                       memoryWriteConfirmed: Boolean(
                         previousClaim &&
                           confirmedMemoryEffects.some(
@@ -7643,7 +7682,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
               });
               pendingToolNames.push(event.name);
               tryFlushPendingTools();
-              const loopGuard = advanceToolCallLoopGuard(toolCallStreak, event.name, event.args);
+              const loopGuard = advanceToolCallLoopGuard(
+                toolCallStreak,
+                event.name,
+                event.args,
+                event.memoryRequestId,
+              );
               toolCallStreak = loopGuard.streak;
               if (loopGuard.stuck) {
                 approvedEffectReplays.assertDrained();

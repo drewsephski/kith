@@ -51,6 +51,138 @@ function latestToolResult(request: ModelEmulatorRequest) {
 }
 
 describe("real Pi against an offline model HTTP endpoint", () => {
+  it("does not repeat an uncertain memory write through another alias", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "uncertain-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "memory.txt");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "first",
+            name: "remember",
+            arguments: { content: "coffee" },
+          },
+        },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "retry",
+            name: "save_memory",
+            arguments: { content: "coffee" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Your preference was saved." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let mutations = 0;
+    await expect(
+      collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "Remember I prefer coffee.",
+            tools: ["remember", "save_memory"].map((name) => ({
+              name,
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            })),
+            executeTool: async (_name, args) => {
+              mutations++;
+              await writeFile(file, String(args.content));
+              return { error: "Receipt unavailable", uncertain: true };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      ),
+    ).rejects.toThrow("Memory save couldn't be verified");
+    expect(mutations).toBe(1);
+    expect(await readFile(file, "utf8")).toBe("coffee");
+  });
+
+  it("completes every independent memory request in a batch without repeating the saved one", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "memory-batch-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "facts.json");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "pets-write",
+            name: "remember",
+            arguments: { content: "My dog is Pip.", memory_request_id: "pets" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Both facts were saved." } },
+        {
+          expect: (request) => expect(JSON.stringify(request.messages.at(-1))).toContain("drinks"),
+          response: {
+            type: "tool",
+            id: "drinks-write",
+            name: "remember",
+            arguments: { content: "I prefer coffee.", memory_request_id: "drinks" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Both facts were saved." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const writes: Array<{ id?: string; content: string }> = [];
+    let claimed = false;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "What is two plus two?",
+          tools: [
+            {
+              name: "remember",
+              description: "Save a fact",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          claimSteering: async () => {
+            if (claimed) return [];
+            claimed = true;
+            return [
+              { id: "drinks", messageId: "drinks-message", text: "Remember I prefer coffee." },
+              { id: "pets", messageId: "pets-message", text: "Remember my dog is Pip." },
+            ];
+          },
+          executeTool: async (_name, args, _call, _route, observer) => {
+            writes.push({ id: observer?.memoryRequestId, content: String(args.content) });
+            await writeFile(file, JSON.stringify(writes));
+            return { ok: true, memoryRequestId: observer?.memoryRequestId };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual([
+      { id: "pets", content: "My dog is Pip." },
+      { id: "drinks", content: "I prefer coffee." },
+    ]);
+    expect(server.requests).toHaveLength(4);
+    expect(
+      events
+        .filter((event) => event.type === "tool")
+        .map((event) => (event.type === "tool" ? event.memoryRequestId : undefined)),
+    ).toEqual(["pets", "drinks"]);
+  });
+
   it.each([undefined, "foreign-request"])(
     "rejects ambiguous or unknown steering identity before mutation: %s",
     async (requestId) => {
@@ -103,7 +235,12 @@ describe("real Pi against an offline model HTTP endpoint", () => {
               if (claimed) return [];
               claimed = true;
               return [
-                { id: "earlier", messageId: "earlier-message", text: "Remember I prefer cobalt." },
+                {
+                  id: "earlier",
+                  messageId: "earlier-message",
+                  text: "Remember I prefer cobalt.",
+                  memoryWriteConfirmed: true,
+                },
                 { id: "latest", messageId: "latest-message", text: "Remember I prefer violet." },
               ];
             },

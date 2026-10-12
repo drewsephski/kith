@@ -61,7 +61,12 @@ export interface ThreadEvents {
   pauseRunForInput(input: PauseRunForInput): Promise<boolean>;
   pauseRunForTakeover(input: PauseRunForTakeover): Promise<boolean>;
   sendUserMessage(input: SendUserMessageInput): Promise<SendUserMessageResult>;
-  follow(threadId: string, cursor: number, signal?: AbortSignal): AsyncGenerator<ProductEvent>;
+  follow(
+    threadId: string,
+    cursor: number,
+    signal?: AbortSignal,
+    options?: { catchUpMs?: number },
+  ): AsyncGenerator<ProductEvent>;
 }
 
 export interface ClearThreadInput {
@@ -271,8 +276,15 @@ export function createThreadEvents(
     pauseRunForInput: (input) => pauseRunForInput(prisma, input, realtime),
     pauseRunForTakeover: (input) => pauseRunForTakeover(prisma, input, realtime),
     sendUserMessage: (input) => sendUserMessage(prisma, input, realtime),
-    follow: (threadId, cursor, signal) =>
-      followThreadEvents(prisma, threadId, cursor, realtime, signal, options.catchUpMs),
+    follow: (threadId, cursor, signal, followOptions) =>
+      followThreadEvents(
+        prisma,
+        threadId,
+        cursor,
+        realtime,
+        signal,
+        followOptions?.catchUpMs ?? options.catchUpMs,
+      ),
   };
 }
 
@@ -1491,11 +1503,30 @@ export async function* followThreadEvents(
 ): AsyncGenerator<ProductEvent> {
   let seq = cursor;
   const latch = new ChangeLatch();
-  const unsubscribe = realtime
-    ? await realtime
-        .subscribe(threadTopic(threadId), () => latch.notify())
-        .catch(() => async () => {})
-    : async () => {};
+  let finished = false;
+  let unsubscribe: (() => Promise<void>) | undefined;
+  let pollMs = realtime ? Math.min(catchUpMs, POLL_ONLY_CATCH_UP_MS) : catchUpMs;
+  if (realtime) {
+    // Durable reads must not wait for a broken or saturated push connection.
+    void Promise.resolve()
+      .then(() => realtime.subscribe(threadTopic(threadId), () => latch.notify()))
+      .then(
+        async (release) => {
+          if (finished) {
+            await release();
+            return;
+          }
+          unsubscribe = release;
+          pollMs = catchUpMs;
+          latch.notify();
+        },
+        () => {
+          pollMs = Math.min(catchUpMs, POLL_ONLY_CATCH_UP_MS);
+          latch.notify();
+        },
+      )
+      .catch(() => getLogger().warn("late realtime subscription cleanup failed"));
+  }
   try {
     while (!signal?.aborted) {
       const observedGeneration = latch.generation;
@@ -1509,10 +1540,11 @@ export async function* followThreadEvents(
         }
       } while (batchSize === EVENT_BATCH_SIZE && !signal?.aborted);
       if (signal?.aborted) break;
-      await latch.waitForChange(observedGeneration, catchUpMs, signal);
+      await latch.waitForChange(observedGeneration, pollMs, signal);
     }
   } finally {
-    await unsubscribe();
+    finished = true;
+    await unsubscribe?.();
   }
 }
 

@@ -15,7 +15,9 @@ export function watchRunCancellation(
   if (execution.signal.aborted) subscription.abort();
   const work = (async () => {
     try {
-      for await (const event of events.follow(threadId, cursor, subscription.signal)) {
+      for await (const event of events.follow(threadId, cursor, subscription.signal, {
+        catchUpMs: 400,
+      })) {
         if (
           event.threadId === threadId &&
           (event.type === "thread.cleared" ||

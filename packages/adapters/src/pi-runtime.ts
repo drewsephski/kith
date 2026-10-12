@@ -278,33 +278,45 @@ export class PiAgentRuntime implements AgentRuntime {
           pausePending: false,
           pendingShells: [],
           memoryWrite: {
-            attempted: false,
-            confirmed: request.memoryWriteConfirmed === true,
-            requestId: request.memoryRequestId,
-            steeringIds: new Set<string>(),
+            requestId: request.memoryRequestId ?? `${request.runId}:input:initial`,
+            requests: new Map(
+              needsFreshMemoryWrite(request.prompt)
+                ? [
+                    [
+                      request.memoryRequestId ?? `${request.runId}:input:initial`,
+                      {
+                        attempted: request.memoryWriteAttempted === true,
+                        retryBlocked:
+                          request.memoryWriteAttempted === true && !request.memoryWriteConfirmed,
+                        confirmed: request.memoryWriteConfirmed === true,
+                        text: request.prompt,
+                      },
+                    ],
+                  ]
+                : [],
+            ),
           },
         };
         resumeHost = host;
         const tools = toAgentTools(toolDefs, host);
         const seenSteeringIds: string[] = [];
         const initialSteering = request.claimSteering ? await request.claimSteering([]) : [];
-        let freshMemoryWrite = needsFreshMemoryWrite(request.prompt);
         const acceptMemorySteering = (steering: AgentSteeringMessage[]) => {
-          const latestSave = steering
-            .filter((item) => needsFreshMemoryWrite(item.historyText ?? item.text))
-            .at(-1);
-          if (!latestSave) return;
-          freshMemoryWrite = true;
-          // An earlier receipt in this execution cannot satisfy a new user save.
-          // Mutate shared state so helper agents retain the same receipt boundary.
-          host.memoryWrite.attempted = false;
-          host.memoryWrite.confirmed = latestSave.memoryWriteConfirmed === true;
-          host.memoryWrite.requestId = latestSave.id;
-          host.memoryWrite.steeringIds = new Set(
-            steering
-              .filter((item) => needsFreshMemoryWrite(item.historyText ?? item.text))
-              .map((item) => item.id),
-          );
+          for (const item of steering) {
+            if (!needsFreshMemoryWrite(item.historyText ?? item.text)) continue;
+            // Each independent save needs its own receipt; retain earlier pending
+            // requests across batches and share the map with helper agents.
+            const previous = host.memoryWrite.requests.get(item.id);
+            host.memoryWrite.requests.set(item.id, {
+              attempted: previous?.attempted === true || item.memoryWriteAttempted === true,
+              retryBlocked:
+                previous?.retryBlocked === true ||
+                (item.memoryWriteAttempted === true && !item.memoryWriteConfirmed),
+              confirmed: previous?.confirmed === true || item.memoryWriteConfirmed === true,
+              text: item.historyText ?? item.text,
+            });
+            host.memoryWrite.requestId = item.id;
+          }
         };
         acceptMemorySteering(initialSteering);
         seenSteeringIds.push(...initialSteering.map((item) => item.id));
@@ -314,11 +326,14 @@ export class PiAgentRuntime implements AgentRuntime {
           request.prompt,
           request.sourceMessageId,
         );
+        const originalPrompt = needsFreshMemoryWrite(request.prompt)
+          ? `Memory request ${request.memoryRequestId ?? `${request.runId}:input:initial`}: ${request.prompt}`
+          : request.prompt;
         const initialPrompt = initialSteering.length
-          ? `${request.prompt}\n\nAdditional user context:\n${initialSteering
+          ? `${originalPrompt}\n\nAdditional user context:\n${initialSteering
               .map(memorySteeringText)
               .join("\n")}`
-          : request.prompt;
+          : originalPrompt;
         const systemPrompt = [
           request.instructions ||
             (toolDefs.some((tool) => tool.name === "computer_observe")
@@ -613,9 +628,11 @@ export class PiAgentRuntime implements AgentRuntime {
             const hasToolResults = event.toolResults.length > 0;
             const terminalText = messageText.trim() || streamed.slice(lastTurnStreamEnd).trim();
             lastTurnStreamEnd = streamed.length;
+            const missingMemory = [...host.memoryWrite.requests.entries()].filter(
+              ([, state]) => !state.confirmed,
+            );
             if (
-              freshMemoryWrite &&
-              !host.memoryWrite.confirmed &&
+              missingMemory.length > 0 &&
               !hasToolCalls &&
               !hasToolResults &&
               !host.pausePending &&
@@ -627,11 +644,12 @@ export class PiAgentRuntime implements AgentRuntime {
               incompleteMemory = true;
               // Request a missing effect, but never blindly retry a failed or
               // uncertain effect to repair the model's completion prose.
-              if (!host.memoryWrite.attempted && taskContinuations < MAX_TASK_CONTINUATIONS) {
+              const unattempted = missingMemory.filter(([, state]) => !state.attempted);
+              if (unattempted.length > 0 && taskContinuations < MAX_TASK_CONTINUATIONS) {
                 taskContinuations++;
                 agent.followUp({
                   role: "user",
-                  content: MEMORY_CONTINUATION_PROMPT,
+                  content: `${MEMORY_CONTINUATION_PROMPT}\nStill unattempted Memory request IDs: ${unattempted.map(([id]) => id).join(", ")}. Do not repeat confirmed, failed or uncertain writes.`,
                   timestamp: Date.now(),
                 });
               }
@@ -1161,6 +1179,10 @@ function toHistory(
     });
 }
 
+function requestHasLegacyMemoryIdentity(request: AgentRunRequest, id: string): boolean {
+  return !request.memoryRequestId && id === `${request.runId}:input:initial`;
+}
+
 function memorySteeringText(item: AgentSteeringMessage): string {
   return needsFreshMemoryWrite(item.historyText ?? item.text)
     ? `Memory request ${item.id}${item.memoryWriteConfirmed ? " (verified complete; do not repeat)" : ""}: ${item.text}`
@@ -1369,11 +1391,11 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         if (
           requestedMemoryId !== undefined &&
           (typeof requestedMemoryId !== "string" ||
-            !host.memoryWrite.steeringIds.has(requestedMemoryId))
+            !host.memoryWrite.requests.has(requestedMemoryId))
         ) {
           memoryRequestError =
             "Unknown memory_request_id; use a Memory request id from the user context.";
-        } else if (host.memoryWrite.steeringIds.size > 1 && requestedMemoryId === undefined) {
+        } else if (host.memoryWrite.requests.size > 1 && requestedMemoryId === undefined) {
           memoryRequestError = "Set memory_request_id to the Memory request this write fulfills.";
         }
         memoryRequestId =
@@ -1389,12 +1411,29 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
           details: { skipped: true },
         };
       }
-      host.queue.push({ type: "tool", name: tool.name, args, executionId });
+      const memoryState = memoryRequestId
+        ? host.memoryWrite.requests.get(memoryRequestId)
+        : undefined;
+      if (
+        memorySave &&
+        !memoryRequestError &&
+        memoryState?.retryBlocked &&
+        !memoryState.confirmed
+      ) {
+        memoryRequestError =
+          "This Memory request has an attempted failed or uncertain write; do not retry it. Report the unverified outcome.";
+      }
+      host.queue.push({
+        type: "tool",
+        name: tool.name,
+        args,
+        executionId,
+        ...(memoryState && !memoryRequestError ? { memoryRequestId } : {}),
+      });
       const startedAt = Date.now();
       let result: unknown;
       let failure: unknown;
-      if (memorySave && !memoryRequestError && memoryRequestId === host.memoryWrite.requestId)
-        host.memoryWrite.attempted = true;
+      if (memorySave && !memoryRequestError && memoryState) memoryState.attempted = true;
       try {
         result = await (async () => {
           if (memoryRequestError)
@@ -1485,7 +1524,10 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
               tool.route,
               {
                 allowDelegation: host.depth === 0,
-                ...(memoryRequestId ? { memoryRequestId } : {}),
+                ...(memoryRequestId &&
+                !requestHasLegacyMemoryIdentity(host.request, memoryRequestId)
+                  ? { memoryRequestId }
+                  : {}),
                 onShellStillRunning: (completion) => {
                   host.pendingShells.push(completion);
                 },
@@ -1519,28 +1561,28 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
           const details = (result as AgentToolResult<unknown>).details as
             | { ok?: boolean; error?: unknown; uncertain?: boolean; memoryRequestId?: string }
             | undefined;
-          host.memoryWrite.confirmed ||=
-            memoryRequestId === host.memoryWrite.requestId &&
-            details?.memoryRequestId === memoryRequestId &&
-            details?.ok === true &&
-            !details.error &&
-            details.uncertain !== true;
-          if (
-            memoryRequestId === host.memoryWrite.requestId &&
-            typeof details?.memoryRequestId === "string" &&
-            details.memoryRequestId !== memoryRequestId &&
-            (host.memoryWrite.steeringIds.has(details.memoryRequestId) ||
-              details.memoryRequestId === host.request.memoryRequestId) &&
-            details.ok === true &&
-            !details.error &&
-            details.uncertain !== true
-          ) {
-            // Approval replay may finish an earlier operation, leaving this request untouched.
-            host.memoryWrite.attempted = false;
+          const receiptId =
+            details?.memoryRequestId ??
+            (memoryRequestId && requestHasLegacyMemoryIdentity(host.request, memoryRequestId)
+              ? memoryRequestId
+              : undefined);
+          const completed = receiptId ? host.memoryWrite.requests.get(receiptId) : undefined;
+          if (completed && details?.ok === true && !details.error && details.uncertain !== true) {
+            completed.confirmed = true;
+            completed.retryBlocked = false;
+            if (memoryState && receiptId !== memoryRequestId) {
+              // Exact approval replay may finish an earlier operation, leaving
+              // the selected request untouched and safe to attempt once.
+              memoryState.attempted = false;
+              memoryState.retryBlocked = false;
+            }
+          } else if (memoryState && !memoryRequestError && !host.pausePending) {
+            memoryState.retryBlocked = true;
           }
         }
         return boundAgentToolResult(result as AgentToolResult<unknown>);
       } catch (error) {
+        if (memoryState && !memoryRequestError) memoryState.retryBlocked = true;
         failure = error;
         throw error;
       } finally {
@@ -1733,6 +1775,10 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
         "Complete the task and return a concise result. Do not spawn bots or further subagents.",
         TASK_COMPLETION_GUIDANCE,
         MEMORY_TASK_GUIDANCE,
+        ...[...host.memoryWrite.requests].map(
+          ([id, state]) =>
+            `Memory request ${id} (${state.confirmed ? "verified complete; do not repeat" : state.attempted ? "attempted; do not retry" : "unattempted"}): ${state.text}`,
+        ),
         extra,
       ]
         .filter(Boolean)
@@ -2465,10 +2511,11 @@ interface ToolHost {
   pendingShells: Array<Promise<FinishedShellCommand>>;
   /** Shared with helpers; only an authoritative executor result confirms a write. */
   memoryWrite: {
-    attempted: boolean;
-    confirmed: boolean;
-    requestId?: string;
-    steeringIds: Set<string>;
+    requestId: string;
+    requests: Map<
+      string,
+      { attempted: boolean; confirmed: boolean; retryBlocked: boolean; text: string }
+    >;
   };
 }
 

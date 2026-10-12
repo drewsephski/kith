@@ -405,6 +405,8 @@ export interface AgentSteeringMessage {
   historyText?: string;
   /** Backend confirmation for a previously claimed save, never for fresh steering. */
   memoryWriteConfirmed?: boolean;
+  /** A prior failed/uncertain write for this input must not be retried after recovery. */
+  memoryWriteAttempted?: boolean;
   images?: AgentInputImage[];
 }
 
@@ -452,6 +454,8 @@ export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 export interface AgentRunRequest {
   /** Backend receipt for a successful memory write in this durable run, across attempts. */
   memoryWriteConfirmed?: boolean;
+  /** A prior failed/uncertain write for this input must not be retried after recovery. */
+  memoryWriteAttempted?: boolean;
   /** Internal optimization; explicit model thinking preferences still win. */
   executionProfile?: "conversation" | "agent";
   /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */
@@ -573,7 +577,14 @@ export type AgentRuntimeEvent =
       /** Provider-generated tool status rather than assistant-authored narration. */
       activity?: true;
     }
-  | { type: "tool"; name: string; args: Record<string, unknown>; executionId: string }
+  | {
+      type: "tool";
+      name: string;
+      args: Record<string, unknown>;
+      executionId: string;
+      /** Runtime-validated input identity for memory progress; never rendered as arguments. */
+      memoryRequestId?: string;
+    }
   | {
       type: "ask";
       text: string;

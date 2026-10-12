@@ -546,7 +546,7 @@ describe("Pi connector tool dispatch", () => {
         });
     };
     if (mode === "no-write" || mode === "failed-write" || mode === "incidental-failure")
-      await expect(consume()).rejects.toThrow("Memory wasn't saved");
+      await expect(consume()).rejects.toThrow("Memory save couldn't be verified");
     else await consume();
     expect(executeTool).toHaveBeenCalledTimes(
       mode === "recover" || mode === "failed-write" || mode === "failed-blocked-write" ? 1 : 0,
@@ -589,7 +589,7 @@ describe("Pi connector tool dispatch", () => {
         /* exhaust */
       }
     };
-    await expect(consume()).rejects.toThrow("Memory wasn't saved");
+    await expect(consume()).rejects.toThrow("Memory save couldn't be verified");
     expect(executeTool).not.toHaveBeenCalled();
     expect(fakeAgentState.followUpMessages).toHaveLength(2);
   });
@@ -702,7 +702,8 @@ describe("Pi connector tool dispatch", () => {
         /* exhaust */
       }
     };
-    if (mode === "no-write") await expect(consume()).rejects.toThrow("Memory wasn't saved");
+    if (mode === "no-write")
+      await expect(consume()).rejects.toThrow("Memory save couldn't be verified");
     else await consume();
     expect(executeTool).toHaveBeenCalledTimes(mode === "recover" ? 1 : 0);
     expect(fakeAgentState.followUpMessages).toHaveLength(mode === "recover" ? 1 : 2);

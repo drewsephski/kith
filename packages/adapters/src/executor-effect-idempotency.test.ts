@@ -263,6 +263,38 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
+  it("restores uncertain input state and blocks a changed-payload memory retry after recovery", async () => {
+    const f = fixture("uncertain-input-recovery", "Remember that I prefer coffee.");
+    const inputId = "uncertain-input-recovery:input:initial";
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "coffee" },
+        executionId: "first",
+        memoryRequestId: inputId,
+      },
+    ]);
+    await f.run();
+    f.effects[0]!.status = "failed";
+    f.effects[0]!.result = {
+      error: "Receipt unavailable",
+      uncertain: true,
+      memoryRequestId: inputId,
+    };
+    f.setCalls([
+      {
+        name: "save_memory",
+        args: { content: "coffee (retried)" },
+        executionId: "retry",
+        memoryRequestId: inputId,
+      },
+    ]);
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).toBe(true);
+    expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+    expect(f.results.at(-1)).toMatchObject({ uncertain: true });
+  });
+
   it("restores only this run's successful memory receipt across attempts", async () => {
     const f = fixture("memory-receipt-retry", "Remember: durable fact");
     f.setCalls([
@@ -660,6 +692,22 @@ describe("mutating tool effect idempotency keys", () => {
       }),
     );
     expect(f.results[0]).toEqual({ ok: true });
+  });
+
+  it("reuses a completed mutation for repeated calls fulfilling the same memory input", async () => {
+    const f = fixture("same-memory-input");
+    f.setCalls(
+      ["first", "retry"].map((executionId) => ({
+        name: "remember",
+        args: { content: "coffee", path: "MEMORY.md" },
+        executionId,
+        memoryRequestId: "input-1",
+      })),
+    );
+    await f.run();
+    expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+    expect(f.effects).toHaveLength(1);
+    expect(f.results).toHaveLength(2);
   });
 
   it("executes two identical-args mutating calls in one live run", async () => {

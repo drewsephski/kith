@@ -9,7 +9,7 @@ export const TASK_CONTINUATION_PROMPT =
   "Your last reply describes work you still intend to do. Continue the original task now using the available tools and existing results; do not repeat successful actions. Finish all remaining requested steps and verify the outcome, or identify a concrete blocker. Preserve all authorization and approval requirements. Do not end with another promise to act.";
 export const INCOMPLETE_TASK_ERROR =
   "The model stopped with a plan instead of completing the task. Try again or use a different model.";
-export const UNVERIFIED_MEMORY_ERROR = "Memory wasn't saved. Try again.";
+export const UNVERIFIED_MEMORY_ERROR = "Memory save couldn't be verified.";
 export const MEMORY_CONTINUATION_PROMPT =
   "The requested durable preference has no confirmed memory write. Save it using the supported memory tool, then report the confirmed result. Do not repeat any attempted failed or uncertain mutation, bypass permissions, or claim a preference was saved without a successful tool result.";
 

@@ -29,3 +29,21 @@ describe("advanceToolCallLoopGuard", () => {
     expect(streak.count).toBe(6);
   });
 });
+
+it("treats distinct validated memory inputs as progress but retains repeated-input loop protection", () => {
+  for (const mode of ["distinct-memory", "same-memory", "nonmemory"] as const) {
+    let streak = { key: undefined as string | undefined, count: 0 };
+    let stuck = false;
+    for (let index = 0; index < 6; index++) {
+      const result = advanceToolCallLoopGuard(
+        streak,
+        mode === "nonmemory" ? "search" : "remember",
+        { content: "same merged document" },
+        mode === "same-memory" ? "input" : `input-${index}`,
+      );
+      streak = result.streak;
+      stuck = result.stuck;
+    }
+    expect(stuck).toBe(mode !== "distinct-memory");
+  }
+});
