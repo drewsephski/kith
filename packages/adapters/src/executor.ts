@@ -3661,6 +3661,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
             result.uncertain !== true
           );
         });
+        const confirmedMemoryResults = new Map<string, { result: unknown; identity: string }>();
+        for (const effect of confirmedMemoryEffects) {
+          const requestId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+          if (requestId) {
+            const { memoryRequestId: _storedId, ...storedArgs } = effect.request as Record<
+              string,
+              unknown
+            >;
+            confirmedMemoryResults.set(requestId, {
+              result: effect.result,
+              identity: toolEffectIdempotencyKey(runId, effect.kind, storedArgs, 0),
+            });
+          }
+        }
         const initialMemoryRequestId = `${runId}:input:${promptChanged?.id ?? (hasAnsweredQuestion ? "unverified-answer" : "initial")}`;
         const memoryWriteConfirmed =
           !(hasAnsweredQuestion && !promptChanged) &&
@@ -4803,6 +4817,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
           const memorySave = isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId));
+          if (memorySave && memoryRequestId && confirmedMemoryResults.has(memoryRequestId)) {
+            const completed = confirmedMemoryResults.get(memoryRequestId)!;
+            return completed.identity === toolEffectIdempotencyKey(runId, name, args, 0)
+              ? completed.result
+              : {
+                  error:
+                    "This Memory request is already verified complete; do not change or repeat its write.",
+                  alreadyCompleted: true,
+                  memoryRequestId,
+                };
+          }
           if (
             memorySave &&
             memoryRequestId &&
@@ -5417,9 +5442,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
               if (outcome?.ok !== true || outcome.error || outcome.uncertain === true)
                 uncertainMemoryInputs.add(memoryRequestId);
             }
-            return (await persistEffectResult(boundResult))
-              ? boundResult
-              : uncertainEffectResult(name);
+            if (!(await persistEffectResult(boundResult))) return uncertainEffectResult(name);
+            if (memorySave && memoryRequestId && boundResult && typeof boundResult === "object") {
+              const record = boundResult as Record<string, unknown>;
+              const outcome =
+                record.kind === "agent_tool_result"
+                  ? (record.details as Record<string, unknown> | undefined)
+                  : record;
+              if (outcome?.ok === true && !outcome.error && outcome.uncertain !== true)
+                confirmedMemoryResults.set(memoryRequestId, {
+                  result: boundResult,
+                  identity: toolEffectIdempotencyKey(runId, name, args, 0),
+                });
+            }
+            return boundResult;
           };
           const registerRunSecrets = (values: string[]) => {
             const additions = values.filter((value) => !runSecrets.includes(value));

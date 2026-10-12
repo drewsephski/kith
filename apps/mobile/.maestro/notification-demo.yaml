@@ -74,6 +74,22 @@ name: Android live working status demonstration
 - extendedWaitUntil:
     notVisible: "Stop"
     timeout: 30000
+# A transport alert also hides Stop; it is not evidence of cancellation.
+# This isolated fixture has no newer work, so retry Stop at most once.
+- runFlow:
+    when:
+      visible: "Failed to stop work"
+    commands:
+      - tapOn: "OK"
+      - runFlow:
+          when:
+            visible: "Stop"
+          commands:
+            - tapOn: "Stop"
+      - extendedWaitUntil:
+          notVisible: "Stop"
+          timeout: 30000
+- assertNotVisible: "Failed to stop work"
 - openLink: "rakazo:///account"
 - scrollUntilVisible:
     element: "Live working status"

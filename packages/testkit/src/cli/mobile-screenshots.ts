@@ -117,6 +117,25 @@ async function main() {
         ],
         process.env,
       );
+      if (flow === "notification-demo") {
+        const stopped = await handles.prisma.run.findFirst({
+          where: {
+            botId: fixture.botId,
+            task: { prompt: "Review the launch checklist and keep working until I stop you." },
+          },
+          orderBy: { createdAt: "desc" },
+          include: { task: true, attempts: true },
+        });
+        if (
+          stopped?.task.prompt !==
+            "Review the launch checklist and keep working until I stop you." ||
+          stopped.status !== "cancelled" ||
+          stopped.task.status !== "cancelled" ||
+          stopped.leaseOwner !== null ||
+          !stopped.attempts.every((attempt) => attempt.status === "cancelled")
+        )
+          throw new Error("Notification demo did not durably cancel its work");
+      }
     }
     await writeFile(
       path.join(REPORT_DIR, "summary.json"),

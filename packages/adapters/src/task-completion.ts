@@ -23,6 +23,7 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
     /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
+    /(?:^|[.!?;\n…]\s*)I(?:\s+(?:want|need)\s+you\s+to|(?:['’]d|\s+would)\s+like\s+you\s+to)\s+(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
     /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
   ];
   const starts = new Set<number>();

@@ -37,6 +37,20 @@ describe("unfinished action recovery", () => {
 });
 
 describe("fresh memory receipt boundary", () => {
+  it.each([
+    "I want you to remember that I prefer dark mode.",
+    "I'd like you to remember that my timezone is UTC.",
+    "I would like you to save my preference to memory.",
+  ])("requires receipts for first-person requests: %s", (text) => {
+    expect(needsFreshMemoryWrite(text)).toBe(true);
+  });
+  it.each([
+    "If I want you to remember that I prefer dark mode, what should I say?",
+    "Alice said, I want you to remember that I prefer dark mode.",
+    "Explain: `I'd like you to remember that my timezone is UTC.`",
+  ])("keeps hypothetical and reported desire forms as data: %s", (text) => {
+    expect(needsFreshMemoryWrite(text)).toBe(false);
+  });
   it("splits independent directives while retaining a single directive's identity", () => {
     expect(memorySaveRequests("Remember: coffee.", "input")).toEqual([
       { id: "input", text: "Remember: coffee." },

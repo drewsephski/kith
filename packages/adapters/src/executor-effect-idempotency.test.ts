@@ -263,6 +263,34 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
+  it.each(["same-attempt", "restart"])(
+    "reuses a confirmed request despite changed alias/content: %s",
+    async (mode) => {
+      const f = fixture("confirmed-input", "Remember I prefer coffee.");
+      const input = "confirmed-input:input:initial";
+      const first = {
+        name: "remember",
+        args: { content: "coffee" },
+        executionId: "first",
+        memoryRequestId: input,
+      };
+      const second = {
+        name: "save_memory",
+        args: { content: "tea" },
+        executionId: "second",
+        memoryRequestId: input,
+      };
+      f.setCalls(mode === "same-attempt" ? [first, second] : [first]);
+      await f.run();
+      if (mode === "restart") {
+        f.setCalls([second]);
+        await f.run();
+      }
+      expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+      expect(f.effects).toHaveLength(1);
+      expect(f.results.at(-1)).toMatchObject({ alreadyCompleted: true, memoryRequestId: input });
+    },
+  );
   it("restores per-directive receipts and reuses completed writes across restart", async () => {
     const f = fixture("multi-save", "Remember I prefer dark mode. Remember my timezone is UTC.");
     const first = "multi-save:input:initial:memory:0";

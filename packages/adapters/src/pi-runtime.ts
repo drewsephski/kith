@@ -628,9 +628,8 @@ export class PiAgentRuntime implements AgentRuntime {
             const missingMemory = [...host.memoryWrite.requests.entries()].filter(
               ([, state]) => !state.confirmed,
             );
-            const hasUntouchedMemoryAfterFailure =
-              missingMemory.some(([, state]) => state.retryBlocked) &&
-              missingMemory.some(([, state]) => !state.attempted);
+            const hasUntouchedMemoryRequests =
+              missingMemory.length > 1 && missingMemory.some(([, state]) => !state.attempted);
             if (
               missingMemory.length > 0 &&
               !hasToolCalls &&
@@ -639,7 +638,7 @@ export class PiAgentRuntime implements AgentRuntime {
               !signal.aborted &&
               !host.toolCallBudget.exceeded &&
               !providerFailureText(event.message) &&
-              (!memoryReplyIsBlocked(terminalText) || hasUntouchedMemoryAfterFailure)
+              (!memoryReplyIsBlocked(terminalText) || hasUntouchedMemoryRequests)
             ) {
               incompleteMemory = true;
               // Request a missing effect, but never blindly retry a failed or
@@ -1191,8 +1190,13 @@ function memoryWriteStates(
     "memoryWriteConfirmed" | "memoryWriteAttempted" | "memoryWriteReceipts"
   >,
 ): ToolHost["memoryWrite"]["requests"] {
+  const requests = memorySaveRequests(prompt, requestId);
+  const rootReceipt = input.memoryWriteReceipts?.find((item) => item.requestId === requestId);
+  const hasRequestReceipt = input.memoryWriteReceipts?.some(
+    (item) => item.requestId === requestId || requests.some(({ id }) => item.requestId === id),
+  );
   return new Map(
-    memorySaveRequests(prompt, requestId).map(({ id, text }) => {
+    requests.map(({ id, text }) => {
       const receipt = input.memoryWriteReceipts?.find((item) => item.requestId === id);
       const confirmed =
         receipt?.confirmed === true || (id === requestId && input.memoryWriteConfirmed === true);
@@ -1200,7 +1204,8 @@ function memoryWriteStates(
       // cause already attempted work to be repeated after recovery.
       const attempted =
         receipt !== undefined ||
-        input.memoryWriteAttempted === true ||
+        (id !== requestId && rootReceipt !== undefined) ||
+        (input.memoryWriteAttempted === true && !hasRequestReceipt) ||
         (id !== requestId && input.memoryWriteConfirmed === true);
       return [id, { text, confirmed, attempted, retryBlocked: attempted && !confirmed }];
     }),
@@ -1455,6 +1460,10 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       const memoryState = memoryRequestId
         ? host.memoryWrite.requests.get(memoryRequestId)
         : undefined;
+      if (memorySave && !memoryRequestError && memoryState?.confirmed) {
+        memoryRequestError =
+          "This Memory request is already verified complete; reuse its receipt and do not write it again.";
+      }
       if (
         memorySave &&
         !memoryRequestError &&
