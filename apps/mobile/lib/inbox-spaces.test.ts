@@ -82,7 +82,7 @@ describe("spaceInboxItems", () => {
     expect(inboxNeedsCreateHint([])).toBe(false);
   });
 
-  it("renders space actions once, separate from pinned and named bot sections", () => {
+  it("renders space actions once, separates pins, and keeps labels in the chat list", () => {
     const work = space({
       bots: [
         { ...bot, pinned: true },
@@ -99,7 +99,13 @@ describe("spaceInboxItems", () => {
       ],
     });
     const headings = spaceInboxItems([work]).filter((item) => item.type === "heading");
-    expect(headings.map((item) => item.title)).toEqual(["Work", "Pinned", "Research"]);
+    expect(headings.map((item) => item.title)).toEqual(["Work"]);
+    const items = spaceInboxItems([work]);
+    expect(items.map((item) => item.type)).toEqual(["heading", "pins", "bot"]);
+    expect(items[1]).toMatchObject({
+      type: "pins",
+      chats: [{ type: "bot", bot: { id: "bot-1" } }],
+    });
     expect(headings.filter((item) => item.space)).toEqual([
       { type: "heading", key: work.id, title: work.name, space: work },
     ]);
@@ -120,6 +126,46 @@ describe("spaceInboxItems", () => {
     const items = spaceInboxItems([space({ isDefault: true, bots: [bot], groups: [group] })]);
     expect(items.map((item) => item.type)).toEqual(["bot", "group"]);
     expect(items[0]).toMatchObject({ type: "bot", depth: 0, hasChildren: false });
+  });
+  it("puts the assistant first in pins and sorts remaining chats by latest message", () => {
+    const items = spaceInboxItems(
+      [
+        space({
+          isDefault: true,
+          bots: [
+            { ...bot, id: "older" },
+            { ...bot, id: "other-pin", pinned: true },
+            { ...bot, id: "assistant", pinned: true },
+            { ...bot, id: "latest", updatedAt: "2026-02-01T00:00:00.000Z" },
+          ],
+        }),
+      ],
+      new Set(),
+      "assistant",
+    );
+    expect(items.map((item) => (item.type === "bot" ? item.bot.id : item.type))).toEqual([
+      "pins",
+      "latest",
+      "older",
+    ]);
+    expect(items[0]).toMatchObject({
+      chats: [{ bot: { id: "assistant" } }, { bot: { id: "other-pin" } }],
+    });
+  });
+  it("keeps a pinned parent's unpinned child reachable in the list", () => {
+    const items = spaceInboxItems([
+      space({
+        isDefault: true,
+        bots: [
+          { ...bot, id: "parent", pinned: true },
+          { ...bot, id: "child", parentBotId: "parent" },
+        ],
+      }),
+    ]);
+    expect(items).toMatchObject([
+      { type: "pins" },
+      { type: "bot", bot: { id: "child" }, depth: 0 },
+    ]);
   });
 
   it("nests child bots under their parent and can collapse them", () => {

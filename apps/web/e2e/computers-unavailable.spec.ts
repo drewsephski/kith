@@ -59,7 +59,9 @@ test("unavailable computers explain setup and open computer settings", async ({
   const computerToggle = page.getByRole("button", { name: "Computer", exact: true });
   await expect(computerToggle).toBeVisible();
   await expect(computerToggle).toHaveAttribute("aria-pressed", "false");
-  await expect(page.getByTestId("create-menu-trigger")).toHaveCount(0);
+  await expect(
+    page.getByTestId("kith-navigation").getByTestId("create-menu-trigger"),
+  ).toBeVisible();
   await computerToggle.click();
   await expect(computerToggle).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "computer");

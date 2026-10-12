@@ -3,8 +3,13 @@ import { rpc } from "./api";
 import { t } from "./i18n";
 import { errorText } from "./user-error";
 
-export function confirmDeleteBot(bot: { id: string; name: string }, onDeleted: () => void) {
+export function confirmDeleteBot(
+  bot: { id: string; name: string },
+  onDeleted: () => void,
+  canDelete: () => boolean = () => true,
+) {
   const remove = async (deleteMemories: boolean) => {
+    if (!canDelete()) return;
     try {
       await rpc("bots/remove", { botId: bot.id, deleteMemories });
       onDeleted();

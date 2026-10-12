@@ -97,6 +97,8 @@ test("recovery exposes Stop and shows the server's stopped result", async ({ pag
     0,
   );
   await captureScreenshot(page, testInfo, "recovery-stopped");
+  await dialog.getByRole("button", { name: "Dismiss", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Computer refreshed" })).toBeVisible();
 });
 test("calendar read errors offer recovery without a misleading empty schedule", async ({
   page,

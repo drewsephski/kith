@@ -2,6 +2,36 @@ import { describe, expect, it } from "vitest";
 import { reconcileTerminalRunSnapshot } from "./terminal-run-snapshot.js";
 
 describe("terminal run snapshot authority", () => {
+  it("settles a completed group member while the snapshot headline is an active peer", () => {
+    const previous = {
+      threadId: "group",
+      settledRunIds: [] as string[],
+      run: { id: "peer", status: "running" },
+      activeRuns: [
+        { id: "finished", status: "running" },
+        { id: "peer", status: "running" },
+      ],
+      messages: [
+        { id: "progress:finished", runId: "finished", seq: 20 },
+        { id: "progress:peer", runId: "peer", seq: 22 },
+      ],
+    };
+    const next = {
+      threadId: "group",
+      run: { id: "peer", status: "running" },
+      activeRuns: [{ id: "peer", status: "running" }],
+      settledRunIds: ["finished"],
+      messages: [{ id: "answer", runId: "finished", seq: 21 }],
+    };
+    const reconciled = reconcileTerminalRunSnapshot(previous, next);
+    expect(reconciled?.run).toEqual(previous.run);
+    expect(reconciled?.activeRuns).toEqual([{ id: "peer", status: "running" }]);
+    expect(reconciled?.messages).toEqual([
+      { id: "answer", runId: "finished", seq: 21 },
+      { id: "progress:peer", runId: "peer", seq: 22 },
+    ]);
+    expect(reconciled?.settledRunIds).toContain("finished");
+  });
   const previous = {
     threadId: "thread",
     run: { id: "run", status: "running" },

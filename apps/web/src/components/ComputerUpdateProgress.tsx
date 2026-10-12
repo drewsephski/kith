@@ -39,9 +39,11 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
     if (
       previous.current.some(
         (old) =>
-          old.status !== "failed" &&
+          !["failed", "cancelled"].includes(old.status) &&
           (!updates.some((item) => item.id === old.id) ||
-            updates.some((item) => item.id === old.id && item.status === "failed")),
+            updates.some(
+              (item) => item.id === old.id && ["failed", "cancelled"].includes(item.status),
+            )),
       )
     )
       completed.current();

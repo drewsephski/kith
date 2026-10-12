@@ -219,7 +219,7 @@ function Fixture() {
           <ConnectionsPanel botId={bot.id} />
         </aside>
       ) : null}
-      <ComputerUpdateProgress onCompleted={() => {}} />
+      <ComputerUpdateProgress onCompleted={() => setSelected("Computer refreshed")} />
     </main>
   );
 }

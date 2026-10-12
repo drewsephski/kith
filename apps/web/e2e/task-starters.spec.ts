@@ -5,7 +5,13 @@ import type {
   TaskStarterReceipt,
   ThreadSnapshot,
 } from "@rakazo/contracts";
-import { activeBotId, captureScreenshot, completeOnboarding, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  newConversation,
+  signup,
+} from "./helpers";
 
 const options: TaskStarterOptions = {
   configured: true,
@@ -129,10 +135,7 @@ test("task starters preserve editable intent and require explicit accounts", asy
   await signup(page, `task-starters-${Date.now()}@example.test`, "password12", "Alex");
   await completeOnboarding(page);
   const primary = activeBotId(page);
-  await page
-    .getByRole("navigation", { name: "Assistant", exact: true })
-    .getByRole("button", { name: "New conversation", exact: true })
-    .click();
+  await newConversation(page);
   await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   const composer = page.locator('textarea[name="chat-message"]');

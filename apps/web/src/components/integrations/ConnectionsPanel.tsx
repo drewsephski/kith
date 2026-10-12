@@ -141,7 +141,11 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
       ) : null}
       {nativeCalendar ? (
         <div className="flex min-w-0 items-center justify-between gap-3">
-          <CalendarConnection key={revision} botId={botId} />
+          <CalendarConnection
+            key={revision}
+            botId={botId}
+            onConnectionChanged={() => setRevision((value) => value + 1)}
+          />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -190,7 +194,10 @@ export function ConnectionsPanel({ botId }: { botId: string }) {
             <Trans>Calendar briefing</Trans>
           </CollapsibleTrigger>
           <CollapsibleContent keepMounted={false} className="pt-2">
-            <CalendarConnection botId={botId} />
+            <CalendarConnection
+              botId={botId}
+              onConnectionChanged={() => setRevision((value) => value + 1)}
+            />
           </CollapsibleContent>
         </Collapsible>
       ) : null}

@@ -37,6 +37,11 @@ name: Fresh introduction and first assistant
 - hideKeyboard
 - tapOn: "Sign in"
 - extendedWaitUntil:
+    visible: ".*Kith.*Pinned.*"
+    timeout: 30000
+- takeScreenshot: 05-first-inbox
+- tapOn: ".*Kith.*Pinned.*"
+- extendedWaitUntil:
     visible: "What should I help you with first\\?"
     timeout: 30000
 - takeScreenshot: 05-first-assistant

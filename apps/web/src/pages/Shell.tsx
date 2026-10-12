@@ -2727,7 +2727,7 @@ export function ShellPage({
       if (needsBoot) {
         const status = await rpc.computer.boot(
           { botId: targetBotId },
-          { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(120_000)]) },
+          { signal: controller.signal },
         );
         if (!stillThisBoot() || !stillThisBot() || controller.signal.aborted) return;
         commitComputer(status);

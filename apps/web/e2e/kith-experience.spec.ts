@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { activeBotId, captureScreenshot, completeOnboarding, rpc, signup } from "./helpers";
+import {
+  activeBotId,
+  captureScreenshot,
+  completeOnboarding,
+  newConversation,
+  rpc,
+  signup,
+} from "./helpers";
 
 test("new conversations offer editable task starters and align navigation with the header", async ({
   page,
@@ -32,10 +39,7 @@ test("new conversations offer editable task starters and align navigation with t
   const composer = page.locator('textarea[name="chat-message"]');
   const welcome = page.getByTestId("assistant-welcome");
   await expect(welcome).toBeVisible();
-  await navigation
-    .getByRole("navigation", { name: "Assistant", exact: true })
-    .getByRole("button", { name: "New conversation", exact: true })
-    .click();
+  await newConversation(page);
   await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
   const conversation = activeBotId(page);
   await expect(welcome).toBeVisible();
@@ -74,10 +78,7 @@ test("new conversations offer editable task starters and align navigation with t
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-  await navigation
-    .getByRole("navigation", { name: "Assistant", exact: true })
-    .getByRole("button", { name: "New conversation", exact: true })
-    .click();
+  await newConversation(page);
   await expect(welcome).toBeVisible();
   await expect(composer).toHaveValue("");
   await welcome.getByRole("button", { name: "Turn my inbox into a to-do list" }).click();
@@ -114,7 +115,7 @@ test("Kith preserves its main conversation, drafts, and inspectable personal mem
   await composer.fill("Help me plan my day. Ask me what I need to get done.");
   await expect(composer).toHaveValue("Help me plan my day. Ask me what I need to get done.");
   await expect(composer).toBeFocused();
-  await page.getByRole("button", { name: "New conversation", exact: true }).click();
+  await newConversation(page);
   await expect(page).not.toHaveURL(new RegExp(`/app/${primary}$`));
   const thread = activeBotId(page);
   await expect(composer).toHaveValue("");
@@ -175,7 +176,7 @@ test("Kith preserves its main conversation, drafts, and inspectable personal mem
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
 
-  await navigation.getByRole("button", { name: "Tasks", exact: true }).click();
+  await navigation.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(
     page.getByTestId("side-panel").getByRole("button", { name: "Kith, Completed", exact: true }),
   ).toBeVisible();

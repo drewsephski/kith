@@ -26,9 +26,11 @@ import { IntegrationSetup } from "./integrations/IntegrationSetup";
 export function CalendarConnection({
   botId,
   compact = false,
+  onConnectionChanged,
 }: {
   botId: string;
   compact?: boolean;
+  onConnectionChanged?: () => void;
 }) {
   const { t } = useLingui();
   const fieldId = useId();
@@ -40,6 +42,17 @@ export function CalendarConnection({
   const [accountId, setAccountId] = useState("");
   const [setupOpen, setSetupOpen] = useState(false);
   const connectionAttempt = useRef<AbortController | null>(null);
+  const previousConnection = useRef<string | null>(null);
+  const connectionChanged = useRef(onConnectionChanged);
+  connectionChanged.current = onConnectionChanged;
+  useEffect(() => {
+    if (!state) return;
+    const identity = JSON.stringify([state.status, state.connectionId, state.managedConnections]);
+    if (previousConnection.current !== null && previousConnection.current !== identity) {
+      connectionChanged.current?.();
+    }
+    previousConnection.current = identity;
+  }, [state]);
   useEffect(() => () => connectionAttempt.current?.abort(), [botId]);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");

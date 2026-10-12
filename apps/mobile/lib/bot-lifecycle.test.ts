@@ -39,4 +39,11 @@ describe("archived bot lifecycle", () => {
     });
     expect(deleted).toHaveBeenCalledOnce();
   });
+  it("does not delete after a confirmation outlives its account or space", async () => {
+    const current = vi.fn(() => true);
+    confirmDeleteBot({ id: "bot-fixture", name: "Fixture" }, vi.fn(), current);
+    current.mockReturnValue(false);
+    await alert.mock.calls[0]![2][1].onPress();
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });

@@ -26,6 +26,8 @@ export type BotOrganizationUpdate = {
 
 export function BotOrganizeModal({
   bot,
+  labelsOnly = false,
+  initialMode = "idle",
   sections,
   onClose,
   onUpdate,
@@ -34,6 +36,8 @@ export function BotOrganizeModal({
 }: {
   bot: Pick<MobileBot, "name" | "pinned" | "sectionId"> &
     Partial<Pick<MobileBot, "notifyOnFinish">>;
+  labelsOnly?: boolean;
+  initialMode?: "idle" | "create" | "rename";
   sections: MobileBotSection[];
   onClose: () => void;
   onUpdate: (update: BotOrganizationUpdate) => Promise<void>;
@@ -43,8 +47,8 @@ export function BotOrganizeModal({
   const styles = useThemedStyles(createBotOrganizeStyles);
   const { t } = useI18n();
   const currentSection = sections.find((section) => section.id === bot.sectionId) ?? null;
-  const [mode, setMode] = useState<"idle" | "create" | "rename">("idle");
-  const [name, setName] = useState("");
+  const [mode, setMode] = useState<"idle" | "create" | "rename">(initialMode);
+  const [name, setName] = useState(initialMode === "rename" ? (currentSection?.name ?? "") : "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,20 +93,22 @@ export function BotOrganizeModal({
           <Text style={styles.title} numberOfLines={1}>
             {bot.name}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            disabled={saving}
-            onPress={() => void save(() => onUpdate({ pinned: !bot.pinned }))}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          >
-            <NativeSymbol
-              ios={bot.pinned ? "pin.slash" : "pin"}
-              android={bot.pinned ? "pin-outline" : "pin"}
-              size={18}
-            />
-            <Text style={styles.actionLabel}>{bot.pinned ? t("Unpin") : t("Pin")}</Text>
-          </Pressable>
-          {typeof bot.notifyOnFinish === "boolean" ? (
+          {labelsOnly ? null : (
+            <Pressable
+              accessibilityRole="button"
+              disabled={saving}
+              onPress={() => void save(() => onUpdate({ pinned: !bot.pinned }))}
+              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+            >
+              <NativeSymbol
+                ios={bot.pinned ? "pin.slash" : "pin"}
+                android={bot.pinned ? "pin-outline" : "pin"}
+                size={18}
+              />
+              <Text style={styles.actionLabel}>{bot.pinned ? t("Unpin") : t("Pin")}</Text>
+            </Pressable>
+          )}
+          {!labelsOnly && typeof bot.notifyOnFinish === "boolean" ? (
             <Pressable
               accessibilityRole="button"
               disabled={saving}
@@ -119,7 +125,7 @@ export function BotOrganizeModal({
               </Text>
             </Pressable>
           ) : null}
-          <Text style={styles.sectionLabel}>{t("Move to")}</Text>
+          <Text style={styles.sectionLabel}>{t("Label")}</Text>
           <ScrollView style={styles.sectionOptions} keyboardShouldPersistTaps="handled">
             {sections.map((section) => (
               <SectionOption
@@ -131,7 +137,7 @@ export function BotOrganizeModal({
               />
             ))}
             <SectionOption
-              label={t("Unassigned")}
+              label={t("No label")}
               selected={bot.sectionId === null}
               disabled={saving || bot.sectionId === null}
               onPress={() => void save(() => onUpdate({ sectionId: null }))}
@@ -144,15 +150,13 @@ export function BotOrganizeModal({
                 value={name}
                 onChangeText={setName}
                 maxLength={60}
-                placeholder={t("Section name")}
+                placeholder={t("Label name")}
                 placeholderTextColor={native.secondaryLabel}
                 style={styles.newSectionInput}
               />
               <NativeActionButton
                 label={mode === "rename" ? t("Save") : t("Create")}
-                accessibilityLabel={
-                  mode === "rename" ? t("Save section name") : t("Create section")
-                }
+                accessibilityLabel={mode === "rename" ? t("Save label name") : t("Create label")}
                 fill={false}
                 style={{ alignSelf: "center" }}
                 disabled={
@@ -178,7 +182,7 @@ export function BotOrganizeModal({
                 style={({ pressed }) => [styles.action, pressed && styles.pressed]}
               >
                 <NativeSymbol ios="folder.badge.plus" android="folder-outline" size={18} />
-                <Text style={styles.actionLabel}>{t("New section")}</Text>
+                <Text style={styles.actionLabel}>{t("New label")}</Text>
               </Pressable>
               {currentSection ? (
                 <Pressable
@@ -187,7 +191,7 @@ export function BotOrganizeModal({
                   style={({ pressed }) => [styles.action, pressed && styles.pressed]}
                 >
                   <NativeSymbol ios="pencil" android="pencil-outline" size={18} />
-                  <Text style={styles.actionLabel}>{t("Rename section")}</Text>
+                  <Text style={styles.actionLabel}>{t("Rename label")}</Text>
                 </Pressable>
               ) : null}
             </>

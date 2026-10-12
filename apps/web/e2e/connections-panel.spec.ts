@@ -10,10 +10,14 @@ test("native Calendar removal uses the same confirmation dialog", async ({ page 
       json: {
         json: {
           configured: true,
+          directConfigured: true,
           canConfigure: true,
+          redirectUri: "https://example.test/calendar/callback",
           status: connected ? "connected" : "disconnected",
           connectionId: connected ? "native-calendar" : null,
           managedConnectionId: null,
+          managedConnectorId: null,
+          managedConnections: [],
         },
       },
     }),
@@ -29,7 +33,7 @@ test("native Calendar removal uses the same confirmation dialog", async ({ page 
     "Calendar Test",
   );
   await completeOnboarding(page);
-  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).last().click();
   const panel = page.getByTestId("connections-panel");
   await panel.getByRole("button", { name: "Remove Google Calendar", exact: true }).click();
   const confirmation = page.getByRole("alertdialog", { name: "Remove Google Calendar?" });
@@ -39,6 +43,52 @@ test("native Calendar removal uses the same confirmation dialog", async ({ page 
   await expect(
     panel.getByRole("button", { name: "Remove Google Calendar", exact: true }),
   ).toBeHidden();
+  await expect(panel.getByText("No connections yet", { exact: true })).toBeVisible();
+  await expect(panel.getByTestId("calendar-agenda")).toHaveCount(0);
+});
+
+test("disconnecting inside Calendar refreshes the sidebar schedule", async ({ page }) => {
+  let connected = true;
+  await page.route("**/rpc/connections/list", (route) => route.fulfill({ json: { json: [] } }));
+  await page.route("**/rpc/connections/catalog", (route) => route.fulfill({ json: { json: [] } }));
+  await page.route("**/rpc/calendar/status", (route) =>
+    route.fulfill({
+      json: {
+        json: {
+          configured: true,
+          directConfigured: true,
+          canConfigure: true,
+          redirectUri: "https://example.test/calendar/callback",
+          status: connected ? "connected" : "disconnected",
+          connectionId: connected ? "calendar" : null,
+          managedConnectionId: null,
+          managedConnectorId: null,
+          managedConnections: [],
+        },
+      },
+    }),
+  );
+  await page.route("**/rpc/calendar/agenda", (route) =>
+    route.fulfill({ json: { json: { snapshots: [], unavailable: false } } }),
+  );
+  await page.route("**/rpc/calendar/disconnect", (route) => {
+    connected = false;
+    return route.fulfill({ json: { json: { ok: true } } });
+  });
+  await signup(page, `calendar-child-${Date.now()}@example.test`, "password12", "Calendar Test");
+  await completeOnboarding(page);
+  await page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "Integrations", exact: true })
+    .click();
+  const panel = page.getByTestId("connections-panel");
+  await expect(panel.getByTestId("calendar-agenda")).toBeVisible();
+  await panel.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Disconnect Calendar", exact: true })
+    .click();
+  await expect(panel.getByTestId("calendar-agenda")).toHaveCount(0);
   await expect(panel.getByText("No connections yet", { exact: true })).toBeVisible();
 });
 
@@ -140,7 +190,7 @@ test("connections list every account and open the complete Composio catalog", as
   await expect(
     page.getByRole("button", { name: "Connect Google Calendar", exact: true }),
   ).toBeHidden();
-  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).last().click();
   const panel = page.getByTestId("connections-panel");
   for (const name of ["Work Gmail", "Personal Gmail", "Slack"]) {
     await expect(panel.getByText(name, { exact: true })).toBeVisible();

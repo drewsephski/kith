@@ -562,7 +562,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
     include: { computer: true },
   });
   const controller = new AbortController();
-  const operationSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]);
+  const operationSignal = controller.signal;
   const heartbeat = setInterval(() => {
     void deps.prisma.computerUpdate
       .updateMany({ where: { id: updateId, status: "running" }, data: { updatedAt: new Date() } })

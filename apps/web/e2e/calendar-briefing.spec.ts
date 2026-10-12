@@ -208,9 +208,10 @@ test("Calendar reuses a managed account without OAuth client setup or a second s
   );
   await completeOnboarding(page);
   const botId = activeBotId(page);
-  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).last().click();
   await page.getByRole("button", { name: "Calendar briefing", exact: true }).click();
-  await page.getByRole("button", { name: "Connect Google Calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Enable briefing", exact: true }).click();
   await expect(page.getByRole("button", { name: "Calendar", exact: true })).toBeVisible();
   expect(request).toMatchObject({ connectionId: "work-account", botId });
   expect(signIns).toBe(0);

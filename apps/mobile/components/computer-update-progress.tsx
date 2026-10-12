@@ -69,7 +69,7 @@ export function ComputerUpdateProgress() {
                 { backgroundColor: tokens.card, borderColor: tokens.border },
               ]}
             >
-              {!computerUpdateNeedsAttention(update) ? (
+              {["queued", "running", "stopping"].includes(update.status) ? (
                 <ActivityIndicator color={tokens.foreground} />
               ) : null}
               <View>
@@ -95,22 +95,6 @@ export function ComputerUpdateProgress() {
             </Text>
             {computerUpdateNeedsAttention(selected) ? (
               <Text style={{ color: tokens.mutedForeground }}>
-                {["queued", "running", "stopping"].includes(selected.status) ? (
-                  <NativeActionButton
-                    label={selected.status === "stopping" ? t("Stopping…") : t("Stop")}
-                    prominence="secondary"
-                    fill
-                    busy={busy || selected.status === "stopping"}
-                    onPress={() => {
-                      setBusy(true);
-                      setError(false);
-                      void computerUpdates
-                        .cancel(selected.id)
-                        .catch(() => setError(true))
-                        .finally(() => setBusy(false));
-                    }}
-                  />
-                ) : null}
                 {selected.status === "interrupted"
                   ? t("Recovery is unavailable until the previous operation has stopped.")
                   : t("Recovery restores the last saved workspace. Unsaved work may be lost.")}
@@ -120,7 +104,7 @@ export function ComputerUpdateProgress() {
                 const current = computerUpdateStages(selected.action).indexOf(selected.stage);
                 return (
                   <View key={stage} style={styles.step}>
-                    {index === current ? (
+                    {index === current && selected.status !== "cancelled" ? (
                       <ActivityIndicator color={tokens.foreground} />
                     ) : (
                       <NativeSymbol
@@ -142,6 +126,22 @@ export function ComputerUpdateProgress() {
                 );
               })
             )}
+            {["queued", "running", "stopping"].includes(selected.status) ? (
+              <NativeActionButton
+                label={selected.status === "stopping" ? t("Stopping…") : t("Stop")}
+                prominence="secondary"
+                fill
+                busy={busy || selected.status === "stopping"}
+                onPress={() => {
+                  setBusy(true);
+                  setError(false);
+                  void computerUpdates
+                    .cancel(selected.id)
+                    .catch(() => setError(true))
+                    .finally(() => setBusy(false));
+                }}
+              />
+            ) : null}
             {error ? (
               <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
                 {t("Could not complete action")}

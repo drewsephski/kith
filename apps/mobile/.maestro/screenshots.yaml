@@ -46,11 +46,40 @@ tags:
     timeout: 30000
 - takeScreenshot: "04-inbox"
 
-- tapOn: "Activity"
+- assertNotVisible: "Activity"
+- longPressOn: ".*Writer.*"
+- assertVisible: "Pin"
+- assertVisible: "Label"
+- assertVisible: "Delete"
+- takeScreenshot: "05-chat-menu"
+- tapOn: "Pin"
 - extendedWaitUntil:
-    visible: "Recent"
+    visible: ".*Writer.*Pinned.*"
     timeout: 10000
-- takeScreenshot: "05-activity"
+- longPressOn: ".*Writer.*Pinned.*"
+- tapOn: "Unpin"
+- extendedWaitUntil:
+    visible: ".*Writer.*"
+    timeout: 10000
+- longPressOn: ".*Writer.*"
+- tapOn: "Label"
+- tapOn: "New label"
+- tapOn: "Label name"
+- inputText: "Business"
+- hideKeyboard
+- tapOn: "Create label"
+- extendedWaitUntil:
+    visible: ".*Writer.*Business.*"
+    timeout: 10000
+- takeScreenshot: "05b-chat-label"
+- tapOn: "Create"
+- assertVisible: "New bot"
+- assertVisible: "New group"
+- assertVisible: "New space"
+- takeScreenshot: "05c-create-menu"
+- tapOn: "New bot"
+- assertVisible: "Name this bot"
+- tapOn: "Cancel"
 
 - tapOn: "Search"
 - inputText: "fixture"
@@ -179,6 +208,10 @@ tags:
 - takeScreenshot: "17-bot-settings"
 
 - openLink: "rakazo:///computer?botId=${RAKAZO_SCREENSHOT_BOT_ID}&name=Researcher"
+- extendedWaitUntil:
+    visible: "Start computer"
+    timeout: 10000
+- tapOn: "Start computer"
 - extendedWaitUntil:
     visible: "Take control"
     timeout: 10000

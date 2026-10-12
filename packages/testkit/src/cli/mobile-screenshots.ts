@@ -184,6 +184,7 @@ function configureEnvironment() {
 
 async function seedFixture(app: App, prisma: PrismaClient) {
   const cookie = await signup(app);
+  await rpc(app, cookie, "assistant/ensure", {});
   const researcher = await rpc<{ id: string }>(app, cookie, "bots/create", {
     name: "Researcher",
     title: "Product research",

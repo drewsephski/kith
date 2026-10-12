@@ -3,6 +3,7 @@ import {
   activeBotId,
   captureScreenshot,
   completeOnboarding,
+  newConversation,
   openUserSettings,
   rpc,
   signup,
@@ -31,7 +32,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     await expect(main.locator(indicator)).toHaveCount(1);
     await captureScreenshot(page, testInfo, `chat-light-${reducedMotion}`);
 
-    await nav.getByRole("button", { name: "New conversation", exact: true }).click();
+    await newConversation(page);
     await expect(main).not.toHaveAttribute("aria-current", "page");
     const threadId = activeBotId(page);
     const conversations = nav.getByRole("region", { name: "Recent conversations" });

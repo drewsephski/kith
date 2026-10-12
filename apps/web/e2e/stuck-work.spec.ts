@@ -114,6 +114,7 @@ test("aged queued work is marked and an expired wait leaves a status line", asyn
   await activityToggle.click();
   await page.reload();
   await openAdvancedNavigation(page);
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
   const row = activityRow(page, "Kith");
