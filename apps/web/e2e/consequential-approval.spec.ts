@@ -157,5 +157,5 @@ async function waitForRunIdle(page: Page) {
       },
       { timeout: 30_000 },
     )
-    .toBeNull();
+    .toBe("completed");
 }

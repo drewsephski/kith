@@ -79,6 +79,8 @@ async function main() {
           "-e",
           `RAKAZO_SCREENSHOT_EMAIL=${email}`,
           "-e",
+          `RAKAZO_API_URL=${apiUrl}`,
+          "-e",
           `RAKAZO_SCREENSHOT_EMPTY_EMAIL=${emptyEmail}`,
           "-e",
           `RAKAZO_SCREENSHOT_PASSWORD=${password}`,

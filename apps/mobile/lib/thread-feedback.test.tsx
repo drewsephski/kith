@@ -75,7 +75,13 @@ function payload(text = "Hello"): SendPayload {
     reroutedToGroup: false,
     plan: resolveComposerSendPlan({ text, mentions: [], hasAttachments: true }),
     attachments: [
-      { id: "attachment-1", name: "photo.png", mimeType: "image/png", contentBase64: "fake" },
+      {
+        id: "attachment-1",
+        name: "photo.png",
+        mimeType: "image/png",
+        size: 3,
+        contentBase64: "fake",
+      },
     ],
     replyTargetId: "reply-1",
     replyQuote: "Quoted message",
@@ -307,6 +313,29 @@ describe("thread feedback", () => {
     expect(feedback.failedSends).toEqual([first, second]);
     act(() => feedback.discard(first));
     expect(feedback.failedSends).toEqual([second]);
+  });
+
+  it("does not replay a recovered delivery when the reply or destination changes", () => {
+    const original = payload();
+    const failed = feedback.sendAttempt(original);
+    failed.recoveredInput = {
+      botId: "bot-1",
+      text: "Hello",
+      clientNonce: failed.clientNonce,
+      replyToMessageId: "reply-1",
+    };
+    act(() => feedback.sendFailed(failed));
+    expect(feedback.sendAttempt(payload())).toBe(failed);
+    for (const edit of [
+      { replyTargetId: "reply-2" },
+      { replyQuote: "Changed quote" },
+      { botTarget: "bot-2" },
+      { attachments: [] },
+    ]) {
+      const fresh = feedback.sendAttempt({ ...payload(), ...edit });
+      expect(fresh.clientNonce).not.toBe(failed.clientNonce);
+      expect(fresh.recoveredInput).toBeUndefined();
+    }
   });
 
   it("keeps load failures separate from sends and clears them when a refresh reaches the server", () => {

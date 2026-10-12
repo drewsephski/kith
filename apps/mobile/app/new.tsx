@@ -14,7 +14,7 @@ import { NativeActionButton } from "../components/native-action-button";
 import { Chevron } from "../components/row-accessories";
 import { cancelHeaderOptions } from "../components/sheet-header";
 import type { MobileBot } from "../lib/api";
-import { rpc } from "../lib/api";
+import { captureMobileScreenScope, rpc } from "../lib/api";
 import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
 import { useI18n } from "../lib/i18n";
 import { native, useMobileTokens } from "../lib/native";
@@ -50,6 +50,7 @@ export default function NewBot() {
   async function create() {
     if (!name.trim() || submittingRef.current) return;
     submittingRef.current = true;
+    const current = captureMobileScreenScope();
     setPending(true);
     setError(null);
     try {
@@ -61,6 +62,7 @@ export default function NewBot() {
         notifyOnFinish: true,
         computerMode,
       });
+      if (!current()) return;
       allowFocusPrompt(bot.id);
       router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
       void (async () => {

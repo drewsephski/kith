@@ -5,6 +5,7 @@ import type {
   AgentContextStrategy,
   AgentRuntime,
   BillingProvider,
+  BrowserProvider,
   JobPublisher,
   ManagedConnectorProvider,
   MessagingSurface,
@@ -164,6 +165,7 @@ export async function createApp(
     prisma?: PrismaClient;
     realtime?: RealtimeFanout;
     sandbox?: SandboxProvider;
+    browser?: BrowserProvider;
     composio?: ComposioProvider;
     pipedream?: ManagedConnectorProvider;
     messaging?: MessagingSurface;
@@ -179,6 +181,7 @@ export async function createApp(
     prisma: prismaOverride,
     realtime: realtimeOverride,
     sandbox: sandboxOverride,
+    browser: browserOverride,
     composio: composioOverride,
     pipedream: pipedreamOverride,
     messaging: messagingOverride,
@@ -456,6 +459,7 @@ export async function createApp(
     runtime,
     codexCatalog,
     sandbox,
+    browser: browserOverride,
     memory,
     memoryProviders,
     home,
@@ -677,6 +681,7 @@ export async function createApp(
   };
   const sessionActor = async (request: Request) => (await requestSession(request))?.actor ?? null;
   app.use("/rpc/*", async (c, next) => {
+    const requestReceivedAt = performance.now();
     const session = await requestSession(c.req.raw);
     const actor = session?.actor ?? null;
     if (actor) {
@@ -686,6 +691,8 @@ export async function createApp(
       prefix: "/rpc",
       context: {
         actor,
+        requestReceivedAt,
+        authFinishedAt: performance.now(),
         sessionId: session?.sessionId,
         signal: c.req.raw.signal,
         // Same user in the same space, so leaving the space also ends a stream.

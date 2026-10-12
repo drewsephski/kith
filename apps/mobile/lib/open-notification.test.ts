@@ -10,7 +10,12 @@ vi.mock("expo-notifications", () => ({
 vi.mock("expo-router", () => ({
   router: { push: vi.fn() },
 }));
+const scope = vi.hoisted(() => ({ generation: 1 }));
 vi.mock("./api", () => ({
+  captureMobileScreenScope: () => {
+    const generation = scope.generation;
+    return () => generation === scope.generation;
+  },
   loadSessionToken: vi.fn(),
 }));
 vi.mock("./settings-sheet", () => ({
@@ -187,4 +192,39 @@ describe("opening a notification tap", () => {
     await expect(openNotificationResponse(tap("thread-shared-once", data))).resolves.toBe(false);
     expect(router.push).toHaveBeenCalledTimes(1);
   });
+});
+
+it("rejects a notification whose session changes while restoring credentials", async () => {
+  let release!: (token: string) => void;
+  vi.mocked(loadSessionToken).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  const response = tap("stale-session");
+  vi.mocked(Notifications.getLastNotificationResponse).mockReturnValue(response);
+  const opening = openNotificationResponse(response);
+  scope.generation += 1;
+  release("old-token");
+  expect(await opening).toBe(false);
+  expect(router.push).not.toHaveBeenCalled();
+  expect(Notifications.clearLastNotificationResponse).toHaveBeenCalledTimes(1);
+});
+
+it("retains a newer tap when the older tap loses its session scope", async () => {
+  let release!: (token: string) => void;
+  vi.mocked(loadSessionToken).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  const opening = openNotificationResponse(tap("stale-scope-older"));
+  scope.generation += 1;
+  vi.mocked(Notifications.getLastNotificationResponse).mockReturnValue(tap("stale-scope-newer"));
+  release("old-token");
+  expect(await opening).toBe(false);
+  expect(router.push).not.toHaveBeenCalled();
+  expect(Notifications.clearLastNotificationResponse).not.toHaveBeenCalled();
 });

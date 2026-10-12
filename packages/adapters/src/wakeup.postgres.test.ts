@@ -45,6 +45,49 @@ async function waitFor(assertion: () => void, timeoutMs = 10_000): Promise<void>
 }
 
 describePostgres("Graphile background jobs (PostgreSQL contract)", () => {
+  it("runs interactive work while all shared slots are busy and drains background work", async () => {
+    pool = new Pool({ connectionString: databaseUrl, max: 8 });
+    const publisher = new GraphileJobPublisher(pool);
+    const host = new GraphileJobWorkerHost(pool, {
+      concurrency: 4,
+      reserveInteractive: true,
+      pollInterval: 25,
+      noHandleSignals: true,
+    });
+    const release = deferred();
+    let backgroundStarted = 0;
+    let backgroundFinished = 0;
+    const interactive = vi.fn(async () => undefined);
+    try {
+      await host.start(
+        handlers({
+          "run.continue": interactive,
+          "history.compact": async () => {
+            backgroundStarted++;
+            await release.promise;
+            backgroundFinished++;
+          },
+        }),
+      );
+      for (let i = 0; i < 4; i++)
+        await publisher.enqueue({
+          name: "history.compact",
+          payload: { threadId: `reserved-${i}` },
+        });
+      await waitFor(() => expect(backgroundStarted).toBe(3));
+      await publisher.enqueue({ name: "run.continue", payload: { runId: "interactive-reserved" } });
+      await waitFor(() => expect(interactive).toHaveBeenCalledTimes(1));
+      expect(backgroundFinished).toBe(0);
+      release.resolve();
+      await waitFor(() => expect(backgroundFinished).toBe(4));
+      expect(pool.totalCount).toBeLessThanOrEqual(8);
+    } finally {
+      release.resolve();
+      await host.stop();
+      await publisher.close();
+    }
+  });
+
   it("waits for an active handler during graceful shutdown", async () => {
     const publisher = new GraphileJobPublisher(testPool());
     const host = new GraphileJobWorkerHost(testPool(), { concurrency: 1, pollInterval: 25 });

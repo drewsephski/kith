@@ -736,6 +736,8 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
 export function createRouter(deps: RouterDeps) {
   const os = implement(appContract).$context<{
     actor: Actor | null;
+    requestReceivedAt?: number;
+    authFinishedAt?: number;
     /** The issuing session for push registrations and screen/terminal capabilities. */
     sessionId?: string;
     signal?: AbortSignal;
@@ -2176,7 +2178,13 @@ export function createRouter(deps: RouterDeps) {
         if (target.kind === "bot") {
           await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
         }
-        return sendThreadMessage(deps, context.actor, target, input);
+        const accepted = await sendThreadMessage(deps, context.actor, target, input, {
+          requestReceivedAt: context.requestReceivedAt,
+          authFinishedAt: context.authFinishedAt,
+          validatedAt: performance.now(),
+        });
+        deps.conversationSuggestions?.cancelForThread(context.actor, target);
+        return accepted;
       }),
       react: authed.threads.react.handler(async ({ context, input }) => {
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);

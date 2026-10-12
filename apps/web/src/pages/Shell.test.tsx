@@ -110,6 +110,25 @@ function pressEnter(textarea: HTMLTextAreaElement) {
 }
 
 describe("Composer", () => {
+  it("retains keyboard mention selection when refreshed targets keep the same identities", () => {
+    const researcher: ComposerMention = { kind: "bot", id: "researcher", name: "Researcher" };
+    const writer: ComposerMention = { kind: "bot", id: "writer", name: "Research Writer" };
+    const textarea = renderComposer(vi.fn(), { mentionTargets: [researcher, writer] });
+    type(textarea, "@Res");
+    act(() =>
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect(container?.querySelector('[aria-selected="true"]')?.textContent).toContain(
+      "Research Writer",
+    );
+    rerenderComposer({ mentionTargets: [{ ...researcher }, { ...writer }] });
+    pressEnter(textarea);
+    expect(container?.querySelector('[data-testid="mention-chip"]')?.textContent).toContain(
+      "Research Writer",
+    );
+    expect(container?.querySelector('[data-testid="mention-picker"]')).toBeNull();
+  });
+
   it("never replays a consumed suggestion retained by a real parent across A→B→A", async () => {
     const send = vi.fn<ComponentProps<typeof Composer>["onSend"]>().mockResolvedValue(true);
     renderComposer(send);

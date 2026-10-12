@@ -185,11 +185,13 @@ import {
 import { useScreenInteractive } from "../lib/observe";
 import type { PickedAttachment } from "../lib/pick-attachments";
 import { pickDocuments, pickFromLibrary, takePhoto } from "../lib/pick-attachments";
+import { filterPickedAttachments } from "../lib/pick-attachments-filter";
 import { threadRefreshDelayMs } from "../lib/refresh";
 import {
   getCachedResponseStreamingEnabled,
   subscribeResponseStreaming,
 } from "../lib/response-streaming";
+import { responseTiming } from "../lib/response-timing";
 import { secretDestinationLabel } from "../lib/secret-destination";
 import { selectableTextFromMarkdown } from "../lib/selectable-text";
 import { currentSessionGeneration } from "../lib/session";
@@ -524,6 +526,25 @@ function Thread() {
   useEffect(() => {
     setSnap(withLiveStreamingProgress(snapRef.current, streamResponses));
   }, [streamResponses]);
+  useEffect(() => {
+    const scope = mobileScreenScopeKey();
+    const runIds =
+      snap?.messages
+        .filter(
+          (message) =>
+            message.role === "bot" &&
+            message.runId &&
+            message.blocks.some((block) => block.kind === "text" && block.text.trim().length > 0),
+        )
+        .map((message) => message.runId!) ?? [];
+    const frame = requestAnimationFrame(() => {
+      for (const runId of runIds) {
+        const timing = responseTiming.frame(scope, runId);
+        if (__DEV__ && timing) console.info("run client timing", timing);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [snap]);
   const activeThreadId = useRef<string | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [taskStarterId, setTaskStarterId] = useState<TaskStarterId | null>(null);
@@ -635,10 +656,24 @@ function Thread() {
           conversation: groupId ? `group:${groupId}` : `bot:${botId}`,
         });
         if (!incoming) return;
+        const picked = filterPickedAttachments(
+          composerRef.current.attachmentIds.length,
+          incoming.attachments,
+        );
+        if (picked.skipped.length)
+          setAttachmentNotice(
+            t("Skipped {items}", {
+              items: picked.skipped.map(formatAttachmentSkip).join(", "),
+            }),
+          );
         setDraft((text) => [text, incoming.text].filter(Boolean).join("\n\n"));
         setPendingAttachments((items) => [
           ...items,
-          ...incoming.attachments.map((item) => ({ ...item, threadKey })),
+          ...picked.attachments.map((item) => ({
+            ...item,
+            id: `${shareId}:${item.id}`,
+            threadKey,
+          })),
         ]);
         router.setParams({ shareId: undefined });
       })
@@ -652,15 +687,31 @@ function Thread() {
   useEffect(() => {
     for (const delivery of draftPersistence.deliveries) {
       if (pendingDeliveries.current > 0) continue;
-      if (feedback.failedSends.some((item) => item.clientNonce === delivery.input.clientNonce)) continue;
+      if (feedback.failedSends.some((item) => item.clientNonce === delivery.input.clientNonce))
+        continue;
       const input = delivery.input;
-      feedback.sendFailed({ clientNonce: input.clientNonce!, artifactIds: new Map(), sending: false,
-        recoveredInput: input, error: t("Delivery was not confirmed. Retry safely."),
-        payload: { originThreadKey: threadKey!, displayText: delivery.displayText, replyPreview: delivery.replyPreview,
-          initialBotTarget: botId, botTarget: input.botId, groupTarget: input.groupId,
+      feedback.sendFailed({
+        clientNonce: input.clientNonce!,
+        artifactIds: new Map(),
+        sending: false,
+        recoveredInput: input,
+        error: t("Delivery was not confirmed. Retry safely."),
+        payload: {
+          originThreadKey: threadKey!,
+          displayText: delivery.displayText,
+          replyPreview: delivery.replyPreview,
+          initialBotTarget: botId,
+          botTarget: input.botId,
+          groupTarget: input.groupId,
           reroutedToGroup: Boolean(input.groupId && input.groupId !== groupId),
-          plan: resolveComposerSendPlan({ text: input.text ?? "", mentions: [], hasAttachments: Boolean(input.artifactIds?.length) }),
-          attachments: [], replyTargetId: input.replyToMessageId, replyQuote: input.replyQuote ?? null,
+          plan: resolveComposerSendPlan({
+            text: input.text ?? "",
+            mentions: [],
+            hasAttachments: Boolean(input.artifactIds?.length),
+          }),
+          attachments: [],
+          replyTargetId: input.replyToMessageId,
+          replyQuote: input.replyQuote ?? null,
         },
       });
     }
@@ -1122,6 +1173,7 @@ function Thread() {
 
   async function refresh() {
     if (!botId && !groupId) return;
+    const scopeCurrent = captureMobileScreenScope();
     const targetBotId = botId;
     const targetGroupId = groupId;
     const epoch = historyEpoch.current;
@@ -1134,6 +1186,7 @@ function Thread() {
       targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
     );
     if (
+      !scopeCurrent() ||
       session !== currentSessionGeneration() ||
       space !== selectedSpaceId() ||
       endpoint !== currentApiBase()
@@ -1400,7 +1453,8 @@ function Thread() {
           threadId: notificationThreadId,
         }).catch(() => undefined);
         markReadIfVisible();
-        if (!jumpScrollTarget.current && !expandedHistoryThread.current) void refresh().catch((cause) => setError(errorText(cause)));
+        if (!jumpScrollTarget.current && !expandedHistoryThread.current)
+          void refresh().catch((cause) => setError(errorText(cause)));
         return;
       }
       void setOpenNotificationThread(null).catch(() => undefined);
@@ -1435,7 +1489,10 @@ function Thread() {
       signal: abort.signal,
       isCurrent,
       snapshot: async () => {
-        if (messageId || jumpScrollTarget.current || expandedHistoryThread.current) {
+        if (
+          snapRef.current &&
+          (messageId || jumpScrollTarget.current || expandedHistoryThread.current)
+        ) {
           const next = await rpc<MobileSnapshot>(
             "threads/get",
             groupId ? { groupId } : { botId: botId! },
@@ -1685,8 +1742,7 @@ function Thread() {
     );
     const groupTarget = plan.rerouteGroupId ?? initialGroupTarget;
     const botTarget = reroutedToGroup ? undefined : initialBotTarget;
-    const recovered = feedback.failedSends.find((item) => item.recoveredInput && item.payload.displayText === submitted.promptText && !attachments.length);
-    const attempt = recovered ?? feedback.sendAttempt({
+    const attempt = feedback.sendAttempt({
       originThreadKey: originThreadKey!,
       displayText: submitted.promptText,
       replyPreview: replyQuote ?? (replyTarget ? previewMessageText(replyTarget) : null),
@@ -1722,11 +1778,19 @@ function Thread() {
     if (readOnly || !feedback.start(attempt)) return;
     const { initialBotTarget, botTarget, groupTarget, reroutedToGroup, plan } = attempt.payload;
     const current = captureMobileScreenScope();
+    let confirmAccepted: (() => Promise<void>) | undefined;
     pendingDeliveries.current += 1;
     setSending(true);
     try {
       if (!current()) return;
-      await deliverSend(attempt.payload, attempt, rpc, (input) => draftPersistence.prepare(input, attempt.payload.displayText, attempt.payload.replyPreview));
+      responseTiming.begin(mobileScreenScopeKey(), attempt.clientNonce);
+      await deliverSend(attempt.payload, attempt, rpc, async (input) => {
+        confirmAccepted = await draftPersistence.prepare(
+          input,
+          attempt.payload.displayText,
+          attempt.payload.replyPreview,
+        );
+      });
     } catch (err) {
       attempt.error = errorText(err, t("Failed to send message"));
       feedback.sendFailed(attempt);
@@ -1739,6 +1803,12 @@ function Thread() {
     } finally {
       pendingDeliveries.current -= 1;
       setSending(pendingDeliveries.current > 0);
+    }
+    if (!current()) {
+      // Acceptance belongs to the original delivery even after navigation/account changes.
+      await confirmAccepted?.().catch(() => undefined);
+      feedback.sent(attempt);
+      return;
     }
     if (onSettled) onSettled();
     else if (
@@ -2587,7 +2657,10 @@ function Thread() {
       key={attempt.clientNonce}
       attempt={attempt}
       onRetry={() => void deliver(attempt)}
-      onDelete={() => { draftPersistence.confirmed(attempt.clientNonce); feedback.discard(attempt); }}
+      onDelete={() => {
+        draftPersistence.confirmed(attempt.clientNonce);
+        feedback.discard(attempt);
+      }}
     />
   ));
 
@@ -2599,8 +2672,14 @@ function Thread() {
     >
       {error ? (
         <View style={{ marginTop: headerHeight + 28, gap: 8 }}>
-          <Text accessibilityRole="alert" style={{ color: tokens.mutedForeground }}>{error}</Text>
-          <NativeActionButton label={t("Retry")} prominence="plain" onPress={() => void refresh().catch((cause) => setError(errorText(cause)))} />
+          <Text accessibilityRole="alert" style={{ color: tokens.mutedForeground }}>
+            {error}
+          </Text>
+          <NativeActionButton
+            label={t("Retry")}
+            prominence="plain"
+            onPress={() => void refresh().catch((cause) => setError(errorText(cause)))}
+          />
         </View>
       ) : null}
       {runError ? (

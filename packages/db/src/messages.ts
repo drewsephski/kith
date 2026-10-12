@@ -38,6 +38,7 @@ export function loadRunHistoryMessages(
       createdAt: true,
       replyToMessageId: true,
       replyQuote: true,
+      clientNonce: true,
       replyTo: { select: { id: true, threadId: true, role: true, botId: true, blocks: true } },
     },
   });

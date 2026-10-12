@@ -5,19 +5,14 @@ name: Android live working status demonstration
     clearState: true
     permissions:
       notifications: allow
-# A cold API 34 emulator can show a launcher ANR over the healthy app.
-- extendedWaitUntil:
-    visible: "Sign up for Kith|Pixel Launcher isn't responding"
-    timeout: 30000
 - runFlow:
-    when:
-      visible: "Pixel Launcher isn't responding"
-    commands:
-      - tapOn: "Close app"
+    file: subflows/cold-introduction.yaml
+    env:
+      NOTIFICATIONS_PERMISSION: allow
+- tapOn: "Skip"
 - extendedWaitUntil:
-    visible: "Sign up for Kith"
+    visible: "Sign in to Kith"
     timeout: 30000
-- tapOn: "Sign in"
 - tapOn: "Email"
 - inputText: ${RAKAZO_SCREENSHOT_EMAIL}
 - tapOn: "Password"
@@ -34,7 +29,16 @@ name: Android live working status demonstration
 - scrollUntilVisible:
     element: "Live working status"
     direction: DOWN
-- tapOn: "Live working status"
+- tapOn:
+    text: "Live working status"
+    index: 1
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      text: "Live working status"
+      checked: true
+      enabled: true
+    timeout: 30000
 - openLink: "rakazo:///thread?botId=${RAKAZO_SCREENSHOT_BOT_ID}&name=Researcher"
 - extendedWaitUntil:
     visible: "Message Researcher"
@@ -62,6 +66,7 @@ name: Android live working status demonstration
     timeout: 5000
 - takeScreenshot: "30-live-working-notification"
 - tapOn: "Researcher is working"
+- hideKeyboard
 - extendedWaitUntil:
     visible: "Stop"
     timeout: 10000
@@ -73,7 +78,17 @@ name: Android live working status demonstration
 - scrollUntilVisible:
     element: "Live working status"
     direction: DOWN
-- tapOn: "Live working status"
+- tapOn:
+    text: "Live working status"
+    checked: true
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      text: "Live working status"
+      index: 1
+      checked: false
+      enabled: true
+    timeout: 30000
 - pressKey: HOME
 - evalScript: ${output.expandNotifications = http.get(RAKAZO_EXPAND_NOTIFICATIONS_URL)}
 - assertTrue: ${output.expandNotifications.ok}
@@ -84,4 +99,6 @@ name: Android live working status demonstration
     timeout: 5000
 - assertNotVisible: "Researcher is working"
 - takeScreenshot: "31-live-working-stopped"
+# Leave system UI closed before the following cold-start smoke flow.
+- pressKey: BACK
 - stopRecording

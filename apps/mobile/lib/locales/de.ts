@@ -1,13 +1,14 @@
 export const DE_MESSAGES: Record<string, string> = {
+  Off: "Aus",
+  "Delivery was not confirmed. Retry safely.":
+    "Die Zustellung wurde nicht bestätigt. Versuche es sicher erneut.",
+  "Draft recovery is not ready. Try again.":
+    "Die Entwurfswiederherstellung ist noch nicht bereit. Versuche es erneut.",
   "Meet Kith.": "Lerne Kith kennen.",
   "An assistant that remembers what matters and helps you get things done.":
     "Ein Assistent, der Wichtiges behält und dir hilft, Dinge zu erledigen.",
   "Hand off the work.": "Gib Arbeit ab.",
-  "Plan your day, research an idea, or draft your next reply.":
-    "Plane deinen Tag, recherchiere eine Idee oder entwirf deine nächste Antwort.",
   "Pick up where you left off.": "Mach dort weiter, wo du aufgehört hast.",
-  "Follow real progress. Approve important actions. Return to your results.":
-    "Verfolge den Fortschritt. Bestätige wichtige Aktionen. Kehre zu deinen Ergebnissen zurück.",
   "Kith, your blue companion": "Kith, dein blauer Begleiter",
   Examples: "Beispiele",
   "Plan my day": "Meinen Tag planen",

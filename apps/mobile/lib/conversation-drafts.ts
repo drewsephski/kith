@@ -2,7 +2,11 @@ import type { ThreadSendInput } from "@rakazo/contracts";
 import { ThreadSendInputSchema } from "@rakazo/contracts";
 import * as SecureStore from "expo-secure-store";
 
-export type DurableDelivery = { input: ThreadSendInput; displayText: string; replyPreview: string | null };
+export type DurableDelivery = {
+  input: ThreadSendInput;
+  displayText: string;
+  replyPreview: string | null;
+};
 export type SavedConversationDraft = {
   deliveries?: DurableDelivery[];
   text: string;
@@ -21,9 +25,20 @@ export function parseSavedConversationDraft(raw: string): SavedConversationDraft
       const deliveries: DurableDelivery[] = [];
       if ("deliveries" in parsed && Array.isArray(parsed.deliveries)) {
         for (const entry of parsed.deliveries) {
-          if (!entry || typeof entry !== "object" || typeof entry.displayText !== "string" || !(entry.replyPreview === null || typeof entry.replyPreview === "string")) continue;
+          if (
+            !entry ||
+            typeof entry !== "object" ||
+            typeof entry.displayText !== "string" ||
+            !(entry.replyPreview === null || typeof entry.replyPreview === "string")
+          )
+            continue;
           const input = ThreadSendInputSchema.safeParse(entry.input);
-          if (input.success && input.data.clientNonce) deliveries.push({ input: input.data, displayText: entry.displayText, replyPreview: entry.replyPreview });
+          if (input.success && input.data.clientNonce)
+            deliveries.push({
+              input: input.data,
+              displayText: entry.displayText,
+              replyPreview: entry.replyPreview,
+            });
         }
       }
       return {
@@ -97,6 +112,35 @@ export function writeConversationDraft(scope: DraftScope, text: string): Promise
       await SecureStore.deleteItemAsync(key);
       keys.delete(key);
       await SecureStore.setItemAsync(INDEX, JSON.stringify([...keys]));
+    }
+  };
+  const next = writes.then(task, task);
+  writes = next.catch(() => undefined);
+  return next;
+}
+
+/** Settle the accepted nonce in its original scope, preserving any newer draft. */
+export function confirmConversationDelivery(scope: DraftScope, nonce: string): Promise<void> {
+  const generation = epoch;
+  const task = async () => {
+    if (generation !== epoch) return;
+    const key = conversationDraftKey(scope);
+    const keys = draftKeys(await SecureStore.getItemAsync(INDEX));
+    if (!keys.includes(key)) return;
+    const saved = parseSavedConversationDraft((await SecureStore.getItemAsync(key)) ?? "");
+    const delivery = saved.deliveries?.find((entry) => entry.input.clientNonce === nonce);
+    if (!delivery) return;
+    const deliveries = saved.deliveries?.filter((entry) => entry !== delivery) ?? [];
+    const unchanged =
+      saved.text === delivery.displayText &&
+      saved.replyTargetId === delivery.input.replyToMessageId &&
+      (saved.replyQuote ?? null) === (delivery.input.replyQuote ?? null);
+    const next = { ...(unchanged ? { text: "" } : saved), deliveries };
+    if (next.text || next.replyTargetId || deliveries.length) {
+      await SecureStore.setItemAsync(key, JSON.stringify(next));
+    } else {
+      await SecureStore.deleteItemAsync(key);
+      await SecureStore.setItemAsync(INDEX, JSON.stringify(keys.filter((entry) => entry !== key)));
     }
   };
   const next = writes.then(task, task);

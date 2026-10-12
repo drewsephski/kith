@@ -8,6 +8,7 @@ export type PickedAttachment = {
   id: string;
   name: string;
   mimeType: AttachmentMimeType;
+  size: number;
   contentBase64: string;
   previewUri?: string;
 };
@@ -43,6 +44,7 @@ export function filterPickedAttachments(
       id: `${candidate.name}-${candidate.size}-${existingCount + attachments.length}`,
       name: candidate.name,
       mimeType: candidate.mimeType as AttachmentMimeType,
+      size: candidate.size,
       contentBase64: candidate.contentBase64,
       previewUri: candidate.previewUri,
     });

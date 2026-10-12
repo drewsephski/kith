@@ -53,6 +53,51 @@ function fixture(output = JSON.stringify(suggestions)) {
 }
 
 describe("conversation follow-ups", () => {
+  it("cancels stale optional inference when this account and thread accepts a new turn", async () => {
+    const f = fixture();
+    let opened!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      opened = resolve;
+    });
+    f.run.mockImplementation(async function* (_request, context) {
+      opened();
+      await new Promise<void>((resolve) =>
+        context!.signal!.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      context!.signal!.throwIfAborted();
+      yield { type: "done" };
+    });
+    const pending = f.service.get(actor, target, input);
+    await ready;
+    f.service.cancelForThread({ ...actor, spaceId: "other" }, target);
+    expect(f.run.mock.calls[0]![1]!.signal!.aborted).toBe(false);
+    f.service.cancelForThread(actor, target);
+    expect(await pending).toEqual([]);
+    expect(f.run.mock.calls[0]![1]!.signal!.aborted).toBe(true);
+  });
+
+  it("keeps a replacement inference cancellable after the aborted one settles", async () => {
+    const f = fixture();
+    const releases: Array<() => void> = [];
+    f.run.mockImplementation(async function* (_request, context) {
+      await new Promise<void>((resolve) => releases.push(resolve));
+      context!.signal!.throwIfAborted();
+      yield { type: "text", text: "[]" };
+      yield { type: "done" };
+    });
+    const first = f.service.get(actor, target, input);
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    f.service.cancelForThread(actor, target);
+    const replacement = f.service.get(actor, target, input);
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    releases[0]!();
+    expect(await first).toEqual([]);
+    f.service.cancelForThread(actor, target);
+    expect(f.run.mock.calls[1]![1]!.signal!.aborted).toBe(true);
+    releases[1]!();
+    expect(await replacement).toEqual([]);
+  });
+
   it("uses recent conversation data and the selected model without tools or chat mutations", async () => {
     const f = fixture();
     expect(await f.service.get(actor, target, input)).toEqual(suggestions);

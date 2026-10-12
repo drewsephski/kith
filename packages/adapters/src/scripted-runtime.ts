@@ -34,6 +34,13 @@ export class ScriptedAgentRuntime implements AgentRuntime {
         throw new Error("Scripted run failure");
       }
       if (shouldHang(request.prompt)) {
+        if (/use the computer/i.test(request.prompt))
+          yield {
+            type: "tool",
+            name: "shell",
+            args: { command: "pwd" },
+            executionId: `${request.runId}:shell:0`,
+          };
         yield { type: "progress", text: "still working…", activity: true };
         while (!controller.signal.aborted && !signal.aborted) {
           await abortableDelay(50, controller.signal);

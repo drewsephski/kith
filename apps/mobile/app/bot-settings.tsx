@@ -27,7 +27,7 @@ import { NativeSwitch } from "../components/native-switch";
 import { NativeSymbol } from "../components/native-symbol";
 import { Chevron } from "../components/row-accessories";
 import type { MobileBot, MobileMe, MobileModel, MobileModelCredential } from "../lib/api";
-import { rpc } from "../lib/api";
+import { captureMobileScreenScope, rpc } from "../lib/api";
 import { deviceVoices, setVoiceForBot, voiceForBot, voiceLabel } from "../lib/bot-voices";
 import { COMPUTER_LIFECYCLE_TIMEOUT_MS } from "../lib/computer";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
@@ -45,6 +45,7 @@ export default function BotSettingsScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { botId } = useLocalSearchParams<{ botId: string }>();
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [bot, setBot] = useState<BotSettingsRecord | null>(null);
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
@@ -71,8 +72,12 @@ export default function BotSettingsScreen() {
 
   useEffect(() => {
     if (!botId) return;
+    let active = true;
+    const current = captureMobileScreenScope();
+    setError(null);
     void rpc<BotSettingsRecord>("bots/get", { botId })
       .then((next) => {
+        if (!active || !current()) return;
         setBot(next);
         setName(next.name);
         setTitle(next.title);
@@ -87,16 +92,24 @@ export default function BotSettingsScreen() {
         setThinkingLevel(next.thinkingLevel ?? "");
         setAutoSpeak(next.autoSpeak);
       })
-      .catch((err) => setError(errorText(err, t("Could not load bot"))));
-  }, [botId]);
+      .catch((err) => {
+        if (active && current()) setError(errorText(err, t("Could not load bot")));
+      });
+    return () => {
+      active = false;
+    };
+  }, [botId, loadAttempt]);
 
   useEffect(() => {
+    let active = true;
+    const current = captureMobileScreenScope();
     void Promise.all([
       rpc<MobileMe>("me"),
       rpc<MobileModel[]>("models/list"),
       rpc<MobileModelCredential[]>("models/credentials"),
     ])
       .then(([nextMe, nextCatalog, nextCredentials]) => {
+        if (!active || !current()) return;
         setMe(nextMe);
         setCatalog(nextCatalog);
         setCredentials(nextCredentials);
@@ -104,10 +117,14 @@ export default function BotSettingsScreen() {
         setModelMetaReady(true);
       })
       .catch((err) => {
+        if (!active || !current()) return;
         setModelMetaReady(false);
         setModelMetaError(errorText(err, t("Could not load model settings")));
       });
-  }, [t]);
+    return () => {
+      active = false;
+    };
+  }, [t, loadAttempt]);
 
   const connectedOptions = useMemo(
     () => connectedModelChoices(credentials, catalog),
@@ -542,7 +559,20 @@ export default function BotSettingsScreen() {
             ) : null}
           </View>
         ) : null}
-        {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
+        {error ? (
+          <View style={{ marginTop: 16 }}>
+            <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
+              {error}
+            </Text>
+            {!bot ? (
+              <NativeActionButton
+                label={t("Retry")}
+                prominence="plain"
+                onPress={() => setLoadAttempt((value) => value + 1)}
+              />
+            ) : null}
+          </View>
+        ) : null}
         <NativeActionButton
           disabled={!name.trim() || pending || !bot}
           label={pending ? t("Saving…") : t("Save")}

@@ -8,15 +8,16 @@ tags:
     permissions:
       notifications: deny
 
-# A cold API 34 emulator can show a launcher ANR over the healthy app.
-- extendedWaitUntil:
-    visible: "Sign up for Kith|Pixel Launcher isn't responding"
-    timeout: 30000
 - runFlow:
-    when:
-      visible: "Pixel Launcher isn't responding"
-    commands:
-      - tapOn: "Close app"
+    file: subflows/cold-introduction.yaml
+    env:
+      NOTIFICATIONS_PERMISSION: deny
+- takeScreenshot: "00-introduction"
+- tapOn: "Skip"
+- extendedWaitUntil:
+    visible: "Sign in to Kith"
+    timeout: 30000
+- tapOn: "Sign up"
 - extendedWaitUntil:
     visible: "Sign up for Kith"
     timeout: 30000
@@ -137,22 +138,30 @@ tags:
 - takeScreenshot: "15-thread"
 - longPressOn: "The fixture workspace is ready."
 - assertVisible: "Reply"
-- assertVisible: "React"
+- assertVisible: "Quote"
 - assertVisible: "More"
-- takeScreenshot: "15b-message-actions"
 - tapOn: "More"
+- assertVisible: "React"
 - assertVisible: "Speak message"
+- takeScreenshot: "15b-message-actions"
 - back
-# User messages omit Speak, so Android fits Reply/React/Copy on one page (no More).
+# Android pages actions in order: Reply/Quote, then React/Select text/Copy.
 - longPressOn: "Summarize the fixture launch checklist."
 - assertVisible: "Reply"
+- assertVisible: "Quote"
+- assertVisible: "More"
+- tapOn: "More"
 - assertVisible: "React"
 - assertVisible: "Copy"
 - assertNotVisible: "More"
 - assertNotVisible: "Speak message"
+- back
+- longPressOn: "Summarize the fixture launch checklist."
 - tapOn: "Reply"
-- assertVisible: "Replying to"
+- assertVisible: "You"
+- assertVisible: "Cancel reply"
 - tapOn: "Cancel reply"
+- assertNotVisible: "Cancel reply"
 - tapOn: "Bot actions"
 - assertVisible: "Clear conversation"
 - takeScreenshot: "16-bot-actions"
@@ -185,8 +194,10 @@ tags:
 - takeScreenshot: "19-group-thread"
 - longPressOn: "The fixture launch plan is ready."
 - assertVisible: "Reply"
-- assertVisible: "React"
+- assertVisible: "Quote"
 - assertVisible: "More"
+- tapOn: "More"
+- assertVisible: "React"
 - back
 
 - openLink: "rakazo:///group-settings?groupId=${RAKAZO_SCREENSHOT_GROUP_ID}"
@@ -246,6 +257,7 @@ tags:
 # Capture the reaction after theme comparisons. Reactions are append-only, so adding
 # 👍 earlier would leak into dark/light thread frames with no remove control.
 - longPressOn: "The fixture workspace is ready."
+- tapOn: "More"
 - tapOn: "React"
 - tapOn: "👍"
 - extendedWaitUntil:

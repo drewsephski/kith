@@ -4,8 +4,13 @@ appId: com.kith.agent
 - launchApp:
     stopApp: true
 - extendedWaitUntil:
-    visible: "Account|Sign up for Rakazo|Sign in to Rakazo"
+    visible: "Meet Kith.|Hand off the work.|Pick up where you left off.|Account|Sign up for Kith|Sign in to Kith"
     timeout: 40000
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
 - runFlow:
     when:
       visible: "Account"
@@ -17,5 +22,5 @@ appId: com.kith.agent
           timeout: 15000
       - tapOn: "Sign out"
 - extendedWaitUntil:
-    visible: "Sign up for Rakazo|Sign in to Rakazo"
+    visible: "Sign up for Kith|Sign in to Kith"
     timeout: 20000

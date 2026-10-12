@@ -50,6 +50,7 @@ import type { EndpointResult } from "./endpoint";
 import { defaultApiBase, normalizeApiBase } from "./endpoint";
 import { t } from "./i18n";
 import { resumeLiveNotifications } from "./live-notifications";
+import { responseTiming } from "./response-timing";
 import {
   clearSessionToken,
   currentSessionGeneration,
@@ -710,6 +711,16 @@ export async function rpc<T>(
     skipSpaceAuthRecovery?: boolean;
   } = {},
 ): Promise<T> {
+  const responseScope = mobileScreenScopeKey();
+  const sendNonce =
+    proc === "threads/send" &&
+    body &&
+    typeof body === "object" &&
+    "clientNonce" in body &&
+    typeof body.clientNonce === "string"
+      ? body.clientNonce
+      : undefined;
+  if (sendNonce) responseTiming.begin(responseScope, sendNonce);
   const requestSpaceGeneration = spaceSelectionGeneration;
   const requestSessionGeneration = currentSessionGeneration();
   const uses = aiDataUsesForProcedure(proc, body);
@@ -869,6 +880,22 @@ export async function rpc<T>(
         throw new Error(message);
       }
       throw new Error(message);
+    }
+    if (
+      sendNonce &&
+      responseScope === mobileScreenScopeKey() &&
+      parsed.json &&
+      typeof parsed.json === "object"
+    ) {
+      const result = parsed.json as { runId?: unknown; runIds?: unknown };
+      const ids = Array.isArray(result.runIds)
+        ? result.runIds.filter((id): id is string => typeof id === "string")
+        : typeof result.runId === "string"
+          ? [result.runId]
+          : [];
+      for (const timing of responseTiming.accept(responseScope, sendNonce, ids)) {
+        if (__DEV__) console.info("run client timing", timing);
+      }
     }
     return parsed.json as T;
   } finally {
@@ -1117,6 +1144,7 @@ export async function subscribeThread(
   onEvent: (event: ThreadEvent) => void,
   signal: AbortSignal,
 ) {
+  const responseScope = mobileScreenScopeKey();
   const res = await fetch(`${currentApiBase()}/rpc/threads/subscribe`, {
     method: "POST",
     headers: {
@@ -1160,7 +1188,21 @@ export async function subscribeThread(
       try {
         const parsed = JSON.parse(data) as { json?: ThreadEvent; error?: { message?: string } };
         // Heartbeats prove liveness only; forwarding one would advance the caller's cursor.
-        if (parsed.json?.type && parsed.json.type !== "heartbeat") onEvent(parsed.json);
+        if (parsed.json?.type && parsed.json.type !== "heartbeat") {
+          const event = parsed.json;
+          if (event.runId)
+            responseTiming.event(
+              responseScope,
+              event.runId,
+              event.type === "thread.progress" &&
+                event.payload?.streaming === true &&
+                ((typeof event.payload.text === "string" && event.payload.text.trim().length > 0) ||
+                  (typeof event.payload.delta === "string" &&
+                    event.payload.delta.trim().length > 0)),
+              event.type === "run.completed",
+            );
+          onEvent(event);
+        }
       } catch {
         // ignore keepalives and partial frames
       }

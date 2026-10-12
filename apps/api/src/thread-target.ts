@@ -141,16 +141,21 @@ async function enqueueRunsNeedingContinue(
   jobs: JobPublisher,
   runs: Array<{ id: string; status: string }>,
 ) {
-  await Promise.all(
+  const results = await Promise.all(
     runs
       .filter((run) => RUNS_NEEDING_CONTINUE.has(run.status))
-      .map((run) =>
-        jobs.enqueue(runContinueJob(run.id)).catch((error) => {
+      .map(async (run) => {
+        try {
+          await jobs.enqueue(runContinueJob(run.id));
+          return true;
+        } catch (error) {
           // The queued run is durable; the reconciler repairs a missed immediate wake.
           getLogger().error("thread send enqueue", error);
-        }),
-      ),
+          return false;
+        }
+      }),
   );
+  return { enqueueFailures: results.filter((result) => !result).length };
 }
 
 async function findSendReceipt(prisma: PrismaClient, threadId: string, clientNonce: string) {
@@ -680,6 +685,7 @@ export async function sendThreadMessage(
     replyQuote?: string;
     clientNonce?: string;
   },
+  timing?: { requestReceivedAt?: number; authFinishedAt?: number; validatedAt: number },
 ) {
   if (input.emailAction) {
     input = {
@@ -698,6 +704,8 @@ export async function sendThreadMessage(
     throw new ORPCError("BAD_REQUEST", { message: "replyQuote requires replyToMessageId." });
   }
 
+  const commitStartedAt = performance.now();
+  let inputValidatedAt: number | undefined;
   const commit = () =>
     deps.prisma.$transaction(async (tx) => {
       let editedEmail: MessageBlock | undefined;
@@ -797,6 +805,7 @@ export async function sendThreadMessage(
         );
         const blocks: MessageBlock[] = buildUserMessageBlocks(input.text, attachmentBlocks);
         if (editedEmail) blocks.push(editedEmail);
+        inputValidatedAt = performance.now();
         const message = await createThreadMessageInTransaction(tx, {
           threadId: target.threadId,
           role: "user",
@@ -975,6 +984,7 @@ export async function sendThreadMessage(
       );
       const blocks: MessageBlock[] = buildUserMessageBlocks(input.text, attachmentBlocks);
       if (editedEmail) blocks.push(editedEmail);
+      inputValidatedAt = performance.now();
       const message = await createThreadMessageInTransaction(tx, {
         threadId: target.threadId,
         role: "user",
@@ -1125,11 +1135,36 @@ export async function sendThreadMessage(
     throw error;
   });
   if ("replay" in committed) return committed.replay;
+  const committedAt = performance.now();
   await deps.events.notify(target.threadId, committed.eventSeq).catch((error) => {
     // Subscribers catch up from the durable event cursor after a missed realtime wake.
     getLogger().error("thread send realtime notification", error);
   });
-  await enqueueRunsNeedingContinue(deps.jobs, committed.runs);
+  const enqueueStartedAt = performance.now();
+  const enqueueResult = await enqueueRunsNeedingContinue(deps.jobs, committed.runs);
+  const enqueuedAt = performance.now();
+  for (const run of committed.runs) {
+    getLogger().info("run acceptance timing", {
+      runId: run.id,
+      authMs:
+        timing?.requestReceivedAt !== undefined && timing.authFinishedAt !== undefined
+          ? Math.round(timing.authFinishedAt - timing.requestReceivedAt)
+          : null,
+      validationMs:
+        timing?.authFinishedAt !== undefined
+          ? Math.round((inputValidatedAt ?? timing.validatedAt) - timing.authFinishedAt)
+          : null,
+      durableCommitMs:
+        inputValidatedAt === undefined ? null : Math.round(committedAt - inputValidatedAt),
+      transactionMs: Math.round(committedAt - commitStartedAt),
+      acceptedMs:
+        timing?.requestReceivedAt !== undefined
+          ? Math.round(committedAt - timing.requestReceivedAt)
+          : null,
+      enqueueMs: Math.round(enqueuedAt - enqueueStartedAt),
+      ...enqueueResult,
+    });
+  }
   return sendResult(committed.message, committed.runs);
 }
 

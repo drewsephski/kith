@@ -1,0 +1,34 @@
+appId: com.kith.agent
+---
+# The cold emulator can leave the launcher in front after launchApp succeeds.
+# Retry only foregrounding and introduction readiness; subsequent assertions are strict.
+- retry:
+    maxRetries: 1
+    commands:
+      - launchApp:
+          stopApp: false
+          permissions:
+            notifications: deny
+      - extendedWaitUntil:
+          visible: "Meet Kith[.]|Pixel Launcher isn't responding"
+          timeout: 30000
+      - runFlow:
+          when:
+            visible: "Pixel Launcher isn't responding"
+          commands:
+            - tapOn: "Close app"
+            - launchApp:
+                stopApp: false
+                permissions:
+                  notifications: deny
+      - extendedWaitUntil:
+          visible: "Meet Kith[.]"
+          timeout: 30000
+# Pinned Maestro 2.6.1 does not evaluate expressions inside permission maps.
+- runFlow:
+    when:
+      true: ${NOTIFICATIONS_PERMISSION === "allow"}
+    commands:
+      - setPermissions:
+          permissions:
+            notifications: allow

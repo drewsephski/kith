@@ -6429,9 +6429,10 @@ export const Composer = memo(function Composer({
       .slice(0, 10);
   }, [mentionQuery, mentionTargets]);
 
+  const mentionOptionKeys = JSON.stringify(mentionOptions.map(mentionChipKey));
   useEffect(() => {
     setMentionHighlightIndex(0);
-  }, [mentionQuery, mentionOptions]);
+  }, [mentionQuery, mentionOptionKeys]);
 
   const activeMentionIndex = clampMentionHighlightIndex(
     mentionHighlightIndex,

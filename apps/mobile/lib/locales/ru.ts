@@ -1,13 +1,14 @@
 export const RU_MESSAGES: Record<string, string> = {
+  Off: "Выключены",
+  "Delivery was not confirmed. Retry safely.":
+    "Доставка не подтверждена. Можно безопасно повторить.",
+  "Draft recovery is not ready. Try again.":
+    "Восстановление черновика ещё не готово. Попробуйте снова.",
   "Meet Kith.": "Знакомьтесь: Kith.",
   "An assistant that remembers what matters and helps you get things done.":
     "Помощник, который помнит важное и помогает доводить дела до конца.",
   "Hand off the work.": "Поручите работу.",
-  "Plan your day, research an idea, or draft your next reply.":
-    "Планируйте день, исследуйте идеи или готовьте ответы.",
   "Pick up where you left off.": "Продолжайте с того же места.",
-  "Follow real progress. Approve important actions. Return to your results.":
-    "Следите за ходом работы. Подтверждайте важные действия. Возвращайтесь к результатам.",
   "Kith, your blue companion": "Kith, ваш синий помощник",
   Examples: "Примеры",
   "Plan my day": "Спланировать мой день",

@@ -185,8 +185,10 @@ export interface AgentToolExecutionResult {
   details: unknown;
 }
 
-/** Hooks for a tool call that can report output before it returns. */
+/** Runtime-owned tool restrictions and hooks for output before a call returns. */
 export interface AgentToolExecutionObserver {
+  /** Runtime-owned helper restriction; model arguments cannot enable delegation. */
+  allowDelegation?: boolean;
   /**
    * A shell command has already produced output and is still running.
    * Resolves with the final redacted result when the process exits.
@@ -444,6 +446,10 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Internal optimization; explicit model thinking preferences still win. */
+  executionProfile?: "conversation" | "agent";
+  /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */
+  onTiming?: (timing: AgentModelTiming) => void;
   /** Awaited producer-side accounting, independent of event-consumer cancellation. */
   onUsage?: (event: Extract<AgentRuntimeEvent, { type: "usage" }>) => void | Promise<void>;
   contextStrategy?: AgentContextStrategy;
@@ -494,6 +500,20 @@ export interface AgentRunRequest {
   onToolCompleted?: (completion: AgentToolCompletion) => Promise<void> | void;
   /** Atomically claim durable user steering at the runtime's next safe turn boundary. */
   claimSteering?: (seenIds: string[]) => Promise<AgentSteeringMessage[]>;
+}
+
+export interface AgentModelTiming {
+  stage: "request" | "headers" | "reasoning" | "text" | "complete";
+  provider: string;
+  model: string;
+  callId: string;
+  elapsedMs: number;
+  thinkingLevel: string;
+  responseCount: number;
+  toolCount: number;
+  toolSchemaBytes: number;
+  systemBytes: number;
+  messageBytes: number;
 }
 
 export interface ScriptedTurn {

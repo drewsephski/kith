@@ -163,14 +163,19 @@ test("an active Team bot must be stopped before user takeover", async ({ page },
   await openAdvancedNavigation(page);
   const chiefId = activeBotId(page);
 
-  await sendMessage(page, "keep working until I stop you");
+  await sendMessage(page, "use the computer and keep working until I stop you");
   await expect
     .poll(async () => (await threadSnapshot(page, chiefId)).run?.status ?? "idle")
     .toBe("running");
   await captureScreenshot(page, testInfo, "48-active-team-bot-blocks-takeover");
   await expect
     .poll(
-      async () => (await rpc<{ state: string }>(page, "computer/status", { botId: chiefId })).state,
+      async () =>
+        (
+          await rpc<{ state: string }>(page, "computer/status", {
+            botId: chiefId,
+          })
+        ).state,
     )
     .toBe("running");
   await expect
@@ -249,7 +254,11 @@ async function setComputerMode(
   const settings = page.getByTestId("bot-settings");
   await expect(settings.locator("label:has-text('Name') input")).toHaveValue(botName);
   const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.locator('[data-slot="collapsible-trigger"]').click();
+  const advancedTrigger = advanced.locator('[data-slot="collapsible-trigger"]');
+  if ((await advancedTrigger.getAttribute("aria-expanded")) !== "true") {
+    await advancedTrigger.click();
+  }
+  await expect(advancedTrigger).toHaveAttribute("aria-expanded", "true");
   await settings
     .getByRole("button", { name: mode === "team" ? "Team" : "Private", exact: true })
     .click();
@@ -301,7 +310,7 @@ async function waitForRun(page: Page, botId: string, runId: string) {
     .poll(
       async () => {
         const snapshot = await threadSnapshot(page, botId);
-        if (snapshot.run?.id === runId) return false;
+        if (snapshot.run?.id === runId && snapshot.run.status !== "completed") return false;
         return snapshot.messages.some((message) => message.runId === runId);
       },
       {
@@ -317,7 +326,7 @@ async function waitForIdle(page: Page, botId: string) {
     .poll(async () => (await threadSnapshot(page, botId)).run?.status ?? "idle", {
       timeout: realSandboxTimeout(90_000, 20_000),
     })
-    .toBe("idle");
+    .toBe("cancelled");
 }
 
 function threadSnapshot(page: Page, botId: string) {

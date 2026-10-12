@@ -3,8 +3,19 @@ name: Kith mobile smoke
 ---
 - launchApp:
     clearState: true
+    clearKeychain: true
     permissions:
       notifications: deny
+- runFlow:
+    file: subflows/cold-introduction.yaml
+    env:
+      NOTIFICATIONS_PERMISSION: deny
+- tapOn: "Skip"
+- extendedWaitUntil:
+    visible: "Sign in to Kith"
+    timeout: 30000
+- runFlow: ../e2e/ios-screenshots/subflows/custom-server.yaml
+- tapOn: "Sign up"
 - extendedWaitUntil:
     visible: "Sign up for Kith"
     timeout: 30000
@@ -26,6 +37,7 @@ name: Kith mobile smoke
     timeout: 30000
 - tapOn: "Message Researcher"
 - inputText: "Mobile acceptance hello"
+- hideKeyboard
 - tapOn: "Send"
 - extendedWaitUntil:
     visible: ".*done. i handled: Mobile acceptance hello.*"
@@ -52,6 +64,7 @@ name: Kith mobile smoke
     timeout: 30000
 - tapOn: "Message Acceptance Bot"
 - inputText: "Native bot acceptance"
+- hideKeyboard
 - tapOn: "Send"
 - extendedWaitUntil:
     visible: ".*done. i handled: Native bot acceptance.*"
@@ -79,6 +92,9 @@ name: Kith mobile smoke
     visible: "For you"
     timeout: 10000
 - openLink: "rakazo:///account"
+- scrollUntilVisible:
+    element: "Sign out"
+    direction: DOWN
 - extendedWaitUntil:
     visible: "Sign out"
     timeout: 10000

@@ -17,13 +17,42 @@ describe("mobile response streaming preference", () => {
     vi.unstubAllEnvs();
   });
 
-  it("defaults to streaming off", async () => {
+  it("keeps text hidden until the stored preference is known", async () => {
     const { getCachedResponseStreamingEnabled, setResponseStreamingPreference } = await import(
       "./response-streaming"
     );
     expect(getCachedResponseStreamingEnabled()).toBe(false);
     await setResponseStreamingPreference("on");
     expect(getCachedResponseStreamingEnabled()).toBe(true);
+  });
+
+  it("enables streaming for a missing preference without overwriting an explicit off", async () => {
+    const { loadResponseStreamingPreference, getCachedResponseStreamingEnabled } = await import(
+      "./response-streaming"
+    );
+    await expect(loadResponseStreamingPreference()).resolves.toBe("on");
+    expect(getCachedResponseStreamingEnabled()).toBe(true);
+    store.set(RESPONSE_STREAMING_STORAGE_KEY, "off");
+    await expect(loadResponseStreamingPreference()).resolves.toBe("off");
+    expect(store.get(RESPONSE_STREAMING_STORAGE_KEY)).toBe("off");
+  });
+
+  it("does not let a late storage read overwrite a new toggle choice", async () => {
+    const { getItemAsync } = await import("expo-secure-store");
+    let finish!: (value: string | null) => void;
+    vi.mocked(getItemAsync).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { loadResponseStreamingPreference, setResponseStreamingPreference } = await import(
+      "./response-streaming"
+    );
+    const pending = loadResponseStreamingPreference();
+    await setResponseStreamingPreference("off");
+    finish(null);
+    await expect(pending).resolves.toBe("off");
   });
 
   it("loads a saved on preference and notifies subscribers", async () => {

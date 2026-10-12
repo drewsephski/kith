@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { createServer, type ServerResponse } from "node:http";
+import type { ServerResponse } from "node:http";
+import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { AgentRunRequest } from "@rakazo/adapter-kit";
 
@@ -32,6 +33,8 @@ export type ModelEmulatorResponse =
   | { type: "hold"; text?: string; onOpen?: () => void; onClose?: () => void };
 
 export interface ModelEmulatorStep {
+  /** Controlled protocol delays, never a prediction of a live provider. */
+  timing?: { headersMs?: number; firstTextMs?: number; chunkMs?: number };
   /** Synthetic endpoint usage, including explicit zero and omitted breakdown fields. */
   usage?: {
     prompt_tokens: number;
@@ -82,6 +85,8 @@ export async function startModelEmulator(options: {
       assert.ok(step, `Unexpected model request ${stepIndex}`);
       await step.expect(body);
       const reply = typeof step.response === "function" ? step.response(body) : step.response;
+      const pause = (ms = 0) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+      if (step.timing?.headersMs) await pause(step.timing.headersMs);
       if (reply.type === "error") {
         response.writeHead(reply.status, { "content-type": "application/json" });
         response.end(JSON.stringify({ error: { message: reply.message, type: "fixture_error" } }));
@@ -110,6 +115,7 @@ export async function startModelEmulator(options: {
           );
       };
       emit({ role: "assistant" });
+      if (step.timing?.firstTextMs) await pause(step.timing.firstTextMs);
       if (reply.type === "tool") {
         if (reply.assistantText) emit({ content: reply.assistantText });
         emit({
@@ -127,7 +133,14 @@ export async function startModelEmulator(options: {
         }
         emit({}, "tool_calls");
       } else {
-        if (reply.text) emit({ content: reply.text });
+        if (reply.text) {
+          const parts = step.timing?.chunkMs ? (reply.text.match(/.{1,12}/gs) ?? []) : [reply.text];
+          for (const part of parts) {
+            if (response.destroyed) return;
+            emit({ content: part });
+            if (step.timing?.chunkMs) await pause(step.timing.chunkMs);
+          }
+        }
         if (reply.type === "hold") {
           emitUsage();
           response.once("close", () => reply.onClose?.());

@@ -708,7 +708,7 @@ describe("Pi connector tool dispatch", () => {
           cwd ? { command, cwd } : { command },
           JSON.stringify(["pi-tool", "main", "call-1"]),
           undefined,
-          { onShellStillRunning: expect.any(Function) },
+          { allowDelegation: true, onShellStillRunning: expect.any(Function) },
         ],
       ]);
     },
@@ -747,7 +747,7 @@ describe("Pi connector tool dispatch", () => {
       { collection: "notes", title: "Result", body: "Done" },
       JSON.stringify(["pi-tool", "main", "call-1"]),
       { connectorId: "destination", toolName: "destination.write" },
-      { onShellStillRunning: expect.any(Function) },
+      { allowDelegation: true, onShellStillRunning: expect.any(Function) },
     );
   });
 
@@ -2015,7 +2015,7 @@ describe("Pi connector tool dispatch", () => {
       },
       JSON.stringify(["pi-tool", "main", "call-1"]),
       undefined,
-      { onShellStillRunning: expect.any(Function) },
+      { allowDelegation: true, onShellStillRunning: expect.any(Function) },
     );
   });
 });

@@ -10,9 +10,13 @@ describe("run connection selection", () => {
       { id: "slack", provider: "slack", status: "revoked" },
       { id: "slack-old", provider: "slack", status: "revoked" },
       { id: "gmail-duplicate", provider: "gmail", status: "pending" },
-    ].map((row) => ({ ...row, connectorId: "composio", displayName: row.provider }));
+    ].map((row) => ({
+      ...row,
+      connectorId: "composio",
+      displayName: row.provider,
+    }));
     const prisma = {
-      connection: { updateMany: vi.fn().mockResolvedValue({ count: 2 }) },
+      connection: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     } as unknown as PrismaClient;
     const liveSlugs = ["gmail", "slack"];
 
@@ -30,6 +34,31 @@ describe("run connection selection", () => {
         mergeConnectedPlugins(rows, liveSlugs).map((row) => row.provider),
       ),
     ).toEqual([rows[0]]);
+  });
+
+  it("does not overwrite revocation that races live reconciliation", async () => {
+    const rows = [
+      {
+        id: "gmail",
+        connectorId: "composio",
+        provider: "gmail",
+        displayName: "Gmail",
+        status: "pending",
+      },
+    ];
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const prisma = { connection: { updateMany } } as unknown as PrismaClient;
+    await persistLivePluginConnections(prisma, { userId: "user", spaceId: "space" }, rows, [
+      "gmail",
+    ]);
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: ["pending", "error"] },
+        }),
+      }),
+    );
+    expect(rows[0]?.status).toBe("pending");
   });
 
   it("does not recover a revoked account from a live provider listing", async () => {

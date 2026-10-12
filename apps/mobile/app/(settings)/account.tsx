@@ -232,7 +232,8 @@ export default function Account() {
       if (next.liveConnection && !(await canPostPromotedNotifications())) {
         await openPromotedNotificationSettings();
       }
-      await registerPushToken();
+      // Hosted push registration is optional; the native setting is already saved.
+      void registerPushToken().catch(() => undefined);
     } catch (cause) {
       setNotifications(previous);
       setNotificationError(errorText(cause, t("Could not update notifications")));

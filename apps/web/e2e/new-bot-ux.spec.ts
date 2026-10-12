@@ -65,6 +65,11 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await restore.click();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
   await expect(restore).toHaveCount(0);
+  await page.getByTestId("bots-sidebar").evaluate(async (sidebar) => {
+    await Promise.all(
+      sidebar.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
 
   await page.getByTestId("minimize-bots-sidebar").click();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");

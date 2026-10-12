@@ -375,3 +375,33 @@ describe("GraphileJobWorkerHost runner lifecycle", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("reserved interactive capacity", () => {
+  it("splits four slots into three shared slots and one run-only slot on the same pool", async () => {
+    run.mockReset();
+    const shared = mockRunner();
+    const interactive = mockRunner();
+    run.mockResolvedValueOnce(shared.runner).mockResolvedValueOnce(interactive.runner);
+    const pool = { options: { max: 8 } } as Pool;
+    const host = new GraphileJobWorkerHost(pool, { concurrency: 4, reserveInteractive: true });
+    await host.start(handlers());
+    expect(run.mock.calls.map(([options]) => options.concurrency)).toEqual([3, 1]);
+    expect(Object.keys(run.mock.calls[1]![0].taskList)).toEqual(["run.continue"]);
+    expect(run.mock.calls.every(([options]) => options.pgPool === pool)).toBe(true);
+    await host.stop();
+    expect(shared.runner.stop).toHaveBeenCalled();
+    expect(interactive.runner.stop).toHaveBeenCalled();
+  });
+  it("retains a single runner when the shared database pool has insufficient headroom", async () => {
+    run.mockReset();
+    run.mockResolvedValueOnce(mockRunner().runner);
+    const host = new GraphileJobWorkerHost({ options: { max: 4 } } as Pool, {
+      concurrency: 4,
+      reserveInteractive: true,
+    });
+    await host.start(handlers());
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0]![0].concurrency).toBe(4);
+    await host.stop();
+  });
+});

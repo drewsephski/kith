@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { describeToolActivity } from "./pi-runtime.js";
 
 describe("describeToolActivity", () => {
+  it("keeps on-demand catalog activity concise without exposing tool identifiers or arguments", () => {
+    expect(describeToolActivity("kith_search_tools", { query: "private query" })).toBe(
+      "Finding tools",
+    );
+    expect(describeToolActivity("kith_load_tool", { id: "private-id" })).toBe("Finding tools");
+    expect(
+      describeToolActivity("kith_execute_tool", { arguments: { secret: "private value" } }),
+    ).toBe("Using a tool");
+  });
   it("describes actual connected-app operations without exposing mail content", () => {
     expect(describeToolActivity("GMAIL_FETCH_EMAILS", { query: "private query" })).toBe(
       "Searching Gmail…",

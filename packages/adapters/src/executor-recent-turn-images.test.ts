@@ -3,16 +3,21 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
 import { describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
+import {
+  acquireComputerExecutionLease,
+  ComputerBusyError,
+  provisionComputer,
+} from "./computer-lifecycle.js";
 import { COMPUTER_TOOL_NAMES, createRunExecutor } from "./executor.js";
 import { NoneSandboxProvider } from "./none-sandbox.js";
 
 vi.mock("./computer-lifecycle.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ComputerLifecycleModule>()),
-  acquireComputerExecutionLease: async () => null,
-  provisionComputer: async (deps: { sandbox: { describe: () => { id?: string } } }) => {
+  acquireComputerExecutionLease: vi.fn(async () => null),
+  provisionComputer: vi.fn(async (deps: { sandbox: { describe: () => { id?: string } } }) => {
     if (deps.sandbox.describe().id === "none") throw new Error("Computers unavailable");
     return { id: "computer-1", kind: "desktop" };
-  },
+  }),
 }));
 
 const TEXT_ONLY_MODEL = "deepseek/deepseek-v4-flash-0731";
@@ -62,6 +67,22 @@ async function runWithModel(
   scripted = false,
   computerAvailable = true,
   latencyCheck?: "stream" | "setup",
+  scenario?: {
+    prompt: string;
+    useCatalog?: boolean;
+    collision?: boolean;
+    pendingConnection?: boolean;
+    revokedDuringSync?: boolean;
+    peerDirectory?: boolean;
+    imageCurrent?: boolean;
+    steeringAttachment?: "file" | "image";
+    steeringBusy?: boolean;
+    computerWaitRetries?: number;
+    preparationFailure?: string;
+    swallowPreparationFailure?: boolean;
+    inspectRuntimeControls?: boolean;
+    inspectHelperDelegation?: boolean;
+  },
 ) {
   const run = {
     id: "run-1",
@@ -73,9 +94,12 @@ async function runWithModel(
     status: "queued",
     trigger: "user",
     leaseFence: 0,
+    checkpoint: null as string | null,
+    sourceMessageId: scenario?.imageCurrent ? "current" : undefined,
   };
   const get = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
   const append = vi.fn(async () => undefined);
+  const writeFile = vi.fn(async () => undefined);
   let releaseSetup!: () => void;
   const setupGate = new Promise<void>((resolve) => {
     releaseSetup = resolve;
@@ -87,6 +111,79 @@ async function runWithModel(
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;
+    if (scenario?.inspectRuntimeControls) {
+      for (const name of ["ask_user", "request_takeover", "run_subagent"]) {
+        expect(next.tools.some((tool) => tool.name === name)).toBe(true);
+        const result = (await next.executeTool?.(
+          "kith_search_tools",
+          { query: name },
+          `search-${name}`,
+        )) as { tools: Array<{ name: string }> };
+        expect(result.tools.some((tool) => tool.name === name)).toBe(false);
+      }
+    }
+    if (scenario?.inspectHelperDelegation) {
+      const observer = { allowDelegation: false };
+      const result = (await next.executeTool?.(
+        "kith_search_tools",
+        { query: "spawn_bot" },
+        "helper-search",
+        undefined,
+        observer,
+      )) as { tools: Array<{ name: string }> };
+      expect(result.tools.some((tool) => tool.name === "spawn_bot")).toBe(false);
+      expect(
+        await next.executeTool?.(
+          "spawn_bot",
+          { name: "Forbidden helper bot" },
+          "helper-spawn",
+          undefined,
+          observer,
+        ),
+      ).toEqual({ error: "Short helpers cannot manage or delegate to other bots." });
+    }
+    if (scenario?.steeringAttachment) {
+      const prior = vi.mocked(provisionComputer).mock.calls.length;
+      if (scenario.steeringBusy)
+        vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
+      const steering = await next.claimSteering?.([]);
+      expect(vi.mocked(provisionComputer).mock.calls.length).toBe(
+        prior + (scenario.steeringBusy || scenario.computerWaitRetries ? 0 : 1),
+      );
+      if (!scenario.steeringBusy) {
+        expect(steering?.[0]?.text).toContain("attachments/art-1.png");
+        expect(writeFile).toHaveBeenCalledOnce();
+      }
+    }
+    if (scenario?.useCatalog) {
+      try {
+        const toolName = scenario.collision ? "kith_search_tools" : "list_files";
+        if (next.executionProfile === "agent") {
+          expect(await next.executeTool?.(toolName, { path: "" }, "execute")).toEqual({
+            path: "",
+            entries: [],
+          });
+        } else {
+          const result = (await next.executeTool?.(
+            "kith_search_tools",
+            { query: toolName },
+            "search",
+          )) as { tools: Array<{ id: string; name: string }> };
+          const hit = result.tools.find((tool) => tool.name === toolName);
+          expect(hit).toBeDefined();
+          expect(
+            await next.executeTool?.(
+              "kith_execute_tool",
+              { id: hit!.id, arguments: scenario.collision ? {} : { path: "" } },
+              "execute",
+            ),
+          ).toEqual(scenario.collision ? { ok: true } : { path: "", entries: [] });
+        }
+      } catch (error) {
+        if (!scenario.swallowPreparationFailure) throw error;
+        expect(error).toMatchObject({ message: "Computer setup failed" });
+      }
+    }
     if (latencyCheck === "stream") {
       yield { type: "text" as const, text: "Done" };
       // The executor must publish the first safe chunk before requesting more
@@ -108,14 +205,30 @@ async function runWithModel(
     }
     yield { type: "done" as const, text: "Done" };
   });
+  let connectionStatus = "pending";
   const prisma = {
     run: {
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
-      updateMany: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        Object.assign(run, data);
-        return { count: 1 };
-      }),
+      updateMany: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { checkpoint?: string | null | { in: string[] } };
+          data: Record<string, unknown>;
+        }) => {
+          if (
+            where.checkpoint &&
+            typeof where.checkpoint === "object" &&
+            !where.checkpoint.in.includes(run.checkpoint ?? "")
+          )
+            return { count: 0 };
+          if (where.checkpoint === null && run.checkpoint !== null) return { count: 0 };
+          Object.assign(run, data);
+          return { count: 1 };
+        },
+      ),
     },
     bot: {
       findUniqueOrThrow: vi.fn(async () => ({
@@ -131,7 +244,18 @@ async function runWithModel(
         memoryScope: null,
         computer: { id: "computer-1", scope: "dedicated" },
       })),
-      findMany: vi.fn(async () => []),
+      findMany: vi.fn(async () =>
+        scenario?.peerDirectory
+          ? [
+              {
+                id: "support",
+                name: "Support",
+                title: "Support bot",
+                description: "Resolves customer support tickets",
+              },
+            ]
+          : [],
+      ),
     },
     attempt: {
       create: vi.fn(async () => ({ id: "attempt-1" })),
@@ -149,13 +273,54 @@ async function runWithModel(
     },
     message: {
       findMany: vi.fn(async (args: { where?: { threadId?: string } }) =>
-        args.where?.threadId ? historyMessages() : [],
+        args.where?.threadId
+          ? historyMessages().map((message) =>
+              scenario?.imageCurrent && message.id === "current"
+                ? {
+                    ...message,
+                    blocks: [
+                      {
+                        kind: "image" as const,
+                        artifactId: "art-1",
+                        mimeType: "image/png",
+                        name: "shot.png",
+                      },
+                    ],
+                  }
+                : message,
+            )
+          : [],
       ),
       findUnique: vi.fn(async () => null),
+      findFirst: vi.fn(async () => null),
     },
-    task: { findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: "Look again" })) },
+    task: {
+      findUniqueOrThrow: vi.fn(async () => ({
+        id: run.taskId,
+        prompt: scenario?.prompt ?? "Look again",
+      })),
+    },
     computer: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    connection: { findMany: vi.fn(async () => []) },
+    connection: {
+      findMany: vi.fn(async () =>
+        scenario?.pendingConnection
+          ? [
+              {
+                id: "gmail",
+                connectorId: "composio",
+                provider: "gmail",
+                providerRef: "account-fixture",
+                displayName: "Gmail",
+                status: connectionStatus,
+              },
+            ]
+          : [],
+      ),
+      updateMany: vi.fn(async () => {
+        connectionStatus = scenario?.revokedDuringSync ? "revoked" : "connected";
+        return { count: scenario?.revokedDuringSync ? 0 : 1 };
+      }),
+    },
     spaceModelPreference: {
       findFirst: vi.fn<(...args: unknown[]) => Promise<Record<string, unknown> | null>>(
         async () => null,
@@ -183,7 +348,15 @@ async function runWithModel(
     botSecret: { findMany: vi.fn(async () => []) },
     agentSkill: { findMany: vi.fn(async () => []) },
     scratchpadItem: { findMany: vi.fn(async () => []) },
+    actionApprovalRule: { findMany: vi.fn(async () => []) },
+    actionAutoReviewPreference: { findUnique: vi.fn(async () => ({ enabled: false })) },
     externalEffect: {
+      findUnique: vi.fn(async () => null),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "effect-1",
+        ...data,
+      })),
+      updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => {
         if (latencyCheck === "setup") {
           markSetupStarted();
@@ -194,20 +367,35 @@ async function runWithModel(
     },
     artifact: {
       findMany: vi.fn(async () => [
-        { id: "art-1", storageKey: "shot.png", size: 4, mimeType: "image/png", name: "shot.png" },
+        {
+          id: "art-1",
+          storageKey: "shot.png",
+          size: 4,
+          mimeType: "image/png",
+          name: "shot.png",
+        },
       ]),
     },
   };
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
+  const listConnectedPluginSlugs = vi.fn(async () => ["gmail"]);
+  const discoveryContexts: Array<{
+    connectedConnections?: Array<{ id: string }>;
+  }> = [];
   const executor = createRunExecutor({
+    listConnectedPluginSlugs,
     prisma,
     deploymentModelKey:
       latencyCheck === "stream" ? `fake-deployment-key-${"x".repeat(2048)}` : "fake-deployment-key",
-    runtime: { describe: () => ({ capabilities: { scripted } }), run: runtimeRun },
+    runtime: {
+      describe: () => ({ capabilities: { scripted } }),
+      run: runtimeRun,
+    },
     sandbox: computerAvailable
       ? {
           describe: () => ({ capabilities: { graphical: false } }),
-          writeFile: vi.fn(async () => undefined),
+          writeFile,
+          listFiles: vi.fn(async () => []),
           async *exportWorkspace() {
             yield* [];
           },
@@ -217,11 +405,59 @@ async function runWithModel(
     memory: { read: async () => ({ documents: [] }) },
     memoryProviders: { resolve: async () => null },
     artifacts: { get },
-    events: { append, finalizeRun },
+    events: {
+      append,
+      finalizeRun,
+      claimSteering: vi.fn(async () =>
+        scenario?.steeringAttachment
+          ? [
+              {
+                id: "steering-1",
+                messageId: "steering-message",
+                text: "Inspect this attachment",
+                blocks: [
+                  {
+                    kind: scenario.steeringAttachment,
+                    artifactId: "art-1",
+                    mimeType: "image/png",
+                    name: "shot.png",
+                  },
+                ],
+              },
+            ]
+          : [],
+      ),
+    },
     jobs: { enqueue: vi.fn(async () => undefined) },
+    connector: {
+      discoverTools: vi.fn(async (context: { connectedConnections?: Array<{ id: string }> }) => {
+        discoveryContexts.push({
+          connectedConnections: [...(context.connectedConnections ?? [])],
+        });
+        return scenario?.collision
+          ? [
+              {
+                name: "kith_search_tools",
+                description: "Fixture connector tool",
+                readOnly: true,
+                inputSchema: { type: "object", properties: {} },
+                route: {
+                  connectorId: "fixture",
+                  toolName: "kith_search_tools",
+                },
+              },
+            ]
+          : [];
+      }),
+      async *execute() {
+        yield { type: "result", data: { ok: true } };
+      },
+    },
     secrets: [],
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
+  if (scenario?.preparationFailure)
+    vi.mocked(provisionComputer).mockRejectedValueOnce(new Error(scenario.preparationFailure));
   const continuing = executor.continueRun(run.id, "worker-1");
   if (latencyCheck === "setup") {
     try {
@@ -232,19 +468,243 @@ async function runWithModel(
       await continuing;
     }
   }
-  await continuing;
+  if (scenario?.preparationFailure) {
+    await expect(continuing).rejects.toThrow("Run setup failed; retrying");
+    expect(finalizeRun).not.toHaveBeenCalled();
+    expect(run.status).toBe("queued");
+    expect(run.checkpoint).toBe("computer-required");
+    expect(prisma.attempt.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "setup_failed" }) }),
+    );
+    await executor.continueRun(run.id, "worker-1");
+    expect(runtimeRun).toHaveBeenCalledTimes(2);
+  } else await continuing;
+  if (scenario?.computerWaitRetries) {
+    expect(run.checkpoint).toBe("computer-required");
+    for (let retry = 0; retry < scenario.computerWaitRetries; retry++) {
+      vi.mocked(acquireComputerExecutionLease).mockRejectedValueOnce(new ComputerBusyError());
+      await executor.continueRun(run.id, "worker-1");
+      expect(runtimeRun).toHaveBeenCalledOnce();
+      expect(run.checkpoint).toBe("computer-required");
+      expect(run.status).toBe("queued");
+    }
+    scenario.steeringBusy = false;
+    await executor.continueRun(run.id, "worker-1");
+    expect(runtimeRun).toHaveBeenCalledTimes(2);
+  }
   expect(runtimeRun).toHaveBeenCalled();
-  expect(finalizeRun).toHaveBeenCalledWith(
-    expect.objectContaining({
-      outcome: "completed",
-      blocks: expect.arrayContaining([{ kind: "text", text: "Done" }]),
-    }),
-  );
+  if (scenario?.steeringBusy) {
+    expect(finalizeRun).not.toHaveBeenCalled();
+    expect(run.status).toBe("queued");
+  } else
+    expect(finalizeRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "completed",
+        blocks: expect.arrayContaining([{ kind: "text", text: "Done" }]),
+      }),
+    );
   if (!request) throw new Error("runtime was not called");
-  return { request, get, prisma, run };
+  return {
+    request,
+    get,
+    prisma,
+    run,
+    listConnectedPluginSlugs,
+    discoveryContexts,
+    writeFile,
+  };
 }
 
 describe("response latency", () => {
+  it("never provisions or leases a computer for a greeting", async () => {
+    const provisionCount = vi.mocked(provisionComputer).mock.calls.length;
+    const leaseCount = vi.mocked(acquireComputerExecutionLease).mock.calls.length;
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Hi" },
+    );
+    expect(request.executionProfile).toBe("conversation");
+    expect(request.tools.map((tool) => tool.name)).toEqual([
+      "kith_search_tools",
+      "kith_load_tool",
+      "kith_execute_tool",
+      "request_takeover",
+      "ask_user",
+      "run_subagent",
+    ]);
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount);
+    expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount);
+  });
+
+  it("keeps runtime controls directly available without routing them through catalog effects", async () => {
+    await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      inspectRuntimeControls: true,
+    });
+  });
+
+  it("retains helper delegation restrictions through lazy catalog search and execution", async () => {
+    const { prisma } = await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      inspectHelperDelegation: true,
+    });
+    expect(prisma.externalEffect.create).not.toHaveBeenCalled();
+  });
+
+  it("materializes an image-only current turn before inference", async () => {
+    const prior = vi.mocked(provisionComputer).mock.calls.length;
+    const { request, writeFile } = await runWithModel(
+      VISION_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Inspect this image", imageCurrent: true },
+    );
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(prior + 1);
+    expect(request.prompt).toContain("attachments/art-1.png");
+    expect(writeFile).toHaveBeenCalledOnce();
+  });
+
+  it.each(["file", "image"] as const)(
+    "provisions for a %s added during a conversational reply",
+    async (steeringAttachment) => {
+      await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+        prompt: "Hi",
+        steeringAttachment,
+      });
+    },
+  );
+
+  it("requeues the same run when steering attachments race a busy computer", async () => {
+    const { run } = await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      steeringAttachment: "file",
+      steeringBusy: true,
+    });
+    expect(run.id).toBe("run-1");
+  });
+
+  it("does not repeat inference while a demanded computer remains leased elsewhere", async () => {
+    await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      steeringAttachment: "file",
+      steeringBusy: true,
+      computerWaitRetries: 3,
+    });
+  });
+
+  it.each([false, true])(
+    "recovers computer preparation failures when the runtime consumes tool errors=%s",
+    async (swallowPreparationFailure) => {
+      for (const preparationFailure of [
+        "Temporary sandbox prepare failure",
+        "computer control revocation is still in progress",
+      ])
+        await runWithModel(VISION_MODEL, undefined, false, false, true, undefined, {
+          prompt: "Hi",
+          useCatalog: true,
+          preparationFailure,
+          swallowPreparationFailure,
+        });
+    },
+  );
+
+  it("preserves the peer bot directory for conversational bot questions", async () => {
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      {
+        prompt: "What is the support bot responsible for?",
+        peerDirectory: true,
+      },
+    );
+    expect(request.executionProfile).toBe("conversation");
+    expect(request.instructions).toContain("Support");
+    expect(request.instructions).toContain("Resolves customer support tickets");
+  });
+
+  it.each([false, true])(
+    "reconciles pending accounts on lazy escalation and preserves revocation=%s",
+    async (revokedDuringSync) => {
+      const { request, listConnectedPluginSlugs, discoveryContexts } = await runWithModel(
+        TEXT_ONLY_MODEL,
+        undefined,
+        false,
+        false,
+        true,
+        undefined,
+        {
+          prompt: "Hi",
+          useCatalog: true,
+          pendingConnection: true,
+          revokedDuringSync,
+        },
+      );
+      expect(request.executionProfile).toBe("conversation");
+      expect(listConnectedPluginSlugs).toHaveBeenCalledOnce();
+      expect(discoveryContexts[0]?.connectedConnections?.map((row) => row.id)).toEqual(
+        revokedDuringSync ? [] : ["gmail"],
+      );
+    },
+  );
+
+  it.each([false, true])(
+    "refreshes full-agent connection state after reconciliation and preserves revocation=%s",
+    async (revokedDuringSync) => {
+      const { request, listConnectedPluginSlugs, discoveryContexts, prisma } = await runWithModel(
+        TEXT_ONLY_MODEL,
+        undefined,
+        false,
+        false,
+        true,
+        undefined,
+        { prompt: "Read my email", pendingConnection: true, revokedDuringSync },
+      );
+      expect(request.executionProfile).toBe("agent");
+      expect(listConnectedPluginSlugs).toHaveBeenCalledOnce();
+      expect(prisma.connection.findMany).toHaveBeenCalledTimes(2);
+      expect(discoveryContexts[0]?.connectedConnections?.map((row) => row.id)).toEqual(
+        revokedDuringSync ? [] : ["gmail"],
+      );
+    },
+  );
+
+  it("can dispatch a connector whose name matches a catalog wrapper without recursion", async () => {
+    await runWithModel(TEXT_ONLY_MODEL, undefined, false, false, true, undefined, {
+      prompt: "Hi",
+      useCatalog: true,
+      collision: true,
+    });
+  });
+
+  it("discovers a computer tool on demand in the same durable run", async () => {
+    const provisionCount = vi.mocked(provisionComputer).mock.calls.length;
+    const leaseCount = vi.mocked(acquireComputerExecutionLease).mock.calls.length;
+    const { request } = await runWithModel(
+      TEXT_ONLY_MODEL,
+      undefined,
+      false,
+      false,
+      true,
+      undefined,
+      { prompt: "Hi", useCatalog: true },
+    );
+    expect(request.runId).toBe("run-1");
+    expect(vi.mocked(provisionComputer).mock.calls.length).toBe(provisionCount + 1);
+    expect(vi.mocked(acquireComputerExecutionLease).mock.calls.length).toBe(leaseCount + 1);
+  });
+
   it.each([false, true])(
     "streams a short reply before completion with computer=%s",
     async (computer) => {
@@ -268,6 +728,12 @@ describe("response latency", () => {
         setupMs: expect.any(Number),
         modelToFirstTextMs: expect.any(Number),
         streamDeliveryMs: expect.any(Number),
+        executionProfile: "agent",
+        leaseMs: expect.any(Number),
+        initialReadsMs: expect.any(Number),
+        connectorMs: expect.any(Number),
+        contextMs: expect.any(Number),
+        computerMs: expect.any(Number),
       });
       for (const key of ["setupMs", "modelToFirstTextMs", "streamDeliveryMs"]) {
         expect(timings[0]?.[1]?.[key]).toBeGreaterThanOrEqual(0);
