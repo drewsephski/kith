@@ -13,6 +13,8 @@ command -v timeout >/dev/null
 # Reject known authentication incompatibility before changing the running image.
 curl --fail --silent --show-error --max-time 10 \
   "$HOSTED_ORIGIN/api/auth/capabilities" | jq -e ' .passwordAuth == false or .passwordReset == true' >/dev/null
+# Read-only readiness and session probes catch DB/provider quota outages before rollout.
+node scripts/verify-for-you-api.mjs "$HOSTED_ORIGIN"
 
 # Capture the exact prior image for operator rollback. Never replace volumes,
 # rotate secrets, destroy Machines, or roll database migrations backwards.

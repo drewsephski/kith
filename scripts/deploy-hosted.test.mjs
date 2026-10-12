@@ -16,7 +16,8 @@ function fixture(failure = "", delayed = false) {
     node: `
 echo "node $1" >> "$FIXTURE/log"
 [[ "$1" == scripts/verify-for-you-api.mjs ]] || exit 99
-[[ "$FAILURE" == for-you ]] && exit 1
+if [[ "$FAILURE" == for-you && -f "$FIXTURE/deployed" ]]; then exit 1; fi
+[[ "$FAILURE" == session-preflight ]] && exit 1
 exit 0`,
     timeout: `
 echo "timeout $1 $2" >> "$FIXTURE/log"
@@ -133,6 +134,16 @@ for (const failure of [
 
 test("never deploys or rolls back when authentication preflight fails", () => {
   const f = fixture("preflight");
+  try {
+    assert.notEqual(f.run().status, 0);
+    assert.doesNotMatch(f.log(), /flyctl/);
+  } finally {
+    f.close();
+  }
+});
+
+test("never deploys or rolls back when the session or readiness probe fails", () => {
+  const f = fixture("session-preflight");
   try {
     assert.notEqual(f.run().status, 0);
     assert.doesNotMatch(f.log(), /flyctl/);

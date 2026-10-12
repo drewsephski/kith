@@ -60,7 +60,7 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
       };
     case "memory-save":
       return {
-        prompt: `Remember for future conversations: ${MEMORY}`,
+        prompt: `Remember that ${MEMORY}`,
         steps: [
           {
             ...text("Remembered your preference."),

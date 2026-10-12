@@ -1,11 +1,50 @@
 import { InfisicalSecretStore } from "@rakazo/adapters";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { infisicalFake } from "../../../packages/adapters/src/secret-store-fake.js";
 import { healthRoutes } from "./health.js";
 
 const app = healthRoutes(() => ({ runtime: "pi", sandbox: "docker", revision: "abc123" }));
 
 describe("health routes", () => {
+  it("bounds readiness latency and shares an in-flight database probe", async () => {
+    vi.useFakeTimers();
+    try {
+      const check = vi.fn(() => new Promise(() => {}));
+      const health = healthRoutes(() => ({}), check);
+      const reads = [health.request("/ready"), health.request("/ready")];
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect((await Promise.all(reads)).map((response) => response.status)).toEqual([503, 503]);
+      expect(check).toHaveBeenCalledTimes(1);
+      expect((await health.request("/health")).status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("fails readiness during a database outage without changing liveness or leaking errors", async () => {
+    let offline = true;
+    let probes = 0;
+    const health = healthRoutes(
+      () => ({ revision: "abc123" }),
+      async () => {
+        probes++;
+        if (offline) throw new Error("private database quota details");
+      },
+    );
+    expect((await health.request("/health")).status).toBe(200);
+    expect(probes).toBe(0);
+    const unavailable = await health.request("/ready");
+    expect(unavailable.status).toBe(503);
+    await expect(unavailable.json()).resolves.toEqual({ ok: false, degraded: true });
+    const internal = await health.request("/internal/health");
+    await expect(internal.json()).resolves.toEqual({
+      ok: false,
+      revision: "abc123",
+      degraded: true,
+      database: false,
+    });
+    offline = false;
+    expect((await health.request("/ready")).status).toBe(200);
+  });
   it("reports degraded readiness during a store outage and recovers on later reads", async () => {
     const fake = infisicalFake();
     const writer = new InfisicalSecretStore(fake.options);
@@ -47,6 +86,7 @@ describe("health routes", () => {
       runtime: "pi",
       sandbox: "docker",
       revision: "abc123",
+      degraded: false,
     });
   });
 

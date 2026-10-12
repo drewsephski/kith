@@ -3,7 +3,7 @@ import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyForYouApi } from "../../../scripts/verify-for-you-api.mjs";
+import { verifyHostedApi } from "../../../scripts/verify-for-you-api.mjs";
 
 const webRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -78,8 +78,8 @@ export function vercelBuildConfig(target, authProxySecret) {
         headers: privateResponseHeaders,
       },
       {
-        src: "^/health$",
-        dest: `${origin}/health`,
+        src: "^/(health|ready)$",
+        dest: `${origin}/$1`,
         headers: privateResponseHeaders,
       },
       { handle: "filesystem" },
@@ -115,7 +115,7 @@ export async function buildVercelWeb(env = process.env) {
   vercelBuildConfig(target, authProxySecret);
   // Production web can publish independently of the backend's CI rollout. Do
   // not publish calls to routes the configured live backend does not support.
-  if (env.VERCEL_ENV === "production") await verifyForYouApi(target);
+  if (env.VERCEL_ENV === "production") await verifyHostedApi(target);
   // These defaults exist only in the static build process. No server secrets are
   // required by, or written to, the public frontend build.
   const buildEnv = { ...staticEnv, NODE_ENV: "production", RAKAZO_ALLOW_DEV_SECRETS: "1" };

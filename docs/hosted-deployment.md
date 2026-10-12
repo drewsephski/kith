@@ -152,8 +152,9 @@ and auth signing secrets stay exclusively on Fly.
 
 Deploy and verify a compatible backend before publishing production web changes.
 Production Vercel builds probe the For you discovery, dismissal, and launch routes
-without authentication and require their normal RPC unauthorized response. A missing
-route fails the build instead of publishing a frontend that returns 404 on every task.
+without authentication and require their normal RPC unauthorized response. They also
+require the anonymous session endpoint to return its normal JSON null response. A missing
+route or broken authentication dependency fails the build instead of publishing a broken app.
 Backend rollout acceptance checks these routes on loopback and through the public
 application origin; a failed check triggers the existing rollback. Local static builds
 and Vercel previews remain independent of a running backend.
@@ -197,7 +198,14 @@ fly checks list --app "$KITH_BACKEND_APP"
 fly logs --app "$KITH_BACKEND_APP"
 ```
 
-Health returns `{"ok":true}`; an unauthenticated session returns no user session. Confirm
+Health returns `{"ok":true}`; an unauthenticated session returns JSON `null`. `/ready` additionally
+checks database access and returns 503 when the database or secret store is unavailable.
+Its database probe has a three-second deadline and shares in-flight reads. Liveness alone
+does not prove readiness: a database provider quota outage can leave static pages and
+`/health` healthy while every session request fails. Restore the existing database's quota
+before redeployment; keep provider billing/usage alerts enabled for an always-running worker.
+Run `node scripts/verify-for-you-api.mjs "$HOSTED_ORIGIN"` to check the anonymous session
+and compatible RPC routes without accessing personal data or starting work. Confirm
 `worker ready`, then verify sign-in, app connection, starter execution, realtime updates, and
 an actual computer session when a remote computer provider is enabled. An HTTP page build
 alone does not prove provider authorization or worker execution. Keep API/RPC responses

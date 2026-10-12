@@ -39,8 +39,20 @@ describe("fresh memory receipt boundary", () => {
   it("only requires a write for an explicit fresh durable directive", () => {
     expect(needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.")).toBe(true);
     expect(needsFreshMemoryWrite("Remember: cobalt.")).toBe(true);
+    expect(needsFreshMemoryWrite("Remember that I prefer cobalt notebooks.")).toBe(true);
+    expect(
+      needsFreshMemoryWrite(
+        "Update my preference to cobalt. Remember this for future conversations.",
+      ),
+    ).toBe(true);
+    expect(
+      needsFreshMemoryWrite("Update my preference … Remember this for future conversations."),
+    ).toBe(true);
     expect(needsFreshMemoryWrite("Do you remember my preference?")).toBe(false);
     expect(needsFreshMemoryWrite("Remember to ask me tomorrow.")).toBe(false);
+    expect(needsFreshMemoryWrite("Explain the phrase 'Remember that I prefer cobalt'.")).toBe(
+      false,
+    );
   });
 
   it("accepts only supported memory writes, including the lazy catalog", () => {
@@ -56,6 +68,10 @@ describe("fresh memory receipt boundary", () => {
     expect(memoryReplyIsBlocked("Memory wasn't saved.")).toBe(true);
     expect(memoryReplyIsBlocked("I don't have permission to save that preference.")).toBe(true);
     expect(memoryReplyIsBlocked("The memory provider rejected the write.")).toBe(true);
+    expect(memoryReplyIsBlocked("I can't save this. Nothing was saved or stored.")).toBe(true);
+    expect(memoryReplyIsBlocked("I can't save this because the note was stored elsewhere.")).toBe(
+      true,
+    );
     expect(memoryReplyIsBlocked("Remembered for next time.")).toBe(false);
   });
 

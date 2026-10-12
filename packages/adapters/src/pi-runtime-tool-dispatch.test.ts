@@ -37,6 +37,7 @@ const fakeAgentState = vi.hoisted(() => ({
   emitFinalDeltaOnly: false,
   narration: "I will check the destination first.",
   finalDelta: undefined as string | undefined,
+  blockedReply: undefined as string | undefined,
   abortCount: 0,
   tools: [] as Array<{
     name: string;
@@ -114,7 +115,7 @@ vi.mock("@earendil-works/pi-agent-core", () => ({
         end(
           fakeAgentState.memoryMode === "blocked" ||
             fakeAgentState.memoryMode === "failed-blocked-write"
-            ? "I don't have permission to save that preference."
+            ? (fakeAgentState.blockedReply ?? "I don't have permission to save that preference.")
             : fakeAgentState.memoryMode === "incidental-failure"
               ? "Saved it; the previous attempt failed."
               : "Remembered.",
@@ -485,6 +486,7 @@ describe("Pi connector tool dispatch", () => {
     fakeAgentState.emitFinalDeltaOnly = false;
     fakeAgentState.narration = "I will check the destination first.";
     fakeAgentState.finalDelta = undefined;
+    fakeAgentState.blockedReply = undefined;
     fakeAgentState.initialMessages = [];
     fakeAgentState.promptInputs = [];
     fakeAgentState.promptImages = [];
@@ -519,7 +521,7 @@ describe("Pi connector tool dispatch", () => {
           threadId: "t",
           runId: "memory",
           memoryWriteConfirmed: mode === "confirmed-write",
-          prompt: "Remember: I prefer cobalt.",
+          prompt: "Remember that I prefer cobalt.",
           instructions:
             "Use durable memory. <durable_memory>Unrelated existing preference.</durable_memory>",
           history: [],
@@ -555,6 +557,34 @@ describe("Pi connector tool dispatch", () => {
   });
 
   it.each([
+    "I can't save this. Nothing was saved or stored.",
+    "I can't save this because the note was stored elsewhere.",
+  ])("preserves an honest refusal with incidental save wording: %s", async (reply) => {
+    fakeAgentState.memoryMode = "blocked";
+    fakeAgentState.blockedReply = reply;
+    const executeTool = vi.fn(async () => ({ ok: true }));
+    const events = [];
+    for await (const event of new PiAgentRuntime().run(
+      {
+        botId: "b",
+        threadId: "t",
+        runId: "blocked-memory",
+        prompt: "Remember that I prefer cobalt.",
+        instructions: "Use durable memory.",
+        history: [],
+        tools: [],
+        model: { provider: "test", id: "dispatch-test-model" },
+        executeTool,
+      },
+      { signal: new AbortController().signal },
+    ))
+      events.push(event);
+    expect(events.at(-1)).toEqual({ type: "done", text: reply });
+    expect(executeTool).not.toHaveBeenCalled();
+    expect(fakeAgentState.followUpMessages).toHaveLength(0);
+  });
+
+  it.each([
     ["initial", "no-write"],
     ["boundary", "no-write"],
     ["initial", "recover"],
@@ -579,8 +609,9 @@ describe("Pi connector tool dispatch", () => {
                   {
                     id: "fresh-save",
                     messageId: "fresh-message",
-                    historyText: "Remember: I prefer cobalt.",
-                    text: "<reply_target>Earlier question.</reply_target>\n\nRemember: I prefer cobalt.",
+                    historyText:
+                      "Update my preference to cobalt. Remember this for future conversations.",
+                    text: "<reply_target>Earlier question.</reply_target>\n\nUpdate my preference to cobalt. Remember this for future conversations.",
                   },
                 ]
               : [],

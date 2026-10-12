@@ -53,6 +53,29 @@ export async function verifyForYouApi(origin, request = fetch) {
   );
 }
 
+/** A static page and liveness response can stay healthy while auth's DB is unavailable. */
+export async function verifyHostedApi(origin, request = fetch) {
+  const verifySession = async () => {
+    try {
+      const response = await request(new URL("/api/auth/get-session", origin), {
+        credentials: "omit",
+        redirect: "error",
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      const body = await response.json();
+      if (!response.ok || body !== null) {
+        throw new Error("Unexpected readiness response");
+      }
+    } catch {
+      throw new Error(
+        "Hosted API unavailable: /api/auth/get-session. Restore the compatible backend first.",
+      );
+    }
+  };
+  await Promise.all([verifyForYouApi(origin, request), verifySession()]);
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await verifyForYouApi(process.argv[2]);
+  await verifyHostedApi(process.argv[2]);
 }

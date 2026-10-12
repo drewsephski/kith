@@ -13,8 +13,13 @@ export const MEMORY_CONTINUATION_PROMPT =
 
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
 export function needsFreshMemoryWrite(prompt: string): boolean {
-  return /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
-    prompt,
+  return (
+    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
+      prompt,
+    ) ||
+    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember(?:\s+that\s+\S|\s+(?:this|it)\s+for\s+(?:future(?:\s+conversations)?|later|next\s+time)\b)/i.test(
+      prompt,
+    )
   );
 }
 
@@ -24,7 +29,9 @@ export function memoryReplyIsBlocked(text: string): boolean {
   const refusal =
     /\b(?:(?:I|we) (?:cannot|can['’]t|could not|couldn['’]t|am unable to|are unable to|was unable to) (?:save|store|remember)\b|(?:I|we) (?:do not|don['’]t) have (?:permission|access|authorization) to (?:save|store|remember)\b|(?:the )?memory (?:provider|tool) (?:rejected|denied|failed) (?:the |this )?(?:write|save)\b|(?:memory|(?:your|the|this) preference) (?:was not|wasn['’]t|is not|isn['’]t|has not been|hasn['’]t been|not) (?:saved|stored)\b)/gi;
   if (!refusal.test(text)) return false;
-  return !/\b(?:saved|stored|remembered)\b/i.test(text.replace(refusal, ""));
+  return !/\b(?:I|we)(?: have|['’]ve)? (?:saved|stored|remembered)\b|(?:^|[.!?]\s*)(?:successfully )?(?:saved|stored|remembered)\b|\b(?:your|the|this) (?:memory|preference) (?:was|is|has been) (?:saved|stored)\b/i.test(
+    text.replace(refusal, ""),
+  );
 }
 
 const MEMORY_SAVE_TOOLS = new Set(["remember", "save_shared_memory", "save_memory"]);
