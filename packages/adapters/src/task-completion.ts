@@ -7,6 +7,34 @@ export const TASK_CONTINUATION_PROMPT =
   "Your last reply describes work you still intend to do. Continue the original task now using the available tools and existing results; do not repeat successful actions. Finish all remaining requested steps and verify the outcome, or identify a concrete blocker. Preserve all authorization and approval requirements. Do not end with another promise to act.";
 export const INCOMPLETE_TASK_ERROR =
   "The model stopped with a plan instead of completing the task. Try again or use a different model.";
+export const UNVERIFIED_MEMORY_ERROR = "Memory wasn't saved. Try again.";
+export const MEMORY_CONTINUATION_PROMPT =
+  "The requested durable preference has no confirmed memory write. Save it using the supported memory tool, then report the confirmed result. Do not repeat any attempted failed or uncertain mutation, bypass permissions, or claim a preference was saved without a successful tool result.";
+
+/** Only an explicit fresh directive qualifies; existing memory and recall stay unchanged. */
+export function needsFreshMemoryWrite(prompt: string, instructions: string): boolean {
+  return (
+    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
+      prompt,
+    ) && !instructions.includes("<durable_memory>")
+  );
+}
+
+export function memoryReplyIsBlocked(text: string): boolean {
+  return /\b(?:cannot|can['’]t|unable|unavailable|not connected|not saved|wasn['’]t saved|failed|need (?:you|your)|please (?:connect|approve)|waiting for (?:approval|permission))\b/i.test(
+    text,
+  );
+}
+
+const MEMORY_SAVE_TOOLS = new Set(["remember", "save_shared_memory", "save_memory"]);
+export function isMemorySaveCall(
+  name: string,
+  args: Record<string, unknown>,
+  boundResource: boolean,
+): boolean {
+  if (boundResource) return false;
+  return MEMORY_SAVE_TOOLS.has(name === "kith_execute_tool" ? String(args.id ?? "") : name);
+}
 
 /**
  * Conservative recovery for an explicit first-person promise at the start of
@@ -30,7 +58,7 @@ export function isUnfulfilledActionReply(text: string): boolean {
     )
   )
     return false;
-  return /^(?:(?:okay|ok|sure|got it|on it)[.!,:—-]?\s*)?I(?:['’]ll| will|['’]m going to| am going to)\s+(?:(?:first|now|also|then)\s+)?(?:check|search|find|look|inspect|read|fetch|review|prepare|draft|create|save|send|update|delete|run|use|open|connect|organize|analyse|analyze|verify|start|work)\b/i.test(
+  return /^(?:(?:okay|ok|sure|got it|on it)[.!,:—-]?\s*)?I(?:['’]ll| will|['’]m going to| am going to)\s+(?:(?:first|now|also|then)\s+)?(?:check|search|find|look|inspect|read|fetch|review|prepare|draft|create|save|remember|store|send|update|delete|run|use|open|connect|organize|analyse|analyze|verify|start|work)\b/i.test(
     reply,
   );
 }

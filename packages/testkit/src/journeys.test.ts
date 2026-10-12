@@ -874,10 +874,12 @@ describeJourneys("required product journeys", () => {
         (await rpc<{ controlHolder: string }>(app, cookie, "computer/status", { botId: bot.id }))
           .controlHolder,
       ).toBe("none");
-      expect(
-        (await rpc<{ url: string | null }>(app, cookie, "computer/screenUrl", { botId: bot.id }))
-          .url,
-      ).toContain("view_only=true");
+      const expiredScreen = (
+        await rpc<{ url: string | null }>(app, cookie, "computer/screenUrl", { botId: bot.id })
+      ).url;
+      // The resumed run can finish and release its viewing lease before this read.
+      // A remaining screen must be read-only; no screen is also safely unavailable.
+      if (expiredScreen !== null) expect(expiredScreen).toContain("view_only=true");
       expect(
         (
           await raw(app, cookie, "computer/input", {
@@ -2455,11 +2457,16 @@ describeJourneys("required product journeys", () => {
     });
     await rpc(app, cookie, "computer/boot", { botId: bot.id });
     await rpc(app, cookie, "computer/takeover", { botId: bot.id });
-    void rpc(app, cookie, "threads/send", {
+    const active = await rpc<{ runId: string }>(app, cookie, "threads/send", {
       botId: bot.id,
       text: "keep working until I stop you",
     });
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitFor(
+      app,
+      cookie,
+      bot.id,
+      (snap) => snap.run?.id === active.runId && snap.run.status === "running",
+    );
     const skill = await rpc<{
       id: string;
       status: string;

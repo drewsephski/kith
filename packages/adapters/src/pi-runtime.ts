@@ -71,10 +71,15 @@ import type { FinishedShellCommand } from "./shell-command-stream.js";
 import { deliverFinishedShells } from "./shell-command-stream.js";
 import {
   INCOMPLETE_TASK_ERROR,
+  isMemorySaveCall,
   isUnfulfilledActionReply,
   MAX_TASK_CONTINUATIONS,
+  MEMORY_CONTINUATION_PROMPT,
+  memoryReplyIsBlocked,
+  needsFreshMemoryWrite,
   TASK_COMPLETION_GUIDANCE,
   TASK_CONTINUATION_PROMPT,
+  UNVERIFIED_MEMORY_ERROR,
 } from "./task-completion.js";
 import { textContentArg } from "./tool-text.js";
 
@@ -271,6 +276,7 @@ export class PiAgentRuntime implements AgentRuntime {
           depth: 0,
           pausePending: false,
           pendingShells: [],
+          memoryWrite: { attempted: false, confirmed: false },
         };
         resumeHost = host;
         const tools = toAgentTools(toolDefs, host);
@@ -504,6 +510,8 @@ export class PiAgentRuntime implements AgentRuntime {
         let toolWorkPendingFinal = false;
         let taskContinuations = 0;
         let incompleteTask = false;
+        let incompleteMemory = false;
+        const freshMemoryWrite = needsFreshMemoryWrite(request.prompt, request.instructions);
         let lastTurnStreamEnd = 0;
         const activeTools = new Map<string, string>();
         const originalToolNames = new Map(tools.map((tool) => [tool.name, tool.label]));
@@ -577,6 +585,31 @@ export class PiAgentRuntime implements AgentRuntime {
             const hasToolResults = event.toolResults.length > 0;
             const terminalText = messageText.trim() || streamed.slice(lastTurnStreamEnd).trim();
             lastTurnStreamEnd = streamed.length;
+            if (
+              freshMemoryWrite &&
+              !host.memoryWrite.confirmed &&
+              !hasToolCalls &&
+              !hasToolResults &&
+              !host.pausePending &&
+              !signal.aborted &&
+              !host.toolCallBudget.exceeded &&
+              !providerFailureText(event.message) &&
+              !memoryReplyIsBlocked(terminalText)
+            ) {
+              incompleteMemory = true;
+              // Request a missing effect, but never blindly retry a failed or
+              // uncertain effect to repair the model's completion prose.
+              if (!host.memoryWrite.attempted && taskContinuations < MAX_TASK_CONTINUATIONS) {
+                taskContinuations++;
+                agent.followUp({
+                  role: "user",
+                  content: MEMORY_CONTINUATION_PROMPT,
+                  timestamp: Date.now(),
+                });
+              }
+              return;
+            }
+            incompleteMemory = false;
             if (
               !hasToolCalls &&
               !hasToolResults &&
@@ -690,6 +723,8 @@ export class PiAgentRuntime implements AgentRuntime {
         if (error && !budgetExceeded) {
           throw new Error(sanitizeProviderError(activeStreamTarget.model.provider, error));
         }
+        if (incompleteMemory && !host.pausePending && !signal.aborted && !budgetExceeded)
+          throw new Error(UNVERIFIED_MEMORY_ERROR);
         if (incompleteTask && !host.pausePending && !signal.aborted && !budgetExceeded) {
           throw new Error(INCOMPLETE_TASK_ERROR);
         }
@@ -1284,6 +1319,8 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       const startedAt = Date.now();
       let result: unknown;
       let failure: unknown;
+      const memorySave = isMemorySaveCall(tool.name, args, Boolean(tool.route?.resourceId));
+      if (memorySave) host.memoryWrite.attempted = true;
       try {
         result = await (async () => {
           if (tool.name === "request_takeover") {
@@ -1398,6 +1435,13 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
             details: { error: "no executor" },
           };
         })();
+        if (memorySave) {
+          const details = (result as AgentToolResult<unknown>).details as
+            | { ok?: boolean; error?: unknown; uncertain?: boolean }
+            | undefined;
+          host.memoryWrite.confirmed ||=
+            details?.ok === true && !details.error && details.uncertain !== true;
+        }
         return boundAgentToolResult(result as AgentToolResult<unknown>);
       } catch (error) {
         failure = error;
@@ -2318,6 +2362,8 @@ interface ToolHost {
   pausePending: boolean;
   /** Shell commands that returned output and are still running. */
   pendingShells: Array<Promise<FinishedShellCommand>>;
+  /** Shared with helpers; only an authoritative executor result confirms a write. */
+  memoryWrite: { attempted: boolean; confirmed: boolean };
 }
 
 function toolCallBudgetExceededMessage(limit: number) {

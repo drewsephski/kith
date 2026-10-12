@@ -90,6 +90,7 @@ import {
   provisionMessagingIdentity,
   pushSessionExpiresAt,
   requireMembership,
+  verifyComputerActivitySchema,
 } from "@rakazo/db";
 import type { Logger } from "@rakazo/logging";
 import {
@@ -203,6 +204,15 @@ export async function createApp(
         applicationName: "rakazo-api",
       });
   let { prisma } = created;
+  try {
+    await verifyComputerActivitySchema(prisma);
+  } catch (error) {
+    if (!prismaOverride) {
+      await created.prisma.$disconnect();
+      await created.pool?.end();
+    }
+    throw error;
+  }
   // Reuse one pool on direct-only deployments. Transaction-pooled deployments
   // need a separate direct pool for Graphile setup and realtime publication.
   const ownedJobPool =

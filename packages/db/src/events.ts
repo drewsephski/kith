@@ -135,7 +135,7 @@ export type FinalizeRunInput = FinalizeRunBase &
         blocks: MessageBlock[];
         markUnread?: boolean;
       }
-    | { outcome: "failed"; error: string }
+    | { outcome: "failed"; error: string; blocks?: MessageBlock[] }
   );
 
 export interface PauseRunForInput {
@@ -1254,7 +1254,7 @@ async function finalizeRunOnce(
     });
     if (task.count !== 1) throw new Error("Run task was not available to finalize");
 
-    if (input.outcome === "completed") {
+    if (input.blocks?.length) {
       const completedBlocks = completedRunBlocks(input.blocks, writableRun?.startedAt ?? null, now);
       if (completedBlocks.length > 0) {
         const message = await createThreadMessageInTransaction(tx, {
@@ -1263,7 +1263,7 @@ async function finalizeRunOnce(
           blocks: completedBlocks,
           botId: input.botId,
           runId: input.runId,
-          markUnread: input.markUnread,
+          markUnread: input.outcome === "completed" ? input.markUnread : true,
         });
         await appendEventInTransaction(tx, {
           spaceId: input.spaceId,

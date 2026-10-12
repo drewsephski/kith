@@ -337,6 +337,7 @@ import { actorMayUsePrivateEndpoint } from "./private-endpoint.js";
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
 import { assertSafeRemoteUrl } from "./remote-mcp.js";
 import { loadReplyContext, messageToAgentHistoryText } from "./reply-context.js";
+import { watchRunCancellation } from "./run-cancellation.js";
 import {
   commitConsumedRunSecret,
   normalizeSecretAskPurpose,
@@ -388,6 +389,7 @@ import {
   takeoverContinuePlan,
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
+import { UNVERIFIED_MEMORY_ERROR } from "./task-completion.js";
 import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
 import {
   attachWorkspaceFileToThread,
@@ -3389,6 +3391,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       let screenRelease: { computer: ComputerRef; context: AdapterContext } | undefined;
       let runAbortController: AbortController | null = null;
       let detachShutdown: (() => void) | undefined;
+      let stopCancellationWatch: (() => Promise<void>) | undefined;
       const heartbeat = setInterval(() => {
         void Promise.all([
           renewRunLease(deps, runId, workerId, fence),
@@ -3601,6 +3604,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 )
             : null;
         runAbortController = new AbortController();
+        stopCancellationWatch = watchRunCancellation(
+          deps.events,
+          thread.id,
+          runId,
+          thread.nextEventSeq - 1,
+          runAbortController,
+        );
         if (!leaseValid) runAbortController.abort();
         if (deps.shutdownSignal?.aborted) runAbortController.abort(deps.shutdownSignal.reason);
         const onShutdown = () => runAbortController?.abort(deps.shutdownSignal?.reason);
@@ -7786,6 +7796,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
             error instanceof Error ? error.message : String(error),
             runSecrets,
           );
+          // The terminal failure replaces live progress on every client. Preserve
+          // already produced text and steps in the same fenced transaction, so a
+          // reload cannot erase partial work or imply that the run succeeded.
+          flushPendingTools();
+          const producedBlocks = redactBlocks(
+            appendTextSegment(messageSegments, currentTextSegment),
+            runSecrets,
+          );
+          // Missing memory receipts invalidate the model's confirmation prose.
+          // Retain independently recorded steps, but never persist that claim.
+          const partialBlocks =
+            message === UNVERIFIED_MEMORY_ERROR
+              ? producedBlocks.filter((block) => block.kind !== "text")
+              : producedBlocks;
           const failed = await deps.events.finalizeRun({
             spaceId: run.spaceId,
             threadId: thread.id,
@@ -7797,6 +7821,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             leaseFence: fence,
             outcome: "failed",
             error: message,
+            blocks: partialBlocks,
           });
           if (!failed) return;
           if (failed.continuationRunId) {
@@ -7886,6 +7911,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           ...setupStages,
         });
         detachShutdown?.();
+        await stopCancellationWatch?.();
         clearInterval(heartbeat);
         if (!retainComputerLease) {
           if (screenRelease) {

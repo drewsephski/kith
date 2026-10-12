@@ -76,8 +76,12 @@ name: Kith mobile smoke
     timeout: 30000
 - tapOn: "Open computer"
 - extendedWaitUntil:
-    visible: "Take control"
+    visible: "Start computer"
     timeout: 30000
+- tapOn: "Start computer"
+- extendedWaitUntil:
+    visible: "Take control"
+    timeout: 90000
 - tapOn: "Take control"
 - extendedWaitUntil:
     visible: "You have control"

@@ -915,6 +915,36 @@ describe("thread event reduction", () => {
     );
   });
 
+  it("retains the durable partial result once when failure replaces progress", () => {
+    const run = threadRun("partial-run");
+    const partial = {
+      ...message("partial-message", [
+        { kind: "text", text: "The file was saved; analysis is incomplete." },
+      ]),
+      runId: run.id,
+    };
+    const initial: ThreadSnapshot = {
+      ...snapshot([
+        partial,
+        {
+          ...message(`progress:${run.id}`, [{ kind: "progress", text: "Working" }]),
+          runId: run.id,
+        },
+      ]),
+      run,
+    };
+    const failure = event({
+      type: "run.failed",
+      seq: 11,
+      runId: run.id,
+      payload: { error: "Stream interrupted" },
+    });
+    const settled = reduceThreadSnapshot(initial, failure);
+    expect(settled?.messages).toEqual([partial]);
+    expect(settled?.run?.status).toBe("failed");
+    expect(reduceThreadSnapshot(settled!, failure)?.messages).toEqual([partial]);
+  });
+
   it("keeps the error when a member run fails while another member is still running", () => {
     const runA = threadRun("run-a", "bot-a");
     const runB = threadRun("run-b", "bot-b");

@@ -14,6 +14,7 @@ const fakeAgentState = vi.hoisted(() => ({
     | "nested-ask-pause"
     | "tools-then-empty-failure"
     | "tools-then-final-text",
+  memoryMode: "none" as "none" | "recover" | "no-write" | "failed-write" | "blocked",
   terminalMessage: undefined as
     | {
         role: "assistant";
@@ -80,6 +81,37 @@ vi.mock("@earendil-works/pi-agent-core", () => ({
     async prompt(prompt: string, images?: unknown[]) {
       fakeAgentState.promptInputs.push(prompt);
       fakeAgentState.promptImages.push(images ?? []);
+      if (fakeAgentState.memoryMode !== "none") {
+        const end = (text: string) =>
+          this.emit({
+            type: "turn_end",
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text }],
+              stopReason: "stop",
+            },
+            toolResults: [],
+          });
+        if (fakeAgentState.memoryMode === "failed-write") {
+          await this.tools
+            .find((tool) => tool.name === "remember")!
+            .execute("memory-1", { content: "cobalt" });
+        }
+        end(
+          fakeAgentState.memoryMode === "blocked"
+            ? "I cannot save memory without permission."
+            : "Remembered.",
+        );
+        for (let index = 0; index < fakeAgentState.followUpMessages.length; index++) {
+          if (fakeAgentState.memoryMode === "recover") {
+            await this.tools
+              .find((tool) => tool.name === "remember")!
+              .execute("memory-1", { content: "cobalt" });
+          }
+          end("Remembered.");
+        }
+        return;
+      }
       if (fakeAgentState.mode === "empty" || fakeAgentState.mode === "two-boundaries") {
         await this.prepareNextTurnWithContext?.({ context: { messages: [] } });
         if (fakeAgentState.mode === "two-boundaries") {
@@ -424,6 +456,7 @@ const previousMaxToolCalls = process.env.MAX_TOOL_CALLS_PER_TURN;
 describe("Pi connector tool dispatch", () => {
   beforeEach(() => {
     fakeAgentState.mode = "dispatch";
+    fakeAgentState.memoryMode = "none";
     fakeAgentState.abortCount = 0;
     fakeAgentState.tools = [];
     fakeAgentState.preparedMessages = [];
@@ -445,6 +478,49 @@ describe("Pi connector tool dispatch", () => {
     };
     delete process.env.MAX_TOOL_CALLS_PER_TURN;
   });
+
+  it.each(["recover", "no-write", "failed-write", "blocked"] as const)(
+    "requires a successful fresh memory receipt: %s",
+    async (mode) => {
+      fakeAgentState.memoryMode = mode;
+      const executeTool = vi.fn(async () =>
+        mode === "failed-write" ? { ok: false, uncertain: true } : { ok: true },
+      );
+      const consume = async () => {
+        for await (const _event of new PiAgentRuntime().run(
+          {
+            botId: "b",
+            threadId: "t",
+            runId: "memory",
+            prompt: "Remember: I prefer cobalt.",
+            instructions: "Use durable memory.",
+            history: [],
+            tools: [
+              {
+                name: "remember",
+                description: "Save a durable fact",
+                inputSchema: { type: "object" },
+              },
+            ],
+            model: { provider: "test", id: "dispatch-test-model" },
+            executeTool,
+          },
+          { signal: new AbortController().signal },
+        )) {
+          /* exhaust */
+        }
+      };
+      if (mode === "no-write" || mode === "failed-write")
+        await expect(consume()).rejects.toThrow("Memory wasn't saved");
+      else await consume();
+      expect(executeTool).toHaveBeenCalledTimes(
+        mode === "recover" || mode === "failed-write" ? 1 : 0,
+      );
+      expect(fakeAgentState.followUpMessages).toHaveLength(
+        mode === "recover" ? 1 : mode === "no-write" ? 2 : 0,
+      );
+    },
+  );
 
   it("injects durable steering at Pi's next safe turn boundary", async () => {
     fakeAgentState.mode = "empty";

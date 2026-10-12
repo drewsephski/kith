@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isUnfulfilledActionReply } from "./task-completion.js";
+import {
+  isMemorySaveCall,
+  isUnfulfilledActionReply,
+  memoryReplyIsBlocked,
+  needsFreshMemoryWrite,
+} from "./task-completion.js";
 
 describe("unfinished action recovery", () => {
   it.each([
@@ -27,5 +32,32 @@ describe("unfinished action recovery", () => {
     "",
   ])("leaves answers, blockers and hypothetical prose terminal: %s", (text) => {
     expect(isUnfulfilledActionReply(text)).toBe(false);
+  });
+});
+
+describe("fresh memory receipt boundary", () => {
+  it("only requires a write for an explicit fresh durable directive", () => {
+    expect(
+      needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.", "test"),
+    ).toBe(true);
+    expect(
+      needsFreshMemoryWrite("Remember: cobalt.", "<durable_memory>cobalt</durable_memory>"),
+    ).toBe(false);
+    expect(needsFreshMemoryWrite("Do you remember my preference?", "test")).toBe(false);
+    expect(needsFreshMemoryWrite("Remember to ask me tomorrow.", "test")).toBe(false);
+  });
+
+  it("accepts only supported memory writes, including the lazy catalog", () => {
+    expect(isMemorySaveCall("remember", {}, false)).toBe(true);
+    expect(isMemorySaveCall("kith_execute_tool", { id: "save_shared_memory" }, false)).toBe(true);
+    expect(isMemorySaveCall("remember", {}, true)).toBe(false);
+    expect(isMemorySaveCall("kith_execute_tool", { id: "connector:remember" }, false)).toBe(false);
+    expect(isMemorySaveCall("read_memory", {}, false)).toBe(false);
+  });
+
+  it("leaves an honest permission or failure blocker terminal", () => {
+    expect(memoryReplyIsBlocked("I can't save this without permission.")).toBe(true);
+    expect(memoryReplyIsBlocked("Memory wasn't saved.")).toBe(true);
+    expect(memoryReplyIsBlocked("Remembered for next time.")).toBe(false);
   });
 });

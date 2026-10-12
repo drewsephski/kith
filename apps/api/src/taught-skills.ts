@@ -33,20 +33,15 @@ import {
 } from "@rakazo/adapters";
 import type { Actor, MessageBlock, TaughtSkill } from "@rakazo/contracts";
 import {
-  ACTIVE_RUN_STATUSES,
   buildPlaybookFromRecording,
   formatSkillRunPrompt,
   type SkillPlaybook,
   type TeachRecordingEvent,
   teachRecordingTtlMs,
 } from "@rakazo/core";
-import {
-  type createRepos,
-  expireComputerExecutionLeases,
-  IsolationError,
-  type PrismaClient,
-  type ThreadEvents,
-} from "@rakazo/db";
+import type { createRepos, PrismaClient, ThreadEvents } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
+import { resolveThreadTarget, stopThreadRuns } from "./thread-target.js";
 
 type TaughtSkillRow = {
   id: string;
@@ -112,25 +107,11 @@ export async function assertTeachingSendAllowed(
 
 async function cancelActiveRuns(
   deps: TaughtSkillsDeps,
-  _actor: Actor,
+  actor: Actor,
   botId: string,
 ): Promise<void> {
-  const activeRuns = await deps.prisma.run.findMany({
-    where: { botId, status: { in: [...ACTIVE_RUN_STATUSES] } },
-    select: { id: true },
-  });
-  await deps.prisma.run.updateMany({
-    where: { botId, status: { in: [...ACTIVE_RUN_STATUSES] } },
-    data: { status: "cancelled", completedAt: new Date() },
-  });
-  await expireComputerExecutionLeases(deps.prisma, { botId });
-  await deps.prisma.computer.updateMany({
-    where: { executionBotId: botId },
-    data: { executionRunId: null, executionBotId: null, executionLeaseExpiresAt: null },
-  });
-  await deps.prisma.event.deleteMany({
-    where: { type: "thread.progress", runId: { in: activeRuns.map((run) => run.id) } },
-  });
+  const target = await resolveThreadTarget(deps.prisma, actor, { botId });
+  await stopThreadRuns(deps, actor, target);
 }
 
 async function ensureGraphicalComputer(

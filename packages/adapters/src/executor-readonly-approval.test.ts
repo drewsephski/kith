@@ -403,6 +403,9 @@ function fixture({
     },
     memoryProviders: { resolve: async () => null },
     events: {
+      async *follow() {
+        yield* [];
+      },
       append: vi.fn(async () => undefined),
       notify: vi.fn(async () => undefined),
       pauseRunForInput,

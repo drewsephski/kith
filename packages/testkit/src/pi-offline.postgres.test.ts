@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { ComposioEmulator } from "@rakazo/adapters";
 import { describe, expect, it } from "vitest";
+import type { createApp } from "../../../apps/api/src/app.ts";
 import { discardBotIntroRun } from "./discard-bot-intro.js";
 import { sessionCookieHeader } from "./index.js";
 import { startModelEmulator } from "./model-emulator.js";
@@ -13,6 +14,135 @@ const databaseAvailable = process.env.VERIFY_DATABASE === "1" && Boolean(process
 const fixtureOrigin = "http://127.0.0.1:5173";
 
 describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
+  it("preserves partial text and completed work after an interrupted model stream", async () => {
+    const fixtureKey = "partial-product-fixture-key";
+    const model = await startModelEmulator({
+      apiKey: fixtureKey,
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "verified-write",
+            name: "write_file",
+            arguments: { path: "notes/partial.txt", content: "verified before interruption" },
+          },
+        },
+        {
+          expect: (request) => {
+            const result = request.messages.findLast((message) => message.role === "tool");
+            expect(JSON.parse(String(result?.content))).toMatchObject({ ok: true });
+          },
+          response: {
+            type: "disconnect",
+            text: "The file is saved. The remaining analysis is incomplete.",
+          },
+        },
+      ],
+    });
+    const dataDir = await mkdtemp(path.join(tmpdir(), "rakazo-partial-product-"));
+    let handles: Awaited<ReturnType<typeof createApp>> | undefined;
+    try {
+      const { createApp } = await import("../../../apps/api/src/app.ts");
+      handles = await createApp({
+        databaseUrl: process.env.DATABASE_URL!,
+        realtimeDatabaseUrl: process.env.DATABASE_URL!,
+        dataDir,
+        authUrl: fixtureOrigin,
+        webOrigin: fixtureOrigin,
+        sandboxProvider: "fake",
+        agentRuntime: "pi",
+        wakeupDriver: "memory",
+        signupsEnabled: "true",
+        encryptionKey: "synthetic-partial-encryption-key-32chars",
+      });
+      const signup = await handles.app.request("/api/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: fixtureOrigin },
+        body: JSON.stringify({
+          email: `partial-${randomUUID()}@example.test`,
+          password: "synthetic-password-12",
+          name: "Partial fixture",
+        }),
+      });
+      expect(signup.ok).toBe(true);
+      const cookie = sessionCookieHeader(signup);
+      const bot = await rpc<{ id: string }>(handles.app, cookie, "bots/create", {
+        name: "Partial fixture",
+        notifyOnFinish: false,
+      });
+      await discardBotIntroRun(handles, cookie, bot.id);
+      await rpc(handles.app, cookie, "models/connect", {
+        provider: model.model.provider,
+        modelId: model.model.id,
+        baseUrl: model.baseUrl,
+        apiKey: fixtureKey,
+        contextWindow: 160_000,
+        maxTokens: 4096,
+      });
+      await rpc(handles.app, cookie, "bots/update", {
+        botId: bot.id,
+        modelProvider: model.model.provider,
+        modelId: model.model.id,
+      });
+      const sent = await rpc<{ runId: string }>(handles.app, cookie, "threads/send", {
+        botId: bot.id,
+        text: "Save a file, then analyze the result.",
+      });
+      const active = handles;
+      await expect
+        .poll(
+          async () =>
+            (await active.prisma.run.findUniqueOrThrow({ where: { id: sent.runId } })).status,
+          { timeout: 15_000 },
+        )
+        .toBe("failed");
+      model.assertComplete();
+      const snapshot = await rpc<{
+        messages: Array<{ blocks: unknown[] }>;
+        run: { status: string };
+      }>(handles.app, cookie, "threads/get", { botId: bot.id });
+      expect(snapshot.run.status).toBe("failed");
+      expect(JSON.stringify(snapshot.messages)).toContain(
+        "The file is saved. The remaining analysis is incomplete.",
+      );
+      expect(
+        await rpc(handles.app, cookie, "computer/readFile", {
+          botId: bot.id,
+          path: "notes/partial.txt",
+        }),
+      ).toMatchObject({ content: "verified before interruption" });
+      expect(
+        await handles.prisma.event.count({ where: { runId: sent.runId, type: "thread.progress" } }),
+      ).toBe(0);
+      const terminal = await handles.prisma.event.findMany({
+        where: {
+          runId: sent.runId,
+          type: { in: ["thread.message.created", "run.failed", "run.completed"] },
+        },
+        orderBy: { seq: "asc" },
+      });
+      expect(
+        terminal
+          .filter(
+            (event) =>
+              event.type !== "thread.message.created" ||
+              (event.payload as { role?: string }).role === "bot",
+          )
+          .map((event) => event.type),
+      ).toEqual(["thread.message.created", "run.failed"]);
+      const write = await handles.prisma.externalEffect.findFirstOrThrow({
+        where: { runId: sent.runId, kind: "write_file" },
+      });
+      expect(write.status).toBe("completed");
+      expect(JSON.stringify(snapshot.messages)).not.toContain(fixtureKey);
+    } finally {
+      await handles?.stop();
+      await model.close();
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("uses a saved model connection and the real executor to persist a file and completed run", async () => {
     const fixtureKey = "offline-product-fixture-key";
     const model = await startModelEmulator({
