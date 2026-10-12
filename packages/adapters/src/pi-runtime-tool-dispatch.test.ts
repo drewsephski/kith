@@ -560,6 +560,8 @@ describe("Pi connector tool dispatch", () => {
     "Remember I prefer dark mode.",
     "Remember my birthday for future conversations.",
     "Save this to memory.",
+    "Could you please remember that I prefer dark mode?",
+    "Selected choice choice-1: Remember that I prefer cobalt.",
   ])("rejects an unexecuted explicit save: %s", async (prompt) => {
     fakeAgentState.memoryMode = "no-write";
     const executeTool = vi.fn(async () => ({ ok: true }));

@@ -71,7 +71,7 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
               );
             },
           },
-          tool("remember", { path: "MEMORY.md", content: MEMORY }),
+          tool("remember", { content: MEMORY }),
           result("Remembered your preference.", /true/),
         ],
       };

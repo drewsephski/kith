@@ -76,11 +76,13 @@ import {
   formatSkillsCatalogInstruction,
   humanizeToolName,
   inferAttachmentMimeType,
+  isApprovalAskBlock,
   isCallClientNonce,
   isEmailActionEffect,
   isEmailSendTool,
   isMessagingChannelRun,
   isOneShotRoutineCrons,
+  isSecretAskBlock,
   isTerminal,
   messagingChannelId,
   messagingChannelPrivacyBlock,
@@ -389,7 +391,11 @@ import {
   takeoverContinuePlan,
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
-import { isMemorySaveCall, UNVERIFIED_MEMORY_ERROR } from "./task-completion.js";
+import {
+  isMemorySaveCall,
+  needsFreshMemoryWrite,
+  UNVERIFIED_MEMORY_ERROR,
+} from "./task-completion.js";
 import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
 import {
   attachWorkspaceFileToThread,
@@ -3613,6 +3619,38 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 select: { kind: true, result: true, updatedAt: true },
               })
             : [];
+        // An ordinary human answer replaces task.prompt. Earlier completed work
+        // remains durable, but cannot confirm a new save introduced by that answer.
+        const answeredQuestions =
+          fence > 1 && needsFreshMemoryWrite(task.prompt)
+            ? await deps.prisma.event.findMany({
+                where: {
+                  runId,
+                  type: "thread.message.updated",
+                  payload: {
+                    path: ["blocks"],
+                    array_contains: [{ kind: "ask", status: "answered" }],
+                  },
+                },
+                orderBy: { seq: "desc" },
+                select: { createdAt: true, payload: true },
+              })
+            : [];
+        const promptChanged = answeredQuestions.find((event) => {
+          const blocks = MessageBlockSchema.array().safeParse(
+            (event.payload as { blocks?: unknown })?.blocks,
+          );
+          return (
+            blocks.success &&
+            blocks.data.some(
+              (block) =>
+                block.kind === "ask" &&
+                block.status === "answered" &&
+                !isApprovalAskBlock(block) &&
+                !isSecretAskBlock(block),
+            )
+          );
+        });
         const confirmedMemoryEffects = completedMemoryEffects.filter((effect) => {
           const result = effect.result as {
             ok?: boolean;
@@ -3623,7 +3661,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             isMemorySaveCall(effect.kind, {}, false) &&
             result?.ok === true &&
             !result.error &&
-            result.uncertain !== true
+            result.uncertain !== true &&
+            (!promptChanged || effect.updatedAt >= promptChanged.createdAt)
           );
         });
         const memoryWriteConfirmed = confirmedMemoryEffects.length > 0;

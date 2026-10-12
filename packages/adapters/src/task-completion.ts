@@ -3,6 +3,8 @@ export const TASK_COMPLETION_GUIDANCE =
   "Carry out the user's requested task with the available tools in this turn. A promise, plan, or progress update is not a completed task. After a brief acknowledgement, continue directly into the necessary tool calls without waiting for another user message. Continue through all requested steps and verify the results before giving the final answer. Honor instructions to stay silent when there is nothing to report. If blocked by missing access, required approval, or essential information, use the relevant connection, approval, or question flow and explain the concrete blocker. Never bypass those boundaries, invent results, or repeat successful mutations just to demonstrate activity.";
 
 export const MAX_TASK_CONTINUATIONS = 2;
+export const MEMORY_TASK_GUIDANCE =
+  "When the user explicitly asks to save a durable fact or preference, execute the authorized memory write for the requested scope before confirming it. Use remember, save_memory or save_shared_memory only when offered and appropriate to that scope; if tools are catalogued, discover and load the memory writer first. Existing memory and a verbal acknowledgement do not persist a new fact. Explain unavailable or rejected writes honestly. Never repeat an attempted failed or uncertain write.";
 export const TASK_CONTINUATION_PROMPT =
   "Your last reply describes work you still intend to do. Continue the original task now using the available tools and existing results; do not repeat successful actions. Finish all remaining requested steps and verify the outcome, or identify a concrete blocker. Preserve all authorization and approval requirements. Do not end with another promise to act.";
 export const INCOMPLETE_TASK_ERROR =
@@ -14,7 +16,9 @@ export const MEMORY_CONTINUATION_PROMPT =
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
 export function needsFreshMemoryWrite(prompt: string): boolean {
   // Code examples cannot authorize memory writes, including an unfinished fence.
-  const directive = prompt.replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
+  const directive = prompt
+    .replace(/^Selected choice [^:\n]+:\s*/i, "")
+    .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
   return (
     /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
       directive,
@@ -23,6 +27,9 @@ export function needsFreshMemoryWrite(prompt: string): boolean {
       directive,
     ) ||
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/i.test(
+      directive,
+    ) ||
+    /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/i.test(
       directive,
     )
   );

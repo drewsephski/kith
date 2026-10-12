@@ -41,6 +41,8 @@ type ToolCall = {
 };
 
 function fixture(runId = "run-1", prompt = "Update shared state") {
+  let taskPrompt = prompt;
+  const answeredQuestions: Array<{ createdAt: Date; payload: { blocks: unknown[] } }> = [];
   const effects: Effect[] = [];
   const results: unknown[] = [];
   const scratchpadRows: Array<{
@@ -108,6 +110,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     ),
   };
   const prisma = {
+    event: { findMany: vi.fn(async () => answeredQuestions) },
     run: {
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
@@ -135,7 +138,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     thread: { findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })) },
     message: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     task: {
-      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt })),
+      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: taskPrompt })),
     },
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
@@ -238,6 +241,10 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     scratchpadRows,
     memoryCommit,
     steering,
+    answeredQuestions,
+    setPrompt(next: string) {
+      taskPrompt = next;
+    },
     setCalls(next: ToolCall[]) {
       calls = next;
     },
@@ -273,6 +280,25 @@ describe("mutating tool effect idempotency keys", () => {
     f.effects[0]!.runId = "other-run";
     await f.run();
     expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+  });
+  it("requires a new receipt when a human answer replaces the initial save prompt", async () => {
+    const f = fixture("answered-save-retry", "Remember that I prefer cobalt.");
+    f.setCalls([{ name: "remember", args: { content: "cobalt" }, executionId: "old-save" }]);
+    await f.run();
+    const oldCompletion = f.effects[0]!.updatedAt!;
+    f.setCalls([]);
+    f.setPrompt("Selected choice choice-1: Remember that I prefer violet.");
+    f.answeredQuestions.push({
+      createdAt: new Date(oldCompletion.getTime() + 1),
+      payload: {
+        blocks: [
+          { kind: "ask", text: "Which preference?", status: "answered", answer: "choice-1" },
+        ],
+      },
+    });
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
   });
   it("restores a steered save only when its receipt follows the previous claim", async () => {
     const f = fixture("steered-receipt-retry", "What is two plus two?");

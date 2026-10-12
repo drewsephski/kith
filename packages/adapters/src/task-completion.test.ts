@@ -44,6 +44,11 @@ describe("fresh memory receipt boundary", () => {
     expect(needsFreshMemoryWrite("Remember my birthday for future conversations.")).toBe(true);
     expect(needsFreshMemoryWrite("Save this to memory.")).toBe(true);
     expect(needsFreshMemoryWrite("Please store my preference in durable memory.")).toBe(true);
+    expect(needsFreshMemoryWrite("Could you please remember that I prefer dark mode?")).toBe(true);
+    expect(needsFreshMemoryWrite("Would you save this to memory?")).toBe(true);
+    expect(needsFreshMemoryWrite("Selected choice choice-1: Remember that I prefer cobalt.")).toBe(
+      true,
+    );
     expect(
       needsFreshMemoryWrite(
         "Update my preference to cobalt. Remember this for future conversations.",
@@ -53,6 +58,7 @@ describe("fresh memory receipt boundary", () => {
       needsFreshMemoryWrite("Update my preference … Remember this for future conversations."),
     ).toBe(true);
     expect(needsFreshMemoryWrite("Do you remember my preference?")).toBe(false);
+    expect(needsFreshMemoryWrite("Can you remember what I said yesterday?")).toBe(false);
     expect(needsFreshMemoryWrite("Remember to ask me tomorrow.")).toBe(false);
     expect(needsFreshMemoryWrite("Remember my birthday?")).toBe(false);
     expect(needsFreshMemoryWrite("Save this to memory?")).toBe(false);
