@@ -93,6 +93,10 @@ test("recovery exposes Stop and shows the server's stopped result", async ({ pag
   await captureScreenshot(page, testInfo, "recovery-stop-control");
   await dialog.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(dialog.getByRole("heading", { name: "Stopped", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Recover computer", exact: true })).toHaveCount(
+    0,
+  );
+  await captureScreenshot(page, testInfo, "recovery-stopped");
 });
 test("calendar read errors offer recovery without a misleading empty schedule", async ({
   page,

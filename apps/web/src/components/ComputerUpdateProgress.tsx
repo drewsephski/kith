@@ -17,7 +17,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@rakazo/ui-web";
-import { CheckCircle2, Circle, CircleAlert, LoaderCircle } from "lucide-react";
+import { CheckCircle2, Circle, CircleAlert, LoaderCircle, Square } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { computerUpdates } from "../lib/computer-updates";
 import { LoadingState } from "./ai/primitives";
@@ -84,7 +84,9 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               computerUpdates.open(update.id);
             }}
           >
-            {computerUpdateNeedsAttention(update) ? (
+            {update.status === "cancelled" ? (
+              <Square className="size-4 text-muted-foreground" aria-hidden="true" />
+            ) : computerUpdateNeedsAttention(update) ? (
               <CircleAlert className="text-destructive" />
             ) : (
               <LoadingState
@@ -215,7 +217,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                   <Trans>Continue in Background</Trans>
                 </Button>
               )}
-              {["failed", "cancelled"].includes(selected.status) ? (
+              {selected.status === "failed" ? (
                 <Button
                   disabled={recovering}
                   onClick={() => {

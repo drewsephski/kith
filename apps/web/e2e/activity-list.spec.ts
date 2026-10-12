@@ -201,6 +201,8 @@ test("activity filters keep retry when a refresh fails", async ({ page }) => {
   await activityToggle.click();
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityRow(page, "Kith")).toBeVisible({ timeout: 20_000 });
 

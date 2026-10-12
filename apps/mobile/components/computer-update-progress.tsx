@@ -176,7 +176,7 @@ export function ComputerUpdateProgress() {
                 }
               />
             ) : null}
-            {["failed", "cancelled"].includes(selected.status) ? (
+            {selected.status === "failed" ? (
               <NativeActionButton
                 label={t("Recover computer")}
                 busy={busy}
