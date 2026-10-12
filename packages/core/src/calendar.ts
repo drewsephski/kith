@@ -5,14 +5,22 @@ export const CALENDAR_PREFERENCES_PATH = "calendar/preferences.md";
 export function calendarAgendaEvents(snapshots: readonly CalendarSnapshot[]): CalendarEvent[] {
   const seen = new Set<string>();
   return snapshots
-    .flatMap((snapshot) => snapshot.events)
-    .filter((event) => {
+    .flatMap((snapshot) =>
+      snapshot.events.map((event) => ({
+        event,
+        instant: event.allDay
+          ? startOfLocalDate(event.start.slice(0, 10), snapshot.timezone).getTime()
+          : Date.parse(event.start),
+      })),
+    )
+    .filter(({ event }) => {
       const key = JSON.stringify([event.calendarId, event.id, event.start, event.end]);
       if (event.response === "declined" || seen.has(key)) return false;
       seen.add(key);
       return true;
     })
-    .sort((a, b) => a.start.localeCompare(b.start));
+    .sort((a, b) => a.instant - b.instant || Number(b.event.allDay) - Number(a.event.allDay))
+    .map(({ event }) => event);
 }
 
 export function calendarEventUrl(value: string | null): string | null {

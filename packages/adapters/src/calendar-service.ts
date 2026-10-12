@@ -113,14 +113,15 @@ export class CalendarService {
       signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
     };
     const status = await this.status(actor);
-    const ids = [
+    const availableIds = [
       ...new Set([
         ...(status.status === "connected" && status.connectionId && !status.managedConnectionId
           ? [status.connectionId]
           : []),
         ...status.managedConnections.map((row) => row.id),
       ]),
-    ].slice(0, 3);
+    ];
+    const ids = availableIds.slice(0, 3);
     const now = new Date();
     const window = {
       date: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(now),
@@ -143,7 +144,8 @@ export class CalendarService {
               ? await this.deps.managed.reader({ ...row, providerRef: row.providerRef }, context)
               : null;
         if (!reader) throw new CalendarAccessError();
-        const sources = (await reader.sources(context)).slice(0, 8);
+        const availableSources = await reader.sources(context);
+        const sources = availableSources.slice(0, 8);
         const snapshot = CalendarSnapshotSchema.parse(
           await reader.events({ ...window, sources }, context),
         );
@@ -159,12 +161,16 @@ export class CalendarService {
         });
         if (!current) throw new CalendarAccessError();
         context.signal.throwIfAborted();
-        return snapshot;
+        return { snapshot, incomplete: availableSources.length > sources.length };
       }),
     );
     return {
-      snapshots: results.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
-      unavailable: results.some((result) => result.status === "rejected"),
+      snapshots: results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value.snapshot] : [],
+      ),
+      unavailable:
+        availableIds.length > ids.length ||
+        results.some((result) => result.status === "rejected" || result.value.incomplete),
     };
   }
 

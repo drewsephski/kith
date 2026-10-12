@@ -89,7 +89,7 @@ describe("read-only connected calendar agenda", () => {
     const direct = vi.spyOn(service, "reader").mockResolvedValue({ sources, events });
     const agenda = await service.agenda(actor, "America/Chicago", new AbortController().signal);
     expect(agenda.snapshots).toHaveLength(3);
-    expect(agenda.unavailable).toBe(false);
+    expect(agenda.unavailable).toBe(true);
     expect(direct).toHaveBeenCalledWith(
       "direct",
       actor,
@@ -98,6 +98,33 @@ describe("read-only connected calendar agenda", () => {
     expect(
       findFirst.mock.calls.flatMap(([input]) => (input ? [input.where.id] : [])),
     ).not.toContain("fourth");
+  });
+  it("marks a source-limited empty agenda as incomplete", async () => {
+    const { service, sources, events, snapshot } = fixture();
+    sources.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        id: `calendar-${index}`,
+        name: "Calendar",
+        timezone: "America/Chicago",
+      })),
+    );
+    events.mockResolvedValue({ ...snapshot, events: [] });
+    const agenda = await service.agenda(actor, "America/Chicago", new AbortController().signal);
+    expect(agenda).toEqual({ snapshots: [{ ...snapshot, events: [] }], unavailable: true });
+    expect(events).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: expect.arrayContaining([
+          { id: "calendar-7", name: "Calendar", timezone: "America/Chicago" },
+        ]),
+      }),
+      expect.anything(),
+    );
+    expect(events.mock.calls[0]?.[0]).toHaveProperty("sources.length", 8);
+    expect(events.mock.calls[0]?.[0]).toMatchObject({
+      sources: expect.not.arrayContaining([
+        { id: "calendar-8", name: "Calendar", timezone: "America/Chicago" },
+      ]),
+    });
   });
   it("reads an existing connected account without enabling or reconnecting a briefing", async () => {
     const { service, findFirst, events, snapshot } = fixture();
