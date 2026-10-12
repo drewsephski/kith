@@ -122,18 +122,18 @@ The latest complete live invocation on `5b441ca4` used the natural memory starte
 
 ## Controlled latency observations
 
-The latest completed benchmark source is `4ebd6916`. `pnpm perf:agent --postgres=local --trials=20` completed 560 runs with zero outcome failures. The provider is loopback SSE emulation, with 5 ms headers, 25 ms first text, 2 ms chunks, 120 ms cold computer provisioning, 60 ms preparation and 40 ms connector discovery. The slow-provider case injects 50/250 ms headers/first text; background jobs inject 500 ms. Interactive reservation is enabled and parallelism is one. Native interaction and a final native rebuild overlapped portions of this run, so this is not an exclusive-host causal comparison to PR #16. Unknown emulated token/cost data stay unknown. Every noncomputer sample recorded zero provisions.
+The latest completed benchmark source is `4ebd6916`. `pnpm perf:agent --postgres=local --trials=20` completed 560 runs with zero outcome failures. The provider is loopback SSE emulation, with 5 ms headers, 25 ms first text, 2 ms chunks, 120 ms cold computer provisioning, 60 ms preparation and 40 ms connector discovery. The slow-provider case injects 50/250 ms headers/first text; background jobs inject 500 ms. Interactive reservation is enabled and parallelism is one. Other local development was not excluded, so this is not an exclusive-host causal comparison to PR #16. Unknown emulated token/cost data stay unknown. Every noncomputer sample recorded zero provisions.
 
 Milliseconds, p50 / p95, first **published safe text** followed by durable completion:
 
 | Scenario | Cold text | Warm text | Cold completion | Warm completion |
 | --- | --- | --- | --- | --- |
-| Greeting | 110.5 / 121.6 | 111.6 / 123.3 | 116.5 / 131.9 | 119.0 / 129.0 |
-| Background load | 117.9 / 144.4 | 119.2 / 128.9 | 124.1 / 155.6 | 124.9 / 139.4 |
-| Slow provider | 384.6 / 393.3 | 480.5 / 570.7 | 396.7 / 405.5 | 519.7 / 622.9 |
-| Connected API | 351.5 / 460.8 | 332.5 / 383.6 | 378.8 / 481.0 | 363.6 / 410.5 |
-| Computer file | 693.8 / 1210.2 | 616.9 / 777.4 | 811.3 / 1392.5 | 693.1 / 967.7 |
-| Multi-step | 438.4 / 449.6 | 478.6 / 555.2 | 456.3 / 466.0 | 500.1 / 587.3 |
+| Greeting | 116.5 / 134.8 | 112.6 / 137.9 | 124.2 / 154.7 | 119.7 / 143.8 |
+| Background load | 112.7 / 120.1 | 110.5 / 125.4 | 121.4 / 126.3 | 116.5 / 131.7 |
+| Slow provider | 381.7 / 384.8 | 379.5 / 385.9 | 390.9 / 396.4 | 389.7 / 396.6 |
+| Connected API | 198.9 / 202.4 | 201.4 / 220.8 | 213.8 / 220.0 | 214.3 / 233.7 |
+| Computer file | 387.1 / 500.6 | 387.8 / 396.1 | 402.6 / 518.3 | 403.1 / 412.5 |
+| Multi-step | 430.1 / 437.0 | 428.3 / 435.9 | 449.5 / 455.7 | 447.8 / 451.8 |
 
 The complete live trial on `4e574dd0` delivered safe streamed text in conversation in 1.942 seconds and completed in 2.033 seconds. Cancellation is validated by its terminal state and interrupted inference; its timing includes inference before the stop trigger. These are individual provider samples under local load, not percentiles. Its memory-save trial took 4.864 seconds, while an earlier trial took 43.091 seconds; passing the outcome check does not imply acceptable memory latency.
 
