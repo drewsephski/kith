@@ -628,6 +628,9 @@ export class PiAgentRuntime implements AgentRuntime {
             const missingMemory = [...host.memoryWrite.requests.entries()].filter(
               ([, state]) => !state.confirmed,
             );
+            const hasUntouchedMemoryAfterFailure =
+              missingMemory.some(([, state]) => state.retryBlocked) &&
+              missingMemory.some(([, state]) => !state.attempted);
             if (
               missingMemory.length > 0 &&
               !hasToolCalls &&
@@ -636,7 +639,7 @@ export class PiAgentRuntime implements AgentRuntime {
               !signal.aborted &&
               !host.toolCallBudget.exceeded &&
               !providerFailureText(event.message) &&
-              !memoryReplyIsBlocked(terminalText)
+              (!memoryReplyIsBlocked(terminalText) || hasUntouchedMemoryAfterFailure)
             ) {
               incompleteMemory = true;
               // Request a missing effect, but never blindly retry a failed or

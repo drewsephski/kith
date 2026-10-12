@@ -150,6 +150,87 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     expect(await readFile(file, "utf8")).toBe("coffee");
   });
 
+  it.each(["initial", "steering"])(
+    "continues an untouched %s save after another request is refused",
+    async (source) => {
+      const id = "partial-memory";
+      const prompt = "Remember I prefer dark mode. Remember my timezone is UTC.";
+      const server = await startModelEmulator({
+        steps: [
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "denied-scope",
+              name: "save_shared_memory",
+              arguments: { content: "dark mode", memory_request_id: `${id}:memory:0` },
+            },
+          },
+          {
+            expect: () => {},
+            response: { type: "text", text: "I cannot save the shared preference." },
+          },
+          {
+            expect: (request) =>
+              expect(JSON.stringify(request.messages.at(-1))).toContain(`${id}:memory:1`),
+            response: {
+              type: "tool",
+              id: "allowed-scope",
+              name: "remember",
+              arguments: { content: "UTC", memory_request_id: `${id}:memory:1` },
+            },
+          },
+          {
+            expect: () => {},
+            response: {
+              type: "text",
+              text: "Saved timezone UTC. I cannot save the shared preference.",
+            },
+          },
+        ],
+      });
+      cleanups.push(() => server.close());
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-partial-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "fact.txt");
+      const calls: string[] = [];
+      let claimed = false;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: source === "initial" ? prompt : "Hello",
+            memoryRequestId: id,
+            tools: ["save_shared_memory", "remember"].map((name) => ({
+              name,
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            })),
+            claimSteering: async () => {
+              if (source !== "steering" || claimed) return [];
+              claimed = true;
+              return [{ id, messageId: "partial-message", text: prompt }];
+            },
+            executeTool: async (name, args, _call, _route, observer) => {
+              calls.push(name);
+              if (name === "save_shared_memory") return { error: "Scope permission denied" };
+              await writeFile(file, String(args.content));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+      expect(calls).toEqual(["save_shared_memory", "remember"]);
+      expect(await readFile(file, "utf8")).toBe("UTC");
+      expect(server.requests).toHaveLength(4);
+    },
+  );
+
   it.each(["initial", "steering", "recovered", "uncertain"])(
     "verifies both save directives in one %s message independently",
     async (source) => {
