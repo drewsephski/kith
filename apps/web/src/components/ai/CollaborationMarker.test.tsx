@@ -19,7 +19,7 @@ describe("collaboration transcript markers", () => {
     expect(html).toContain('class="flex justify-start"');
     expect(html).toContain('class="inline-flex max-w-full');
     expect(html).toContain('class="truncate"');
-    expect(html).toContain("rakazo-bot-avatar");
+    expect(html).toContain("rakazo-organic-avatar");
     expect(html).toContain("Message from Research");
     expect(html).not.toContain("{peer}");
   });
@@ -35,7 +35,7 @@ describe("collaboration transcript markers", () => {
 
     expect(html).toContain('role="status"');
     expect(html).toContain("Research is working");
-    expect(html).toContain("rakazo-bot-avatar");
+    expect(html).toContain("rakazo-organic-avatar");
     expect(html).not.toContain("kith-companion");
   });
 
