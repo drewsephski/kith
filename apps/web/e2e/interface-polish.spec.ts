@@ -96,6 +96,8 @@ test("recovery exposes Stop and shows the server's stopped result", async ({ pag
   await expect(dialog.getByRole("button", { name: "Recover computer", exact: true })).toHaveCount(
     0,
   );
+  await expect(dialog).not.toContainText("Unsaved work may be lost");
+  await expect(dialog.locator(".animate-spin")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "recovery-stopped");
   await dialog.getByRole("button", { name: "Dismiss", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Computer refreshed" })).toBeVisible();

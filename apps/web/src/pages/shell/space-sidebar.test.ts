@@ -8,7 +8,7 @@ function chat(id: string, name: string) {
     title: "",
     preview: "",
     pinned: false,
-    sectionId: null,
+    sectionId: null as string | null,
     parentBotId: null,
   };
 }
@@ -61,6 +61,20 @@ describe("sidebarGroupsForSpaces", () => {
     });
   });
 
+  it("keeps the first named label alongside its space when every chat is labeled", () => {
+    const named = {
+      ...space("space-1", "Personal"),
+      bots: [{ ...chat("bot", "Researcher"), sectionId: "research" }],
+      botSections: [{ id: "research", name: "Research" }],
+    };
+    const groups = sidebarGroupsForSpaces([named, space("space-2", "Support")], "");
+    expect(groups[0]).toMatchObject({
+      title: "Personal · Research",
+      sectionId: "research",
+      spaceName: "Personal",
+    });
+    expect(groups[1]?.title).toBe("Support");
+  });
   it("hides space actions while a search removes every chat from the only space", () => {
     expect(
       sidebarGroupsForSpaces([space("space-1", "Personal", { canRename: true })], "missing"),

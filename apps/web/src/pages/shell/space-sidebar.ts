@@ -66,7 +66,12 @@ export function sidebarGroupsForSpaces<TBot extends SidebarChat, TGroup extends 
       ...group,
       sectionId: group.key.startsWith("section:") ? group.key.slice("section:".length) : null,
       key: showSpaceNames ? `space:${space.id}:${group.key}` : group.key,
-      title: showSpaceNames && index === 0 ? space.name : group.title,
+      title:
+        showSpaceNames && index === 0
+          ? group.key.startsWith("section:") && group.title
+            ? `${space.name} · ${group.title}`
+            : space.name
+          : group.title,
       showLock: showSpaceNames && index === 0,
       emptySpaceId: undefined as string | undefined,
       spaceId: space.id,

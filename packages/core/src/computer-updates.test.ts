@@ -1,6 +1,6 @@
 import type { ComputerUpdate } from "@rakazo/contracts";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createComputerUpdates } from "./computer-updates.js";
+import { computerUpdateNeedsAttention, createComputerUpdates } from "./computer-updates.js";
 
 const update: ComputerUpdate = {
   id: "update-1",
@@ -13,6 +13,17 @@ const update: ComputerUpdate = {
 };
 afterEach(() => vi.useRealTimers());
 describe("computer update presentation", () => {
+  it.each([
+    ["cancelled", false],
+    ["running", false],
+    ["failed", true],
+    ["interrupted", true],
+  ] as const)(
+    "classifies %s without treating a stop as a recovery failure",
+    (status, attention) => {
+      expect(computerUpdateNeedsAttention({ ...update, status })).toBe(attention);
+    },
+  );
   it("keeps a newly started update when an older poll returns, and closing does not stop polling", async () => {
     vi.useFakeTimers();
     let resolve!: (rows: ComputerUpdate[]) => void;

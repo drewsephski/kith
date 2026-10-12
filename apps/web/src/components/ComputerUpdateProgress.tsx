@@ -150,6 +150,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                           "size-5 shrink-0",
                           index === current &&
                             !computerUpdateNeedsAttention(selected) &&
+                            selected.status !== "cancelled" &&
                             "animate-spin motion-reduce:animate-none",
                           index === current && selected.status === "failed" && "text-destructive",
                         )}
@@ -175,7 +176,9 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               </p>
             ) : (
               <span role="status" className="sr-only">
-                {labels[COMPUTER_UPDATE_STAGES.indexOf(selected.stage)]}
+                {selected.status === "cancelled"
+                  ? title(selected)
+                  : labels[COMPUTER_UPDATE_STAGES.indexOf(selected.stage)]}
               </span>
             )}
             {error ? (
