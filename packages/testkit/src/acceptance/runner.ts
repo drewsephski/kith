@@ -538,6 +538,7 @@ export async function runProductAcceptance(options: AcceptanceOptions): Promise<
             assert.equal(services.notes.length, notesBefore);
           } else {
             await restart();
+            const callsBeforeAnswer = report.modelCalls;
             await rpc("threads/answer", {
               botId,
               runId: sent.runId,
@@ -545,6 +546,14 @@ export async function runProductAcceptance(options: AcceptanceOptions): Promise<
               answer: row.scenario === "approval-allow" ? "allow" : "deny",
             });
             await waitRun(sent.runId, "completed");
+            if (row.scenario === "approval-deny") {
+              assert.equal(
+                report.modelCalls,
+                callsBeforeAnswer,
+                "Denied action restarted inference",
+              );
+              assert.match(await finalText(sent.runId), /action was denied/i);
+            }
             assert.equal(
               services.notes.length,
               notesBefore + (row.scenario === "approval-allow" ? 1 : 0),

@@ -6,11 +6,13 @@ No production deployments, production migrations, app publication or releases we
 
 ## Confirmed findings and changes
 
-- Quiet model streams observed Stop only at the lease heartbeat, up to 60 seconds later. The executor now follows the authoritative, scoped cancellation event and aborts inference promptly. Stop also cancels the task and attempt, clears the lease, and is reused by teaching cancellation. Existing effect fencing and idempotency remain authoritative.
+- Quiet model streams observed Stop only at the lease heartbeat, up to 60 seconds later. The executor now follows the authoritative, scoped cancellation event and aborts inference promptly. Stop also cancels the task and attempt, clears the lease, and is reused by teaching cancellation across every active thread for the bot while preserving peer runs. Automated review caught an initial narrowing to the one-to-one thread; a real-database regression now covers group and external-thread runs and peer preservation. Existing effect fencing and idempotency remain authoritative.
 - Failed inference discarded already streamed text and completed tool steps. Failure finalization now persists sanitized partial blocks and the terminal failure atomically. A real API/Postgres/emulated-stream regression independently verifies the saved file and completed effect after disconnect; the run remains failed.
 - Real E2B idle acceptance exposed a provider contract mismatch: the SDK throws `CommandExitError` for nonzero commands, including the intentional exit-1 idle sentinel. The adapter now emits the actual stdout, stderr and exit code. Cancellation and other errors still propagate. Real idle suspension and resume then passed.
 - A repeated live trial completed a fresh explicit memory request without persisting the preference. The existing bounded continuation guard now requires a successful supported memory-write receipt for a fresh `Remember …:` directive. It requests missing execution at most twice, never automatically repeats an attempted failed or uncertain write, and fails honestly without persisting unsupported confirmation prose. This is a conservative directive guard, not universal semantic task verification; existing memory, recall and honest blockers remain terminal.
 - API and worker startup now check the computer activity column before accepting work. Missing schema fails with an actionable migration requirement. The probe is read-only; its regression temporarily renames the column only inside a rolled-back disposable transaction.
+- Native denial testing exposed a model proposing an equivalent file write through another tool after a denied shell command. Durable denial now settles that execution before inference, preserves prior receipts and reports “The action was denied.” A later user request receives its own run. The offline and live product suites verify that denial makes no further model calls or mutations.
+- Native installed-app acceptance exposed paused runs entering the generating footer, showing “Preparing a response…” while waiting for approval. Mobile now reuses the shared generating-status predicate, renders the existing waiting text, and avoids duplicate group working/waiting rows. Busy/Stop behavior remains available during pauses.
 - Exact-base CI had stale computer UI expectations: web expected maintenance controls to disappear and Android expected takeover before explicit Start. Acceptance fixtures now follow the existing demand-driven interface. No application identifiers, URL schemes, runtime channels, tokens or native UI were redesigned.
 
 The selected model and reasoning settings, existing provider fallback, durable execution path, approvals, connector isolation, capacity limits, lazy discovery, streaming and computer-demand contracts remain in use. No competing runtime was introduced.
@@ -56,28 +58,45 @@ Local environment: macOS arm64, Node 26.3.0, pnpm 9.15.0, Docker Postgres 16, co
 | --- | --- |
 | Exact-base CI | Failed: web computer assertion and Android explicit-start screenshot expectation. Lint, types, unit, Postgres and builds passed. [CI run](https://github.com/drewsephski/kith/actions/runs/38205988282) |
 | Exact-base macOS screenshot | Passed. [Run](https://github.com/drewsephski/kith/actions/runs/38205987857) |
-| Exact-base web report publication | Failed; a passing test job cannot establish artifact publication. [Run](https://github.com/drewsephski/kith/actions/runs/38207592765) |
+| Exact-base web report publication | Failed because the publication workflow lacks its required storage credentials; a passing test job cannot establish gallery publication. [Run](https://github.com/drewsephski/kith/actions/runs/38207501120) |
 | Lint / type checking | Passed; lint retains existing warnings. Acceptance CLI is now included in type checking. |
-| Full unit suite | 685 files / 8579 tests passed before the final memory guard; 47 gated suites / 319 tests skipped. Final-source rerun pending. |
-| Mobile types / unit | Passed; 108 files / 1007 tests. |
+| Full unit suite | 685 files / 8588 tests passed; 47 gated suites / 319 tests skipped. Later denial, thread-scope and native-footer changes passed 144 focused shared/API/adapter regressions plus repeated mobile tests/types. Final-head CI runs the complete suite. |
+| Mobile types / unit | Passed; 108 files / 1008 tests; repeated after client partial-result regression. |
 | Focused memory/runtime regressions | 63 tests passed, including bounded missing-write recovery and no uncertain mutation retry. |
-| Full Postgres integration | Final-source rerun pending. Focused partial failure, preflight, cancellation, computer demand and approvals passed. |
+| Full Postgres integration | 36 suites / 247 tests passed, including partial failure, preflight, cancellation, computer demand, approvals, isolation and durable recovery. After the review fix, all 41 product journeys passed again, including bot-wide teaching cancellation and peer preservation. |
 | Shared web/Electron renderer journeys | 12 browser E2E tests passed: bot CRUD, failures, computer start, approvals and Spaces. Uses actual isolated API with emulated model. |
 | Computer replay | 2 files / 3 Docker Chromium replay tests passed with `rakazo/computer:local`. |
 | Computer routing evaluation | 24 fixtures: 11 correct decisions, 13 conservative abstentions, zero false computer demands, zero live calls. |
-| Latency, 20 trials | Pending final quiet benchmark. |
-| Combined real model + E2B | One full 11/11 passing invocation before extended active-work/memory regressions; final-source invocation pending. See observations below. |
-| iOS installation | Release binary built, installed and launched on iPhone 17 Pro / iOS 26.5. Runtime acceptance pending properly signed simulator rebuild. |
-| Packaged Electron / Android native | Final-head CI acceptance pending. Local focus-stealing desktop E2E was not run. |
+| Latency, 20 trials | 560/560 completed (14 cases × 20 cold + 20 warm), zero failures; conditions and p50/p95 below. |
+| Combined real model + E2B | Final backend invocation: 11/11 passed, active work verified, cleanup passed. Offline acceptance: 11/11 passed, 17 emulated model calls; no real timing claim. |
+| iOS installation | Locally signed Release binary installed on iPhone 17 Pro / iOS 26.5: signup, first assistant, real-model answer, session/draft restoration, task completion while closed, verified file, approval allow, explicit Start and takeover passed. The rebuilt installed app restored the pending card and displayed “Waiting for approval.” Denial prevented file creation but proposed another approval before the backend guard was added; final denial behavior is verified through the live backend suite, not a second installed-app replay. |
+| Packaged Electron / Android native | First PR head: packaged Linux Electron acceptance passed; Android screenshots and notification demo passed, but smoke assumed its shared computer was stopped. Navigation now handles both states and retains takeover assertions. Current-head acceptance is tracked in [PR #18 checks](https://github.com/drewsephski/kith/pull/18/checks). Local focus-stealing desktop E2E was not run. |
 
 Earlier failures are retained rather than relabeled as passes: a receipt assertion rejected valid shell execution and was corrected to independently observable file content; real idle detection failed until the SDK mismatch was fixed; identical approval fixture payloads were legitimately treated as already completed and were made unique; a later memory-save trial failed its persisted-outcome assertion and led to the receipt guard. A takeover-expiry fixture now permits an absent screen after the resumed run releases its lease, while still requiring a remaining screen to be read-only and rejecting input.
 
-The complete live invocation made 28 model calls/HTTP requests, one creation and one explicit resume, two stops (idle and explicit), and one destroy; cleanup passed. Its conservative model-spend upper bound was USD 0.0141568164. Total provider token/cost accounting remained unknown because cancellation did not return usage. E2B running/idle observations do not establish E2B billed duration. One trial per scenario does not establish p50/p95 or statistically meaningful reliability. No repeated production failure-rate claim is made.
+The final complete live invocation made 25 model calls/HTTP requests, one creation and one explicit resume, two stops (idle and explicit), and one destroy; cleanup passed. Its conservative model-spend upper bound was USD 0.01597565925. Total provider token/cost accounting remained unknown because cancellation did not return usage. E2B running/idle observations do not establish E2B billed duration. The 95-second foreground command completed without suspension, followed by actual configured idle suspension. One trial per scenario does not establish p50/p95 or statistically meaningful reliability. No repeated production failure-rate claim is made.
+
+## Controlled latency observations
+
+`pnpm perf:agent --postgres=local --trials=20` completed 560 runs with zero outcome failures. The provider is loopback SSE emulation, with 5 ms headers, 25 ms first text, 2 ms chunks, 120 ms cold computer provisioning, 60 ms preparation and 40 ms connector discovery. The slow-provider case injects 50/250 ms headers/first text; background jobs inject 500 ms. Interactive reservation is enabled and parallelism is one. Native interaction and a final native rebuild overlapped portions of this run, so this is not an exclusive-host causal comparison to PR #16. Unknown emulated token/cost data stay unknown. Every noncomputer sample recorded zero provisions.
+
+Milliseconds, p50 / p95, first **published safe text** followed by durable completion:
+
+| Scenario | Cold text | Warm text | Cold completion | Warm completion |
+| --- | --- | --- | --- | --- |
+| Greeting | 110.5 / 121.6 | 111.6 / 123.3 | 116.5 / 131.9 | 119.0 / 129.0 |
+| Background load | 117.9 / 144.4 | 119.2 / 128.9 | 124.1 / 155.6 | 124.9 / 139.4 |
+| Slow provider | 384.6 / 393.3 | 480.5 / 570.7 | 396.7 / 405.5 | 519.7 / 622.9 |
+| Connected API | 351.5 / 460.8 | 332.5 / 383.6 | 378.8 / 481.0 | 363.6 / 410.5 |
+| Computer file | 693.8 / 1210.2 | 616.9 / 777.4 | 811.3 / 1392.5 | 693.1 / 967.7 |
+| Multi-step | 438.4 / 449.6 | 478.6 / 555.2 | 456.3 / 466.0 | 500.1 / 587.3 |
+
+Live conversation safe text arrived in 3.40 seconds and completed in 3.54 seconds; cancellation settled in 3.18 seconds including inference up to the stop trigger. These are individual provider samples under local load, not percentiles. The guarded memory-save trial took 51.32 seconds; passing the outcome check does not imply acceptable memory latency.
 
 ## Remaining release gates
 
-- Final-head PR CI and review, web screenshot publication, packaged Linux Electron acceptance and Android installed-app journeys must complete; signing, notarization, updater and distribution remain separate operator gates.
-- Real installed native acceptance must cover durable sessions, drafts, approvals and restart; physical iOS/Android push notifications, production OAuth return, share extensions and cross-device provider sessions are not established by emulator exports or backend tests.
+- PR CI and review are tracked at the exact head in [PR #18](https://github.com/drewsephski/kith/pull/18). Public screenshot-gallery publication requires operator storage credentials; signing, notarization, updater and distribution remain separate operator gates.
+- Installed iOS sessions, drafts, approval restoration and restart were exercised above; physical iOS/Android push notifications, production OAuth return, share extensions and cross-device provider sessions are not established by emulator exports or backend tests.
 - Production must apply existing migration `20261011210000_computer_activity` before upgrading API/worker. This change adds no migration and executes no production migration.
 - Production revision/health, exact auth origins, actual password recovery delivery, operator provider access/billing and supported older-client compatibility must be verified at deployment time. Repository configuration is not hosted acceptance.
 - Existing local observability records response stages, model/tool counts, provider usage, cancellations and computer resource/lifecycle events without payload logging. This work consumes those records and does not add a dashboard. Parallel-user capacity/security regressions remain part of deterministic integration acceptance; real fleet load and bill reconciliation are not established.

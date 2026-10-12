@@ -1,18 +1,18 @@
 import type { ThreadMessage } from "@rakazo/contracts";
 import { isToolActivityBlock } from "./tool-activity.js";
 
+/** Generating activity excludes durable human-interaction pauses. */
+export function isRunResponding(status: string | null | undefined): boolean {
+  return status === "queued" || status === "leased" || status === "running";
+}
+
 /** The companion animates only for the bound assistant's generating turns. */
 export function isAssistantResponding(
   assistantId: string | null | undefined,
   bots: readonly { botId?: string; status?: string }[],
 ): boolean {
   return Boolean(
-    assistantId &&
-      bots.some(
-        (bot) =>
-          bot.botId === assistantId &&
-          (bot.status === "queued" || bot.status === "leased" || bot.status === "running"),
-      ),
+    assistantId && bots.some((bot) => bot.botId === assistantId && isRunResponding(bot.status)),
   );
 }
 

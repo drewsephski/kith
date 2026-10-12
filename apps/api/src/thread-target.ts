@@ -1227,13 +1227,17 @@ export async function stopThreadRuns(
   },
   actor: Actor,
   target: ThreadTarget,
+  options: { botId?: string } = {},
 ) {
+  if (options.botId && (target.kind !== "bot" || options.botId !== target.botId))
+    throw new IsolationError();
   const { runIds, computers, leases, eventSeq } = await deps.prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${target.threadId} FOR UPDATE`;
     const cancelledAt = new Date();
     const cancelled = await tx.run.updateManyAndReturn({
       where: {
         threadId: target.threadId,
+        ...(options.botId ? { botId: options.botId } : {}),
         status: { in: [...ACTIVE_RUN_STATUSES] },
       },
       data: { status: "cancelled", completedAt: cancelledAt },
@@ -1243,7 +1247,13 @@ export async function stopThreadRuns(
     const ids = cancelled.map((run) => run.id);
     await tx.steeringMessage.deleteMany({
       where: {
-        botId: { in: target.kind === "bot" ? [target.botId] : target.memberBotIds },
+        botId: {
+          in: options.botId
+            ? [options.botId]
+            : target.kind === "bot"
+              ? [target.botId]
+              : target.memberBotIds,
+        },
         message: { threadId: target.threadId },
       },
     });

@@ -119,7 +119,7 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
         prompt: `Add a CRM note to Example Bakery saying exactly ${JSON.stringify(approvalNote(scenario).text)}.`,
         steps: [
           tool("CRM_CREATE_NOTE", approvalNote(scenario), "pending-note"),
-          ...(scenario === "approval-interrupted"
+          ...(scenario === "approval-interrupted" || scenario === "approval-deny"
             ? []
             : [
                 tool("CRM_CREATE_NOTE", approvalNote(scenario), "resumed-note"),

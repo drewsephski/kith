@@ -417,6 +417,7 @@ function fixture({
     shutdownSignal,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
   return {
+    finalizeRun,
     writtenMessages,
     effects,
     results,
@@ -707,10 +708,15 @@ describe("connector read-only metadata and approval enforcement", () => {
       f.setCalls([{ args: { id: "item-1" }, executionId: "call-2" }]);
       await f.run();
       expect(f.execute).not.toHaveBeenCalled();
-      expect(f.results.at(-1)).toEqual({
-        error:
-          "The user denied this action. Do not retry or rephrase it; tell the user and ask what they want instead.",
-      });
+      // Neither the original call nor an alternate tool can be proposed by a
+      // restarted model after the durable human denial.
+      expect(f.results).toHaveLength(1);
+      expect(f.finalizeRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: "completed",
+          blocks: [{ kind: "text", text: "The action was denied." }],
+        }),
+      );
       expect(f.pauseRunForInput).toHaveBeenCalledOnce();
     });
 

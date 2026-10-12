@@ -237,6 +237,8 @@ describe("Android mobile platform contract", () => {
       "inGroup && (workingGroupBots.length > 0 || waitingGroupRuns.length > 0)",
     );
     expect(thread).toContain("waitingGroupRuns.map((run)");
+    expect(thread).toContain("currentBot && isRunResponding(currentBotStatus)");
+    expect(thread).toContain("!isRunResponding(run.status)");
     expect(thread).toContain("footerGroupBots.length - index");
     expect(thread).toContain("!hasRunResponseText(visibleMessages, bot.runId)");
     expect(thread).toContain("hasRunResponseText(visibleMessages, snap?.run?.id)");

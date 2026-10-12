@@ -33,6 +33,7 @@ import {
 } from "@rakazo/adapters";
 import type { Actor, MessageBlock, TaughtSkill } from "@rakazo/contracts";
 import {
+  ACTIVE_RUN_STATUSES,
   buildPlaybookFromRecording,
   formatSkillRunPrompt,
   type SkillPlaybook,
@@ -111,7 +112,20 @@ async function cancelActiveRuns(
   botId: string,
 ): Promise<void> {
   const target = await resolveThreadTarget(deps.prisma, actor, { botId });
-  await stopThreadRuns(deps, actor, target);
+  if (target.kind !== "bot") throw new IsolationError();
+  const runs = await deps.prisma.run.findMany({
+    where: {
+      botId,
+      spaceId: actor.spaceId,
+      status: { in: [...ACTIVE_RUN_STATUSES] },
+    },
+    select: { threadId: true },
+    distinct: ["threadId"],
+  });
+  // These threads belong to the actor's own bot runs, including group and
+  // external conversations. Teaching cancels this bot without stopping peers.
+  for (const run of runs)
+    await stopThreadRuns(deps, actor, { ...target, threadId: run.threadId }, { botId });
 }
 
 async function ensureGraphicalComputer(

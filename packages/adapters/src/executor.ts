@@ -3569,6 +3569,44 @@ export function createRunExecutor(deps: ExecutorDeps) {
           },
         });
 
+        // A human denial is authoritative for this execution, including alternate
+        // tools that could perform the same action. A later user request gets its
+        // own run; do not ask the model to reinterpret this denied continuation.
+        const deniedEffects =
+          fence > 1
+            ? await deps.prisma.externalEffect.findMany({
+                where: { runId, status: "denied" },
+                select: { id: true },
+              })
+            : [];
+        if (deniedEffects.length) {
+          const settled = await deps.events.finalizeRun({
+            spaceId: run.spaceId,
+            threadId: thread.id,
+            botId: bot.id,
+            runId,
+            taskId: run.taskId,
+            attemptId: attempt.id,
+            leaseOwner: workerId,
+            leaseFence: fence,
+            outcome: "completed",
+            blocks: [{ kind: "text", text: "The action was denied." }],
+          });
+          if (settled && settled.continuationRunId)
+            await deps.jobs
+              .enqueue(runContinueJob(settled.continuationRunId))
+              .catch((error) => getLogger().error("denied action continuation enqueue", error));
+          if (settled && run.trigger === "bot_message")
+            await returnBotMessageOutcome(
+              deps,
+              run,
+              { id: bot.id, name: bot.name },
+              "The action was denied.",
+              "status",
+            );
+          return;
+        }
+
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
             ? (messages.find((message) => message.id === run.sourceMessageId)?.seq ??
