@@ -21,8 +21,6 @@ type JourneyCopy = {
   install: string;
   unavailable: string;
   noInstallers: string;
-  webUnavailable: string;
-  webUnavailableBody: string;
 };
 
 const COPY: Record<Locale, JourneyCopy> = {
@@ -98,8 +96,6 @@ const COPY: Record<Locale, JourneyCopy> = {
       "Desktop downloads are not available here yet. Check releases or continue on Web.",
     unavailable:
       "A download is not available for this platform yet. Check releases or continue on Web.",
-    webUnavailable: "Kith on Web is not available here yet.",
-    webUnavailableBody: "Check Desktop downloads or return to the homepage for updates.",
   },
   de: {
     heading: "Ein wenig Hilfe.\nViel weniger im Kopf.",
@@ -173,8 +169,6 @@ const COPY: Record<Locale, JourneyCopy> = {
       "Desktop-Downloads sind hier noch nicht verfügbar. Prüfe die Releases oder nutze Web.",
     unavailable:
       "Für diese Plattform gibt es hier noch keinen Download. Prüfe die Releases oder nutze Web.",
-    webUnavailable: "Kith im Web ist hier noch nicht verfügbar.",
-    webUnavailableBody: "Prüfe die Desktop-Downloads oder gehe für Neuigkeiten zur Startseite.",
   },
   ko: {
     heading: "작은 도움.\n한결 가벼운 마음.",
@@ -246,8 +240,6 @@ const COPY: Record<Locale, JourneyCopy> = {
     install: "다운로드",
     noInstallers: "아직 데스크톱 다운로드가 없습니다. 출시를 확인하거나 웹을 사용하세요.",
     unavailable: "이 플랫폼의 다운로드는 아직 없습니다. 출시를 확인하거나 웹을 사용하세요.",
-    webUnavailable: "이 사이트에서는 아직 Kith 웹을 사용할 수 없습니다.",
-    webUnavailableBody: "데스크톱 다운로드를 확인하거나 홈페이지에서 소식을 확인하세요.",
   },
   zh: {
     heading: "一点帮助。\n少一些牵挂。",
@@ -315,8 +307,6 @@ const COPY: Record<Locale, JourneyCopy> = {
     install: "下载",
     noInstallers: "这里暂时没有桌面版下载。请查看发布信息或使用网页版。",
     unavailable: "此平台暂时没有下载。请查看发布信息或使用网页版。",
-    webUnavailable: "这里暂时无法使用 Kith 网页版。",
-    webUnavailableBody: "查看桌面版下载，或返回首页了解最新消息。",
   },
 };
 

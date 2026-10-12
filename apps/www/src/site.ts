@@ -8,11 +8,11 @@ export const SUPPORT_EMAIL = env.PUBLIC_SUPPORT_EMAIL?.trim();
 export const SITE_URL = config.siteUrl;
 export const SITE_INDEXED = config.indexed;
 export const APP_URL = config.appUrl;
-export function webStartHref(locale: Locale = "en") {
-  return APP_URL ? `${APP_URL}/start` : locale === "en" ? "/start/" : `/${locale}/start/`;
+export function webStartHref(_locale: Locale = "en") {
+  return APP_URL;
 }
-export function signInHref(locale: Locale = "en") {
-  return APP_URL ? `${APP_URL}/sign-in` : webStartHref(locale);
+export function signInHref(_locale: Locale = "en") {
+  return `${APP_URL}/sign-in`;
 }
 export const WEB_START_URL = webStartHref();
 export const SIGN_IN_URL = signInHref();
