@@ -11,6 +11,22 @@ test("screen connection failures stay visible and can be retried", async ({ page
   });
 
   let failScreen = true;
+  await page.evaluate(() => {
+    const fixture = window as Window & { screenRetryClicked: boolean };
+    fixture.screenRetryClicked = false;
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (
+          event.target instanceof Element &&
+          event.target.closest("button")?.textContent?.trim() === "Retry screen"
+        ) {
+          fixture.screenRetryClicked = true;
+        }
+      },
+      { capture: true },
+    );
+  });
   const screenUrl = "https://screen.example/vnc.html";
   await page.route("https://screen.example/**", (route) =>
     route.fulfill({
@@ -18,12 +34,17 @@ test("screen connection failures stay visible and can be retried", async ({ page
       body: "<!doctype html><title>Test desktop</title><p>Desktop connected</p>",
     }),
   );
-  await page.route("**/rpc/computer/screenUrl", (route) =>
-    route.fulfill({
-      status: failScreen ? 409 : 200,
+  await page.route("**/rpc/computer/screenUrl", async (route) => {
+    // Background refreshes must not recover the fixture before the manual click.
+    const clicked = await page.evaluate(
+      () => (window as Window & { screenRetryClicked: boolean }).screenRetryClicked,
+    );
+    const unavailable = failScreen || !clicked;
+    await route.fulfill({
+      status: unavailable ? 409 : 200,
       contentType: "application/json",
       body: JSON.stringify(
-        failScreen
+        unavailable
           ? {
               json: {
                 defined: false,
@@ -35,8 +56,8 @@ test("screen connection failures stay visible and can be retried", async ({ page
             }
           : { json: { url: screenUrl } },
       ),
-    }),
-  );
+    });
+  });
 
   await page.getByTitle("Agent computer").click();
   const preview = page.getByTestId("computer-preview");
@@ -50,6 +71,9 @@ test("screen connection failures stay visible and can be retried", async ({ page
   await expect(preview.getByRole("alert")).toHaveCount(0);
 
   failScreen = true;
+  await page.evaluate(() => {
+    (window as Window & { screenRetryClicked: boolean }).screenRetryClicked = false;
+  });
   await preview.hover();
   await preview.getByTestId("computer-preview-open").click();
   await expect(page.getByRole("button", { name: "Close computer" })).toBeVisible();

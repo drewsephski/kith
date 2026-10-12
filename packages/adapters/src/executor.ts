@@ -3675,11 +3675,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
         let legacyUncertainMemory = false;
         for (const effect of priorMemoryEffects) {
           if (!isMemorySaveCall(effect.kind, {}, false)) continue;
-          const result = effect.result as { uncertain?: boolean } | null;
+          const result = effect.result as {
+            uncertain?: boolean;
+            error?: unknown;
+            ok?: boolean;
+          } | null;
           if (
-            effect.status !== "applying" &&
+            effect.status !== "executing" &&
             effect.status !== "failed" &&
-            result?.uncertain !== true
+            result?.uncertain !== true &&
+            !(effect.status === "completed" && (result?.error || result?.ok !== true))
           )
             continue;
           const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;

@@ -51,6 +51,48 @@ function latestToolResult(request: ModelEmulatorRequest) {
 }
 
 describe("real Pi against an offline model HTTP endpoint", () => {
+  it("answers reported memory speech without saving or requesting continuation", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "text",
+            text: "Alice is describing a request to preserve a preference.",
+          },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let writes = 0;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "Alice said, Remember that I prefer cobalt. Explain this sentence.",
+          tools: [
+            {
+              name: "remember",
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          executeTool: async () => {
+            writes++;
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(writes).toBe(0);
+    expect(server.requests).toHaveLength(1);
+    expect(events.at(-1)?.type).toBe("done");
+  });
+
   it("does not repeat an uncertain memory write through another alias", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "uncertain-memory-"));
     cleanups.push(() => rm(dir, { recursive: true, force: true }));

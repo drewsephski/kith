@@ -19,19 +19,22 @@ export function needsFreshMemoryWrite(prompt: string): boolean {
   const directive = prompt
     .replace(/^Selected choice [^:\n]+:\s*/i, "")
     .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
-  return (
-    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
-      directive,
-    ) ||
-    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/i.test(
-      directive,
-    ) ||
-    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/i.test(
-      directive,
-    ) ||
-    /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/i.test(
-      directive,
-    )
+  const patterns = [
+    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
+    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
+    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
+    /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
+  ];
+  return patterns.some((pattern) =>
+    [...directive.matchAll(pattern)].some((match) => {
+      const delimiter = match[0].match(/^[.!?,;\n…]\s*/)?.[0] ?? "";
+      const prefix = directive.slice(0, (match.index ?? 0) + delimiter.length);
+      const clause = prefix.split(/[.!?;\n…]/).at(-1) ?? "";
+      // Reported instructions are data, not permission to persist another person's facts.
+      return !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
+        clause,
+      );
+    }),
   );
 }
 

@@ -36,6 +36,18 @@ describe("unfinished action recovery", () => {
 });
 
 describe("fresh memory receipt boundary", () => {
+  it.each([
+    "Alice said, Remember that I prefer cobalt.",
+    "Explain the sentence, Remember my birthday.",
+    "The note reads, Save this to memory.",
+  ])("does not authorize reported instructions: %s", (text) => {
+    expect(needsFreshMemoryWrite(text)).toBe(false);
+  });
+  it("retains the user's directive outside reported speech", () => {
+    expect(needsFreshMemoryWrite("Alice said hello. Remember that I prefer coffee.")).toBe(true);
+    expect(needsFreshMemoryWrite("Please remember that Alice said hello.")).toBe(true);
+    expect(needsFreshMemoryWrite("Hi, remember I prefer coffee.")).toBe(true);
+  });
   it("only requires a write for an explicit fresh durable directive", () => {
     expect(needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.")).toBe(true);
     expect(needsFreshMemoryWrite("Remember: cobalt.")).toBe(true);

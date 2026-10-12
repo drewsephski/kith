@@ -263,37 +263,39 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
-  it("restores uncertain input state and blocks a changed-payload memory retry after recovery", async () => {
-    const f = fixture("uncertain-input-recovery", "Remember that I prefer coffee.");
-    const inputId = "uncertain-input-recovery:input:initial";
-    f.setCalls([
-      {
-        name: "remember",
-        args: { content: "coffee" },
-        executionId: "first",
+  it.each(["executing", "completed", "failed"])(
+    "restores %s input state and blocks a changed-payload memory retry after recovery",
+    async (status) => {
+      const f = fixture("uncertain-input-recovery", "Remember that I prefer coffee.");
+      const inputId = "uncertain-input-recovery:input:initial";
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "coffee" },
+          executionId: "first",
+          memoryRequestId: inputId,
+        },
+      ]);
+      await f.run();
+      f.effects[0]!.status = status;
+      f.effects[0]!.result = {
+        error: "Receipt unavailable",
         memoryRequestId: inputId,
-      },
-    ]);
-    await f.run();
-    f.effects[0]!.status = "failed";
-    f.effects[0]!.result = {
-      error: "Receipt unavailable",
-      uncertain: true,
-      memoryRequestId: inputId,
-    };
-    f.setCalls([
-      {
-        name: "save_memory",
-        args: { content: "coffee (retried)" },
-        executionId: "retry",
-        memoryRequestId: inputId,
-      },
-    ]);
-    await f.run();
-    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).toBe(true);
-    expect(f.memoryCommit).toHaveBeenCalledTimes(1);
-    expect(f.results.at(-1)).toMatchObject({ uncertain: true });
-  });
+      };
+      f.setCalls([
+        {
+          name: "save_memory",
+          args: { content: "coffee (retried)" },
+          executionId: "retry",
+          memoryRequestId: inputId,
+        },
+      ]);
+      await f.run();
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).toBe(true);
+      expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+      expect(f.results.at(-1)).toMatchObject({ uncertain: true });
+    },
+  );
 
   it("restores only this run's successful memory receipt across attempts", async () => {
     const f = fixture("memory-receipt-retry", "Remember: durable fact");

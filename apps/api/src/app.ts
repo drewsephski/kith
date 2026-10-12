@@ -1000,6 +1000,14 @@ export async function createApp(
     })();
   }
 
+  const readinessPool = created.pool
+    ? createPool(env.databaseUrl, {
+        poolMax: 1,
+        applicationName: "kith-readiness",
+        connectionTimeoutMillis: 2_500,
+        retryTooManyConnections: false,
+      })
+    : undefined;
   app.route(
     "/",
     healthRoutes(
@@ -1018,8 +1026,8 @@ export async function createApp(
         revision: env.gitSha ?? null,
       }),
       (signal) =>
-        created.pool
-          ? checkDatabaseReadiness(created.pool, signal)
+        readinessPool
+          ? checkDatabaseReadiness(readinessPool, signal)
           : prisma.$transaction((tx) => tx.$queryRaw`SELECT 1`, { maxWait: 2_500, timeout: 2_500 }),
     ),
   );
@@ -1067,6 +1075,7 @@ export async function createApp(
       await mcp.close();
       await prisma.$disconnect().catch(() => undefined);
       await created.pool?.end().catch(() => undefined);
+      await readinessPool?.end().catch(() => undefined);
       await ownedJobPool?.end().catch(() => undefined);
       await logger.flush({ timeoutMs: 2_000 });
     },
