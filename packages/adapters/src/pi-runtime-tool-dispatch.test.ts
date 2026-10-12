@@ -1,4 +1,4 @@
-import type { AgentToolCompletion, ConnectorTool } from "@rakazo/adapter-kit";
+import type { AgentRunRequest, AgentToolCompletion, ConnectorTool } from "@rakazo/adapter-kit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fakeAgentState = vi.hoisted(() => ({
@@ -659,7 +659,12 @@ describe("Pi connector tool dispatch", () => {
   ] as const)("verifies a new memory save from %s steering: %s", async (arrival, mode) => {
     fakeAgentState.memoryMode = mode;
     let claims = 0;
-    const executeTool = vi.fn(async () => ({ ok: true }));
+    const executeTool = vi.fn<NonNullable<AgentRunRequest["executeTool"]>>(
+      async (_name, _args, _executionId, _route, observer) => ({
+        ok: true,
+        memoryRequestId: observer?.memoryRequestId,
+      }),
+    );
     const consume = async () => {
       for await (const _event of new PiAgentRuntime().run(
         {

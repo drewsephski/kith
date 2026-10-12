@@ -137,6 +137,16 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
       model.assertComplete();
       const documents = await app.prisma.memoryDocument.findMany({ where: { botId: bot.id } });
       expect(documents.some((doc) => doc.content.includes("violet"))).toBe(true);
+      const receipts = await app.prisma.externalEffect.findMany({
+        where: { runId: sent.runId, kind: "remember", status: "completed" },
+      });
+      const requestIds = receipts.map((effect) => {
+        const requestId = (effect.request as { memoryRequestId: string }).memoryRequestId;
+        expect(requestId).toBeTruthy();
+        expect((effect.result as { memoryRequestId: string }).memoryRequestId).toBe(requestId);
+        return requestId;
+      });
+      expect(new Set(requestIds).size).toBe(2);
       expect(
         await app.prisma.externalEffect.count({
           where: { runId: sent.runId, kind: "remember", status: "completed" },

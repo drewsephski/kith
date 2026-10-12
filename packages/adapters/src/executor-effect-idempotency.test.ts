@@ -38,11 +38,13 @@ type ToolCall = {
   name: string;
   args: Record<string, unknown>;
   executionId: string;
+  memoryRequestId?: string;
 };
 
 function fixture(runId = "run-1", prompt = "Update shared state") {
   let taskPrompt = prompt;
-  const answeredQuestions: Array<{ createdAt: Date; payload: { blocks: unknown[] } }> = [];
+  const answeredQuestions: Array<{ id: string; createdAt: Date; payload: { blocks: unknown[] } }> =
+    [];
   const effects: Effect[] = [];
   const results: unknown[] = [];
   const scratchpadRows: Array<{
@@ -67,7 +69,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     trigger: "user",
     leaseFence: 0,
   };
-  const memoryCommit = vi.fn(async () => ({ revision: "rev-1" }));
+  const memoryCommit = vi.fn(async (_input: { content: string }) => ({ revision: "rev-1" }));
   const externalEffect = {
     findMany: vi.fn(
       async ({
@@ -199,7 +201,9 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
   }> = [];
   const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
     for (const call of calls) {
-      const result = await request.executeTool!(call.name, call.args, call.executionId);
+      const result = await request.executeTool!(call.name, call.args, call.executionId, undefined, {
+        memoryRequestId: call.memoryRequestId,
+      });
       results.push(result);
     }
     yield { type: "done" as const, text: "Done" };
@@ -289,6 +293,7 @@ describe("mutating tool effect idempotency keys", () => {
     f.setCalls([]);
     f.setPrompt("Selected choice choice-1: Remember that I prefer violet.");
     f.answeredQuestions.push({
+      id: "answered-input",
       createdAt: new Date(oldCompletion.getTime() + 1),
       payload: {
         blocks: [
@@ -300,10 +305,15 @@ describe("mutating tool effect idempotency keys", () => {
     expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
     expect(f.memoryCommit).toHaveBeenCalledOnce();
   });
-  it("restores a steered save only when its receipt follows the previous claim", async () => {
+  it("restores only a receipt bound to the previously claimed steering request", async () => {
     const f = fixture("steered-receipt-retry", "What is two plus two?");
     f.setCalls([
-      { name: "remember", args: { path: "MEMORY.md", content: "cobalt" }, executionId: "memory-1" },
+      {
+        name: "remember",
+        args: { path: "MEMORY.md", content: "cobalt" },
+        executionId: "memory-1",
+        memoryRequestId: "steer",
+      },
     ]);
     await f.run();
     const completedAt = f.effects[0]!.updatedAt!;
@@ -319,10 +329,83 @@ describe("mutating tool effect idempotency keys", () => {
     const request = f.runtimeRun.mock.calls.at(-1)![0];
     expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(true);
     expect(f.memoryCommit).toHaveBeenCalledOnce();
-    f.steering[0]!.claimedAt = new Date(completedAt.getTime() + 1);
+    f.steering[0]!.id = "other-steering";
     expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
+    f.steering[0]!.id = "steer";
     delete f.steering[0]!.claimedAt;
     expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
+  });
+  it("does not credit a sibling steering save with the same batch claim time", async () => {
+    const f = fixture("batch-save-retry", "What is two plus two?");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "memory-1",
+        memoryRequestId: "first-save",
+      },
+    ]);
+    await f.run();
+    const claimedAt = new Date(f.effects[0]!.updatedAt!.getTime() - 1);
+    f.setCalls([]);
+    f.steering.push(
+      {
+        id: "first-save",
+        messageId: "first-message",
+        text: "Remember I prefer cobalt.",
+        blocks: [],
+        claimedAt,
+      },
+      {
+        id: "second-save",
+        messageId: "second-message",
+        text: "Remember I prefer violet.",
+        blocks: [],
+        claimedAt,
+      },
+    );
+    await f.run();
+    const request = f.runtimeRun.mock.calls.at(-1)![0];
+    const replay = await request.claimSteering!([]);
+    expect(replay.map((item) => item.memoryWriteConfirmed)).toEqual([true, false]);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+  });
+  it("restores a new preference with identical arguments without replaying an older request", async () => {
+    const f = fixture("preference-generations", "Update my preferences.");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "first",
+        memoryRequestId: "save-1",
+      },
+      {
+        name: "remember",
+        args: { content: "violet" },
+        executionId: "second",
+        memoryRequestId: "save-2",
+      },
+    ]);
+    await f.run();
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "third",
+        memoryRequestId: "save-3",
+      },
+    ]);
+    await f.run();
+    expect(f.memoryCommit.mock.calls.map(([input]) => input.content)).toEqual([
+      "cobalt",
+      "violet",
+      "cobalt",
+    ]);
+    await f.run();
+    expect(f.memoryCommit).toHaveBeenCalledTimes(3);
+    expect(
+      f.effects.map((effect) => (effect.result as { memoryRequestId?: string }).memoryRequestId),
+    ).toEqual(["save-1", "save-2", "save-3"]);
   });
   it("executes different tools that share a reused provider tool-call id", async () => {
     const f = fixture("run-a");

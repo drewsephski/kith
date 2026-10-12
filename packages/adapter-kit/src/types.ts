@@ -189,6 +189,8 @@ export interface AgentToolExecutionResult {
 export interface AgentToolExecutionObserver {
   /** Runtime-owned helper restriction; model arguments cannot enable delegation. */
   allowDelegation?: boolean;
+  /** Runtime-validated memory request identity; never taken directly from tool arguments. */
+  memoryRequestId?: string;
   /**
    * A shell command has already produced output and is still running.
    * Resolves with the final redacted result when the process exits.
@@ -491,6 +493,8 @@ export interface AgentRunRequest {
    * When set, skip synthetic empty-turn fallbacks (including after tools).
    */
   allowSilentEmpty?: boolean;
+  /** Backend-owned identity of the current memory request across execution attempts. */
+  memoryRequestId?: string;
   /** Contextual fallback when a non-silent run produces no written response. */
   emptyResponseText?: string;
   executeTool?: (

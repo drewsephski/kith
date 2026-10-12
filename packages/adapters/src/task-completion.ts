@@ -4,7 +4,7 @@ export const TASK_COMPLETION_GUIDANCE =
 
 export const MAX_TASK_CONTINUATIONS = 2;
 export const MEMORY_TASK_GUIDANCE =
-  "When the user explicitly asks to save a durable fact or preference, execute the authorized memory write for the requested scope before confirming it. Use remember, save_memory or save_shared_memory only when offered and appropriate to that scope; if tools are catalogued, discover and load the memory writer first. Existing memory and a verbal acknowledgement do not persist a new fact. Explain unavailable or rejected writes honestly. Never repeat an attempted failed or uncertain write.";
+  "When the user explicitly asks to save a durable fact or preference, execute the authorized memory write for the requested scope before confirming it. Use remember, save_memory or save_shared_memory only when offered and appropriate to that scope; if tools are catalogued, discover and load the memory writer first. When several Memory request IDs are listed, use memory_request_id to identify the request being saved; keep IDs out of your reply. Existing memory and a verbal acknowledgement do not persist a new fact. Explain unavailable or rejected writes honestly. Never repeat an attempted failed or uncertain write.";
 export const TASK_CONTINUATION_PROMPT =
   "Your last reply describes work you still intend to do. Continue the original task now using the available tools and existing results; do not repeat successful actions. Finish all remaining requested steps and verify the outcome, or identify a concrete blocker. Preserve all authorization and approval requirements. Do not end with another promise to act.";
 export const INCOMPLETE_TASK_ERROR =

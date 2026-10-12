@@ -95,7 +95,8 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
-          (cd apps/mobile && eas build:list --platform "$PLATFORM" --build-profile preview --channel preview --distribution internal --status finished --limit 1 --json --non-interactive) > "$RUNNER_TEMP/preview-build.json"
+          version="$(node -p 'JSON.parse(require("node:fs").readFileSync("apps/mobile/app.json", "utf8")).expo.version')"
+          (cd apps/mobile && eas build:list --platform "$PLATFORM" --build-profile preview --channel preview --distribution internal --status finished --app-version "$version" --runtime-version "$version" --limit 1 --json --non-interactive) > "$RUNNER_TEMP/preview-build.json"
           node scripts/preview-mobile-update.mjs "$RUNNER_TEMP/preview-build.json" "$PLATFORM"
       - name: Verify mobile project
         if: steps.ota.outputs.publish == 'true'

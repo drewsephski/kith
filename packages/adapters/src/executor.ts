@@ -3621,11 +3621,19 @@ export function createRunExecutor(deps: ExecutorDeps) {
             : [];
         // An ordinary human answer replaces task.prompt. Earlier completed work
         // remains durable, but cannot confirm a new save introduced by that answer.
+        const hasAnsweredQuestion = priorProgress.some((message) =>
+          hasAnsweredOrdinaryQuestion(message.blocks),
+        );
         const answeredQuestions =
-          fence > 1 && needsFreshMemoryWrite(task.prompt)
+          fence > 1 &&
+          (hasAnsweredQuestion ||
+            needsFreshMemoryWrite(task.prompt) ||
+            task.prompt.startsWith("Selected choice "))
             ? await deps.prisma.event.findMany({
                 where: {
                   runId,
+                  spaceId: run.spaceId,
+                  threadId: thread.id,
                   type: "thread.message.updated",
                   payload: {
                     path: ["blocks"],
@@ -3633,24 +3641,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   },
                 },
                 orderBy: { seq: "desc" },
-                select: { createdAt: true, payload: true },
+                select: { id: true, createdAt: true, payload: true },
               })
             : [];
-        const promptChanged = answeredQuestions.find((event) => {
-          const blocks = MessageBlockSchema.array().safeParse(
-            (event.payload as { blocks?: unknown })?.blocks,
-          );
-          return (
-            blocks.success &&
-            blocks.data.some(
-              (block) =>
-                block.kind === "ask" &&
-                block.status === "answered" &&
-                !isApprovalAskBlock(block) &&
-                !isSecretAskBlock(block),
-            )
-          );
-        });
+        const promptChanged = answeredQuestions.find((event) =>
+          hasAnsweredOrdinaryQuestion((event.payload as { blocks?: unknown })?.blocks),
+        );
         const confirmedMemoryEffects = completedMemoryEffects.filter((effect) => {
           const result = effect.result as {
             ok?: boolean;
@@ -3661,11 +3657,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
             isMemorySaveCall(effect.kind, {}, false) &&
             result?.ok === true &&
             !result.error &&
-            result.uncertain !== true &&
-            (!promptChanged || effect.updatedAt >= promptChanged.createdAt)
+            result.uncertain !== true
           );
         });
-        const memoryWriteConfirmed = confirmedMemoryEffects.length > 0;
+        const initialMemoryRequestId = `${runId}:input:${promptChanged?.id ?? (hasAnsweredQuestion ? "unverified-answer" : "initial")}`;
+        const memoryWriteConfirmed =
+          !(hasAnsweredQuestion && !promptChanged) &&
+          confirmedMemoryEffects.some((effect) => {
+            const receiptId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+            return receiptId
+              ? receiptId === initialMemoryRequestId
+              : !promptChanged || effect.updatedAt >= promptChanged.createdAt;
+          });
 
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
@@ -4605,6 +4608,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             };
           }
           let effectRequest: unknown = args;
+          let memoryRequestId = observer?.memoryRequestId;
           if (connectorCall.route && deps.connector?.resolveCall) {
             try {
               const resolved = await deps.connector.resolveCall(connectorCall, context);
@@ -4726,6 +4730,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
             if (resourceError) return { error: resourceError };
             const approvedRequest = approvedEffectReplays.take(nextApprovedTool)!;
+            if (isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId))) {
+              const storedId = (approvedRequest as { memoryRequestId?: unknown }).memoryRequestId;
+              memoryRequestId =
+                typeof storedId === "string"
+                  ? storedId
+                  : !promptChanged && observer?.memoryRequestId === initialMemoryRequestId
+                    ? initialMemoryRequestId
+                    : undefined;
+            }
             const approvedCatalog = catalogApprovalDetails(approvedRequest, CATALOG_APPROVAL_TOOL);
             if (approvedCatalog && !catalogRemapped) {
               // Shrink-to-direct: restore approved inner arguments, not the wrapper envelope.
@@ -4757,6 +4770,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
               }
             }
           }
+          const memorySave = isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId));
+          if (memorySave) {
+            if (hasAnsweredQuestion && !promptChanged && memoryRequestId === initialMemoryRequestId)
+              return { error: UNVERIFIED_MEMORY_ERROR, uncertain: true };
+            // Only runtime metadata or the exact approved operation can bind a receipt.
+            const { memoryRequestId: _untrustedId, ...memoryArgs } = args;
+            args = memoryArgs;
+            effectRequest = memoryRequestId ? { ...args, memoryRequestId } : args;
+          }
+          const effectIdentityArgs = memorySave ? (effectRequest as Record<string, unknown>) : args;
           const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name);
           let connectorPreview:
             | Awaited<ReturnType<NonNullable<ConnectorProvider["approvalPreview"]>>>
@@ -4925,12 +4948,39 @@ export function createRunExecutor(deps: ExecutorDeps) {
           const occurrence =
             name === "request_secret"
               ? 0
-              : nextMutatingEffectOccurrence(replayEffectToolName, args);
-          const effectKey = emailSendAuthorized
+              : nextMutatingEffectOccurrence(replayEffectToolName, effectIdentityArgs);
+          let effectKey = emailSendAuthorized
             ? emailEffectKey
             : usesApprovalKey && occurrence === 0
-              ? approvalEffectKey(runId, replayEffectToolName, args)
-              : toolEffectIdempotencyKey(runId, replayEffectToolName, args, occurrence);
+              ? approvalEffectKey(runId, replayEffectToolName, effectIdentityArgs)
+              : toolEffectIdempotencyKey(
+                  runId,
+                  replayEffectToolName,
+                  effectIdentityArgs,
+                  occurrence,
+                );
+          if (
+            memorySave &&
+            memoryRequestId &&
+            !(await deps.prisma.externalEffect.findUnique({ where: { idempotencyKey: effectKey } }))
+          ) {
+            const legacyKey =
+              usesApprovalKey && occurrence === 0
+                ? approvalEffectKey(runId, replayEffectToolName, args)
+                : toolEffectIdempotencyKey(runId, replayEffectToolName, args, occurrence);
+            const legacy = await deps.prisma.externalEffect.findUnique({
+              where: { idempotencyKey: legacyKey },
+            });
+            if (legacy) {
+              // Keep legacy mutation identity; an unbound receipt cannot confirm new steering.
+              effectKey = legacyKey;
+              effectRequest = legacy.request;
+              memoryRequestId =
+                !promptChanged && observer?.memoryRequestId === initialMemoryRequestId
+                  ? initialMemoryRequestId
+                  : undefined;
+            }
+          }
           // Connector read-only hints must not bypass approval, review, or replay decisions.
           const applied = READ_ONLY_AGENT_TOOLS.has(name)
             ? undefined
@@ -5300,8 +5350,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   result,
                 )
               : Promise.resolve(true);
-          const finish = async (result: unknown) =>
-            (await persistEffectResult(result)) ? result : uncertainEffectResult(name);
+          const finish = async (result: unknown) => {
+            let boundResult = result;
+            if (memorySave && memoryRequestId && result && typeof result === "object") {
+              const record = result as Record<string, unknown>;
+              const details = record.kind === "agent_tool_result" ? record.details : undefined;
+              boundResult =
+                details && typeof details === "object"
+                  ? { ...record, details: { ...details, memoryRequestId } }
+                  : { ...record, memoryRequestId };
+            }
+            return (await persistEffectResult(boundResult))
+              ? boundResult
+              : uncertainEffectResult(name);
+          };
           const registerRunSecrets = (values: string[]) => {
             const additions = values.filter((value) => !runSecrets.includes(value));
             if (additions.length === 0) return;
@@ -7309,6 +7371,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               script,
               allowSilentEmpty: allowSilentEmptyRun,
               memoryWriteConfirmed,
+              memoryRequestId: initialMemoryRequestId,
               emptyResponseText,
               executeTool: scripted ? undefined : applyTool,
               resolveModel: scripted
@@ -7377,7 +7440,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       memoryWriteConfirmed: Boolean(
                         previousClaim &&
                           confirmedMemoryEffects.some(
-                            (effect) => effect.updatedAt >= previousClaim,
+                            (effect) =>
+                              (effect.result as { memoryRequestId?: string }).memoryRequestId ===
+                              item.id,
                           ),
                       ),
                       text: [
@@ -8981,6 +9046,20 @@ async function persistMessageInTransaction(
     },
   });
   return { message, eventSeq: event.seq };
+}
+
+function hasAnsweredOrdinaryQuestion(blocks: unknown): boolean {
+  const parsed = MessageBlockSchema.array().safeParse(blocks);
+  return (
+    parsed.success &&
+    parsed.data.some(
+      (block) =>
+        block.kind === "ask" &&
+        block.status === "answered" &&
+        !isApprovalAskBlock(block) &&
+        !isSecretAskBlock(block),
+    )
+  );
 }
 
 /** Provider tool IDs are unique only within a run, never across users or workflows. */

@@ -51,6 +51,148 @@ function latestToolResult(request: ModelEmulatorRequest) {
 }
 
 describe("real Pi against an offline model HTTP endpoint", () => {
+  it.each([undefined, "foreign-request"])(
+    "rejects ambiguous or unknown steering identity before mutation: %s",
+    async (requestId) => {
+      const server = await startModelEmulator({
+        steps: [
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "invalid-source",
+              name: "remember",
+              arguments: {
+                content: "cobalt",
+                ...(requestId ? { memory_request_id: requestId } : {}),
+              },
+            },
+          },
+          {
+            expect: (request) =>
+              expect(String(latestToolResult(request)?.content)).toContain("memory_request_id"),
+            response: {
+              type: "tool",
+              id: "correct-source",
+              name: "remember",
+              arguments: { content: "violet", memory_request_id: "latest" },
+            },
+          },
+          { expect: () => {}, response: { type: "text", text: "Saved violet." } },
+        ],
+      });
+      cleanups.push(() => server.close());
+      let claimed = false;
+      const writes: string[] = [];
+      await collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "What is two plus two?",
+            tools: [
+              {
+                name: "remember",
+                description: "Save a preference",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            claimSteering: async () => {
+              if (claimed) return [];
+              claimed = true;
+              return [
+                { id: "earlier", messageId: "earlier-message", text: "Remember I prefer cobalt." },
+                { id: "latest", messageId: "latest-message", text: "Remember I prefer violet." },
+              ];
+            },
+            executeTool: async (_name, args, _executionId, _route, observer) => {
+              expect(args).not.toHaveProperty("memory_request_id");
+              writes.push(String(args.content));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          { signal: new AbortController().signal },
+        ),
+      );
+      expect(writes).toEqual(["violet"]);
+      server.assertComplete();
+    },
+  );
+  it("requires the latest steering save's own receipt in a claimed batch", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-batch-"));
+    cleanups.push(() => rm(directory, { recursive: true, force: true }));
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "first-write",
+            name: "remember",
+            arguments: { content: "cobalt", memory_request_id: "first-save" },
+          },
+        },
+        {
+          expect: (request) => {
+            const result = String(latestToolResult(request)?.content);
+            expect(result).not.toContain("memoryRequestId");
+          },
+          response: { type: "text", text: "Remembered violet." },
+        },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "second-write",
+            name: "remember",
+            arguments: { content: "violet", memory_request_id: "second-save" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Saved violet." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let claimed = false;
+    const writes: string[] = [];
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "What is two plus two?",
+          tools: [
+            {
+              name: "remember",
+              description: "Save a preference",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          claimSteering: async () => {
+            if (claimed) return [];
+            claimed = true;
+            return [
+              { id: "first-save", messageId: "first-message", text: "Remember I prefer cobalt." },
+              { id: "second-save", messageId: "second-message", text: "Remember I prefer violet." },
+            ];
+          },
+          executeTool: async (_name, args, _executionId, _route, observer) => {
+            expect(args).not.toHaveProperty("memory_request_id");
+            writes.push(observer!.memoryRequestId!);
+            await writeFile(path.join(directory, "MEMORY.md"), String(args.content));
+            return { ok: true, memoryRequestId: observer!.memoryRequestId };
+          },
+        }),
+        { signal: new AbortController().signal },
+      ),
+    );
+    expect(writes).toEqual(["first-save", "second-save"]);
+    expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe("violet");
+    server.assertComplete();
+  });
   it("persists a memory write when the supported default path is omitted", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-default-"));
     cleanups.push(() => rm(directory, { recursive: true, force: true }));

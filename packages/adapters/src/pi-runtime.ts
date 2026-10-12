@@ -277,7 +277,12 @@ export class PiAgentRuntime implements AgentRuntime {
           depth: 0,
           pausePending: false,
           pendingShells: [],
-          memoryWrite: { attempted: false, confirmed: request.memoryWriteConfirmed === true },
+          memoryWrite: {
+            attempted: false,
+            confirmed: request.memoryWriteConfirmed === true,
+            requestId: request.memoryRequestId,
+            steeringIds: new Set<string>(),
+          },
         };
         resumeHost = host;
         const tools = toAgentTools(toolDefs, host);
@@ -294,6 +299,12 @@ export class PiAgentRuntime implements AgentRuntime {
           // Mutate shared state so helper agents retain the same receipt boundary.
           host.memoryWrite.attempted = false;
           host.memoryWrite.confirmed = latestSave.memoryWriteConfirmed === true;
+          host.memoryWrite.requestId = latestSave.id;
+          host.memoryWrite.steeringIds = new Set(
+            steering
+              .filter((item) => needsFreshMemoryWrite(item.historyText ?? item.text))
+              .map((item) => item.id),
+          );
         };
         acceptMemorySteering(initialSteering);
         seenSteeringIds.push(...initialSteering.map((item) => item.id));
@@ -305,7 +316,7 @@ export class PiAgentRuntime implements AgentRuntime {
         );
         const initialPrompt = initialSteering.length
           ? `${request.prompt}\n\nAdditional user context:\n${initialSteering
-              .map((item) => item.text)
+              .map(memorySteeringText)
               .join("\n")}`
           : request.prompt;
         const systemPrompt = [
@@ -492,7 +503,9 @@ export class PiAgentRuntime implements AgentRuntime {
               const images = toPiImages(item.images);
               agent.steer({
                 role: "user",
-                content: images.length ? [{ type: "text", text: item.text }, ...images] : item.text,
+                content: images.length
+                  ? [{ type: "text", text: memorySteeringText(item) }, ...images]
+                  : memorySteeringText(item),
                 timestamp: Date.now(),
               });
             }
@@ -1148,6 +1161,12 @@ function toHistory(
     });
 }
 
+function memorySteeringText(item: AgentSteeringMessage): string {
+  return needsFreshMemoryWrite(item.historyText ?? item.text)
+    ? `Memory request ${item.id}${item.memoryWriteConfirmed ? " (verified complete; do not repeat)" : ""}: ${item.text}`
+    : item.text;
+}
+
 function withoutSteeringMessages(
   history: AgentRunRequest["history"],
   steering: AgentSteeringMessage[],
@@ -1209,11 +1228,28 @@ export function prepareRequestSecretArguments(raw: Record<string, unknown>) {
 }
 
 function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): AgentTool {
+  const baseParameters = parametersFor(tool);
+  const parameters =
+    isMemorySaveCall(tool.name, {}, Boolean(tool.route?.resourceId)) ||
+    tool.name === "kith_execute_tool"
+      ? {
+          ...baseParameters,
+          properties: {
+            ...baseParameters.properties,
+            memory_request_id: Type.Optional(
+              Type.String({
+                description:
+                  "The Memory request id being saved, when user context lists several. Omit for the original request.",
+              }),
+            ),
+          },
+        }
+      : baseParameters;
   return {
     name: exposedName,
     label: tool.name,
     description: tool.description,
-    parameters: parametersFor(tool),
+    parameters,
     prepareArguments: (args: unknown) => {
       const raw = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
       if (tool.name === "destination.write") {
@@ -1227,6 +1263,9 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         return {
           content: String(raw.content ?? ""),
           path: String(raw.path ?? "MEMORY.md"),
+          ...(raw.memory_request_id !== undefined
+            ? { memory_request_id: raw.memory_request_id }
+            : {}),
         };
       }
       if (tool.name === "request_takeover") {
@@ -1319,7 +1358,27 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
     },
     execute: async (toolCallId, params): Promise<AgentToolResult<unknown>> => {
       host.signal.throwIfAborted();
-      const args = (params ?? {}) as Record<string, unknown>;
+      const rawArgs = (params ?? {}) as Record<string, unknown>;
+      const memorySave = isMemorySaveCall(tool.name, rawArgs, Boolean(tool.route?.resourceId));
+      let args = rawArgs;
+      let memoryRequestId: string | undefined;
+      let memoryRequestError: string | undefined;
+      if (memorySave) {
+        const { memory_request_id: requestedMemoryId, ...memoryArgs } = rawArgs;
+        args = memoryArgs;
+        if (
+          requestedMemoryId !== undefined &&
+          (typeof requestedMemoryId !== "string" ||
+            !host.memoryWrite.steeringIds.has(requestedMemoryId))
+        ) {
+          memoryRequestError =
+            "Unknown memory_request_id; use a Memory request id from the user context.";
+        } else if (host.memoryWrite.steeringIds.size > 1 && requestedMemoryId === undefined) {
+          memoryRequestError = "Set memory_request_id to the Memory request this write fulfills.";
+        }
+        memoryRequestId =
+          typeof requestedMemoryId === "string" ? requestedMemoryId : host.memoryWrite.requestId;
+      }
       const rawCallId =
         toolCallId || `${host.request.runId}:${tool.name}:${host.toolCallSeq.value++}`;
       // Backend idempotency includes the agent namespace; Pi wire IDs remain untouched.
@@ -1334,10 +1393,15 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       const startedAt = Date.now();
       let result: unknown;
       let failure: unknown;
-      const memorySave = isMemorySaveCall(tool.name, args, Boolean(tool.route?.resourceId));
-      if (memorySave) host.memoryWrite.attempted = true;
+      if (memorySave && !memoryRequestError && memoryRequestId === host.memoryWrite.requestId)
+        host.memoryWrite.attempted = true;
       try {
         result = await (async () => {
+          if (memoryRequestError)
+            return {
+              content: [{ type: "text", text: memoryRequestError }],
+              details: { error: UNVERIFIED_MEMORY_ERROR },
+            };
           if (tool.name === "request_takeover") {
             host.pausePending = true;
             host.queue.push({
@@ -1421,6 +1485,7 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
               tool.route,
               {
                 allowDelegation: host.depth === 0,
+                ...(memoryRequestId ? { memoryRequestId } : {}),
                 onShellStillRunning: (completion) => {
                   host.pendingShells.push(completion);
                 },
@@ -1452,10 +1517,27 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         })();
         if (memorySave) {
           const details = (result as AgentToolResult<unknown>).details as
-            | { ok?: boolean; error?: unknown; uncertain?: boolean }
+            | { ok?: boolean; error?: unknown; uncertain?: boolean; memoryRequestId?: string }
             | undefined;
           host.memoryWrite.confirmed ||=
-            details?.ok === true && !details.error && details.uncertain !== true;
+            memoryRequestId === host.memoryWrite.requestId &&
+            details?.memoryRequestId === memoryRequestId &&
+            details?.ok === true &&
+            !details.error &&
+            details.uncertain !== true;
+          if (
+            memoryRequestId === host.memoryWrite.requestId &&
+            typeof details?.memoryRequestId === "string" &&
+            details.memoryRequestId !== memoryRequestId &&
+            (host.memoryWrite.steeringIds.has(details.memoryRequestId) ||
+              details.memoryRequestId === host.request.memoryRequestId) &&
+            details.ok === true &&
+            !details.error &&
+            details.uncertain !== true
+          ) {
+            // Approval replay may finish an earlier operation, leaving this request untouched.
+            host.memoryWrite.attempted = false;
+          }
         }
         return boundAgentToolResult(result as AgentToolResult<unknown>);
       } catch (error) {
@@ -2218,7 +2300,10 @@ function serializeToolResult(
   args: Record<string, unknown>,
 ) {
   try {
-    const text = JSON.stringify(result);
+    const hideReceiptIdentity = isMemorySaveCall(name, args, false);
+    const text = JSON.stringify(result, (key, value) =>
+      hideReceiptIdentity && key === "memoryRequestId" ? undefined : value,
+    );
     if (!text) return "ok";
     if (text.length <= 12_000) return text;
     return (strategy ?? DEFAULT_CONTEXT_STRATEGY) === "current"
@@ -2379,7 +2464,12 @@ interface ToolHost {
   /** Shell commands that returned output and are still running. */
   pendingShells: Array<Promise<FinishedShellCommand>>;
   /** Shared with helpers; only an authoritative executor result confirms a write. */
-  memoryWrite: { attempted: boolean; confirmed: boolean };
+  memoryWrite: {
+    attempted: boolean;
+    confirmed: boolean;
+    requestId?: string;
+    steeringIds: Set<string>;
+  };
 }
 
 function toolCallBudgetExceededMessage(limit: number) {
