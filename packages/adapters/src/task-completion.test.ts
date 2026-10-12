@@ -53,6 +53,18 @@ describe("fresh memory receipt boundary", () => {
     expect(needsFreshMemoryWrite("Explain the phrase 'Remember that I prefer cobalt'.")).toBe(
       false,
     );
+    expect(
+      needsFreshMemoryWrite("Explain this example:\n```\nRemember that I prefer cobalt.\n```"),
+    ).toBe(false);
+    expect(
+      needsFreshMemoryWrite("Explain this example:\n~~~\nRemember that I prefer cobalt.\n~~~"),
+    ).toBe(false);
+    expect(
+      needsFreshMemoryWrite("Explain this example:\n```\nRemember that I prefer cobalt."),
+    ).toBe(false);
+    expect(
+      needsFreshMemoryWrite("Remember that I prefer cobalt.\n```\nan unrelated example\n```"),
+    ).toBe(true);
   });
 
   it("accepts only supported memory writes, including the lazy catalog", () => {

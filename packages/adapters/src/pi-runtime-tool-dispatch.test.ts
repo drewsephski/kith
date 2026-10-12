@@ -584,6 +584,34 @@ describe("Pi connector tool dispatch", () => {
     expect(fakeAgentState.followUpMessages).toHaveLength(0);
   });
 
+  it.each(["```", "~~~"])(
+    "explains a quoted memory example without forcing a save: %s",
+    async (fence) => {
+      fakeAgentState.memoryMode = "blocked";
+      fakeAgentState.blockedReply = "This example asks an assistant to store a preference.";
+      const executeTool = vi.fn(async () => ({ ok: true }));
+      const events = [];
+      for await (const event of new PiAgentRuntime().run(
+        {
+          botId: "b",
+          threadId: "t",
+          runId: "quoted-memory",
+          prompt: `Explain this example:\n${fence}\nRemember that I prefer cobalt.\n${fence}`,
+          instructions: "Use durable memory.",
+          history: [],
+          tools: [],
+          model: { provider: "test", id: "dispatch-test-model" },
+          executeTool,
+        },
+        { signal: new AbortController().signal },
+      ))
+        events.push(event);
+      expect(events.at(-1)).toEqual({ type: "done", text: fakeAgentState.blockedReply });
+      expect(executeTool).not.toHaveBeenCalled();
+      expect(fakeAgentState.followUpMessages).toHaveLength(0);
+    },
+  );
+
   it.each([
     ["initial", "no-write"],
     ["boundary", "no-write"],

@@ -13,12 +13,14 @@ export const MEMORY_CONTINUATION_PROMPT =
 
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
 export function needsFreshMemoryWrite(prompt: string): boolean {
+  // Code examples cannot authorize memory writes, including an unfinished fence.
+  const directive = prompt.replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
   return (
     /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
-      prompt,
+      directive,
     ) ||
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember(?:\s+that\s+\S|\s+(?:this|it)\s+for\s+(?:future(?:\s+conversations)?|later|next\s+time)\b)/i.test(
-      prompt,
+      directive,
     )
   );
 }
