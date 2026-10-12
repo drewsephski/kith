@@ -5,7 +5,12 @@ export type BotListSection<T> = {
 };
 
 type Section = { id: string; name: string };
-type SectionedBot = { pinned: boolean; sectionId: string | null };
+type SectionedBot = {
+  id?: string;
+  parentBotId?: string | null;
+  pinned: boolean;
+  sectionId: string | null;
+};
 
 export function groupBotsForSidebar<T extends SectionedBot>(
   bots: readonly T[],
@@ -16,14 +21,26 @@ export function groupBotsForSidebar<T extends SectionedBot>(
   const sectionMembers = new Map<string, T[]>();
   const unassigned: T[] = [];
   const grouped: BotListSection<T>[] = [];
+  const byId = new Map(bots.flatMap((bot) => (bot.id ? [[bot.id, bot] as const] : [])));
+  function groupOwner(bot: T): T | undefined {
+    let current: T | undefined = bot;
+    const seen = new Set<T>();
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      if (current.pinned || current.sectionId || !current.parentBotId) return current;
+      current = byId.get(current.parentBotId);
+    }
+    return undefined;
+  }
 
   for (const bot of bots) {
-    if (bot.pinned) {
+    const owner = groupOwner(bot);
+    if (owner?.pinned) {
       pinned.push(bot);
-    } else if (bot.sectionId && knownSectionIds.has(bot.sectionId)) {
-      const members = sectionMembers.get(bot.sectionId) ?? [];
+    } else if (owner?.sectionId && knownSectionIds.has(owner.sectionId)) {
+      const members = sectionMembers.get(owner.sectionId) ?? [];
       members.push(bot);
-      sectionMembers.set(bot.sectionId, members);
+      sectionMembers.set(owner.sectionId, members);
     } else {
       unassigned.push(bot);
     }
@@ -35,7 +52,11 @@ export function groupBotsForSidebar<T extends SectionedBot>(
   for (const section of sections) {
     const members = sectionMembers.get(section.id) ?? [];
     if (members.length > 0) {
-      grouped.push({ key: `section:${section.id}`, title: section.name, bots: members });
+      grouped.push({
+        key: `section:${section.id}`,
+        title: section.name,
+        bots: members,
+      });
     }
   }
   if (unassigned.length > 0) {

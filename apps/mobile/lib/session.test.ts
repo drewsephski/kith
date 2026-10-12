@@ -45,7 +45,7 @@ describe("mobile session storage", () => {
     await clearSessionToken();
 
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith(AVATAR_STYLE_KEY);
-    expect(getCachedAvatarStyle()).toBe("robot");
+    expect(getCachedAvatarStyle()).toBe("organic");
   });
 
   it("ignores an avatar style response from a session that was cleared", async () => {
@@ -55,7 +55,7 @@ describe("mobile session storage", () => {
 
     await expect(saveAvatarStyleIfCurrent(generation, "organic")).resolves.toBe(false);
     expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(AVATAR_STYLE_KEY, "organic");
-    expect(getCachedAvatarStyle()).toBe("robot");
+    expect(getCachedAvatarStyle()).toBe("organic");
   });
 
   it("does not let an in-flight style write land after sign-out", async () => {
@@ -82,7 +82,7 @@ describe("mobile session storage", () => {
       await clearing;
 
       expect(disk.has(AVATAR_STYLE_KEY)).toBe(false);
-      expect(getCachedAvatarStyle()).toBe("robot");
+      expect(getCachedAvatarStyle()).toBe("organic");
     } finally {
       releaseWrite();
       vi.mocked(SecureStore.setItemAsync).mockReset();

@@ -113,11 +113,14 @@ export class CalendarService {
       signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
     };
     const status = await this.status(actor);
-    const ids = status.managedConnections.length
-      ? status.managedConnections.slice(0, 3).map((row) => row.id)
-      : status.status === "connected" && status.connectionId
-        ? [status.connectionId]
-        : [];
+    const ids = [
+      ...new Set([
+        ...(status.status === "connected" && status.connectionId && !status.managedConnectionId
+          ? [status.connectionId]
+          : []),
+        ...status.managedConnections.map((row) => row.id),
+      ]),
+    ].slice(0, 3);
     const now = new Date();
     const window = {
       date: new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(now),

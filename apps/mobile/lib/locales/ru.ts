@@ -1113,4 +1113,5 @@ export const RU_MESSAGES: Record<string, string> = {
   "Save label name": "Сохранить название метки",
   "Create label": "Создать метку",
   Pinned: "Закреплено",
+  "No activity yet": "Пока нет активности",
 };

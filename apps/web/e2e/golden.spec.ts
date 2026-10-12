@@ -490,6 +490,8 @@ test("bot context menu pins, duplicates, edits, and confirms deletion", async ({
   await page.getByRole("menuitem", { name: "Mark as Read" }).click();
 
   await chief.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Unpin", exact: true }).click();
+  await chief.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Pin", exact: true }).click();
 
   await chief.click({ button: "right" });

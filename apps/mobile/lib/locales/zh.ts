@@ -1058,4 +1058,5 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Save label name": "保存标签名称",
   "Create label": "创建标签",
   Pinned: "已置顶",
+  "No activity yet": "暂无活动",
 };

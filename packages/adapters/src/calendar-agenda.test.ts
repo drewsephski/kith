@@ -1,6 +1,6 @@
 import type { Actor } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { CalendarService } from "./calendar-service.js";
+import { CALENDAR_CONNECTOR_ID, CalendarService } from "./calendar-service.js";
 
 const actor: Actor = {
   userId: "user",
@@ -43,7 +43,7 @@ function fixture() {
       },
     ],
   };
-  const findFirst = vi.fn(async () => row as typeof row | null);
+  const findFirst = vi.fn(async (_input?: { where: { id: string } }) => row as typeof row | null);
   const sources = vi.fn(async () => [
     { id: "primary", name: "Calendar", timezone: "America/Chicago" },
   ]);
@@ -63,9 +63,42 @@ function fixture() {
     connectionId: null,
     status: "disconnected",
   });
-  return { service, findFirst, sources, events, snapshot };
+  return { service, findFirst, sources, events, snapshot, row };
 }
 describe("read-only connected calendar agenda", () => {
+  it("includes a direct account alongside managed accounts, deduplicated and capped", async () => {
+    const { service, findFirst, sources, events, row } = fixture();
+    const status = await service.status(actor);
+    vi.mocked(service.status).mockResolvedValue({
+      ...status,
+      status: "connected",
+      connectionId: "direct",
+      managedConnectionId: null,
+      managedConnections: [
+        { id: "account", displayName: "Managed" },
+        { id: "account", displayName: "Duplicate" },
+        { id: "second", displayName: "Second" },
+        { id: "fourth", displayName: "Fourth" },
+      ],
+    });
+    findFirst.mockImplementation(async (input?: { where: { id: string } }) =>
+      input?.where.id === "direct"
+        ? { ...row, id: "direct", connectorId: CALENDAR_CONNECTOR_ID }
+        : { ...row, id: input?.where.id ?? "account" },
+    );
+    const direct = vi.spyOn(service, "reader").mockResolvedValue({ sources, events });
+    const agenda = await service.agenda(actor, "America/Chicago", new AbortController().signal);
+    expect(agenda.snapshots).toHaveLength(3);
+    expect(agenda.unavailable).toBe(false);
+    expect(direct).toHaveBeenCalledWith(
+      "direct",
+      actor,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(
+      findFirst.mock.calls.flatMap(([input]) => (input ? [input.where.id] : [])),
+    ).not.toContain("fourth");
+  });
   it("reads an existing connected account without enabling or reconnecting a briefing", async () => {
     const { service, findFirst, events, snapshot } = fixture();
     expect(await service.agenda(actor, "America/Chicago", new AbortController().signal)).toEqual({
@@ -80,7 +113,10 @@ describe("read-only connected calendar agenda", () => {
         status: "connected",
       }),
     });
-    const window = events.mock.calls[0]?.[0] as unknown as { timeMin: string; timeMax: string };
+    const window = events.mock.calls[0]?.[0] as unknown as {
+      timeMin: string;
+      timeMax: string;
+    };
     expect(Date.parse(window.timeMax) - Date.parse(window.timeMin)).toBe(7 * 86400_000);
   });
   it("withholds data if the source is revoked while the provider read is in flight", async () => {

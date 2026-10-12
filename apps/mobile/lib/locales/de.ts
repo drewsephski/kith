@@ -1116,4 +1116,5 @@ export const DE_MESSAGES: Record<string, string> = {
   "Create label": "Label erstellen",
   Hide: "Ausblenden",
   Pinned: "Angeheftet",
+  "No activity yet": "Noch keine Aktivitäten",
 };

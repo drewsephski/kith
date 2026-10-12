@@ -529,6 +529,13 @@ export default function Account() {
             accessibilityRole="button"
             chevron="right"
             disabled={pending}
+            onPress={() => router.push("/activity")}
+            title={t("Activity")}
+          />
+          <SettingsRow
+            accessibilityRole="button"
+            chevron="right"
+            disabled={pending}
             onPress={() => router.push("/models")}
             title={t("Models")}
           />
