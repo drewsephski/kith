@@ -18,7 +18,7 @@ pnpm exec expo export --platform ios --platform android
 
 Doctor initially found a missing expo-asset peer, direct expo-modules-core use and duplicate native icon installations caused by compiler peer contexts. The reliability patch resolves all three; Doctor passed all 21 checks locally. Keep the shared native markdown compiler peer aligned with mobile. Do not delete the lockfile to suppress diagnosis.
 
-The asset peer/configuration and Expo Observe are native changes: appVersion runtime is now 1.0.7. Create fresh native builds. Existing 1.0.5 and 1.0.6 binaries remain on their compatible runtimes and must not receive this revision as JavaScript OTA. Channels and application IDs are unchanged.
+The asset peer/configuration and Expo Observe introduced native runtime 1.0.7. The incoming iOS share extension and app-group configuration require a fresh native build on runtime 1.0.8. Older binaries remain on their compatible runtimes and must not receive these native changes as JavaScript OTA. Channels and application IDs are unchanged.
 
 ## Expo Observe
 
