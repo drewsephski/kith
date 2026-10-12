@@ -389,7 +389,11 @@ import {
   takeoverContinuePlan,
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
-import { UNVERIFIED_MEMORY_ERROR } from "./task-completion.js";
+import {
+  isMemorySaveCall,
+  needsFreshMemoryWrite,
+  UNVERIFIED_MEMORY_ERROR,
+} from "./task-completion.js";
 import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
 import {
   attachWorkspaceFileToThread,
@@ -3606,6 +3610,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
           return;
         }
+        const completedMemoryEffects =
+          fence > 1 && needsFreshMemoryWrite(task.prompt)
+            ? await deps.prisma.externalEffect.findMany({
+                where: { runId, status: "completed" },
+                select: { kind: true, result: true },
+              })
+            : [];
+        const memoryWriteConfirmed = completedMemoryEffects.some((effect) => {
+          const result = effect.result as {
+            ok?: boolean;
+            error?: unknown;
+            uncertain?: boolean;
+          } | null;
+          return (
+            isMemorySaveCall(effect.kind, {}, false) &&
+            result?.ok === true &&
+            !result.error &&
+            result.uncertain !== true
+          );
+        });
 
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
@@ -7248,6 +7272,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               resumeFromCheckpoint: takeoverResume?.checkpoint,
               script,
               allowSilentEmpty: allowSilentEmptyRun,
+              memoryWriteConfirmed,
               emptyResponseText,
               executeTool: scripted ? undefined : applyTool,
               resolveModel: scripted

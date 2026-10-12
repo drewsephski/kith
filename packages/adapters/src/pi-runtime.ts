@@ -276,7 +276,7 @@ export class PiAgentRuntime implements AgentRuntime {
           depth: 0,
           pausePending: false,
           pendingShells: [],
-          memoryWrite: { attempted: false, confirmed: false },
+          memoryWrite: { attempted: false, confirmed: request.memoryWriteConfirmed === true },
         };
         resumeHost = host;
         const tools = toAgentTools(toolDefs, host);
@@ -511,7 +511,7 @@ export class PiAgentRuntime implements AgentRuntime {
         let taskContinuations = 0;
         let incompleteTask = false;
         let incompleteMemory = false;
-        const freshMemoryWrite = needsFreshMemoryWrite(request.prompt, request.instructions);
+        const freshMemoryWrite = needsFreshMemoryWrite(request.prompt);
         let lastTurnStreamEnd = 0;
         const activeTools = new Map<string, string>();
         const originalToolNames = new Map(tools.map((tool) => [tool.name, tool.label]));

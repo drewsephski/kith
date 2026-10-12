@@ -446,6 +446,8 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Backend receipt for a successful memory write in this durable run, across attempts. */
+  memoryWriteConfirmed?: boolean;
   /** Internal optimization; explicit model thinking preferences still win. */
   executionProfile?: "conversation" | "agent";
   /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */

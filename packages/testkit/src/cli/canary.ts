@@ -120,10 +120,12 @@ async function main() {
     }
   }
 }
-main().catch(() => {
+main().catch((error) => {
   // Provider, parser and subprocess errors may contain credentials or private paths.
   console.error(
-    "NOT PASSED: acceptance configuration, setup or cleanup failed. Check opt-in flags, private connection/pricing, budgets and Docker.",
+    error instanceof Error && error.message.startsWith("NOT RUN:")
+      ? "NOT RUN: live acceptance requires explicit opt-in, valid private connection/pricing, provider credentials and budgets."
+      : "NOT PASSED: acceptance configuration, setup or cleanup failed. Check opt-in flags, private connection/pricing, budgets and Docker.",
   );
   process.exitCode = 1;
 });

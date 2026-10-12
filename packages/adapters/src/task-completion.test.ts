@@ -37,14 +37,10 @@ describe("unfinished action recovery", () => {
 
 describe("fresh memory receipt boundary", () => {
   it("only requires a write for an explicit fresh durable directive", () => {
-    expect(
-      needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.", "test"),
-    ).toBe(true);
-    expect(
-      needsFreshMemoryWrite("Remember: cobalt.", "<durable_memory>cobalt</durable_memory>"),
-    ).toBe(false);
-    expect(needsFreshMemoryWrite("Do you remember my preference?", "test")).toBe(false);
-    expect(needsFreshMemoryWrite("Remember to ask me tomorrow.", "test")).toBe(false);
+    expect(needsFreshMemoryWrite("Remember for future conversations: I prefer cobalt.")).toBe(true);
+    expect(needsFreshMemoryWrite("Remember: cobalt.")).toBe(true);
+    expect(needsFreshMemoryWrite("Do you remember my preference?")).toBe(false);
+    expect(needsFreshMemoryWrite("Remember to ask me tomorrow.")).toBe(false);
   });
 
   it("accepts only supported memory writes, including the lazy catalog", () => {

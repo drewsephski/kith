@@ -39,7 +39,7 @@ type ToolCall = {
   executionId: string;
 };
 
-function fixture(runId = "run-1") {
+function fixture(runId = "run-1", prompt = "Update shared state") {
   const effects: Effect[] = [];
   const results: unknown[] = [];
   const scratchpadRows: Array<{
@@ -134,7 +134,7 @@ function fixture(runId = "run-1") {
     thread: { findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })) },
     message: { findMany: vi.fn(async () => []) },
     task: {
-      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: "Update shared state" })),
+      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt })),
     },
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
@@ -223,6 +223,7 @@ function fixture(runId = "run-1") {
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
   return {
+    runtimeRun,
     effects,
     results,
     scratchpadRows,
@@ -241,6 +242,28 @@ function fixture(runId = "run-1") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
+  it("restores only this run's successful memory receipt across attempts", async () => {
+    const f = fixture("memory-receipt-retry", "Remember: durable fact");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { path: "MEMORY.md", content: "durable fact" },
+        executionId: "memory-1",
+      },
+    ]);
+    await f.run();
+    f.setCalls([]);
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(true);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+    f.effects[0]!.result = { ok: false };
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+    f.effects[0]!.result = { ok: true };
+    f.effects[0]!.runId = "other-run";
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+  });
   it("executes different tools that share a reused provider tool-call id", async () => {
     const f = fixture("run-a");
     f.setCalls([

@@ -11,12 +11,10 @@ export const UNVERIFIED_MEMORY_ERROR = "Memory wasn't saved. Try again.";
 export const MEMORY_CONTINUATION_PROMPT =
   "The requested durable preference has no confirmed memory write. Save it using the supported memory tool, then report the confirmed result. Do not repeat any attempted failed or uncertain mutation, bypass permissions, or claim a preference was saved without a successful tool result.";
 
-/** Only an explicit fresh directive qualifies; existing memory and recall stay unchanged. */
-export function needsFreshMemoryWrite(prompt: string, instructions: string): boolean {
-  return (
-    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
-      prompt,
-    ) && !instructions.includes("<durable_memory>")
+/** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
+export function needsFreshMemoryWrite(prompt: string): boolean {
+  return /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/i.test(
+    prompt,
   );
 }
 

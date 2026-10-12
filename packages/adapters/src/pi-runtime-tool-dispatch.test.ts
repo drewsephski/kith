@@ -479,10 +479,10 @@ describe("Pi connector tool dispatch", () => {
     delete process.env.MAX_TOOL_CALLS_PER_TURN;
   });
 
-  it.each(["recover", "no-write", "failed-write", "blocked"] as const)(
+  it.each(["recover", "no-write", "failed-write", "blocked", "confirmed-write"] as const)(
     "requires a successful fresh memory receipt: %s",
     async (mode) => {
-      fakeAgentState.memoryMode = mode;
+      fakeAgentState.memoryMode = mode === "confirmed-write" ? "no-write" : mode;
       const executeTool = vi.fn(async () =>
         mode === "failed-write" ? { ok: false, uncertain: true } : { ok: true },
       );
@@ -492,8 +492,10 @@ describe("Pi connector tool dispatch", () => {
             botId: "b",
             threadId: "t",
             runId: "memory",
+            memoryWriteConfirmed: mode === "confirmed-write",
             prompt: "Remember: I prefer cobalt.",
-            instructions: "Use durable memory.",
+            instructions:
+              "Use durable memory. <durable_memory>Unrelated existing preference.</durable_memory>",
             history: [],
             tools: [
               {

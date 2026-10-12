@@ -62,6 +62,15 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
       return {
         prompt: `Remember for future conversations: ${MEMORY}`,
         steps: [
+          {
+            ...text("Remembered your preference."),
+            expect(request: ModelEmulatorRequest) {
+              assert.ok(
+                JSON.stringify(request.messages).includes("<durable_memory>"),
+                "Normal bot memory context missing",
+              );
+            },
+          },
           tool("remember", { path: "MEMORY.md", content: MEMORY }),
           result("Remembered your preference.", /true/),
         ],
