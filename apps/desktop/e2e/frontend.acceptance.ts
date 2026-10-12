@@ -28,6 +28,7 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
   try {
     app = await launch();
     const page = await app.firstWindow();
+    await waitForShownWindow(app, page);
     // Electron starts its own initial navigation after creating the window.
     // Wait for the shared auth screen before initiating a second navigation.
     await expect(page.getByRole("heading", { name: "Kith", exact: true })).toBeVisible();
@@ -59,6 +60,7 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await test.step("Close the authenticated process", () => app!.close(), { timeout: 20_000 });
     app = await test.step("Relaunch the saved session", launch, { timeout: 20_000 });
     const restored = await app.firstWindow();
+    await waitForShownWindow(app, restored);
     await expect(restored.getByRole("combobox", { name: /^Message/ })).toBeVisible();
     await restored.goto(route);
     await expect(
@@ -130,6 +132,7 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
       }
     }
     if (!recoveredWindow) throw new Error("Missing recovered authenticated application window");
+    await waitForShownWindow(app, recoveredWindow);
     await recoveredWindow.goto(newRoute);
     await expect(
       recoveredWindow.getByRole("combobox", {
@@ -142,3 +145,14 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await rm(profile, { recursive: true, force: true });
   }
 });
+
+async function waitForShownWindow(app: ElectronApplication, page: Page) {
+  const window = await app.browserWindow(page);
+  try {
+    // DOM visibility does not mean the native launch has committed. Navigating a
+    // hidden renderer can race its initial load and leave recovery unarmed.
+    await expect.poll(() => window.evaluate((win) => win.isVisible())).toBe(true);
+  } finally {
+    await window.dispose();
+  }
+}

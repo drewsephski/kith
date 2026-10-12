@@ -219,6 +219,41 @@ describe("background computer maintenance", () => {
     expect(computer.updateMany).toHaveBeenCalledOnce();
   });
 
+  it.each(["completed", "failed"] as const)(
+    "retains stale Stop intent until a late worker returns %s",
+    async (terminal) => {
+      const { row, deps, computer } = fixture();
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      replacement.mockImplementationOnce(async () => {
+        await pending;
+        if (terminal === "failed") throw new Error("offline");
+        return { kind: "fake" } as Awaited<ReturnType<typeof replaceComputer>>;
+      });
+      const work = performComputerUpdate(deps, row.id);
+      await vi.waitFor(() => expect(replacement).toHaveBeenCalled());
+      await cancelComputerUpdate(
+        deps.prisma,
+        {
+          userId: "user",
+          spaceId: "space",
+          email: "reader@example.test",
+          isDeploymentOwner: false,
+        },
+        row.id,
+      );
+      await reconcileComputerUpdates(deps);
+      expect(row.status).toBe("stopping");
+      expect(computer.updateMany).not.toHaveBeenCalled();
+      release();
+      await work;
+      expect(row.status).toBe("cancelled");
+      expect(computer.updateMany).toHaveBeenCalledOnce();
+    },
+  );
+
   it("rejects a busy computer before publishing an operation", async () => {
     const { row, deps, computer, jobs } = fixture();
     computer.updateMany.mockResolvedValueOnce({ count: 0 });

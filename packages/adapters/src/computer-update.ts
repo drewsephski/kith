@@ -701,7 +701,9 @@ export async function reconcileComputerUpdates(deps: Pick<Deps, "prisma" | "jobs
       await deps.prisma.$transaction(async (tx) => {
         const stale = await tx.computerUpdate.updateMany({
           where: { id: update.id, status: update.status, updatedAt: update.updatedAt },
-          data: { status: "interrupted" },
+          // Stale cancellation remains cancellation intent. Refresh its timestamp
+          // so these reserved rows do not starve other work in the bounded scan.
+          data: { status: update.status === "stopping" ? "stopping" : "interrupted" },
         });
         // A stale heartbeat is not proof that provider calls have stopped. Only
         // the worker's settled path can release this reservation.
