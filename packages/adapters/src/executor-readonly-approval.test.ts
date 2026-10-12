@@ -720,6 +720,31 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect(f.pauseRunForInput).toHaveBeenCalledOnce();
     });
 
+    it("ends a denied execution without losing completed receipts or replaying pending approvals", async () => {
+      const f = fixture({ catalog });
+      await f.run();
+      expect(f.effects[0]!.status).toBe("completed");
+      const completed = { ...f.effects[0]! };
+      f.effects.push(
+        {
+          ...completed,
+          id: "pending-approved",
+          idempotencyKey: "pending-approved",
+          status: "approved",
+        },
+        { ...completed, id: "denied-action", idempotencyKey: "denied-action", status: "denied" },
+      );
+      await f.run();
+      expect(f.execute).toHaveBeenCalledOnce();
+      expect(f.effects[0]).toEqual(completed);
+      expect(f.effects[1]!.status).toBe("approved");
+      expect(f.finalizeRun).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          blocks: [{ kind: "text", text: "The action was denied." }],
+        }),
+      );
+    });
+
     it("consumes the saved approval after the user chooses always allow", async () => {
       const rules: ActionApprovalRule[] = [
         { effect: "require_approval", matchKind: "tool", matchValue: "demo_get_item" },

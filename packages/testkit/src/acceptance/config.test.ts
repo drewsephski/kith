@@ -31,10 +31,16 @@ describe("product acceptance safety", () => {
       PI_DEFAULT_CREDENTIALS: "fixture",
       AXIOM_TOKEN: "fixture",
       DOTENV_CONFIG_PATH: "fixture",
+      DOCKER_HOST: "unix:///synthetic/docker.sock",
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: "/synthetic/docker.sock",
+      XDG_RUNTIME_DIR: "/synthetic/runtime",
     };
     isolateAcceptanceEnvironment(env);
     expect(env.PATH).toBe("synthetic-path");
     expect(env.HOME).toBe("synthetic-home");
+    expect(env.DOCKER_HOST).toBe("unix:///synthetic/docker.sock");
+    expect(env.TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE).toBe("/synthetic/docker.sock");
+    expect(env.XDG_RUNTIME_DIR).toBe("/synthetic/runtime");
     for (const key of [
       "DATABASE_URL",
       "E2B_API_KEY",

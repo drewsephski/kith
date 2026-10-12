@@ -56,4 +56,13 @@ describe("fresh memory receipt boundary", () => {
     expect(memoryReplyIsBlocked("Memory wasn't saved.")).toBe(true);
     expect(memoryReplyIsBlocked("Remembered for next time.")).toBe(false);
   });
+
+  it.each([
+    "Saved it; the previous attempt failed.",
+    "Remembered. I need your favorite color next.",
+    "The connector is unavailable, but I saved the preference.",
+    "I can't save this. Saved it anyway.",
+  ])("does not accept incidental or contradictory blockers: %s", (text) => {
+    expect(memoryReplyIsBlocked(text)).toBe(false);
+  });
 });

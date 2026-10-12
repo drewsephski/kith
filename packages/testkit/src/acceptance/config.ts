@@ -83,8 +83,21 @@ export function acceptanceOptions(args: string[], env: NodeJS.ProcessEnv = proce
 
 /** Never inherit deployment credentials, databases, OAuth, host tools or telemetry. */
 export function isolateAcceptanceEnvironment(env: NodeJS.ProcessEnv = process.env) {
-  const keep = new Set(["PATH", "HOME", "TMPDIR", "SYSTEMROOT", "SystemRoot", "LANG", "LC_ALL"]);
-  for (const key of Object.keys(env)) if (!keep.has(key)) delete env[key];
+  const keep = new Set([
+    "PATH",
+    "HOME",
+    "TMPDIR",
+    "SYSTEMROOT",
+    "SystemRoot",
+    "LANG",
+    "LC_ALL",
+    "DOCKER_HOST",
+    "DOCKER_TLS_VERIFY",
+    "DOCKER_CERT_PATH",
+    "XDG_RUNTIME_DIR",
+  ]);
+  for (const key of Object.keys(env))
+    if (!keep.has(key) && !key.startsWith("TESTCONTAINERS_")) delete env[key];
   Object.assign(env, {
     NODE_ENV: "test",
     BETTER_AUTH_SECRET: "synthetic-acceptance-auth-secret-at-least-32-characters",
