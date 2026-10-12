@@ -89,6 +89,7 @@ vi.mock("@earendil-works/pi-agent-core", () => ({
       fakeAgentState.promptInputs.push(prompt);
       fakeAgentState.promptImages.push(images ?? []);
       if (fakeAgentState.memoryMode !== "none") {
+        await this.prepareNextTurnWithContext?.({ context: { messages: this.state.messages } });
         const end = (text: string) => {
           const message = {
             role: "assistant",
@@ -551,6 +552,57 @@ describe("Pi connector tool dispatch", () => {
     expect(fakeAgentState.followUpMessages).toHaveLength(
       mode === "recover" ? 1 : mode === "no-write" || mode === "incidental-failure" ? 2 : 0,
     );
+  });
+
+  it.each([
+    ["initial", "no-write"],
+    ["boundary", "no-write"],
+    ["initial", "recover"],
+    ["boundary", "recover"],
+  ] as const)("verifies a new memory save from %s steering: %s", async (arrival, mode) => {
+    fakeAgentState.memoryMode = mode;
+    let claims = 0;
+    const executeTool = vi.fn(async () => ({ ok: true }));
+    const consume = async () => {
+      for await (const _event of new PiAgentRuntime().run(
+        {
+          botId: "b",
+          threadId: "t",
+          runId: "steered-memory",
+          prompt: "What is two plus two?",
+          instructions: "Use durable memory.",
+          history: [],
+          memoryWriteConfirmed: true,
+          claimSteering: async () =>
+            ++claims === (arrival === "initial" ? 1 : 2)
+              ? [
+                  {
+                    id: "fresh-save",
+                    messageId: "fresh-message",
+                    historyText: "Remember: I prefer cobalt.",
+                    text: "<reply_target>Earlier question.</reply_target>\n\nRemember: I prefer cobalt.",
+                  },
+                ]
+              : [],
+          tools: [
+            {
+              name: "remember",
+              description: "Save a durable fact",
+              inputSchema: { type: "object" },
+            },
+          ],
+          model: { provider: "test", id: "dispatch-test-model" },
+          executeTool,
+        },
+        { signal: new AbortController().signal },
+      )) {
+        /* exhaust */
+      }
+    };
+    if (mode === "no-write") await expect(consume()).rejects.toThrow("Memory wasn't saved");
+    else await consume();
+    expect(executeTool).toHaveBeenCalledTimes(mode === "recover" ? 1 : 0);
+    expect(fakeAgentState.followUpMessages).toHaveLength(mode === "recover" ? 1 : 2);
   });
 
   it("injects durable steering at Pi's next safe turn boundary", async () => {

@@ -282,6 +282,17 @@ export class PiAgentRuntime implements AgentRuntime {
         const tools = toAgentTools(toolDefs, host);
         const seenSteeringIds: string[] = [];
         const initialSteering = request.claimSteering ? await request.claimSteering([]) : [];
+        let freshMemoryWrite = needsFreshMemoryWrite(request.prompt);
+        const acceptMemorySteering = (steering: AgentSteeringMessage[]) => {
+          if (!steering.some((item) => needsFreshMemoryWrite(item.historyText ?? item.text)))
+            return;
+          freshMemoryWrite = true;
+          // An earlier receipt in this execution cannot satisfy a new user save.
+          // Mutate shared state so helper agents retain the same receipt boundary.
+          host.memoryWrite.attempted = false;
+          host.memoryWrite.confirmed = false;
+        };
+        acceptMemorySteering(initialSteering);
         seenSteeringIds.push(...initialSteering.map((item) => item.id));
         if (initialSteering.length) request.executionProfile = "agent";
         const history = toHistory(
@@ -470,6 +481,7 @@ export class PiAgentRuntime implements AgentRuntime {
             if (!request.claimSteering) return undefined;
             const steering = await request.claimSteering([...seenSteeringIds]);
             if (steering.length === 0) return undefined;
+            acceptMemorySteering(steering);
             promoteToAgent();
             seenSteeringIds.push(...steering.map((item) => item.id));
             for (const item of steering) {
@@ -511,7 +523,6 @@ export class PiAgentRuntime implements AgentRuntime {
         let taskContinuations = 0;
         let incompleteTask = false;
         let incompleteMemory = false;
-        const freshMemoryWrite = needsFreshMemoryWrite(request.prompt);
         let lastTurnStreamEnd = 0;
         const activeTools = new Map<string, string>();
         const originalToolNames = new Map(tools.map((tool) => [tool.name, tool.label]));

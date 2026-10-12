@@ -18,8 +18,8 @@ export function watchRunCancellation(
       for await (const event of events.follow(threadId, cursor, subscription.signal)) {
         if (
           event.threadId === threadId &&
-          event.runId === runId &&
-          event.type === "run.cancelled"
+          (event.type === "thread.cleared" ||
+            (event.runId === runId && event.type === "run.cancelled"))
         ) {
           execution.abort();
           return;

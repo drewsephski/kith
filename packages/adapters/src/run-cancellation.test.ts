@@ -36,6 +36,27 @@ it("ignores other runs and conversations, then aborts the exact execution", asyn
   await expect.poll(() => execution.signal.aborted).toBe(true);
   await stop();
 });
+it("aborts on a clear of its thread without a run id, ignoring foreign clears", async () => {
+  const execution = new AbortController();
+  const cleared = event("owned-thread", "owned-run");
+  cleared.type = "thread.cleared";
+  delete cleared.runId;
+  const stop = watchRunCancellation(
+    {
+      async *follow() {
+        yield { ...cleared, threadId: "foreign" };
+        expect(execution.signal.aborted).toBe(false);
+        yield cleared;
+      },
+    },
+    "owned-thread",
+    "owned-run",
+    0,
+    execution,
+  );
+  await expect.poll(() => execution.signal.aborted).toBe(true);
+  await stop();
+});
 it("stops its subscription at normal completion without cancelling execution", async () => {
   const execution = new AbortController();
   let detached = false;
