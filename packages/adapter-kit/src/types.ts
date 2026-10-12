@@ -407,6 +407,8 @@ export interface AgentSteeringMessage {
   memoryWriteConfirmed?: boolean;
   /** A prior failed/uncertain write for this input must not be retried after recovery. */
   memoryWriteAttempted?: boolean;
+  /** Exact durable receipts for independently requested saves within an input. */
+  memoryWriteReceipts?: Array<{ requestId: string; confirmed: boolean }>;
   images?: AgentInputImage[];
 }
 
@@ -456,6 +458,8 @@ export interface AgentRunRequest {
   memoryWriteConfirmed?: boolean;
   /** A prior failed/uncertain write for this input must not be retried after recovery. */
   memoryWriteAttempted?: boolean;
+  /** Exact durable receipts for independently requested saves within an input. */
+  memoryWriteReceipts?: Array<{ requestId: string; confirmed: boolean }>;
   /** Internal optimization; explicit model thinking preferences still win. */
   executionProfile?: "conversation" | "agent";
   /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */

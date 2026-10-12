@@ -77,6 +77,7 @@ import {
   MEMORY_CONTINUATION_PROMPT,
   MEMORY_TASK_GUIDANCE,
   memoryReplyIsBlocked,
+  memorySaveRequests,
   needsFreshMemoryWrite,
   TASK_COMPLETION_GUIDANCE,
   TASK_CONTINUATION_PROMPT,
@@ -279,21 +280,10 @@ export class PiAgentRuntime implements AgentRuntime {
           pendingShells: [],
           memoryWrite: {
             requestId: request.memoryRequestId ?? `${request.runId}:input:initial`,
-            requests: new Map(
-              needsFreshMemoryWrite(request.prompt)
-                ? [
-                    [
-                      request.memoryRequestId ?? `${request.runId}:input:initial`,
-                      {
-                        attempted: request.memoryWriteAttempted === true,
-                        retryBlocked:
-                          request.memoryWriteAttempted === true && !request.memoryWriteConfirmed,
-                        confirmed: request.memoryWriteConfirmed === true,
-                        text: request.prompt,
-                      },
-                    ],
-                  ]
-                : [],
+            requests: memoryWriteStates(
+              request.prompt,
+              request.memoryRequestId ?? `${request.runId}:input:initial`,
+              request,
             ),
           },
         };
@@ -306,16 +296,20 @@ export class PiAgentRuntime implements AgentRuntime {
             if (!needsFreshMemoryWrite(item.historyText ?? item.text)) continue;
             // Each independent save needs its own receipt; retain earlier pending
             // requests across batches and share the map with helper agents.
-            const previous = host.memoryWrite.requests.get(item.id);
-            host.memoryWrite.requests.set(item.id, {
-              attempted: previous?.attempted === true || item.memoryWriteAttempted === true,
-              retryBlocked:
-                previous?.retryBlocked === true ||
-                (item.memoryWriteAttempted === true && !item.memoryWriteConfirmed),
-              confirmed: previous?.confirmed === true || item.memoryWriteConfirmed === true,
-              text: item.historyText ?? item.text,
-            });
-            host.memoryWrite.requestId = item.id;
+            for (const [id, state] of memoryWriteStates(
+              item.historyText ?? item.text,
+              item.id,
+              item,
+            )) {
+              const previous = host.memoryWrite.requests.get(id);
+              host.memoryWrite.requests.set(id, {
+                attempted: previous?.attempted === true || state.attempted,
+                retryBlocked: previous?.retryBlocked === true || state.retryBlocked,
+                confirmed: previous?.confirmed === true || state.confirmed,
+                text: state.text,
+              });
+              host.memoryWrite.requestId = id;
+            }
           }
         };
         acceptMemorySteering(initialSteering);
@@ -326,9 +320,12 @@ export class PiAgentRuntime implements AgentRuntime {
           request.prompt,
           request.sourceMessageId,
         );
-        const originalPrompt = needsFreshMemoryWrite(request.prompt)
-          ? `Memory request ${request.memoryRequestId ?? `${request.runId}:input:initial`}: ${request.prompt}`
-          : request.prompt;
+        const originalPrompt = memoryInputText(
+          request.prompt,
+          request.prompt,
+          request.memoryRequestId ?? `${request.runId}:input:initial`,
+          request,
+        );
         const initialPrompt = initialSteering.length
           ? `${originalPrompt}\n\nAdditional user context:\n${initialSteering
               .map(memorySteeringText)
@@ -1183,10 +1180,51 @@ function requestHasLegacyMemoryIdentity(request: AgentRunRequest, id: string): b
   return !request.memoryRequestId && id === `${request.runId}:input:initial`;
 }
 
+function memoryWriteStates(
+  prompt: string,
+  requestId: string,
+  input: Pick<
+    AgentRunRequest,
+    "memoryWriteConfirmed" | "memoryWriteAttempted" | "memoryWriteReceipts"
+  >,
+): ToolHost["memoryWrite"]["requests"] {
+  return new Map(
+    memorySaveRequests(prompt, requestId).map(({ id, text }) => {
+      const receipt = input.memoryWriteReceipts?.find((item) => item.requestId === id);
+      const confirmed =
+        receipt?.confirmed === true || (id === requestId && input.memoryWriteConfirmed === true);
+      // A legacy receipt for a bundled input cannot prove every fact, but must not
+      // cause already attempted work to be repeated after recovery.
+      const attempted =
+        receipt !== undefined ||
+        input.memoryWriteAttempted === true ||
+        (id !== requestId && input.memoryWriteConfirmed === true);
+      return [id, { text, confirmed, attempted, retryBlocked: attempted && !confirmed }];
+    }),
+  );
+}
+
+function memoryInputText(
+  text: string,
+  prompt: string,
+  id: string,
+  input: Pick<
+    AgentRunRequest,
+    "memoryWriteConfirmed" | "memoryWriteAttempted" | "memoryWriteReceipts"
+  >,
+): string {
+  const requests = memoryWriteStates(prompt, id, input);
+  if (requests.size === 0) return text;
+  return `${text}\n\n${[...requests]
+    .map(
+      ([requestId, state]) =>
+        `Memory request ${requestId}${state.confirmed ? " (verified complete; do not repeat)" : state.attempted ? " (attempted; do not retry)" : ""}: ${state.text}`,
+    )
+    .join("\n")}`;
+}
+
 function memorySteeringText(item: AgentSteeringMessage): string {
-  return needsFreshMemoryWrite(item.historyText ?? item.text)
-    ? `Memory request ${item.id}${item.memoryWriteConfirmed ? " (verified complete; do not repeat)" : ""}: ${item.text}`
-    : item.text;
+  return memoryInputText(item.text, item.historyText ?? item.text, item.id, item);
 }
 
 function withoutSteeringMessages(

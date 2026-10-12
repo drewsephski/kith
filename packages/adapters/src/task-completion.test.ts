@@ -3,6 +3,7 @@ import {
   isMemorySaveCall,
   isUnfulfilledActionReply,
   memoryReplyIsBlocked,
+  memorySaveRequests,
   needsFreshMemoryWrite,
 } from "./task-completion.js";
 
@@ -36,6 +37,18 @@ describe("unfinished action recovery", () => {
 });
 
 describe("fresh memory receipt boundary", () => {
+  it("splits independent directives while retaining a single directive's identity", () => {
+    expect(memorySaveRequests("Remember: coffee.", "input")).toEqual([
+      { id: "input", text: "Remember: coffee." },
+    ]);
+    expect(
+      memorySaveRequests("Remember I prefer dark mode. Remember my timezone is UTC.", "input"),
+    ).toEqual([
+      { id: "input:memory:0", text: "Remember I prefer dark mode." },
+      { id: "input:memory:1", text: "Remember my timezone is UTC." },
+    ]);
+    expect(memorySaveRequests("Explain the sentence, Remember my birthday.", "input")).toEqual([]);
+  });
   it.each([
     "Alice said, Remember that I prefer cobalt.",
     "Explain the sentence, Remember my birthday.",

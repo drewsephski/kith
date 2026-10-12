@@ -14,7 +14,7 @@ export const MEMORY_CONTINUATION_PROMPT =
   "The requested durable preference has no confirmed memory write. Save it using the supported memory tool, then report the confirmed result. Do not repeat any attempted failed or uncertain mutation, bypass permissions, or claim a preference was saved without a successful tool result.";
 
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
-export function needsFreshMemoryWrite(prompt: string): boolean {
+function memoryDirectiveParts(prompt: string): { text: string; starts: number[] } {
   // Code examples cannot authorize memory writes, including an unfinished fence.
   const directive = prompt
     .replace(/^Selected choice [^:\n]+:\s*/i, "")
@@ -25,17 +25,44 @@ export function needsFreshMemoryWrite(prompt: string): boolean {
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
     /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
   ];
-  return patterns.some((pattern) =>
-    [...directive.matchAll(pattern)].some((match) => {
+  const starts = new Set<number>();
+  for (const pattern of patterns) {
+    for (const match of directive.matchAll(pattern)) {
       const delimiter = match[0].match(/^[.!?,;\n…]\s*/)?.[0] ?? "";
-      const prefix = directive.slice(0, (match.index ?? 0) + delimiter.length);
-      const clause = prefix.split(/[.!?;\n…]/).at(-1) ?? "";
-      // Reported instructions are data, not permission to persist another person's facts.
-      return !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
-        clause,
-      );
-    }),
-  );
+      const start = (match.index ?? 0) + delimiter.length;
+      const clause =
+        directive
+          .slice(0, start)
+          .split(/[.!?;\n…]/)
+          .at(-1) ?? "";
+      // Reported instructions are data, not authorization to persist their facts.
+      if (
+        !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
+          clause,
+        )
+      ) {
+        starts.add(start);
+      }
+    }
+  }
+  return { text: directive, starts: [...starts].sort((a, b) => a - b) };
+}
+
+export function needsFreshMemoryWrite(prompt: string): boolean {
+  return memoryDirectiveParts(prompt).starts.length > 0;
+}
+
+/** Preserve legacy identity for one directive; independent directives need independent receipts. */
+export function memorySaveRequests(
+  prompt: string,
+  requestId: string,
+): Array<{ id: string; text: string }> {
+  const { text, starts } = memoryDirectiveParts(prompt);
+  if (starts.length === 1) return [{ id: requestId, text: prompt }];
+  return starts.map((start, index) => ({
+    id: `${requestId}:memory:${index}`,
+    text: text.slice(start, starts[index + 1]).trim(),
+  }));
 }
 
 export function memoryReplyIsBlocked(text: string): boolean {

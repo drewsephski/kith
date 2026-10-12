@@ -5,7 +5,14 @@ import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
 
 async function visibleWindow(app: ElectronApplication, matches: (page: Page) => Promise<boolean>) {
+  // Read crash/visibility state in the main process before touching renderer targets.
+  const visibleUrls = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .filter((win) => !win.isDestroyed() && win.isVisible() && !win.webContents.isCrashed())
+      .map((win) => win.webContents.getURL()),
+  );
   for (const page of app.windows()) {
+    if (page.isClosed() || !visibleUrls.includes(page.url())) continue;
     try {
       const visible = await (await app.browserWindow(page)).evaluate((win) => win.isVisible());
       if (visible && (await matches(page))) return page;

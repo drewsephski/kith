@@ -150,6 +150,100 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     expect(await readFile(file, "utf8")).toBe("coffee");
   });
 
+  it.each(["initial", "steering", "recovered", "uncertain"])(
+    "verifies both save directives in one %s message independently",
+    async (source) => {
+      const prompt = "Remember I prefer dark mode. Remember my timezone is UTC.";
+      const id = source === "steering" ? "preferences" : "multi-input";
+      const firstId = `${id}:memory:0`;
+      const secondId = `${id}:memory:1`;
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-directives-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "facts.json");
+      const writes = source === "recovered" ? ["dark mode"] : [];
+      await writeFile(file, JSON.stringify(writes));
+      const steps = [
+        ...(source === "recovered"
+          ? []
+          : [
+              {
+                expect: () => {},
+                response: (request: ModelEmulatorRequest) => ({
+                  type: "tool" as const,
+                  id: "first-save",
+                  name: "remember",
+                  arguments: {
+                    content: "dark mode",
+                    memory_request_id: JSON.stringify(request.messages).includes(firstId)
+                      ? firstId
+                      : id,
+                  },
+                }),
+              },
+            ]),
+        { expect: () => {}, response: { type: "text" as const, text: "Both facts were saved." } },
+        {
+          expect: (request: { messages: unknown[] }) =>
+            expect(JSON.stringify(request.messages.at(-1))).toContain(secondId),
+          response: {
+            type: "tool" as const,
+            id: "second-save",
+            name: "remember",
+            arguments: { content: "UTC", memory_request_id: secondId },
+          },
+        },
+        { expect: () => {}, response: { type: "text" as const, text: "Both facts were saved." } },
+      ];
+      const server = await startModelEmulator({ steps });
+      cleanups.push(() => server.close());
+      let claimed = false;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: source === "steering" ? "Hello" : prompt,
+            memoryRequestId: id,
+            ...(source === "recovered" || source === "uncertain"
+              ? {
+                  memoryWriteReceipts: [{ requestId: firstId, confirmed: source === "recovered" }],
+                }
+              : {}),
+            tools: [
+              {
+                name: "remember",
+                description: "Save a fact",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            claimSteering: async () => {
+              if (source !== "steering" || claimed) return [];
+              claimed = true;
+              return [{ id, messageId: "preferences-message", text: prompt }];
+            },
+            executeTool: async (_name, args, _call, _route, observer) => {
+              writes.push(String(args.content));
+              await writeFile(file, JSON.stringify(writes));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      if (source === "uncertain") {
+        await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+        expect(JSON.parse(await readFile(file, "utf8"))).toEqual(["UTC"]);
+      } else {
+        const events = await execution;
+        expect(JSON.parse(await readFile(file, "utf8"))).toEqual(["dark mode", "UTC"]);
+        expect(events.at(-1)?.type).toBe("done");
+      }
+      expect(server.requests).toHaveLength(source === "recovered" ? 3 : 4);
+    },
+  );
+
   it("completes every independent memory request in a batch without repeating the saved one", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "memory-batch-"));
     cleanups.push(() => rm(dir, { recursive: true, force: true }));

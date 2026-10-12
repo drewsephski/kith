@@ -3691,6 +3691,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
           if (id) uncertainMemoryInputs.add(id);
           else legacyUncertainMemory = true;
         }
+        const memoryWriteReceipts = [
+          ...confirmedMemoryEffects.flatMap((effect) => {
+            const requestId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+            return requestId ? [{ requestId, confirmed: true }] : [];
+          }),
+          ...[...uncertainMemoryInputs].map((requestId) => ({ requestId, confirmed: false })),
+        ];
         const memoryWriteAttempted =
           uncertainMemoryInputs.has(initialMemoryRequestId) ||
           (legacyUncertainMemory && !promptChanged);
@@ -4796,10 +4803,21 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
           const memorySave = isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId));
-          if (memorySave && memoryRequestId && uncertainMemoryInputs.has(memoryRequestId))
+          if (
+            memorySave &&
+            memoryRequestId &&
+            [...uncertainMemoryInputs].some(
+              (id) => memoryRequestId === id || memoryRequestId?.startsWith(`${id}:memory:`),
+            )
+          )
             return uncertainEffectResult(name);
           if (memorySave) {
-            if (hasAnsweredQuestion && !promptChanged && memoryRequestId === initialMemoryRequestId)
+            if (
+              hasAnsweredQuestion &&
+              !promptChanged &&
+              (memoryRequestId === initialMemoryRequestId ||
+                memoryRequestId?.startsWith(`${initialMemoryRequestId}:memory:`))
+            )
               return { error: UNVERIFIED_MEMORY_ERROR, uncertain: true };
             // Only runtime metadata or the exact approved operation can bind a receipt.
             const { memoryRequestId: _untrustedId, ...memoryArgs } = args;
@@ -7411,6 +7429,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               allowSilentEmpty: allowSilentEmptyRun,
               memoryWriteConfirmed,
               memoryWriteAttempted,
+              memoryWriteReceipts,
               memoryRequestId: initialMemoryRequestId,
               emptyResponseText,
               executeTool: scripted ? undefined : applyTool,
@@ -7477,6 +7496,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       id: item.id,
                       messageId: item.messageId,
                       historyText: item.text,
+                      memoryWriteReceipts: previousClaim ? memoryWriteReceipts : [],
                       memoryWriteAttempted: Boolean(
                         previousClaim &&
                           (uncertainMemoryInputs.has(item.id) || legacyUncertainMemory),
