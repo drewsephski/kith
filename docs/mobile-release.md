@@ -52,6 +52,20 @@ After both native builds and runtime journeys pass, an operator may authorize si
 
 CI retains the full lint/type/build/unit/PostgreSQL/Web gates and adds Android native acceptance before OTA. Native configuration, dependencies, modules and permission changes block OTA publication. The existing `EXPO_TOKEN` must be supplied through authorized private configuration. A compatible manual OTA also requires a green tested commit and operator authorization; never use it to avoid a required new native build.
 
+### Everyday phone testing
+
+Install the existing internal `preview` build on your registered phone using its EAS install link. No cable or running development server is needed. Keep the Expo Free plan unless native build volume or queue times justify upgrading; these update workflows do not create cloud builds.
+
+On a push to `main`, successful CI calls **Mobile preview update** for iOS and Android separately. It publishes to the `preview` channel using the `preview` EAS environment. Existing production updates continue on their own channel. An older installed app version cannot receive a newer runtime's update.
+
+The workflow checks the entire source range from the latest finished device preview build to the tested commit, rather than just the latest push. Native-sensitive changes, missing build source, a different runtime, or a missing platform build produce a summary explaining why a fresh preview build is needed. It conservatively treats dependency, configuration, asset and native module changes as requiring a build. Create preview builds from a clean committed revision so the recorded EAS source accurately represents their native contents. Increment the app version when native compatibility changes; the current `appVersion` policy relies on that discipline. See [Expo runtime compatibility](https://docs.expo.dev/eas-update/runtime-versions/).
+
+One-time automation setup: create an Expo access token with access to the existing project and save it privately as the repository Actions secret `EXPO_TOKEN`. Set the intended public backend URL in the EAS `preview` environment. Never put the token in the repository, workflow inputs, or logs. See [Expo's Actions setup](https://docs.expo.dev/eas-update/github-actions/).
+
+To retry publication after configuring the token, or after creating a fresh native preview, open GitHub **Actions → Mobile preview update → Run workflow**, selecting `main`. The manual action requires a completed successful push CI run for that exact current revision and rechecks every required job. It cannot publish arbitrary branches or bypass failed native acceptance. Both automatic and manual publication recheck the current main head before publishing and serialize each platform's preview updates.
+
+After publication, fully close and reopen Kith, let it download the update, then reopen again to apply it. Updates are downloaded and applied on successive launches by default. See [Expo update downloads](https://docs.expo.dev/eas-update/download-updates/). The workflow summary distinguishes publication from a skipped update; it does not claim your physical phone has installed or tested the update.
+
 ## External evidence still required
 
 Android compiled/emulator result for the final patch; iOS simulator or internal signed build/runtime result; dedicated production test credentials supplied through ignored local configuration; hosted SMTP recovery delivery; real push/OAuth permissions where configured; store signing and submission approval. None is inferred from dependency checks or screenshots alone.

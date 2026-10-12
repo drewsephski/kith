@@ -114,7 +114,7 @@ jobs:
           DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
       - run: pnpm test
       - name: Verify hosted frontend and backend compatibility checks
-        run: node --test scripts/verify-for-you-api.test.mjs scripts/deploy-hosted.test.mjs apps/web/scripts/vercel-build.test.mjs
+        run: node --test scripts/verify-for-you-api.test.mjs scripts/deploy-hosted.test.mjs scripts/preview-mobile-update.test.mjs apps/web/scripts/vercel-build.test.mjs
 
   test-integration:
     name: Postgres journeys
@@ -150,6 +150,16 @@ jobs:
   mobile-native:
     name: Android native acceptance
     uses: ./.github/workflows/mobile-android-screenshots.yml
+
+  publish-mobile-preview:
+    name: Publish compatible preview update
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, check, build, test, test-integration, test-e2e, mobile-native]
+    uses: ./.github/workflows/mobile-preview.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
   publish-mobile-update:
     name: Publish compatible mobile update

@@ -1,0 +1,117 @@
+name: Mobile preview update
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+    secrets:
+      EXPO_TOKEN:
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  update:
+    name: Update ${{ matrix.platform }} preview
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, android]
+    concurrency:
+      group: mobile-preview-update-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify current main and exact CI gates
+        id: source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ inputs.sha || github.sha }}
+          CALLER_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')" != "$EXPECTED_SHA" ]]; then
+            echo 'An updated main revision superseded this preview. No update published.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ -n "$CALLER_SHA" ]]; then
+            test "$GITHUB_EVENT_NAME" = push
+            run_id="$GITHUB_RUN_ID"
+          else
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?event=push&head_sha=${EXPECTED_SHA}&per_page=1" --jq ".workflow_runs[0] | select(.head_branch == \"main\" and .head_sha == \"$EXPECTED_SHA\" and .status == \"completed\" and .conclusion == \"success\") | .id")"
+            if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+              echo 'The current main revision needs a successful CI run before publishing.' >&2
+              exit 1
+            fi
+          fi
+          gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > "$RUNNER_TEMP/preview-ci-jobs.json"
+          node scripts/verify-deployment-gates.mjs "$RUNNER_TEMP/preview-ci-jobs.json"
+          echo 'current=true' >> "$GITHUB_OUTPUT"
+      - name: Require Expo automation token
+        if: steps.source.outputs.current == 'true'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [[ -z "$EXPO_TOKEN" ]]; then
+            echo 'Add the EXPO_TOKEN Actions secret with access to this Expo project.' >&2
+            exit 1
+          fi
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        if: steps.source.outputs.current == 'true'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: steps.source.outputs.current == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        if: steps.source.outputs.current == 'true'
+        with:
+          eas-version: 24.12.1
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        if: steps.source.outputs.current == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Compare against the finished device preview build
+        if: steps.source.outputs.current == 'true'
+        id: ota
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          (cd apps/mobile && eas build:list --platform "$PLATFORM" --build-profile preview --channel preview --distribution internal --status finished --limit 1 --json --non-interactive) > "$RUNNER_TEMP/preview-build.json"
+          node scripts/preview-mobile-update.mjs "$RUNNER_TEMP/preview-build.json" "$PLATFORM"
+      - name: Verify mobile project
+        if: steps.ota.outputs.publish == 'true'
+        run: pnpm --filter @rakazo/mobile check
+      - name: Publish compatible preview update
+        if: steps.ota.outputs.publish == 'true'
+        working-directory: apps/mobile
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: ${{ inputs.sha || github.sha }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          if [[ "$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')" != "$EXPECTED_SHA" ]]; then
+            echo 'An updated main revision superseded this preview. No update published.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          eas update --platform "$PLATFORM" --channel preview --environment preview --message "$EXPECTED_SHA" --non-interactive
+          echo "Published a compatible $PLATFORM preview update. Reopen the installed preview app to download and apply it." >> "$GITHUB_STEP_SUMMARY"
