@@ -87,6 +87,13 @@ test("custom identity survives a lost response and remains consistent after relo
   });
   await card.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();
+  // SSE has durably answered the card before the intentionally lost HTTP reply settles.
+  await expect(card).toHaveAttribute("aria-busy", "false");
+  await expect(card).toContainText("Research lead");
+  await expect(card.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    1,
+  );
   await page.unroute("**/rpc/onboarding/identity");
   await page.reload();
   await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();

@@ -197,7 +197,7 @@ export function BotIdentityCard({
           />
         )
       ) : null}
-      {error ? (
+      {error && !answerId ? (
         <Text selectable accessibilityRole="alert" style={{ color: tokens.destructive }}>
           {error}
         </Text>

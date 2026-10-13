@@ -167,7 +167,7 @@ export function BotIdentityCard({
           </Button>
         )
       ) : null}
-      {error ? (
+      {error && !answerId ? (
         <p role="alert" className="text-sm text-destructive">
           {error}
         </p>

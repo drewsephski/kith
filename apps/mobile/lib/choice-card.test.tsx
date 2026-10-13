@@ -334,6 +334,37 @@ describe("ChoiceCard", () => {
     expect(view.textContent).not.toContain("Coding partner");
   });
 
+  it("a durable identity answer suppresses a later lost-response error without remounting", async () => {
+    let reject: (reason: Error) => void = () => undefined;
+    rpc.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    const identity: ChoiceBlock = {
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "What should my name be, and what's my role?",
+      options: [{ id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" }],
+    };
+    const view = render(identity);
+    await act(async () => {
+      button(view, "Miso, Inbox assistant").click();
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    render({ ...identity, answerId: "miso" });
+    await act(async () => {
+      reject(new Error("Network down"));
+    });
+    expect(view.querySelector("[role='alert']")).toBeNull();
+    expect(view.textContent).not.toContain("Network down");
+    expect(view.textContent).not.toContain(identity.question);
+    expect(button(view, "Miso, Inbox assistant").disabled).toBe(true);
+    expect(button(view, "Miso, Inbox assistant").getAttribute("aria-selected")).toBe("true");
+    expect(view.querySelector("[aria-label='Custom']")).toBeNull();
+  });
+
   it("hydrates a completed custom identity and keeps it read-only", () => {
     const view = render({
       kind: "choice",
@@ -382,7 +413,7 @@ describe("ChoiceCard", () => {
       button(view, "Save").click();
       await Promise.resolve();
     });
-    expect(view.textContent).toContain("Network down");
+    expect(view.querySelector("[role='alert']")?.textContent).toBe("Network down");
     expect(name.value).toBe(" Atlas ");
     expect(role.value).toBe(" Research lead ");
     rpc.mockResolvedValueOnce({});
