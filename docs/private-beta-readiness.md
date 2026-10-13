@@ -95,18 +95,24 @@ connections and approvals do not change. Setup spends no model tokens and starts
 
 Durable account/Space creation receipts survive lost replies and cleared history. Concurrent
 empty setup attempts coalesce, while an already-started conversation does not hijack a new
-creation intent. Clients retain unresolved scoped nonces and offer explicit retry. Ordinary
+creation intent. Clients retain unresolved scoped nonces and offer explicit retry. Pending mobile creation
+disables Cancel and swipe/back removal until settlement, while authenticated account/Space
+changes remain free to navigate. A successful create replaces the route exactly once; a
+failed request restores Cancel/retry without discarding its uncertain nonce. Ordinary
 messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
 cloned/helper bots retain their established behavior and advanced editing.
 
 Web and Electron use the shared renderer. iOS and Android render the same durable cards with
 native controls, keyboard-aware custom input, accessible labels and localized roles.
-Simulator inspection also found and fixed a pinned-avatar tap dead zone and a thread focus
-callback that refetched the roster whenever a refreshed bot object arrived. Metadata refresh
-now follows real focus/thread/account/Space changes while using current read/speech callbacks;
-refreshed roster objects do not restart focus. Mounted lifecycle regressions cover refocus,
-read-only threads and stale entitlement responses. Final native idle-network evidence remains
-a separate acceptance gate.
+Simulator inspection also found a pinned-avatar tap dead zone and a thread focus callback
+that refetched the roster whenever a refreshed bot object arrived. The focus loop is fixed:
+metadata refresh follows real focus/thread/account/Space changes while using current
+read/speech callbacks; refreshed roster objects do not restart focus. Mounted lifecycle
+regressions cover refocus, read-only threads and stale entitlement responses. Actual simulator
+idle traffic fell from 607 reads in 11.69 seconds to three reads in ten seconds, with no
+repeated metadata requests. The first pinned patch still failed native avatar taps. The follow-up places the hit shape
+inside the native button label and removes duplicate accessibility descendants. Actual
+avatar/label taps, long-press preview, Unpin and ordinary-row navigation then passed.
 
 ### Targeted mobile reliability
 
@@ -124,6 +130,11 @@ carry `Cache-Control: no-store`, including rejection and streaming responses. Na
 requests send real `no-store, no-cache` headers and omit implicit shared cookies while
 retaining explicit authentication. Public asset caching is preserved. No cache module or
 native dependency was added; a JavaScript `cache` option alone would not prove native safety.
+The existing Android notification service has a separate authenticated `HttpURLConnection`;
+its requests now disable `useCaches` and send the same no-store/no-cache headers. This is a
+tracked native source change, so the fresh Android 1.0.10 build must include it. The Android
+native CI harness observes actual auth/RPC/SSE request and response policy, requires successful
+bearer-authenticated RPC, and retains only counters, never credentials or payloads.
 Old binaries' previously stored private cache entries are not asserted erased. An upgraded
 installation needs inspection or a clean install before cache privacy can be certified.
 
@@ -137,17 +148,23 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
-| Candidate lint / workspace types | PASSED | `pnpm lint` and `pnpm check`; final integration rerun and exact-head CI also required. |
-| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 110 files, 1,029 tests. Final native fixes additionally receive focused regressions. |
+| Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed on the committed source; exact-head CI also required. |
+| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,038 tests, including final focus and pending-creation route regressions. |
 | Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: 695 files, 8,876 tests; 358 explicitly gated tests skipped. Later narrow fixes have focused checks and require candidate CI. |
-| PostgreSQL journeys | PASSED | `pnpm test:integration`: 39 suites, 286 tests, all 110 forward migrations, including scoped creation, replay, quotas, authorization and schema compatibility. |
+| PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
 | Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
 | Packaged Electron candidate | PENDING | Required CI virtual-display job; routine focus-stealing local Electron E2E is prohibited. |
 | Android candidate native acceptance | PENDING | Required CI emulator job, including changed onboarding. |
-| iOS candidate simulator | PENDING | Current-source native build and isolated scripted journey; export alone is insufficient. |
-| Native disk/network cache privacy | UNEXECUTED | Header/JS tests do not establish physical old-cache erasure or native disk inspection. |
+| iOS candidate simulator | PASSED | Full current-source 1.0.9 UI journey passed; fresh 1.0.10 app/runtime with final navigation guard also passed persisted login, pinned Kith, custom keyboard identity, focus, task and reply restoration after relaunch; normal navigation, account/Kith, preset/custom identity, focus, scripted tasks, interrupted setup, relaunch persistence, early message, background/resume/cancel and final pinned avatar/label/menu probes passed. Ad-hoc simulator signing is not distribution signing. |
+| Native disk/network cache privacy | PARTIAL | Fresh iOS simulator: 1,380 observed private successful replies had no-store responses, no-store/no-cache requests and zero cookies; NSURLCache had zero private Kith API entries or payload markers; one unrelated existing Expo Observe metrics response remained cached. Shared transport and server error/SSE tests passed. Android native CI wire guard and old-install cache inspection remain separate gates. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
+
+Native final-account evidence included six durable runs (five completed, one canceled), zero
+tool events and no explicit computer Start/Resume request. A pre-existing fake computer's
+reconciled state could not be attributed conclusively from the fixture metadata. This is not
+claimed as real-provider allocation proof. Deterministic onboarding and executor/routing checks
+establish their own no-provisioning boundary; real Luna/E2B acceptance remains unexecuted.
 
 Local native preparation encountered disk exhaustion. Only inactive, reproducible build
 intermediates were removed; source, signing material, app products and application data were
@@ -155,8 +172,44 @@ preserved. Checks interrupted by this environment failure must be rerun, not cou
 
 Failed first attempts remain recorded rather than being counted as passes: integration found
 one missing test import, and an early concurrent unit run observed stale/incomplete edits.
-The corrected stable complete runs above passed. These were separate from the native build
+The corrected stable complete runs above passed. The first PR head also passed required
+web and packaged Electron acceptance, but Android failed on a missing custom-field test ID.
+Its captured hierarchy showed the Name field visible and focused. The smoke now uses native
+keyboard Next/Done and keeps the identity/focus/task outcome assertions; final Android CI
+must establish the correction. These were separate from the native build
 storage failure. Live model, signed-device and exact-candidate CI evidence remain distinct.
+
+Independent source review reported 18 passed requirements, no unresolved source failures and
+three cross-platform/provider/release requirements awaiting empirical acceptance. It caught and
+helped close quota finalization rollback, missed admission sites, judge funding fallback,
+mid-run credential revocation, helper root budgets, creation-receipt deletion, stale mobile
+nonce cleanup and the installed Vertex SDK's literal ADC sentinel. The native read loop was
+also independently covered by the mounted regression. The rebuilt iOS simulator measured
+four reads over ten idle seconds on the final UI bundle, with no repeated metadata reads, compared with 607 reads
+over 11.69 seconds before the fix. Review does not certify external gates.
+
+## Error and recovery coverage
+
+These are deterministic regression results from the passing unit, mobile, PostgreSQL and
+offline-canary suites, not claims that production outages or physical-device flows were exercised.
+
+| Scenario | Status | Verified behavior / remaining gate |
+| --- | --- | --- |
+| API or database outage | PASSED locally | Readiness fails without changing liveness or exposing errors; unreachable native fetch gets a readable failure; cold web load does not incorrectly sign out. Hosted outage recovery remains unexecuted. |
+| Missing entitlement or disconnected BYOK | PASSED locally | Run admission rejects absent model access; revoked secrets cannot fall back to deployment funding; each subsequent attempt rechecks credentials and Space membership. Live provider revocation remains unexecuted. |
+| OAuth cancellation | PASSED locally | Only the owning account/Space can cancel; cancellation winning finalization prevents storage. Production local/self-hosted provider return flow remains unexecuted; managed plan flow is blocked. |
+| Interrupted bot setup | PASSED locally | Lost create/identity responses replay without duplicate effects; early user messages persist; an uncertain mobile creation nonce is reused only on explicit retry. |
+| Failed or offline send | PASSED locally | Frozen target, delivery nonce, routine nonces and artifact IDs survive explicit retry; encrypted delivery state restores after restart; newly edited text is retained. Retry/delete/cancel remain user choices. |
+| Expired session / Space switch | PASSED locally | Current rejected sessions clear once; stale 401 and snapshot responses cannot mutate the newly selected account/Space. Fresh cold offline launch remains unexecuted. |
+| Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
+| Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
+
+Candidate CI and automated review are tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
+The first candidate's [CI run](https://github.com/drewsephski/kith/actions/runs/38378998483)
+passed web and packaged Electron acceptance but failed Android's input locator; it does not
+certify the corrected final head. [Retained CI screenshots](https://github.com/drewsephski/kith/actions/runs/38378998483/artifacts/11804376345)
+include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
+`conversational-bot-custom-persisted.png`. Persistent gallery publication is separate.
 
 ## Release and operator gates
 
@@ -179,16 +232,21 @@ The new forward migrations are `20261013110000_artifact_client_nonce`,
 `20261013160000_model_call_reservations` and `20261013170000_bot_creation_requests`.
 Their account/Space constraints and deletion behavior are exercised against PostgreSQL.
 
-Mobile app version/runtime is prepared as **1.0.9**. Fresh **iOS and Android native builds**
+Mobile app version/runtime is prepared as **1.0.10**. Fresh **iOS and Android native builds**
 are required because the previous 1.0.8 build predates native dependency/patch changes already
-on main. Preserve the existing identifiers, `rakazo` scheme, project and channels. EAS remote
+on main, and this candidate hardens the existing Android native notification sender. The late native
+change correctly failed the earlier prepared 1.0.9 runtime history check. Advancing to 1.0.10
+after all native changes restores compatibility without weakening the gate or rewriting history.
+Preserve the existing identifiers, `rakazo` scheme, project and channels. EAS remote
 versioning owns archive counters. An OTA to an older runtime cannot substitute for those builds.
 Desktop remains on the prepared **0.1.7** infrastructure; no stable tag or updater channel changes.
 
 Before inviting testers: complete exact-candidate CI/review, authorize and verify hosted rollout,
 run a budgeted new-account Luna/BYOK/revocation journey, verify recovery delivery, and complete
 installed native/signed desktop acceptance. Document each failure and retry independently.
-Public release, merging, tagging, deployment and store submission remain separate operator actions.
+Configure the existing signup allowlist for the intended tester group and verify effective
+provider/E2B spending caps before enrollment. Public release, merging, tagging, deployment
+and store submission remain separate operator actions.
 
 ## Files affected
 
