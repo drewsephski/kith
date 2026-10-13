@@ -6569,7 +6569,7 @@ async function threadNeedsModel(
   input: Pick<Parameters<typeof sendThreadMessage>[3], "text" | "mentions" | "emailAction">,
 ): Promise<boolean> {
   if (target.kind === "bot") return (await modelSetup(deps, actor, target.bot)).needsModel;
-  if (!(await modelSetup(deps, actor)).needsModel) return false;
+  if (deps.env.agentRuntime === "scripted") return false;
   let mentions = input.mentions ?? [];
   if (input.emailAction) {
     // The transaction still validates the card; readiness must check its actual recipient.

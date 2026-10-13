@@ -33,6 +33,8 @@ function setup(
     revokedPin?: boolean;
     expiredCodex?: boolean;
     badFirst?: boolean;
+    usableDefault?: boolean;
+    groupPin?: "disconnected" | "prohibited";
   } = {},
 ) {
   const credential = {
@@ -69,7 +71,16 @@ function setup(
         : profile;
   const bots = [
     { id: "good", ...selected },
-    { id: "bad", modelProvider: null, modelId: null, thinkingLevel: null },
+    {
+      id: "bad",
+      modelProvider: options.groupPin
+        ? options.groupPin === "prohibited"
+          ? "openai-codex"
+          : "anthropic"
+        : null,
+      modelId: options.groupPin ? "fixture-pinned-model" : null,
+      thinkingLevel: null,
+    },
   ];
   const bot = { id: "good", ...selected };
   const target = options.group
@@ -128,7 +139,13 @@ function setup(
           }: {
             where: { isDefault?: boolean; credential?: { provider: string } };
           }) => {
-            if (where.isDefault) return defaultPreference;
+            if (where.isDefault) return options.usableDefault ? null : defaultPreference;
+            if (where.credential?.provider === "openai-codex" && options.groupPin === "prohibited")
+              return {
+                ...owned,
+                credential: { ...owned.credential, provider: "openai-codex" },
+                modelId: "fixture-pinned-model",
+              };
             return where.credential?.provider === "openai" ? owned : null;
           },
         ),
@@ -272,6 +289,39 @@ describe("effective conversation model admission", () => {
   it("rejects a group message addressed only to an unavailable recipient", async () => {
     const { call } = setup({ group: true });
     expect((await call([{ kind: "bot", id: "bad" }])).status).toBe(400);
+    expect(commitSend).not.toHaveBeenCalled();
+  });
+  it.each(["disconnected", "prohibited"] as const)(
+    "rejects a %s group pin even when the funded Space default is ready",
+    async (groupPin) => {
+      const { call } = setup({ group: true, usableDefault: true, groupPin });
+      expect((await call([{ kind: "bot", id: "bad" }])).status).toBe(400);
+      expect(commitSend).not.toHaveBeenCalled();
+    },
+  );
+  it("keeps partial group execution with a usable default and an unavailable pin", async () => {
+    const { call } = setup({ group: true, usableDefault: true, groupPin: "disconnected" });
+    expect(
+      (
+        await call([
+          { kind: "bot", id: "good" },
+          { kind: "bot", id: "bad" },
+        ])
+      ).status,
+    ).toBe(200);
+    expect(commitSend).toHaveBeenCalledOnce();
+  });
+  it("admits a group recipient that follows the funded Space default", async () => {
+    const { call } = setup({ group: true, usableDefault: true, followsDefault: true });
+    expect((await call([{ kind: "bot", id: "bad" }])).status).toBe(200);
+    expect(commitSend).toHaveBeenCalledOnce();
+  });
+  it("checks an unavailable email recipient even when the Space default is ready", async () => {
+    const { call, deps } = setup({ group: true, usableDefault: true, groupPin: "disconnected" });
+    Object.assign(deps.prisma, { message: { findFirst: vi.fn(async () => ({ botId: "bad" })) } });
+    expect(
+      (await call(undefined, undefined, { messageId: "fixture-email", blockIndex: 0 })).status,
+    ).toBe(400);
     expect(commitSend).not.toHaveBeenCalled();
   });
   it.each([
