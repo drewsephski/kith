@@ -569,6 +569,7 @@ export function ShellPage({
     // A user navigation wins over a saved routine still waiting for its list.
     pendingPanelRestore.current = null;
     pendingExplicitPanel.current = panelStorageKeyRef.current === null;
+    explicitPanelTarget.current = panelStorageKeyRef.current;
     setRestoredPanelKey(panelStorageKeyRef.current);
     setPanelState(next);
     const currentSearch = panelSearch.current;

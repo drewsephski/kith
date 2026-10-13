@@ -69,6 +69,32 @@ test("reload restores the open, closed and settings rail states", async ({ page 
   await expect(panel).toHaveAttribute("data-panel", "settings");
 });
 
+test("an early integration click survives initial layout restoration", async ({ page }) => {
+  await signup(page, `panel-intent-${Date.now()}@rakazo.test`, "password12", "Panel intent");
+  await completeOnboarding(page);
+  await waitForStoredPanel(page, null);
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      const button = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+        (candidate) =>
+          candidate.closest('[aria-label="Personal assistant details"]') &&
+          /^(Connections|Integrations)$/.test(
+            (candidate.getAttribute("aria-label") ?? candidate.textContent ?? "").trim(),
+          ),
+      );
+      if (!button) return;
+      observer.disconnect();
+      // Dispatch on the first committed control, before passive layout restoration.
+      button.click();
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.reload();
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "connections");
+  await expect(page.getByTestId("connections-panel")).toBeVisible();
+  await waitForStoredPanel(page, "connections");
+});
+
 test("reload restores the selected routine and scopes preferences to the chat", async ({
   page,
 }, testInfo) => {
