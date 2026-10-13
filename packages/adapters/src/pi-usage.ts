@@ -323,7 +323,7 @@ export function observedPiStream(
             }
           : {}),
         ...(cacheRetention ? { cacheRetention } : {}),
-        ...(observer ? { maxRetries: 0 } : {}),
+        ...(observer && attribution.fundingSource !== "user" ? { maxRetries: 0 } : {}),
         ...(observer?.validatePayload && attribution.fundingSource === "deployment"
           ? {
               onPayload: async (payload: unknown, requestModel: Model<Api>) => {

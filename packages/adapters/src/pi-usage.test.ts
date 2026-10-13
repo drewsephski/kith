@@ -5,7 +5,7 @@ import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import type { AgentModelTiming, AgentRuntimeEvent } from "@rakazo/adapter-kit";
 import { describe, expect, it, vi } from "vitest";
 import { createOpenAiCompatibleFetch } from "./pi-openai-compatible-provider.js";
-import { PiAgentRuntime } from "./pi-runtime.js";
+import { PiAgentRuntime, reliableStreamOptions } from "./pi-runtime.js";
 import { normalizePiUsage, observedPiStream, usageReportingFetch } from "./pi-usage.js";
 
 const model: Model<Api> = {
@@ -368,6 +368,46 @@ describe("Pi usage accounting", () => {
     expect(afterCall).toHaveBeenCalledOnce();
     expect(events).toHaveLength(1);
   });
+  it.each(["deployment", "user"] as const)(
+    "preserves retry policy for %s funding with a managed observer",
+    async (fundingSource) => {
+      const fetcher = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ error: { message: "Synthetic outage" } }), {
+            status: 503,
+            headers: { "content-type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(sse(), { headers: { "content-type": "text/event-stream" } }),
+        );
+      const beforeCall = vi.fn(() =>
+        fundingSource === "user" ? "user-funded" : "fixture-reservation",
+      );
+      const afterCall = vi.fn();
+      const stream = observedPiStream(
+        builtinModels(),
+        model,
+        { messages: [] },
+        reliableStreamOptions(model, { apiKey: "fixture-key", fetch: fetcher, maxRetries: 1 }),
+        vi.fn(),
+        { beforeCall, afterCall },
+        { operationKind: "answer", fundingSource },
+      );
+      for await (const _event of stream) {
+        /* Consume the real provider parser and SDK retry against synthetic responses. */
+      }
+      const userFunded = fundingSource === "user";
+      expect((await stream.result()).stopReason).toBe(userFunded ? "stop" : "error");
+      expect(fetcher).toHaveBeenCalledTimes(userFunded ? 2 : 1);
+      expect(beforeCall).toHaveBeenCalledOnce();
+      expect(afterCall).toHaveBeenCalledExactlyOnceWith(
+        userFunded ? "user-funded" : "fixture-reservation",
+        expect.any(Object),
+      );
+    },
+  );
   it("prepares context before budget reservation and provider execution", async () => {
     const beforeCall = vi.fn((_call: { inputTokensEstimate: number }) => "reservation");
     const onUsage = vi.fn(() => {

@@ -7,7 +7,7 @@ deployment, distribution, store submission, a release tag, or updater publicatio
 **External testers are not yet cleared.** Application source `ca8077c5` passed required
 CI: 13 active checks succeeded and eight release/promotion jobs correctly skipped, including
 the canonical identity-response and initial-bootstrap corrections. Subsequent review found
-a self-hosted Codex live-catalog mismatch in the team-chat judge. Its focused correction passes
+a self-hosted Codex live-catalog mismatch in the team-chat judge and disabled BYOK retries. Their focused corrections pass
 the checks below. The exact final-head CI/review result is recorded in
 [PR #20](https://github.com/drewsephski/kith/pull/20); passing checks and completed review on
 that head are required before the authorized merge.
@@ -69,6 +69,13 @@ rejects the provider before loading its secret. Six new deterministic cases cove
 expired OAuth, an absent/unlisted catalog, API-key substitution and managed rejection. Three
 strict assertions failed against the previous judge; the corrected judge/catalog/funding suites
 passed all 100 tests, workspace lint and all 22 type-check tasks. No live provider was called.
+
+User-funded calls on managed hosting retain their configured provider retry policy. The
+quota observer continues to disable hidden SDK retries for deployment-funded or unattributed
+calls, so one funded reservation cannot pay for multiple hidden attempts. Two synthetic-wire
+regressions send a retryable 503 followed by success: BYOK makes two requests and succeeds;
+deployment funding makes one request and records its failure. The BYOK assertion failed
+against the previous stream wrapper. All 52 usage/runtime/quota tests passed afterward.
 
 The official [quickstart](https://developers.openai.com/siwc/quickstart),
 [open-source token-sharing guidance](https://developers.openai.com/siwc/token-sharing-open-source)
@@ -241,14 +248,14 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Gate | Status | Evidence / limit |
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
-| Candidate CI / review | PASSED at ca8077c5; final-head merge gate required | Canonical-response/bootstrap source passed 13 active checks. The later judge correction passed focused verification; final exact-head checks, bot signals and answered findings are recorded in PR #20 and must be green before merge. |
+| Candidate CI / review | PASSED at ca8077c5; final-head merge gate required | Canonical-response/bootstrap source passed 13 active checks. The later judge/retry corrections passed focused verification; final exact-head checks, bot signals and answered findings are recorded in PR #20 and must be green before merge. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed locally and on the exact application source in CI. |
 | Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,042 tests, including final focus and pending-creation route regressions. |
 | Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: full local rerun at `1808e919` passed 700 files and 8,946 tests with 377 gated tests skipped. Application-source CI at `ca8077c5` passed 700 files and 8,959 tests with 368 gated tests skipped, including the deterministic calendar checks. |
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: latest application-source CI at `ca8077c5`: 42 suites, 331 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
-| Web creation / recovery acceptance | PASSED | Thirteen real API/PostgreSQL Playwright creation/CRUD cases, including three delayed-navigation cases, two canonical-response races and held-bootstrap creation, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Exact source `ca8077c5` passed 322 web tests plus that separate sidebar regression; final-head judge CI is the remaining merge gate. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
+| Web creation / recovery acceptance | PASSED | Thirteen real API/PostgreSQL Playwright creation/CRUD cases, including three delayed-navigation cases, two canonical-response races and held-bootstrap creation, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Exact source `ca8077c5` passed 322 web tests plus that separate sidebar regression; final-head CI is the remaining merge gate. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
 | Packaged Electron candidate | PASSED at ca8077c5 | Virtual-display packaged acceptance passed at exact application source `ca8077c5`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
 | Android candidate native acceptance | PASSED at ca8077c5 | Installed emulator onboarding and actual network-policy recording passed at exact application source `ca8077c5`, including the final backend corrections. Physical signed-device acceptance remains separate. |
 | iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. The canonical-response JavaScript refresh on the existing 1.0.10 native binary also passed preset Miso, custom Clover, focus and full terminate/relaunch persistence. Three runtime source files changed; the new source scan had zero drift. No setup runs were created. Distribution/device proof remains separate. |
@@ -286,6 +293,13 @@ screenshot artifact followed that setup failure; it was not a storage-gallery pu
 failure. The later exact application source `ebfec679` passed fresh installed Android acceptance. A local canonical-response rerun also encountered a stopped container runtime and a missing Chromium binary; both were restored before application assertions. The first corrected browser run then exposed the bootstrap gap described above. Its trace recorded zero create requests; the held-bootstrap case failed on the enabled control before the guard, and all thirteen cases passed afterward.
 Live model, signed-device and exact-candidate CI evidence remain distinct.
 
+The subsequent judge source `60ed8b32` passed twelve active checks, including web and packaged
+Electron, but Android failed installing NDK 27.1.12297006 because the downloaded archive was
+not a ZIP. App compilation, installation and Maestro assertions did not run. This is an SDK
+setup failure, not an application assertion or screenshot-publication failure. The later BYOK
+retry correction requires a fresh full CI/review pass; no native assertion or release guard
+was weakened to accommodate the failed download.
+
 Independent source review reported 18 passed requirements, no unresolved source failures and
 three cross-platform/provider/release requirements awaiting empirical acceptance. It caught and
 helped close quota finalization rollback, missed admission sites, judge funding fallback,
@@ -315,7 +329,7 @@ Required CI passed at application source `ca8077c5`, including quota/finalizatio
 calendar lock-order, delayed-navigation, canonical identity and bootstrap corrections. The
 [CI run](https://github.com/drewsephski/kith/actions/runs/38437520004) recorded
 13 successful checks and eight correctly skipped release/promotion jobs. The subsequent
-self-hosted judge finding is corrected and verified above. Final-head CI/review evidence is
+self-hosted judge and BYOK retry findings are corrected and verified above. Final-head CI/review evidence is
 recorded on PR #20 rather than assuming an earlier green run certifies a later commit.
 Review threads remain unresolved because resolving them requires separate operator authorization.
 The authorized merge must wait for terminal checks/reviews and answers to every actionable root.
@@ -372,7 +386,7 @@ The main implementation boundaries are:
 
 - Funding: `packages/adapters/src/deployment-model.ts`, `model-selection.ts`,
   `model-connect.ts`, `pi-catalog-availability.ts`, `pi-oauth.ts`, `pi-runtime.ts`,
-  `executor.ts`, `auto-review.ts` and `cloud-agent-factory.ts`; API model router,
+  `executor.ts`, `pi-usage.ts`, `auto-review.ts` and `cloud-agent-factory.ts`; API model router,
   team-chat judge and voice; `apps/api/src/model-setup-target.test.ts`, durable send admission
   in `apps/api/src/thread-target.ts`; web/mobile model settings; managed Fly and Compose configuration.
 - Budgets: `packages/adapters/src/model-call-quota.ts`, `model-request-size.ts`,
