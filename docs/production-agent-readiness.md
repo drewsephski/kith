@@ -89,6 +89,8 @@ Four new cases also passed one real-model trial each using an isolated connector
 
 ## Verification record
 
+Confirmation review reproduced an ordinary “Yes” losing memory intent in the product's teaching flow. The executor now derives the task from the latest durably answered ordinary memory-confirmation question, resolves a selected action's label, and retains that answer's receipt identity. Approval/secret cards, recall questions, negative and qualified answers cannot create this confirmation. Two real API/Pi/Postgres regressions failed before the fix; all five product regressions and 314 focused unit/runtime tests passed afterward. Earlier completed writes are not repeated.
+
 Local environment: macOS arm64, Node 26.3.0, pnpm 9.15.0, Docker Postgres 16, configured OpenRouter `openai/gpt-6-luna`; live max output 4096 tokens. Live credentials/configuration and detailed artifacts remain ignored. The installed iOS journey used the real model with an isolated fake computer; real E2B execution is established by the separate combined product suite, not native remote-screen acceptance. Builds and other tests overlapped early live trials, so their response timings are not controlled latency comparisons.
 
 | Evidence | Outcome |

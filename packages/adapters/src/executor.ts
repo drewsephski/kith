@@ -392,6 +392,7 @@ import {
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
 import {
+  confirmedMemoryPrompt,
   isMemorySaveCall,
   needsFreshMemoryWrite,
   UNVERIFIED_MEMORY_ERROR,
@@ -3647,6 +3648,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const promptChanged = answeredQuestions.find((event) =>
           hasAnsweredOrdinaryQuestion((event.payload as { blocks?: unknown })?.blocks),
         );
+        const confirmedMemoryTask = promptChanged
+          ? answeredMemoryPrompt((promptChanged.payload as { blocks?: unknown })?.blocks)
+          : undefined;
         const confirmedMemoryEffects = priorMemoryEffects.filter((effect) => {
           const result = effect.result as {
             ok?: boolean;
@@ -7239,7 +7243,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
           currentTurnImages,
         );
         const taskPrompt = expandSkillReferencesInPrompt(
-          [task.prompt, attachedFilesPrompt, missingImagesInstruction].filter(Boolean).join("\n\n"),
+          [confirmedMemoryTask ?? task.prompt, attachedFilesPrompt, missingImagesInstruction]
+            .filter(Boolean)
+            .join("\n\n"),
           agentSkills,
         );
         const invokedSkill = savedSkills.find((skill) =>
@@ -9227,6 +9233,23 @@ function hasAnsweredOrdinaryQuestion(blocks: unknown): boolean {
         !isSecretAskBlock(block),
     )
   );
+}
+
+function answeredMemoryPrompt(blocks: unknown): string | undefined {
+  const parsed = MessageBlockSchema.array().safeParse(blocks);
+  if (!parsed.success) return undefined;
+  const ask = parsed.data
+    .toReversed()
+    .find(
+      (block) =>
+        block.kind === "ask" &&
+        block.status === "answered" &&
+        !isApprovalAskBlock(block) &&
+        !isSecretAskBlock(block),
+    );
+  if (ask?.kind !== "ask" || !ask.answer) return undefined;
+  const answer = ask.actions?.find((action) => action.id === ask.answer)?.label ?? ask.answer;
+  return confirmedMemoryPrompt(ask.text, answer);
 }
 
 /** Provider tool IDs are unique only within a run, never across users or workflows. */

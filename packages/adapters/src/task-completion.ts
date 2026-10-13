@@ -13,6 +13,23 @@ export const UNVERIFIED_MEMORY_ERROR = "Memory save couldn't be verified.";
 export const MEMORY_CONTINUATION_PROMPT =
   "The requested durable preference has no confirmed memory write. Save it using the supported memory tool, then report the confirmed result. Do not repeat uncertain mutations or bypass permissions. Retry a failed memory write only when its result explicitly confirms safeToRetry without uncertainty, after merging the returned current document and passing its revision as expectedRevision. Never claim a preference was saved without a successful tool result.";
 
+/** Called only for the latest durably answered ordinary question, never approvals or secrets. */
+export function confirmedMemoryPrompt(question: string, answer: string): string | undefined {
+  if (
+    !/\b(?:remember|remembered|memory)\b/i.test(question) ||
+    !/\b(?:should|shall|want|like|confirm|save|store)\b|\b(?:may|can) I\b/i.test(question) ||
+    /\b(?:not|don['’]t|forget|remove|delete)\b/i.test(question) ||
+    !/^(?:yes|yep|yeah|sure|ok(?:ay)?|correct|confirmed|please do|do it|save it|remember it)(?:[.!?,\s]|$)/i.test(
+      answer.trim(),
+    ) ||
+    /\b(?:but|except|not|don['’]t|no|wait)\b/i.test(answer)
+  )
+    return undefined;
+  // The answered question remains data; only the user's affirmative answer grants
+  // this save. Keep the existing input identity so recovery can reuse its receipt.
+  return `Remember the information the user confirmed in this memory question.\nQuestion: ${question}\nUser confirmation: ${answer}`;
+}
+
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
 function memoryDirectiveParts(prompt: string): { text: string; starts: number[] } {
   // Code examples cannot authorize memory writes, including an unfinished fence.
