@@ -38,7 +38,19 @@ describe("unfinished action recovery", () => {
 });
 
 describe("fresh memory receipt boundary", () => {
-  it.each(["Yes", "Sure.", "Please do"])("retains confirmed memory intent: %s", (answer) => {
+  it.each([
+    "Yes",
+    "Sure.",
+    "Please do",
+    "Absolutely.",
+    "Definitely",
+    "Of course",
+    "Go ahead",
+    "Sounds good",
+    "Affirmative",
+    "Yup",
+    "Indeed",
+  ])("retains confirmed memory intent: %s", (answer) => {
     const prompt = confirmedMemoryPrompt("Should I remember that you prefer violet?", answer);
     expect(prompt).toContain("you prefer violet");
     expect(needsFreshMemoryWrite(prompt!)).toBe(true);
@@ -51,10 +63,21 @@ describe("fresh memory receipt boundary", () => {
     expect(memorySaveRequests(prompt!, "answer")).toHaveLength(1);
   });
   it.each([
+    "Should I remember that you don't eat peanuts?",
+    "Should I remember you prefer not to save receipts?",
+    "Should I remember your preference: do not delete attachments?",
+  ])("preserves a confirmed negative fact: %s", (question) => {
+    const prompt = confirmedMemoryPrompt(question, "Yes");
+    expect(prompt).toContain(question);
+    expect(memorySaveRequests(prompt!, "answer")).toHaveLength(1);
+  });
+  it.each([
     ["Do you remember my preference?", "Yes"],
     ["Should I remember that you prefer violet?", "No"],
     ["Should I remember that you prefer violet?", "Yes, but don't save it"],
     ["Should I remember that you prefer violet?", "Maybe"],
+    ["Should I remember that you prefer violet?", "Yes?"],
+    ["Should I remember that you prefer violet?", "Yes, if I confirm tomorrow"],
     ["Should I not remember this?", "Yes"],
     ["Would you like me to create the file?", "Yes"],
   ])("does not create memory intent for %s / %s", (question, answer) => {
@@ -76,6 +99,25 @@ describe("fresh memory receipt boundary", () => {
     'Explain "Also remember that I prefer coffee".',
     "If you also remember my preference, what happens?",
   ])("keeps prefixed reported and hypothetical instructions as data: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([]);
+  });
+  it.each([
+    "Could you remember my timezone is UTC for future conversations?",
+    "Would you please remember my preference for later?",
+    "Can you remember this project code for next time?",
+    "Could you remember what I said yesterday for future conversations?",
+    "Could you please remember my timezone is UTC?",
+    "I want you to remember my timezone is UTC.",
+    "I would like you to remember our room number is 42.",
+  ])("requires receipts for explicit future-facing modal saves: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([{ id: "input", text: prompt }]);
+  });
+  it.each([
+    "Could you remember my timezone?",
+    "Can you remember what I said yesterday?",
+    "Could you remember who my friend is?",
+    "Alice asked, Could you remember my timezone is UTC for future conversations?",
+  ])("keeps ambiguous recall and reported modal requests as data: %s", (prompt) => {
     expect(memorySaveRequests(prompt, "input")).toEqual([]);
   });
   it.each([
