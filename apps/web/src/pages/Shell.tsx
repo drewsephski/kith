@@ -3168,7 +3168,7 @@ export function ShellPage({
             className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
           />
         }
-        disabled={creatingThread || creatingBot}
+        disabled={creatingThread || creatingBot || !userId || !bootstrapMe?.spaceId}
         aria-label={t`New`}
         data-testid="create-menu-trigger"
       >

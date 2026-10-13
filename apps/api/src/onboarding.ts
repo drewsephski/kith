@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ConnectorRegistry } from "@rakazo/adapters";
-import type { Actor, Bot, MessageBlock } from "@rakazo/contracts";
+import type { Actor, Bot, ChoiceBlock, MessageBlock } from "@rakazo/contracts";
 import { BOT_NAME_MAX_LENGTH, BOT_TITLE_MAX_LENGTH } from "@rakazo/contracts";
 import {
   ASSISTANT_FOCUS_OPTIONS,
@@ -101,7 +101,7 @@ export async function chooseIdentity(
   botId: string,
   messageId: string,
   identity: BotIdentity,
-): Promise<Bot> {
+): Promise<Bot & { identityAnswer: ChoiceBlock }> {
   const preset =
     "presetId" in identity
       ? BOT_IDENTITY_PRESETS.find((entry) => entry.id === identity.presetId)
@@ -113,87 +113,89 @@ export async function chooseIdentity(
     throw new IsolationError();
   const { bot, thread } = await requireBotThread(deps, actor, botId);
   const target = { spaceId: actor.spaceId, botId: bot.id, threadId: thread.id };
-  const event = await deps.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await tx.$executeRaw`SELECT id FROM threads WHERE id = ${thread.id} FOR UPDATE`;
-    const card = await tx.message.findFirst({
-      where: { id: messageId, threadId: thread.id, botId: bot.id, role: "bot" },
-    });
-    const choice = (card?.blocks as MessageBlock[] | undefined)?.find(
-      (block) => block.kind === "choice" && block.onboardingStage === "identity",
-    );
-    if (!card || !choice || choice.kind !== "choice") throw new IsolationError();
-    // An old card cannot reconfigure the bot or publish another focus question.
-    if (choice.answerId) return null;
-    const active = await tx.bot.findFirst({
-      where: { id: bot.id, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
-    });
-    if (!active || active.parentBotId || !active.spawnKey?.startsWith("onboarding:"))
-      throw new IsolationError();
-    const personal = await tx.personalAssistant.findFirst({ where: { botId: bot.id } });
-    if (personal) throw new IsolationError();
-    const answerId = preset?.id ?? "custom";
-    const blocks = (card.blocks as MessageBlock[]).map((block) =>
-      block.kind === "choice" && block.onboardingStage === "identity"
-        ? {
-            ...block,
-            answerId,
-            ...(answerId === "custom"
-              ? {
-                  options: [
-                    ...block.options,
-                    { id: "custom", letter: "", label: name, description: role },
-                  ],
-                }
-              : {}),
-          }
-        : block,
-    );
-    await tx.bot.update({
-      where: { id: bot.id },
-      data: {
-        name,
-        title: role,
-        description: preset?.description ?? `${name} helps with ${role}.`,
-        instructions:
-          preset?.instructions ??
-          `Your name is ${name}. Your role is ${role}. Respect existing permissions, connections, and approval requirements. Ask for clarification when a task is unclear.`,
-      },
-    });
-    await tx.message.update({ where: { id: card.id }, data: { blocks } });
-    await appendEventInTransaction(tx, {
-      ...target,
-      type: "thread.message.updated",
-      payload: { messageId: card.id, role: "bot", blocks },
-    });
-    const updated = await appendEventInTransaction(tx, {
-      ...target,
-      type: "bot.updated",
-      payload: { name, title: role },
-    });
-    // Free chatting remains free: don't interrupt an already-started task with
-    // another setup question. The identity choice still persists correctly.
-    if (await tx.message.count({ where: { threadId: thread.id, role: "user" } })) {
-      return updated;
-    }
-    const next = focusBlocks();
-    const message = await createThreadMessageInTransaction(tx, {
-      threadId: thread.id,
-      botId: bot.id,
-      role: "bot",
-      blocks: next,
-    });
-    return appendEventInTransaction(tx, {
-      ...target,
-      type: "thread.message.created",
-      payload: { messageId: message.id, role: "bot", blocks: next },
-    });
-  });
+  const { event, identityAnswer } = await deps.prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT id FROM threads WHERE id = ${thread.id} FOR UPDATE`;
+      const card = await tx.message.findFirst({
+        where: { id: messageId, threadId: thread.id, botId: bot.id, role: "bot" },
+      });
+      const choice = (card?.blocks as MessageBlock[] | undefined)?.find(
+        (block) => block.kind === "choice" && block.onboardingStage === "identity",
+      );
+      if (!card || !choice || choice.kind !== "choice") throw new IsolationError();
+      // An old card cannot reconfigure the bot or publish another focus question.
+      if (choice.answerId) return { event: null, identityAnswer: choice };
+      const active = await tx.bot.findFirst({
+        where: { id: bot.id, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+      });
+      if (!active || active.parentBotId || !active.spawnKey?.startsWith("onboarding:"))
+        throw new IsolationError();
+      const personal = await tx.personalAssistant.findFirst({ where: { botId: bot.id } });
+      if (personal) throw new IsolationError();
+      const answerId = preset?.id ?? "custom";
+      const identityAnswer: ChoiceBlock = {
+        ...choice,
+        answerId,
+        ...(answerId === "custom"
+          ? {
+              options: [
+                ...choice.options,
+                { id: "custom", letter: "", label: name, description: role },
+              ],
+            }
+          : {}),
+      };
+      const blocks = (card.blocks as MessageBlock[]).map((block) =>
+        block.kind === "choice" && block.onboardingStage === "identity" ? identityAnswer : block,
+      );
+      await tx.bot.update({
+        where: { id: bot.id },
+        data: {
+          name,
+          title: role,
+          description: preset?.description ?? `${name} helps with ${role}.`,
+          instructions:
+            preset?.instructions ??
+            `Your name is ${name}. Your role is ${role}. Respect existing permissions, connections, and approval requirements. Ask for clarification when a task is unclear.`,
+        },
+      });
+      await tx.message.update({ where: { id: card.id }, data: { blocks } });
+      await appendEventInTransaction(tx, {
+        ...target,
+        type: "thread.message.updated",
+        payload: { messageId: card.id, role: "bot", blocks },
+      });
+      const updated = await appendEventInTransaction(tx, {
+        ...target,
+        type: "bot.updated",
+        payload: { name, title: role },
+      });
+      // Free chatting remains free: don't interrupt an already-started task with
+      // another setup question. The identity choice still persists correctly.
+      if (await tx.message.count({ where: { threadId: thread.id, role: "user" } })) {
+        return { event: updated, identityAnswer };
+      }
+      const next = focusBlocks();
+      const message = await createThreadMessageInTransaction(tx, {
+        threadId: thread.id,
+        botId: bot.id,
+        role: "bot",
+        blocks: next,
+      });
+      const focusEvent = await appendEventInTransaction(tx, {
+        ...target,
+        type: "thread.message.created",
+        payload: { messageId: message.id, role: "bot", blocks: next },
+      });
+      return { event: focusEvent, identityAnswer };
+    },
+  );
   if (event) await deps.events.notify(thread.id, event.seq);
   const updated = (await createRepos(deps.prisma).listBots(actor)).find(
     (entry) => entry.id === bot.id,
   );
   if (!updated) throw new IsolationError();
-  return updated;
+  return { ...updated, identityAnswer };
 }
 
 export async function startOnboarding(

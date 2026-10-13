@@ -4,12 +4,12 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** Final application source `ebfec679` passed
-[required CI](https://github.com/drewsephski/kith/actions/runs/38422279429): 13 active
-checks succeeded and eight release/promotion jobs correctly skipped. Automated review
-completed; actionable findings were corrected, validated and answered. The final
-report-only commit also goes through CI/review before the authorized merge in
-[PR #20](https://github.com/drewsephski/kith/pull/20).
+**External testers are not yet cleared.** Application source `ebfec679` and the later
+report-only head `0c5d8d30` passed required CI: 13 active checks succeeded and eight
+release/promotion jobs correctly skipped. Subsequent review found that a losing concurrent
+identity choice could temporarily display the submitted identity rather than the server winner.
+The canonical-response correction below passes focused verification and requires its own
+exact-head CI/review in [PR #20](https://github.com/drewsephski/kith/pull/20) before merge.
 The candidate still needs an authorized hosted rollout, budgeted real-provider acceptance
 and installed signed-device acceptance before inviting 5–10 testers.
 Existing credentials are available; remaining signing work is configuration and acceptance,
@@ -171,6 +171,22 @@ The strict Settings regression failed before the guard and the complete ten-case
 onboarding suite passed afterward. Ordinary messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
 cloned/helper bots retain their established behavior and advanced editing.
 
+Identity mutations now return the accepted server-owned choice, including its persisted custom
+name and role, on both initial acceptance and successful no-op replay. Web/Electron and mobile
+render that result rather than assuming their submitted identity won; later durable card updates
+retain priority. Fourteen actual PostgreSQL onboarding cases passed, including competing
+preset/custom requests, changed custom retries and lost-response replay. Both strict browser
+response-only regressions failed against the previous card while the server had accepted another
+identity. The shared contract/onboarding suite passed 200 tests; full mobile passed 1,042 tests.
+The corrected real API/PostgreSQL browser suite passed all thirteen cases, including both
+response-only races and the held-bootstrap guard. Workspace lint and all 22 types passed.
+This correction changes JavaScript and API contracts, not native dependencies or runtime.
+Browser acceptance also exposed an early New tap before the owning bootstrap settled: the
+handler safely rejected the missing scope, but the enabled control silently discarded intent.
+The trace recorded zero creation requests. A held-bootstrap regression reproduced the enabled
+control. Creation now remains disabled until account/Space context is available, and the browser
+helper reuses the established shell-readiness wait. Existing assertions remain intact.
+
 Web and Electron use the shared renderer. iOS and Android render the same durable cards with
 native controls, keyboard-aware custom input, accessible labels and localized roles.
 Simulator inspection also found a pinned-avatar tap dead zone and a thread focus callback
@@ -216,17 +232,17 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Gate | Status | Evidence / limit |
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
-| Corrected application-source CI / review | PASSED | Exact application source `ebfec679`: 13 successful checks, eight release/promotion jobs skipped; automated review completed and all actionable comments answered. Final report-only merge head is checked separately in PR #20. |
+| Corrected candidate CI / review | PENDING canonical-response correction | Prior application source `ebfec679` and report-only head `0c5d8d30` passed 13 active checks. The later review finding is corrected below; its exact-head CI/review must complete before merge. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed locally and on the exact application source in CI. |
-| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,040 tests, including final focus and pending-creation route regressions. |
+| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,042 tests, including final focus and pending-creation route regressions. |
 | Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: full local rerun at `1808e919` passed 700 files and 8,946 tests with 377 gated tests skipped. Application-source CI at `ebfec679` passed 700 files and 8,957 tests with 367 gated tests skipped, including the deterministic calendar checks. |
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: latest application-source CI at `ebfec679`: 42 suites, 330 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
-| Web creation / recovery acceptance | PASSED | Ten real API/PostgreSQL Playwright creation/CRUD tests, including three delayed-navigation cases, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Latest exact-source CI passed 319 web tests plus that separate sidebar regression. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PASSED | Virtual-display packaged acceptance passed at exact application source `ebfec679`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
-| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at exact application source `ebfec679`, including the final backend corrections. Physical signed-device acceptance remains separate. |
-| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota, model-readiness/recovery and group/routine changes affect only backend modules. Distribution/device proof remains separate. |
+| Web creation / recovery acceptance | PASSED | Thirteen real API/PostgreSQL Playwright creation/CRUD cases, including three delayed-navigation cases, two canonical-response races and held-bootstrap creation, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Prior exact-source CI passed 319 web tests plus that separate sidebar regression; the latest correction awaits its own full CI. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
+| Packaged Electron candidate | PASSED at ebfec679; PENDING canonical correction | Virtual-display packaged acceptance passed at exact application source `ebfec679`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
+| Android candidate native acceptance | PASSED at ebfec679; PENDING canonical correction | Installed emulator onboarding and actual network-policy recording passed at exact application source `ebfec679`, including the final backend corrections. Physical signed-device acceptance remains separate. |
+| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. The canonical-response JavaScript refresh on the existing 1.0.10 native binary also passed preset Miso, custom Clover, focus and full terminate/relaunch persistence. Three runtime source files changed; the new source scan had zero drift. No setup runs were created. Distribution/device proof remains separate. |
 | Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
 
@@ -258,7 +274,7 @@ These were separate from the native build
 storage failure. The later Android job at `c380d671` failed installing the emulator SDK
 archive with an invalid ZIP before app installation or Maestro assertions. Its missing
 screenshot artifact followed that setup failure; it was not a storage-gallery publication
-failure. The later exact application source `ebfec679` passed fresh installed Android acceptance.
+failure. The later exact application source `ebfec679` passed fresh installed Android acceptance. A local canonical-response rerun also encountered a stopped container runtime and a missing Chromium binary; both were restored before application assertions. The first corrected browser run then exposed the bootstrap gap described above. Its trace recorded zero create requests; the held-bootstrap case failed on the enabled control before the guard, and all thirteen cases passed afterward.
 Live model, signed-device and exact-candidate CI evidence remain distinct.
 
 Independent source review reported 18 passed requirements, no unresolved source failures and
@@ -291,8 +307,8 @@ calendar lock-order and delayed-navigation corrections. The
 [CI run](https://github.com/drewsephski/kith/actions/runs/38422279429) recorded
 13 successful checks and eight correctly skipped release/promotion jobs. Automated review
 completed with all actionable findings corrected, validated and answered. Threads remain
-unresolved because resolving them requires separate operator authorization; no actionable
-feedback remains. The final report-only head receives its own CI/review before merge.
+unresolved because resolving them requires separate operator authorization; the later `0c5d8d30` review found the canonical identity-response case corrected above.
+That correction requires its own complete CI/review before merge.
 
 Earlier passing runs at `d3d09f2e` and `0ae0b155` remain historical evidence; their later
 review findings were corrected above. Earlier failed Android input, web MCP transition and

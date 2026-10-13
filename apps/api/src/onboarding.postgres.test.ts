@@ -194,8 +194,34 @@ databaseSuite("Conversational additional-bot onboarding (PostgreSQL, offline)", 
         ]),
       }),
     ]);
-    await chooseIdentity(deps(), actor, bot.id, card.id, { name: "Other", role: "Other" });
+    const replayed = await chooseIdentity(deps(), actor, bot.id, card.id, {
+      name: "Other",
+      role: "Other",
+    });
+    expect(replayed.identityAnswer).toEqual(updated.identityAnswer);
+    expect(replayed.identityAnswer).toMatchObject({
+      answerId: "custom",
+      options: expect.arrayContaining([
+        { id: "custom", letter: "", label: "Sol", description: "Writing partner" },
+      ]),
+    });
     expect((await prisma.bot.findUniqueOrThrow({ where: { id: bot.id } })).name).toBe("Sol");
+    expect(await messages(bot.threadId)).toHaveLength(2);
+  });
+
+  it("returns the same authoritative choice to competing preset and custom devices", async () => {
+    const bot = await create();
+    const card = await identityCard(bot.threadId);
+    const results = await Promise.all([
+      chooseIdentity(deps(), actor, bot.id, card.id, { presetId: "miso" }),
+      chooseIdentity(deps(), actor, bot.id, card.id, { name: "Atlas", role: "Research lead" }),
+    ]);
+    const persisted = ((await identityCard(bot.threadId)).blocks as MessageBlock[]).find(
+      (block) => block.kind === "choice" && block.onboardingStage === "identity",
+    );
+    expect(persisted).toBeTruthy();
+    for (const result of results) expect(result.identityAnswer).toEqual(persisted);
+    expect(results[0]!.name).toBe(results[1]!.name);
     expect(await messages(bot.threadId)).toHaveLength(2);
   });
 
@@ -225,10 +251,14 @@ databaseSuite("Conversational additional-bot onboarding (PostgreSQL, offline)", 
       chooseIdentity(deps(), actor, bot.id, card.id, { presetId: "orbit" }),
     ).rejects.toThrow("Lost identity response");
     vi.restoreAllMocks();
-    await Promise.all([
+    const replayed = await Promise.all([
       chooseIdentity(deps(), actor, bot.id, card.id, { presetId: "orbit" }),
       chooseIdentity(deps(), actor, bot.id, card.id, { presetId: "pixel" }),
     ]);
+    for (const result of replayed) {
+      expect(result.name).toBe("Orbit");
+      expect(result.identityAnswer.answerId).toBe("orbit");
+    }
     expect(await messages(bot.threadId)).toHaveLength(2);
     expect((await prisma.bot.findUniqueOrThrow({ where: { id: bot.id } })).name).toBe("Orbit");
   });

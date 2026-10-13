@@ -327,11 +327,55 @@ describe("ChoiceCard", () => {
       { requestContext: { apiBase: "https://example.test", headers: {} } },
     );
     await act(async () => {
-      release({});
+      release({
+        identityAnswer: {
+          kind: "choice",
+          onboardingStage: "identity",
+          question: "Identity",
+          answerId: "pippin",
+          options: [
+            { id: "pippin", letter: "B", label: "Pippin", description: "Research assistant" },
+          ],
+        },
+      });
       await Promise.resolve();
     });
     expect(button(view, "Pippin, Research assistant").disabled).toBe(true);
     expect(view.textContent).not.toContain("Coding partner");
+  });
+
+  it.each([
+    { id: "miso", label: "Miso", role: "Inbox assistant" },
+    { id: "custom", label: "Sol", role: "Writing partner" },
+  ])("renders the server winner $id when a different preset was submitted", async (winner) => {
+    const identity: ChoiceBlock = {
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "Identity",
+      options: [
+        { id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" },
+        { id: "pixel", letter: "D", label: "Pixel", description: "Coding partner" },
+      ],
+    };
+    rpc.mockResolvedValue({
+      identityAnswer: {
+        ...identity,
+        answerId: winner.id,
+        options: [
+          ...identity.options,
+          ...(winner.id === "custom"
+            ? [{ id: winner.id, letter: "", label: winner.label, description: winner.role }]
+            : []),
+        ],
+      },
+    });
+    const view = render(identity);
+    await act(async () => {
+      button(view, "Pixel, Coding partner").click();
+    });
+    expect(button(view, `${winner.label}, ${winner.role}`).disabled).toBe(true);
+    expect(view.textContent).not.toContain("Pixel");
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("a durable identity answer suppresses a later lost-response error without remounting", async () => {
@@ -380,7 +424,7 @@ describe("ChoiceCard", () => {
     expect(view.querySelector("[aria-label='Custom']")).toBeNull();
     expect(rpc).not.toHaveBeenCalled();
   });
-  it("saves explicit custom name and role while preserving input after a failed request", async () => {
+  it("preserves failed custom input and renders a different accepted identity after retry", async () => {
     const view = render({
       kind: "choice",
       onboardingStage: "identity",
@@ -416,7 +460,15 @@ describe("ChoiceCard", () => {
     expect(view.querySelector("[role='alert']")?.textContent).toBe("Network down");
     expect(name.value).toBe(" Atlas ");
     expect(role.value).toBe(" Research lead ");
-    rpc.mockResolvedValueOnce({});
+    rpc.mockResolvedValueOnce({
+      identityAnswer: {
+        kind: "choice",
+        onboardingStage: "identity",
+        question: "Identity",
+        answerId: "custom",
+        options: [{ id: "custom", letter: "", label: "Sol", description: "Writing partner" }],
+      },
+    });
     await act(async () => {
       button(view, "Save").click();
       await Promise.resolve();
@@ -431,5 +483,7 @@ describe("ChoiceCard", () => {
       { requestContext: { apiBase: "https://example.test", headers: {} } },
     );
     expect(view.textContent).not.toContain("What should my name be, and what's my role?");
+    expect(button(view, "Sol, Writing partner").disabled).toBe(true);
+    expect(view.textContent).not.toContain("Atlas");
   });
 });

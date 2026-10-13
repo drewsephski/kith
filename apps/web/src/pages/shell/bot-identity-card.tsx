@@ -31,12 +31,13 @@ export function BotIdentityCard({
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
-  const [localAnswer, setLocalAnswer] = useState<string>();
+  const [savedChoice, setSavedChoice] = useState<Extract<MessageBlock, { kind: "choice" }>>();
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
   // Capture the card's Space before an asynchronous save, never the newly selected Space.
   const spaceId = useRef(selectedSpaceId()).current;
-  const answerId = block.answerId ?? localAnswer;
+  const choice = block.answerId ? block : (savedChoice ?? block);
+  const answerId = choice.answerId;
   const roleLabels: Record<string, string> = {
     miso: t`Inbox assistant`,
     pippin: t`Research assistant`,
@@ -49,9 +50,12 @@ export function BotIdentityCard({
     setBusy(true);
     setError(null);
     try {
-      await rpc.onboarding.identity({ botId, messageId, identity }, { context: { spaceId } });
+      const result = await rpc.onboarding.identity(
+        { botId, messageId, identity },
+        { context: { spaceId } },
+      );
       if (selectedSpaceId() !== spaceId) return;
-      setLocalAnswer("presetId" in identity ? identity.presetId : "custom");
+      setSavedChoice(result.identityAnswer);
       // Persistence succeeded even if the optional roster refresh fails.
       void onBotChanged().catch(() => undefined);
     } catch (reason) {
@@ -74,7 +78,7 @@ export function BotIdentityCard({
       ) : null}
       {!custom || answerId ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          {block.options
+          {choice.options
             .filter((option) => !answerId || option.id === answerId)
             .map((option) => (
               <Button
@@ -101,11 +105,6 @@ export function BotIdentityCard({
                 {answerId === option.id ? <Check size={14} aria-hidden="true" /> : null}
               </Button>
             ))}
-          {localAnswer === "custom" && !block.answerId ? (
-            <p className="text-sm" dir="auto">
-              {name} · {role}
-            </p>
-          ) : null}
         </div>
       ) : null}
       {!answerId ? (

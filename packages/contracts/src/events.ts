@@ -94,6 +94,24 @@ const ChartBlock = z
 export const SecretAskPurpose = z.enum(["otp", "password", "api_key"]);
 export type SecretAskPurpose = z.infer<typeof SecretAskPurpose>;
 
+export const ChoiceBlockSchema = z.object({
+  kind: z.literal("choice"),
+  question: z.string(),
+  subtitle: z.string().optional(),
+  onboardingStage: z.enum(["identity", "focus"]).optional(),
+  options: z.array(
+    z.object({
+      id: z.string(),
+      letter: z.string(),
+      label: z.string(),
+      description: z.string().optional(),
+    }),
+  ),
+  /** Set once the user picks an option; renders the picker as answered. */
+  answerId: z.string().optional(),
+});
+export type ChoiceBlock = z.infer<typeof ChoiceBlockSchema>;
+
 export const MessageBlock = z.discriminatedUnion("kind", [
   EmailCardSchema,
   z.object({ kind: z.literal("text"), text: z.string() }),
@@ -129,22 +147,7 @@ export const MessageBlock = z.discriminatedUnion("kind", [
       )
       .optional(),
   }),
-  z.object({
-    kind: z.literal("choice"),
-    question: z.string(),
-    subtitle: z.string().optional(),
-    onboardingStage: z.enum(["identity", "focus"]).optional(),
-    options: z.array(
-      z.object({
-        id: z.string(),
-        letter: z.string(),
-        label: z.string(),
-        description: z.string().optional(),
-      }),
-    ),
-    /** Set once the user picks an option; renders the picker as answered. */
-    answerId: z.string().optional(),
-  }),
+  ChoiceBlockSchema,
   z.object({
     /** Inline app connection card from a configured catalog. Authorization
         begins on user intent; server verification flips it to connected. */

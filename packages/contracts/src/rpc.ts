@@ -94,7 +94,7 @@ import {
   VoiceInfoSchema,
   VoiceStatusSchema,
 } from "./domain.js";
-import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
+import { ChoiceBlockSchema, ComputerCommandSchema, ProductEventSchema } from "./events.js";
 import { ForYouDiscoverySchema } from "./for-you.js";
 import { Id, IsoDate } from "./ids.js";
 import {
@@ -876,7 +876,7 @@ export const appContract = {
           ]),
         }),
       )
-      .output(BotSchema),
+      .output(BotSchema.extend({ identityAnswer: ChoiceBlockSchema })),
     /** Seed the first-run greeting into the bot's thread (focus card is separate). */
     start: oc.input(z.object({ botId: Id })).output(z.object({ ok: z.literal(true) })),
     /** Post the focus choice card when the thread is still idle. */

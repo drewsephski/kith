@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { ChoiceBlock, ThreadSnapshot } from "@rakazo/contracts";
 import {
   captureScreenshot,
   completeOnboarding,
@@ -319,4 +320,101 @@ test("sidebar collapse and drag recovery remain available after conversational c
   await page.mouse.up();
   await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
   await captureScreenshot(page, testInfo, "bots-sidebar-expanded");
+});
+
+for (const winner of [
+  { identity: { presetId: "miso" }, id: "miso", name: "Miso", role: "Inbox assistant" },
+  {
+    identity: { name: "Sol", role: "Writing partner" },
+    id: "custom",
+    name: "Sol",
+    role: "Writing partner",
+  },
+]) {
+  test(`a losing identity request renders the authoritative ${winner.id} response before events`, async ({
+    page,
+  }, testInfo) => {
+    await setup(page, `identity-race-${winner.id}`);
+    // The initial snapshot remains readable while the event channel is unavailable.
+    await page.route("**/rpc/threads/subscribe", (route) => route.abort("failed"));
+    await openNewBot(page);
+    const card = page.getByTestId("bot-identity-card");
+    await expect(card).toBeVisible();
+    const botId = new URL(page.url()).pathname.split("/").at(-1)!;
+    const initial = await rpc<ThreadSnapshot>(page, "threads/get", { botId });
+    await page.route("**/rpc/threads/get", (route) => route.fulfill({ json: { json: initial } }));
+    await page.route("**/rpc/onboarding/identity", async (route) => {
+      const submitted = route.request().postDataJSON() as {
+        json: { botId: string; messageId: string; identity: { presetId: string } };
+      };
+      expect(submitted.json.identity).toEqual({ presetId: "pixel" });
+      // A different device wins before this client's delayed request reaches the server.
+      const first = await route.fetch({
+        postData: { json: { ...submitted.json, identity: winner.identity } },
+      });
+      expect(first.ok()).toBe(true);
+      const replay = await route.fetch();
+      expect(replay.ok()).toBe(true);
+      const result = (await replay.json()) as { json: { identityAnswer: ChoiceBlock } };
+      expect(result.json.identityAnswer.answerId).toBe(winner.id);
+      await route.fulfill({ response: replay });
+    });
+    await card.getByTestId("bot-identity-pixel").click();
+    await expect(card.getByTestId(`bot-identity-${winner.id}`)).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(card.getByTestId(`bot-identity-${winner.id}`)).toBeDisabled();
+    await expect(card).toContainText(winner.name);
+    await expect(card).toContainText(winner.role);
+    await expect(card.getByTestId("bot-identity-pixel")).toHaveCount(0);
+    await expect(page.getByPlaceholder(`Message ${winner.name}`)).toBeVisible();
+    await captureScreenshot(page, testInfo, `conversational-bot-authoritative-${winner.id}`);
+    await page.unroute("**/rpc/threads/get");
+    await page.unroute("**/rpc/threads/subscribe");
+    await page.unroute("**/rpc/onboarding/identity");
+    await page.reload();
+    await expect(card.getByTestId(`bot-identity-${winner.id}`)).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+      1,
+    );
+  });
+}
+
+test("creation stays unavailable until the owning account and Space bootstrap settles", async ({
+  page,
+}) => {
+  await setup(page, "create-bootstrap");
+  await openAdvancedNavigation(page);
+  let release: () => void = () => undefined;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/rpc/bootstrap", async (route) => {
+    await pending;
+    await route.continue();
+  });
+  try {
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const advanced = page
+      .getByTestId("kith-navigation")
+      .getByRole("button", { name: "More options", exact: true });
+    if (await advanced.isVisible()) {
+      await advanced.click();
+      await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
+    }
+    const create = page.getByTestId("create-menu-trigger");
+    await expect(create).toBeVisible();
+    await expect(create).toBeDisabled();
+    release();
+    await expect(create).toBeEnabled();
+    await openNewBot(page);
+    await expect(page.getByTestId("bot-identity-card")).toBeVisible();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
 });

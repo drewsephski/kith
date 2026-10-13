@@ -85,13 +85,7 @@ export async function openAdvancedNavigation(page: Page) {
 }
 
 export async function openNewBot(page: Page) {
-  const advanced = page
-    .getByTestId("kith-navigation")
-    .getByRole("button", { name: "More options", exact: true });
-  if (await advanced.isVisible()) {
-    await advanced.click();
-    await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
-  }
+  await openAdvancedNavigation(page);
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-bot").click();
 }

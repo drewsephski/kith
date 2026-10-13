@@ -35,12 +35,13 @@ export function BotIdentityCard({
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
-  const [localAnswer, setLocalAnswer] = useState<string>();
+  const [savedChoice, setSavedChoice] = useState<Extract<MessageBlock, { kind: "choice" }>>();
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef(false);
   const roleField = useRef<TextInput>(null);
   const current = useRef(captureMobileScreenScope()).current;
-  const answerId = block.answerId ?? localAnswer;
+  const choice = block.answerId ? block : (savedChoice ?? block);
+  const answerId = choice.answerId;
   const labels: Record<string, string> = {
     miso: t("Inbox assistant"),
     pippin: t("Research assistant"),
@@ -56,9 +57,13 @@ export function BotIdentityCard({
     try {
       const requestContext = await captureApiRequestContext();
       if (!current()) return;
-      await rpc("onboarding/identity", { botId, messageId, identity }, { requestContext });
+      const result = await rpc<{ identityAnswer: Extract<MessageBlock, { kind: "choice" }> }>(
+        "onboarding/identity",
+        { botId, messageId, identity },
+        { requestContext },
+      );
       if (!current()) return;
-      setLocalAnswer("presetId" in identity ? identity.presetId : "custom");
+      setSavedChoice(result.identityAnswer);
       Keyboard.dismiss();
     } catch (reason) {
       if (current()) setError(errorText(reason, t("Could not save this choice")));
@@ -94,7 +99,7 @@ export function BotIdentityCard({
       ) : null}
       {!custom || answerId ? (
         <View style={{ gap: 8 }}>
-          {block.options
+          {choice.options
             .filter((option) => !answerId || option.id === answerId)
             .map((option) => (
               <Pressable
@@ -134,11 +139,6 @@ export function BotIdentityCard({
                 </View>
               </Pressable>
             ))}
-          {localAnswer === "custom" && !block.answerId ? (
-            <Text style={{ color: tokens.foreground }}>
-              {name} · {role}
-            </Text>
-          ) : null}
         </View>
       ) : null}
       {!readOnly && !answerId ? (
