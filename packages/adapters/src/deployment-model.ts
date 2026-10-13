@@ -1,4 +1,5 @@
 import { getEnvApiKey } from "@earendil-works/pi-ai/compat";
+import { resolveModelExecutionMode } from "@rakazo/db";
 
 export const DEFAULT_OPENROUTER_MODEL_ID = "openai/gpt-6-luna";
 
@@ -57,4 +58,52 @@ export function resolveDeploymentModel(env: NodeJS.ProcessEnv = process.env) {
     configured: Boolean(key) || hostCredentials,
     hostCredentials,
   };
+}
+
+/** A managed service may not execute user subscription tokens on its shared servers. */
+export type ModelExecutionMode = "managed" | "self-hosted";
+
+export function modelExecutionMode(env: NodeJS.ProcessEnv = process.env): ModelExecutionMode {
+  return resolveModelExecutionMode(env);
+}
+
+export const MANAGED_CHATGPT_CONNECTION_MESSAGE =
+  "ChatGPT plan connections require a local or self-hosted Kith server. Use an OpenAI API key on hosted Kith.";
+
+export function modelProviderExecutionError(
+  provider: string,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): string | undefined {
+  return mode === "managed" && provider === "openai-codex"
+    ? MANAGED_CHATGPT_CONNECTION_MESSAGE
+    : undefined;
+}
+
+/** Host SDK transports must receive a real per-request key on the managed server. */
+export function modelProviderApiKeyError(
+  provider: string,
+  apiKey: string | undefined,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): string | undefined {
+  if (mode !== "managed" || !Object.hasOwn(HOST_CREDENTIAL_SOURCES, provider)) return undefined;
+  const key = apiKey?.trim();
+  // Pi's Vertex transport treats this literal as ADC, not as an API key.
+  const vertexHostMarker = provider === "google-vertex" && key === "gcp-vertex-credentials";
+  return !key || vertexHostMarker || /^<[^>]+>$/.test(key)
+    ? "Connect a user-owned API key for this provider. Host credentials require a self-hosted Kith server."
+    : undefined;
+}
+
+/** Deployment funding is bound to one provider AND model, never a provider-wide key. */
+export function deploymentFundsModel(
+  provider: string,
+  modelId: string,
+  deployment: Pick<ReturnType<typeof resolveDeploymentModel>, "provider" | "model">,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): boolean {
+  return (
+    provider === deployment.provider &&
+    modelId === deployment.model &&
+    (mode !== "managed" || (provider === "openrouter" && modelId === DEFAULT_OPENROUTER_MODEL_ID))
+  );
 }

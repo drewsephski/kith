@@ -151,6 +151,7 @@ describe("createBackgroundJobHandlers", () => {
       provider: "openrouter",
       id: "openai/gpt-6-luna",
       apiKey: "deployment-key",
+      fundingSource: "deployment",
       baseUrl: undefined,
       thinkingLevel: null,
       oauth: undefined,

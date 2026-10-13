@@ -18,6 +18,7 @@ import { nextCronDateAcrossStrict, taskStarterApp, taskStarterRepeatPlan } from 
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createThreadMessageInTransaction,
   IsolationError,
 } from "@rakazo/db";
@@ -332,6 +333,7 @@ export class TaskStarterService {
           status: "queued",
         },
       });
+      await assertRunCreationQuota(tx, actor.userId);
       const run = await tx.run.create({
         data: {
           spaceId: actor.spaceId,
@@ -409,6 +411,7 @@ export class TaskStarterService {
           status: "queued",
         },
       });
+      await assertRunCreationQuota(tx, actor.userId);
       const run = await tx.run.create({
         data: {
           spaceId: actor.spaceId,
@@ -676,6 +679,7 @@ export class TaskStarterService {
           status: "queued",
         },
       });
+      await assertRunCreationQuota(tx, actor.userId);
       const run = await tx.run.create({
         data: {
           spaceId: actor.spaceId,

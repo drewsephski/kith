@@ -1,6 +1,6 @@
 import type { AdapterContext } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
-import { Prisma } from "@rakazo/db";
+import { ExecutionQuotaError, executionLimit, Prisma, resolveModelExecutionMode } from "@rakazo/db";
 import { executionProfile } from "./execution-profile.js";
 
 /** Preparation hints only. Textual intent never grants computer authority. */
@@ -74,10 +74,7 @@ export async function claimComputerActivation(
     data: Prisma.ComputerUpdateManyMutationInput;
   },
 ): Promise<{ count: number }> {
-  const raw = process.env.SANDBOX_MAX_ACTIVE_COMPUTERS_PER_USER;
-  const limit = raw?.trim() ? Number(raw) : 0;
-  if (!Number.isSafeInteger(limit) || limit < 0)
-    throw new Error("SANDBOX_MAX_ACTIVE_COMPUTERS_PER_USER must be a nonnegative integer");
+  const limit = executionLimit("SANDBOX_MAX_ACTIVE_COMPUTERS_PER_USER", 1);
   if (limit === 0 || input.kind === "desktop")
     return prisma.computer.updateMany({ where: input.where, data: input.data });
   return prisma.$transaction(async (tx) => {
@@ -92,7 +89,11 @@ export async function claimComputerActivation(
         state: { in: ["running", "booting", "suspending"] },
       },
     });
-    if (active >= limit) return { count: 0 };
+    if (active >= limit) {
+      if (resolveModelExecutionMode() === "managed")
+        throw new ExecutionQuotaError("Computer limit reached. Stop another computer, then retry.");
+      return { count: 0 };
+    }
     return tx.computer.updateMany({ where: input.where, data: input.data });
   });
 }

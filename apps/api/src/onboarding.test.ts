@@ -16,7 +16,14 @@ function fixture(catalog: unknown[]) {
   const tx = {
     $executeRaw: vi.fn(),
     message: {
-      findMany: vi.fn(async () => [{ id: "choice", blocks: [{ kind: "choice", answerId: null }] }]),
+      findMany: vi.fn(async () => [
+        {
+          id: "choice",
+          blocks: [
+            { kind: "choice", question: "What should I help you with first?", answerId: null },
+          ],
+        },
+      ]),
       update: vi.fn(),
     },
   };
@@ -114,4 +121,68 @@ it("updates cards in the authorized group thread instead of the bot's main threa
     select: { id: true, blocks: true },
     orderBy: { createdAt: "asc" },
   });
+});
+
+it("never applies a focus answer to an unanswered identity card", async () => {
+  const { deps, actor, tx } = fixture([]);
+  tx.message.findMany.mockResolvedValue([
+    {
+      id: "identity",
+      blocks: [
+        {
+          kind: "choice",
+          question: "What should my name be, and what's my role?",
+          onboardingStage: "identity",
+          answerId: null,
+        },
+      ],
+    },
+  ] as never);
+  await chooseFocus(deps, actor, "bot", "day");
+  expect(tx.message.update).not.toHaveBeenCalled();
+});
+
+it("selects the explicit focus stage instead of the first unanswered choice", async () => {
+  const { deps, actor, tx } = fixture([]);
+  tx.message.findMany.mockResolvedValue([
+    {
+      id: "identity",
+      blocks: [
+        {
+          kind: "choice",
+          question: "What should my name be, and what's my role?",
+          onboardingStage: "identity",
+          answerId: null,
+        },
+      ],
+    },
+    {
+      id: "focus",
+      blocks: [
+        {
+          kind: "choice",
+          question: "What should I help you with first?",
+          onboardingStage: "focus",
+          answerId: null,
+        },
+      ],
+    },
+  ] as never);
+  await chooseFocus(deps, actor, "bot", "day");
+  expect(tx.message.update).toHaveBeenCalledWith({
+    where: { id: "focus" },
+    data: { blocks: [expect.objectContaining({ onboardingStage: "focus", answerId: "day" })] },
+  });
+});
+
+it("does not apply onboarding answers to unrelated conversation choices", async () => {
+  const { deps, actor, tx } = fixture([]);
+  tx.message.findMany.mockResolvedValue([
+    {
+      id: "other",
+      blocks: [{ kind: "choice", question: "Which result should I use?", answerId: null }],
+    },
+  ] as never);
+  await chooseFocus(deps, actor, "bot", "day");
+  expect(tx.message.update).not.toHaveBeenCalled();
 });

@@ -34,6 +34,7 @@ import type {
   IntegrationProviderSettings,
   McpConnector,
   MemoryProviderResolver,
+  ModelChoice,
   PiOAuthLogins,
   RemoteConnectorDependencies,
   TaskStarterService,
@@ -64,6 +65,7 @@ import {
   defaultCatalogModelId,
   deletePushToken,
   deploymentAutoReviewDefault,
+  deploymentFundsModel,
   destroyBot,
   displayBotWorkspacePath,
   enqueueTakeoverContinuation,
@@ -84,11 +86,14 @@ import {
   mapScratchpadItem,
   modelCredentialAuthKindsForSpace,
   modelCredentialDto,
+  modelProviderExecutionError,
+  modelSecretExecutionError,
   normalizeSecretDestination,
   PushSessionEndedError,
   parseModelSecret,
   persistPreparedSecret,
   pickReusableConnection,
+  pinnedModelCredentialError,
   planLiveConnectionSync,
   prepareApiInstall,
   prepareGraphqlInstall,
@@ -113,6 +118,7 @@ import {
   scheduleComputerSleep,
   screenLeaseIdForRun,
   scriptedCatalogEntry,
+  selectConfiguredModel,
   selectDefaultCredentialId,
   serializeModelSecret,
   storeBotSecret,
@@ -121,6 +127,7 @@ import {
   touchRunningComputer,
   UNAVAILABLE_MODEL_FOR_AUTH_MESSAGE,
   validateConnectedModelChoice,
+  validateHostedModelConnection,
   validateModelAuthAvailability,
   validateStoredModelAuth,
   verifyMcpInstall,
@@ -160,10 +167,13 @@ import {
   hasMixedOneShotSchedule,
   isOneShotRoutineCrons,
   nextCronDateAcrossStrict,
+  resolveGroupTargetBotIds,
 } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
+  BotCreationRequestUnavailableError,
   BotSectionNameConflictError,
   CannotDeleteDefaultSpaceError,
   CannotDeleteLastSpaceError,
@@ -179,6 +189,7 @@ import {
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
+  ExecutionQuotaError,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
   findModelCredential,
@@ -245,6 +256,8 @@ import {
 } from "./memory-provider-config.js";
 import {
   chooseFocus,
+  chooseIdentity,
+  createConversationalBot,
   dismissFocus,
   markAppConnected,
   promptFocus,
@@ -270,6 +283,7 @@ import {
   loadMessagePage,
   shouldForwardPeerThreadEvent,
 } from "./thread-message-pages.js";
+import type { ThreadTarget } from "./thread-target.js";
 import {
   reactToThreadMessage,
   resolveThreadTarget,
@@ -590,6 +604,7 @@ export interface RouterDeps {
     teamChatJudgeModel?: string;
     defaultProvider: string;
     defaultModel: string;
+    modelExecutionMode?: "managed" | "self-hosted";
     deploymentModelConfigured?: boolean;
     deploymentModelHostCredentials?: boolean;
     webOrigin: string;
@@ -712,7 +727,7 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
   // extra automatic run there competes with whatever response a test or eval
   // harness queued next, for a bot it doesn't otherwise get to opt out of.
   if (deps.env.agentRuntime === "scripted") return;
-  if ((await modelSetup(deps, actor)).needsModel) return;
+  if ((await modelSetup(deps, actor, bot)).needsModel) return;
   const run = await deps.prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
       data: {
@@ -724,6 +739,7 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
         status: "queued",
       },
     });
+    await assertRunCreationQuota(tx, actor.userId);
     return tx.run.create({
       data: {
         spaceId: actor.spaceId,
@@ -773,7 +789,13 @@ export function createRouter(deps: RouterDeps) {
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
-    return next({ context: { ...context, actor: context.actor } });
+    try {
+      return await next({ context: { ...context, actor: context.actor } });
+    } catch (error) {
+      if (error instanceof ExecutionQuotaError)
+        throw new ORPCError("TOO_MANY_REQUESTS", { message: error.message });
+      throw error;
+    }
   });
 
   return os.router({
@@ -1104,6 +1126,7 @@ export function createRouter(deps: RouterDeps) {
           deps.prisma,
           deps.secrets,
           context.actor,
+          deps.env.modelExecutionMode,
         );
         const available = listAvailablePiCatalog(auth.byProvider, auth.byModel);
         const live = await codexLiveCatalogsForSpace(
@@ -1122,7 +1145,20 @@ export function createRouter(deps: RouterDeps) {
         const catalog = live.size > 0 ? applyCodexLiveCatalog(available, auth, live) : available;
         // The scripted fixture only exists to drive the scripted runtime; a real
         // runtime cannot execute it, so it stays out of the user-facing catalog.
-        return deps.env.agentRuntime === "scripted" ? [...catalog, scriptedCatalogEntry] : catalog;
+        const policyCatalog = catalog.map((entry) => {
+          const connectionUnavailableReason =
+            modelProviderExecutionError(entry.provider, deps.env.modelExecutionMode) ??
+            auth.unavailableByModel?.[entry.provider]?.[entry.id];
+          return {
+            ...entry,
+            ...(connectionUnavailableReason
+              ? { connectionUnavailableReason, billing: connectionUnavailableReason }
+              : {}),
+          };
+        });
+        return deps.env.agentRuntime === "scripted"
+          ? [...policyCatalog, scriptedCatalogEntry]
+          : policyCatalog;
       }),
       credentials: authed.models.credentials.handler(async ({ context }) => {
         const rows = await deps.prisma.userModelCredential.findMany({
@@ -1178,6 +1214,7 @@ export function createRouter(deps: RouterDeps) {
             deps.prisma,
             deps.secrets,
             context.actor,
+            deps.env.modelExecutionMode,
           );
           const available = listAvailablePiCatalog(auth.byProvider, auth.byModel);
           const live = await codexLiveCatalogsForSpace(
@@ -1193,6 +1230,8 @@ export function createRouter(deps: RouterDeps) {
           );
           const catalog = live.size > 0 ? applyCodexLiveCatalog(available, auth, live) : available;
           for (const choice of input) {
+            const policyError = auth.unavailableByModel?.[choice.provider]?.[choice.modelId];
+            if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
             const credential = await findModelCredential(
               deps.prisma,
               context.actor,
@@ -1306,6 +1345,11 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       beginOAuth: authed.models.beginOAuth.handler(async ({ context, input }) => {
+        const policyError = modelProviderExecutionError(
+          input.provider,
+          deps.env.modelExecutionMode,
+        );
+        if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
         return deps.oauthLogins.begin({
           userId: context.actor.userId,
           spaceId: context.actor.spaceId,
@@ -1362,6 +1406,11 @@ export function createRouter(deps: RouterDeps) {
         return { ok: true as const };
       }),
       setDefault: authed.models.setDefault.handler(async ({ context, input }) => {
+        const policyError = modelProviderExecutionError(
+          input.provider,
+          deps.env.modelExecutionMode,
+        );
+        if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
         const loadSpaceModelState = async (
           client: Pick<PrismaClient, "spaceModelPreference" | "userModelCredential">,
         ) => {
@@ -1412,6 +1461,7 @@ export function createRouter(deps: RouterDeps) {
                             input.provider,
                           ),
                       },
+                      { executionMode: deps.env.modelExecutionMode },
                     ),
                   ] as const,
               ),
@@ -2178,14 +2228,17 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       send: authed.threads.send.handler(async ({ context, input }) => {
-        if ((await modelSetup(deps, context.actor)).needsModel) {
-          throw new ORPCError("BAD_REQUEST", { message: "Connect a model to start a run." });
-        }
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        if (target.kind === "bot") {
-          await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
-        }
-        const accepted = await sendThreadMessage(deps, context.actor, target, input, {
+        const sendDeps = {
+          ...deps,
+          beforeNewSend: async (normalized: Parameters<typeof sendThreadMessage>[3]) => {
+            if (await threadNeedsModel(deps, context.actor, target, normalized))
+              throw new ORPCError("BAD_REQUEST", { message: "Connect a model to start a run." });
+            if (target.kind === "bot")
+              await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
+          },
+        };
+        const accepted = await sendThreadMessage(sendDeps, context.actor, target, input, {
           requestReceivedAt: context.requestReceivedAt,
           authFinishedAt: context.authFinishedAt,
           validatedAt: performance.now(),
@@ -2325,6 +2378,7 @@ export function createRouter(deps: RouterDeps) {
                 status: "queued",
               },
             });
+            await assertRunCreationQuota(tx, context.actor.userId);
             run = await tx.run.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -2399,6 +2453,27 @@ export function createRouter(deps: RouterDeps) {
               type: "thread.message.created",
               payload: { messageId: message.id, role: "bot", blocks, callId: input.callId },
             });
+            try {
+              await assertRunCreationQuota(tx, context.actor.userId);
+            } catch (error) {
+              if (!(error instanceof ExecutionQuotaError)) throw error;
+              // Hanging up is user intent, independent of an optional model-generated recap.
+              const ended = await appendEventInTransaction(tx, {
+                spaceId: context.actor.spaceId,
+                threadId,
+                botId,
+                type: "thread.call.ended",
+                payload: {
+                  botId,
+                  threadId,
+                  callId: input.callId,
+                  title: "",
+                  farewell: "",
+                  messageId: message.id,
+                },
+              });
+              return { runId: null, eventSeq: ended.seq };
+            }
             const task = await tx.task.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -2448,9 +2523,10 @@ export function createRouter(deps: RouterDeps) {
           getLogger().error("call end realtime notification", error);
         });
         // The queued run is durable; a missed wake is repaired by the reconciler.
-        await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
-          getLogger().error("call end enqueue", error);
-        });
+        if (committed.runId)
+          await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
+            getLogger().error("call end enqueue", error);
+          });
         return { ok: true as const };
       }),
       answer: authed.threads.answer.handler(async ({ context, input }) => {
@@ -3697,6 +3773,7 @@ export function createRouter(deps: RouterDeps) {
               select: { modelProvider: true, modelId: true, thinkingLevel: true },
             });
             if (!currentModel) throw new IsolationError();
+            await assertRunCreationQuota(tx, context.actor.userId);
             return tx.run.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -4517,6 +4594,21 @@ export function createRouter(deps: RouterDeps) {
       },
     },
     onboarding: {
+      create: authed.onboarding.create.handler(async ({ context, input }) => {
+        try {
+          return await createConversationalBot(onboardingDeps, context.actor, input.clientNonce);
+        } catch (error) {
+          if (error instanceof BotCreationRequestUnavailableError)
+            throw new ORPCError("ONBOARDING_TARGET_REMOVED", {
+              status: 409,
+              message: error.message,
+            });
+          throw mapSpaceLifecycleError(error);
+        }
+      }),
+      identity: authed.onboarding.identity.handler(async ({ context, input }) =>
+        chooseIdentity(onboardingDeps, context.actor, input.botId, input.messageId, input.identity),
+      ),
       start: authed.onboarding.start.handler(async ({ context, input }) => {
         await startOnboarding(onboardingDeps, context.actor, input.botId);
         return { ok: true as const };
@@ -6403,6 +6495,13 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     sandboxProvider: deps.env.sandboxProvider,
     avatarStyle: user.avatarStyle === "robot" ? "robot" : "organic",
     billingEnabled: Boolean(deps.billing) && !actor.isDeploymentOwner,
+    defaultModelFunding: setup.needsModel
+      ? "unavailable"
+      : setup.credential
+        ? "user"
+        : deps.env.modelExecutionMode === "managed"
+          ? "deployment"
+          : "server",
   };
 }
 
@@ -6411,17 +6510,95 @@ function requireBilling(deps: RouterDeps): BillingService {
   return deps.billing;
 }
 
-async function modelSetup(deps: RouterDeps, actor: Actor) {
+async function modelSetup(deps: RouterDeps, actor: Actor, override?: ModelChoice) {
   const [credential, settings] = await Promise.all([
     findDefaultModelCredential(deps.prisma, actor),
     deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
   ]);
-  const hasDeployment = Boolean(deps.env.deploymentModelConfigured);
-  return {
-    credential,
+  const overrideCredential =
+    deps.env.agentRuntime !== "scripted" && override?.modelProvider && override.modelId
+      ? await findModelCredential(deps.prisma, actor, override.modelProvider, override.modelId)
+      : null;
+  const selected = selectConfiguredModel({
+    override: override ?? null,
+    overrideCredential,
+    defaultCredential: credential,
     settings,
-    needsModel: deps.env.agentRuntime !== "scripted" && !credential && !hasDeployment,
+    deployment: { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
+  });
+  const hasDeployment =
+    Boolean(deps.env.deploymentModelConfigured) &&
+    deploymentFundsModel(
+      selected.provider ?? deps.env.defaultProvider,
+      selected.id ?? deps.env.defaultModel,
+      { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
+      deps.env.modelExecutionMode,
+    );
+  let needsModel = false;
+  if (deps.env.agentRuntime !== "scripted") {
+    if (override && pinnedModelCredentialError(override, overrideCredential)) needsModel = true;
+    else if (!selected.credential) needsModel = !hasDeployment;
+    else if (modelProviderExecutionError(selected.credential.provider, deps.env.modelExecutionMode))
+      needsModel = true;
+    else {
+      const { auth } = await prepareStoredModelAuth(
+        deps.prisma,
+        deps.secrets,
+        actor.userId,
+        selected.credential.secretId,
+        selected.credential.provider,
+        selected.id ?? deps.env.defaultModel,
+        deps.codexCatalog,
+        undefined,
+        { executionMode: deps.env.modelExecutionMode, forExecution: true },
+      );
+      needsModel = auth.status !== "ready";
+    }
+  }
+  return {
+    credential: selected.credential,
+    settings,
+    needsModel,
   };
+}
+
+async function threadNeedsModel(
+  deps: RouterDeps,
+  actor: Actor,
+  target: ThreadTarget,
+  input: Pick<Parameters<typeof sendThreadMessage>[3], "text" | "mentions" | "emailAction">,
+): Promise<boolean> {
+  if (target.kind === "bot") return (await modelSetup(deps, actor, target.bot)).needsModel;
+  if (deps.env.agentRuntime === "scripted") return false;
+  let mentions = input.mentions ?? [];
+  if (input.emailAction) {
+    // The transaction still validates the card; readiness must check its actual recipient.
+    const reply = await deps.prisma.message.findFirst({
+      where: { id: input.emailAction.messageId, threadId: target.threadId, role: "bot" },
+      select: { botId: true },
+    });
+    if (!reply) throw new ORPCError("NOT_FOUND", { message: "This email is no longer available." });
+    mentions = reply.botId ? [{ kind: "bot", id: reply.botId }] : [];
+  }
+  const targetIds = resolveGroupTargetBotIds({
+    text: input.text ?? "",
+    members: target.members.map((member) => ({ id: member.botId, name: member.name })),
+    explicitMentions: mentions.flatMap((mention) =>
+      typeof mention === "string" ? [mention] : mention.kind === "bot" ? [mention.id] : [],
+    ),
+  });
+  const bots = await deps.prisma.bot.findMany({
+    where: {
+      id: { in: targetIds },
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      archivedAt: null,
+    },
+    select: { modelProvider: true, modelId: true, thinkingLevel: true },
+  });
+  // Preserve partial group execution; each unavailable recipient fails before inference.
+  for (const bot of bots) if (!(await modelSetup(deps, actor, bot)).needsModel) return false;
+  return true;
 }
 
 /**
@@ -6746,6 +6923,12 @@ async function persistModelCredential(
   codexCatalog: CodexLiveCatalog,
 ) {
   throwIfAborted(input.signal);
+  const policyError = modelSecretExecutionError(
+    input.provider,
+    input.plaintext,
+    deps.env.modelExecutionMode,
+  );
+  if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
   const requestedModelId = usableModelId(input.modelId);
   const authError = requestedModelId
     ? validateModelAuthAvailability(input.provider, requestedModelId, input.plaintext)
@@ -6755,12 +6938,13 @@ async function persistModelCredential(
   if (
     authError &&
     requestedModelId &&
-    !(await codexLiveListsModel(
-      codexCatalog,
-      actor.userId,
-      parseModelSecret(input.plaintext),
-      requestedModelId,
-    ))
+    (input.provider !== CHATGPT_OAUTH_PROVIDER ||
+      !(await codexLiveListsModel(
+        codexCatalog,
+        actor.userId,
+        parseModelSecret(input.plaintext),
+        requestedModelId,
+      )))
   ) {
     throw new ORPCError("BAD_REQUEST", { message: authError });
   }
@@ -6771,6 +6955,20 @@ async function persistModelCredential(
   const allowedThinking = defaultModel
     ? await allowedThinkingLevels(deps, actor, input.provider, defaultModel)
     : undefined;
+  if (deps.env.modelExecutionMode === "managed" && defaultModel) {
+    try {
+      await validateHostedModelConnection({
+        provider: input.provider,
+        plaintext: input.plaintext,
+        modelId: defaultModel,
+        signal: input.signal,
+      });
+    } catch (error) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: error instanceof Error ? error.message : "Could not verify this model connection.",
+      });
+    }
+  }
   const stored = await deps.secrets.put(input.plaintext, {
     operationId: "cred",
     traceId: "cred",

@@ -1,13 +1,14 @@
 import { I18nProvider } from "@lingui/react";
 import type { Bot } from "@rakazo/contracts";
-import { defaultCronPreset } from "@rakazo/core";
+import { BOT_IDENTITY_PRESETS, defaultCronPreset } from "@rakazo/core";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AskCard } from "../../src/components/AskCard";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import type { RoutineDraftState } from "../../src/pages/RoutineEditor";
 import { RoutineEditor } from "../../src/pages/RoutineEditor";
-import { BotSettings, CreateBotForm } from "../../src/pages/shell/bot-panel";
+import { BotIdentityCard } from "../../src/pages/shell/bot-identity-card";
+import { BotSettings } from "../../src/pages/shell/bot-panel";
 import "../../src/styles.css";
 
 const demoRpc: Record<string, unknown> = {
@@ -93,36 +94,26 @@ function inboxBot(): Bot {
 }
 
 function CreateShot() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const name = document.querySelector<HTMLInputElement>('input[placeholder="Name this bot"]');
-    const title = document.querySelector<HTMLInputElement>(
-      'input[placeholder="Describe what this bot does"]',
-    );
-    const description = document.querySelector<HTMLTextAreaElement>("textarea");
-    fill(name, "Inbox");
-    fill(title, "Sorts the demo inbox");
-    fill(description, "Files routine mail for ada@example.test and leaves the rest for review.");
-    setReady(true);
-  }, []);
   return (
-    <main
-      data-ready={ready ? "true" : "false"}
-      className="mx-auto max-w-[640px] bg-background p-8 text-foreground"
-    >
-      <CreateBotForm onCreate={async () => undefined} onCancel={() => undefined} />
+    <main data-ready="true" className="mx-auto max-w-[640px] bg-background p-8 text-foreground">
+      <BotIdentityCard
+        botId="marketing-inbox"
+        messageId="marketing-identity"
+        onBotChanged={async () => undefined}
+        block={{
+          kind: "choice",
+          onboardingStage: "identity",
+          question: "What should my name be, and what's my role?",
+          options: BOT_IDENTITY_PRESETS.map((preset, index) => ({
+            id: preset.id,
+            letter: String(index),
+            label: preset.name,
+            description: preset.role,
+          })),
+        }}
+      />
     </main>
   );
-}
-
-function fill(element: HTMLInputElement | HTMLTextAreaElement | null, value: string) {
-  if (!element) return;
-  const prototype =
-    element instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
-  Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(element, value);
-  element.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 function ModelShot() {

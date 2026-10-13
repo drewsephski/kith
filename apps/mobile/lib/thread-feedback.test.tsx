@@ -220,6 +220,23 @@ describe("thread feedback", () => {
     expect(feedback.failedSends).toEqual([]);
   });
 
+  it("retries a lost upload response with the same scoped upload identity", async () => {
+    const frozen = payload();
+    const attempt = feedback.sendAttempt(frozen);
+    const request = vi.fn().mockRejectedValueOnce(new Error("Upload response lost"));
+    await expect(deliverSend(frozen, attempt, request)).rejects.toThrow("Upload response lost");
+    request.mockResolvedValueOnce({ id: "artifact-1" }).mockResolvedValueOnce(undefined);
+    await deliverSend(frozen, attempt, request);
+    const uploads = request.mock.calls.filter(([method]) => method === "artifacts/create");
+    expect(uploads).toHaveLength(2);
+    expect(uploads[0]).toEqual(uploads[1]);
+    expect(uploads[0]![1].clientNonce).toBe(`${attempt.clientNonce}:0`);
+    expect(request.mock.calls.at(-1)?.[1]).toMatchObject({
+      clientNonce: attempt.clientNonce,
+      artifactIds: ["artifact-1"],
+    });
+  });
+
   it("retains completed uploads when a later attachment fails", async () => {
     const frozen = payload();
     frozen.attachments.push({ ...frozen.attachments[0]!, id: "attachment-2" });

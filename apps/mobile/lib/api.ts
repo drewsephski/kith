@@ -51,6 +51,7 @@ import type { EndpointResult } from "./endpoint";
 import { defaultApiBase, normalizeApiBase } from "./endpoint";
 import { t } from "./i18n";
 import { resumeLiveNotifications } from "./live-notifications";
+import { privateApiFetch } from "./private-api-fetch";
 import { responseTiming } from "./response-timing";
 import {
   clearSessionToken,
@@ -602,7 +603,7 @@ export async function fetchMobileJson<T>(
   const timer = setTimeout(() => controller.abort(new Error("Request timed out")), RPC_TIMEOUT_MS);
   try {
     const response = await withAbort(
-      fetch(input, { ...init, signal: controller.signal }),
+      privateApiFetch(input, { ...init, signal: controller.signal }),
       controller.signal,
     ).catch((error: unknown) => {
       throw requestError(error, controller.signal);
@@ -632,7 +633,7 @@ export async function signOut() {
   const timer = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
   try {
     await withAbort(
-      fetch(`${currentApiBase()}/api/auth/sign-out`, {
+      privateApiFetch(`${currentApiBase()}/api/auth/sign-out`, {
         method: "POST",
         headers: { "content-type": "application/json", origin: "rakazo://", ...headers },
         signal: controller.signal,
@@ -760,7 +761,7 @@ export async function rpc<T>(
   try {
     let res: Response;
     try {
-      res = await fetch(`${consentContext?.apiBase ?? currentApiBase()}/rpc/${proc}`, {
+      res = await privateApiFetch(`${consentContext?.apiBase ?? currentApiBase()}/rpc/${proc}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -792,8 +793,11 @@ export async function rpc<T>(
     if (!res.ok) {
       // oRPC sends a failure as `{ json: { code, status, message } }`; the message is the
       // server's user-facing copy.
-      const error = parsed.json as { message?: unknown } | undefined;
+      const error = parsed.json as { message?: unknown; code?: unknown } | undefined;
       const message = errorText(typeof error?.message === "string" ? error.message : "");
+      const rpcError = Object.assign(new Error(message), {
+        code: typeof error?.code === "string" ? error.code : undefined,
+      });
       const unauthorized = res.status === 401;
       // Without a Space header a 401 means the server no longer accepts the
       // session itself; Space recovery below probes the same way. Clearing it
@@ -878,9 +882,9 @@ export async function rpc<T>(
           throw retryError;
         }
         if (!selectedSpaceId()) await clearStaleSpaceSelection();
-        throw new Error(message);
+        throw rpcError;
       }
-      throw new Error(message);
+      throw rpcError;
     }
     if (
       sendNonce &&
@@ -938,6 +942,7 @@ export type MobileMe = Pick<
   | "spaceId"
   | "defaultProvider"
   | "defaultModel"
+  | "defaultModelFunding"
   | "hostCredentialProvider"
   | "hostCredentialSource"
   | "needsModel"
@@ -1147,7 +1152,7 @@ export async function subscribeThread(
   signal: AbortSignal,
 ) {
   const responseScope = mobileScreenScopeKey();
-  const res = await fetch(`${currentApiBase()}/rpc/threads/subscribe`, {
+  const res = await privateApiFetch(`${currentApiBase()}/rpc/threads/subscribe`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

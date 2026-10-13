@@ -14,6 +14,7 @@ import {
 import type { PrismaClient } from "@rakazo/db";
 import { createThreadMessage } from "@rakazo/db";
 import { sessionCookieHeader } from "../index.js";
+import { createNativePrivateNetworkRecorder } from "../native-private-network.js";
 import { runProcess } from "./process.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -73,8 +74,13 @@ async function main() {
   });
 
   const fixture = await seedFixture(handles.app, handles.prisma);
+  const networkPrivacy = createNativePrivateNetworkRecorder();
   const server = serve({
-    fetch: handles.app.fetch,
+    fetch: async (request) => {
+      const response = await handles.app.fetch(request);
+      networkPrivacy.observe(request, response);
+      return response;
+    },
     hostname: "0.0.0.0",
     port: API_PORT,
   });
@@ -137,11 +143,19 @@ async function main() {
           throw new Error("Notification demo did not durably cancel its work");
       }
     }
+    networkPrivacy.assert();
     await writeFile(
       path.join(REPORT_DIR, "summary.json"),
-      `${JSON.stringify({ ok: true }, null, 2)}\n`,
+      `${JSON.stringify({ ok: true, networkPrivacy: networkPrivacy.snapshot() }, null, 2)}\n`,
     );
   } finally {
+    await writeFile(
+      path.join(REPORT_DIR, "network-privacy.json"),
+      `${JSON.stringify(networkPrivacy.snapshot(), null, 2)}\n`,
+    ).catch(() => {
+      // A diagnostic artifact failure must not leave the fixture backend running.
+      console.error("Could not save native network privacy evidence");
+    });
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
       if ("closeAllConnections" in server) server.closeAllConnections();

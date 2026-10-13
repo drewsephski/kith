@@ -11,6 +11,7 @@ import { routineJobKey, runContinueJob, runJobKey } from "@rakazo/adapter-kit";
 import { type Actor, type Bot, type ComputerMode, GROUP_MEMBER_MIN } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import {
+  assertRunCreationQuota,
   cancelRunsInTransaction,
   computerScopeKey,
   createRepos,
@@ -178,8 +179,14 @@ async function ensureSpawnRun(
           status: "queued",
         },
       });
+      await assertRunCreationQuota(tx, input.userId);
+      const source = await tx.run.findFirst({
+        where: { id: input.sourceRunId, userId: input.userId, spaceId: input.spaceId },
+        select: { id: true, rootRunId: true },
+      });
       return tx.run.create({
         data: {
+          rootRunId: source?.rootRunId ?? source?.id,
           spaceId: input.spaceId,
           botId: input.botId,
           threadId: input.threadId,

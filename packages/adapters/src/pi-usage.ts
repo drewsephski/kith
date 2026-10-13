@@ -18,6 +18,7 @@ import type {
 } from "@rakazo/adapter-kit";
 import type { ContextBudget } from "./context-selection.js";
 import { estimateModelContextTokens } from "./model-context.js";
+import { modelRequestSizes } from "./model-request-size.js";
 import { requestedPiCacheWriteRetention, resolvePiCacheRetention } from "./pi-cache-retention.js";
 
 /** Pi initializes absent usage to zero. Only raw numeric fields can prove reported zero. */
@@ -208,10 +209,15 @@ export function observedPiStream(
   options: SimpleStreamOptions | undefined,
   push: (event: AgentRuntimeEvent) => void,
   observer?: ModelCallObserver,
-  attribution: { operationKind: UsageOperationKind; agentId?: string } = {
+  attribution: {
+    operationKind: UsageOperationKind;
+    agentId?: string;
+    fundingSource?: "deployment" | "user";
+  } = {
     operationKind: "answer",
   },
   hooks?: {
+    beforeCall?: () => Promise<void>;
     prepareContext?: (context: Context, model: Model<Api>) => Context;
     imageTokens?: ContextBudget["imageTokens"];
     onUsage?: (usage: AgentUsage) => void;
@@ -245,13 +251,14 @@ export function observedPiStream(
     }
   };
   const emitUsage = async (usage: AgentUsage, operationKind = attribution.operationKind) => {
+    const { fundingSource: _fundingSource, ...usageAttribution } = attribution;
     const event = {
       type: "usage" as const,
       ...usage,
       provider: model.provider,
       model: model.id,
       callId,
-      ...attribution,
+      ...usageAttribution,
       operationKind,
     };
     try {
@@ -284,12 +291,16 @@ export function observedPiStream(
           systemBytes: Buffer.byteLength(preparedContext.systemPrompt ?? ""),
           messageBytes: Buffer.byteLength(JSON.stringify(preparedContext.messages)),
         };
+      await hooks?.beforeCall?.();
+      options?.signal?.throwIfAborted();
       reservation = observer
         ? await observer.beforeCall({
             provider: model.provider,
             modelId: model.id,
             inputTokensEstimate: estimateModelContextTokens(preparedContext, hooks?.imageTokens),
             maxOutputTokens: options?.maxTokens ?? model.maxTokens,
+            ...modelRequestSizes(preparedContext),
+            fundingSource: attribution.fundingSource,
             cacheWriteRetention: requestedPiCacheWriteRetention(model, cacheRetention),
           })
         : undefined;
@@ -303,8 +314,26 @@ export function observedPiStream(
       // Each guarded reservation covers one HTTP attempt, not hidden SDK retries.
       const streamOptions: SimpleStreamOptions = {
         ...options,
+        ...(observer?.timeoutMs && attribution.fundingSource !== "user"
+          ? {
+              signal: AbortSignal.any([
+                ...(options?.signal ? [options.signal] : []),
+                AbortSignal.timeout(observer.timeoutMs),
+              ]),
+            }
+          : {}),
         ...(cacheRetention ? { cacheRetention } : {}),
-        ...(observer ? { maxRetries: 0 } : {}),
+        ...(observer && attribution.fundingSource !== "user" ? { maxRetries: 0 } : {}),
+        ...(observer?.validatePayload && attribution.fundingSource === "deployment"
+          ? {
+              onPayload: async (payload: unknown, requestModel: Model<Api>) => {
+                const replacement = await options?.onPayload?.(payload, requestModel);
+                const next = replacement ?? payload;
+                await observer.validatePayload!(next);
+                return next;
+              },
+            }
+          : {}),
         onResponse: (response, requestModel) => {
           responseCount += 1;
           markTiming("headers");

@@ -1,17 +1,24 @@
+import { createHash } from "node:crypto";
 import type { ConnectorRegistry } from "@rakazo/adapters";
-import type { Actor, MessageBlock } from "@rakazo/contracts";
+import type { Actor, Bot, ChoiceBlock, MessageBlock } from "@rakazo/contracts";
+import { BOT_NAME_MAX_LENGTH, BOT_TITLE_MAX_LENGTH } from "@rakazo/contracts";
 import {
   ASSISTANT_FOCUS_OPTIONS,
   ASSISTANT_FOCUS_QUESTION,
+  BOT_IDENTITY_PRESETS,
+  BOT_IDENTITY_QUESTION,
   featuredConnectorProvidersMatch,
+  isAssistantFocusQuestion,
 } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  createRepos,
   createThreadMessageInTransaction,
   IsolationError,
 } from "@rakazo/db";
 import { requireBotThread, updateBlocks } from "./bot-thread.js";
+import { ensurePersonalAssistant } from "./personal-assistant.js";
 
 /**
  * First-run conversational onboarding, seeded deterministically into the bot's
@@ -28,6 +35,169 @@ type OnboardingDeps = {
 /** Sentinel answerId for a focus card the user dismissed without choosing. */
 export const FOCUS_DISMISSED_ANSWER_ID = "_dismissed";
 
+type BotIdentity =
+  | { presetId: (typeof BOT_IDENTITY_PRESETS)[number]["id"] }
+  | { name: string; role: string };
+
+function focusBlocks(): MessageBlock[] {
+  return [
+    {
+      kind: "choice",
+      onboardingStage: "focus",
+      question: ASSISTANT_FOCUS_QUESTION,
+      options: ASSISTANT_FOCUS_OPTIONS.map(({ id, letter, label }) => ({ id, letter, label })),
+    },
+  ];
+}
+
+export async function createConversationalBot(
+  deps: OnboardingDeps,
+  actor: Actor,
+  clientNonce: string,
+): Promise<Bot> {
+  if (!clientNonce.trim() || clientNonce.length > 120) throw new IsolationError();
+  const repos = createRepos(deps.prisma);
+  await ensurePersonalAssistant(deps.prisma, actor, (input) => repos.createBot(actor, input));
+  const bot = await repos.createBot(actor, {
+    name: "New bot",
+    title: "",
+    description: "",
+    instructions: "",
+    notifyOnFinish: true,
+    computerMode: "team",
+    conversationalOnboarding: true,
+    rejectArchivedSpawnKey: true,
+    spawnKey: `onboarding:${createHash("sha256")
+      .update(JSON.stringify([actor.userId, clientNonce.trim()]))
+      .digest("hex")}`,
+    initialMessage: {
+      role: "bot",
+      blocks: [
+        {
+          kind: "choice",
+          onboardingStage: "identity",
+          question: BOT_IDENTITY_QUESTION,
+          options: BOT_IDENTITY_PRESETS.map(({ id, name, role }) => ({
+            id,
+            letter: "",
+            label: name,
+            description: role,
+          })),
+        },
+      ],
+    },
+  });
+  const thread = await deps.prisma.thread.findUnique({
+    where: { id: bot.threadId },
+    select: { nextEventSeq: true },
+  });
+  if (thread) await deps.events.notify(bot.threadId, Math.max(0, thread.nextEventSeq - 1));
+  return bot;
+}
+
+export async function chooseIdentity(
+  deps: OnboardingDeps,
+  actor: Actor,
+  botId: string,
+  messageId: string,
+  identity: BotIdentity,
+): Promise<Bot & { identityAnswer: ChoiceBlock }> {
+  const preset =
+    "presetId" in identity
+      ? BOT_IDENTITY_PRESETS.find((entry) => entry.id === identity.presetId)
+      : undefined;
+  if ("presetId" in identity && !preset) throw new IsolationError();
+  const name = preset?.name ?? ("name" in identity ? identity.name.trim() : "");
+  const role = preset?.role ?? ("role" in identity ? identity.role.trim() : "");
+  if (!name || name.length > BOT_NAME_MAX_LENGTH || !role || role.length > BOT_TITLE_MAX_LENGTH)
+    throw new IsolationError();
+  const { bot, thread } = await requireBotThread(deps, actor, botId);
+  const target = { spaceId: actor.spaceId, botId: bot.id, threadId: thread.id };
+  const { event, identityAnswer } = await deps.prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT id FROM threads WHERE id = ${thread.id} FOR UPDATE`;
+      const card = await tx.message.findFirst({
+        where: { id: messageId, threadId: thread.id, botId: bot.id, role: "bot" },
+      });
+      const choice = (card?.blocks as MessageBlock[] | undefined)?.find(
+        (block) => block.kind === "choice" && block.onboardingStage === "identity",
+      );
+      if (!card || !choice || choice.kind !== "choice") throw new IsolationError();
+      // An old card cannot reconfigure the bot or publish another focus question.
+      if (choice.answerId) return { event: null, identityAnswer: choice };
+      const active = await tx.bot.findFirst({
+        where: { id: bot.id, spaceId: actor.spaceId, userId: actor.userId, archivedAt: null },
+      });
+      if (!active || active.parentBotId || !active.spawnKey?.startsWith("onboarding:"))
+        throw new IsolationError();
+      const personal = await tx.personalAssistant.findFirst({ where: { botId: bot.id } });
+      if (personal) throw new IsolationError();
+      const answerId = preset?.id ?? "custom";
+      const identityAnswer: ChoiceBlock = {
+        ...choice,
+        answerId,
+        ...(answerId === "custom"
+          ? {
+              options: [
+                ...choice.options,
+                { id: "custom", letter: "", label: name, description: role },
+              ],
+            }
+          : {}),
+      };
+      const blocks = (card.blocks as MessageBlock[]).map((block) =>
+        block.kind === "choice" && block.onboardingStage === "identity" ? identityAnswer : block,
+      );
+      await tx.bot.update({
+        where: { id: bot.id },
+        data: {
+          name,
+          title: role,
+          description: preset?.description ?? `${name} helps with ${role}.`,
+          instructions:
+            preset?.instructions ??
+            `Your name is ${name}. Your role is ${role}. Respect existing permissions, connections, and approval requirements. Ask for clarification when a task is unclear.`,
+        },
+      });
+      await tx.message.update({ where: { id: card.id }, data: { blocks } });
+      await appendEventInTransaction(tx, {
+        ...target,
+        type: "thread.message.updated",
+        payload: { messageId: card.id, role: "bot", blocks },
+      });
+      const updated = await appendEventInTransaction(tx, {
+        ...target,
+        type: "bot.updated",
+        payload: { name, title: role },
+      });
+      // Free chatting remains free: don't interrupt an already-started task with
+      // another setup question. The identity choice still persists correctly.
+      if (await tx.message.count({ where: { threadId: thread.id, role: "user" } })) {
+        return { event: updated, identityAnswer };
+      }
+      const next = focusBlocks();
+      const message = await createThreadMessageInTransaction(tx, {
+        threadId: thread.id,
+        botId: bot.id,
+        role: "bot",
+        blocks: next,
+      });
+      const focusEvent = await appendEventInTransaction(tx, {
+        ...target,
+        type: "thread.message.created",
+        payload: { messageId: message.id, role: "bot", blocks: next },
+      });
+      return { event: focusEvent, identityAnswer };
+    },
+  );
+  if (event) await deps.events.notify(thread.id, event.seq);
+  const updated = (await createRepos(deps.prisma).listBots(actor)).find(
+    (entry) => entry.id === bot.id,
+  );
+  if (!updated) throw new IsolationError();
+  return { ...updated, identityAnswer };
+}
+
 export async function startOnboarding(
   deps: OnboardingDeps,
   actor: Actor,
@@ -41,12 +211,16 @@ export async function startOnboarding(
   // user already engaged.
 }
 
-function messageHasChoice(blocks: MessageBlock[]): boolean {
-  return blocks.some((block) => block.kind === "choice");
+function isFocusChoice(block: MessageBlock): boolean {
+  return (
+    block.kind === "choice" &&
+    (block.onboardingStage === "focus" ||
+      (!block.onboardingStage && isAssistantFocusQuestion(block.question)))
+  );
 }
 
-function messageHasPendingChoice(blocks: MessageBlock[]): boolean {
-  return blocks.some((block) => block.kind === "choice" && !block.answerId);
+function messageHasPendingFocus(blocks: MessageBlock[]): boolean {
+  return blocks.some((block) => block.kind === "choice" && isFocusChoice(block) && !block.answerId);
 }
 
 export async function promptFocus(
@@ -56,13 +230,7 @@ export async function promptFocus(
 ): Promise<void> {
   const { bot, thread } = await requireBotThread(deps, actor, botId);
   const target = { spaceId: actor.spaceId, botId: bot.id, threadId: thread.id };
-  const blocks: MessageBlock[] = [
-    {
-      kind: "choice",
-      question: ASSISTANT_FOCUS_QUESTION,
-      options: ASSISTANT_FOCUS_OPTIONS.map(({ id, letter, label }) => ({ id, letter, label })),
-    },
-  ];
+  const blocks = focusBlocks();
   // Check + insert + event in one transaction so concurrent promptFocus calls
   // cannot duplicate cards, and a concurrent user send cannot publish first.
   const committed = await deps.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
@@ -74,7 +242,16 @@ export async function promptFocus(
       orderBy: { createdAt: "asc" },
     });
     if (recent.some((message) => message.role === "user")) return null;
-    if (recent.some((message) => messageHasChoice(message.blocks as MessageBlock[]))) return null;
+    if (
+      recent.some((message) =>
+        (message.blocks as MessageBlock[]).some(
+          (block) =>
+            isFocusChoice(block) ||
+            (block.kind === "choice" && block.onboardingStage === "identity"),
+        ),
+      )
+    )
+      return null;
     const message = await createThreadMessageInTransaction(tx, {
       threadId: target.threadId,
       role: "bot",
@@ -108,11 +285,11 @@ export async function dismissFocus(
       orderBy: { createdAt: "asc" },
     });
     const pending = recent.find((message) =>
-      messageHasPendingChoice(message.blocks as MessageBlock[]),
+      messageHasPendingFocus(message.blocks as MessageBlock[]),
     );
     if (!pending) return null;
     const blocks = (pending.blocks as MessageBlock[]).map((block) =>
-      block.kind === "choice" && !block.answerId
+      block.kind === "choice" && isFocusChoice(block) && !block.answerId
         ? { ...block, answerId: FOCUS_DISMISSED_ANSWER_ID }
         : block,
     );
@@ -183,11 +360,11 @@ export async function chooseFocus(
       orderBy: { createdAt: "asc" },
     });
     const pending = recent.find((message) =>
-      messageHasPendingChoice(message.blocks as MessageBlock[]),
+      messageHasPendingFocus(message.blocks as MessageBlock[]),
     );
     if (!pending) return null;
     const blocks = (pending.blocks as MessageBlock[]).map((block) =>
-      block.kind === "choice" ? { ...block, answerId: option.id } : block,
+      isFocusChoice(block) ? { ...block, answerId: option.id } : block,
     );
     await tx.message.update({ where: { id: pending.id }, data: { blocks } });
     const updated = await appendEventInTransaction(tx, {

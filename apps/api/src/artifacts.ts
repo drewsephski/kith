@@ -36,17 +36,20 @@ export async function createOwnedArtifact(
     description?: string;
     mimeType: string;
     contentBase64: string;
+    clientNonce?: string;
   },
 ) {
   validateAttachmentMimeType(input.mimeType);
   const bytes = decodeAttachmentBase64(input.contentBase64);
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const replayed = await findReplayedArtifact(deps.prisma, actor, input, hash);
+  if (replayed) return createdArtifact(replayed);
   const context = adapterContext(actor, input.botId, `artifact-create:${input.botId}`);
   const stored = await deps.artifacts.put(
     { name: input.name, mimeType: input.mimeType, bytes },
     context,
   );
-  const hash = createHash("sha256").update(bytes).digest("hex");
-  const row = await withResolvedArtifactVersion(
+  const { row, replay } = await withResolvedArtifactVersion(
     deps.prisma,
     {
       spaceId: actor.spaceId,
@@ -55,8 +58,10 @@ export async function createOwnedArtifact(
       groupId: input.groupId,
       name: input.name,
     },
-    (tx, { rootArtifactId, version }) =>
-      tx.artifact.create({
+    async (tx, { rootArtifactId, version }) => {
+      const raced = await findReplayedArtifact(tx, actor, input, hash);
+      if (raced) return { row: raced, replay: true };
+      const created = await tx.artifact.create({
         data: {
           spaceId: actor.spaceId,
           userId: actor.userId,
@@ -70,12 +75,69 @@ export async function createOwnedArtifact(
           storageKey: stored.id,
           rootArtifactId,
           version,
+          clientNonce: input.clientNonce,
         },
-      }),
+      });
+      return { row: created, replay: false };
+    },
   ).catch(async (error) => {
-    await deps.artifacts.remove(stored.id, context).catch(() => undefined);
+    await removeUnreferencedUpload(deps, actor, stored.id, context);
     throw error;
   });
+  if (replay) await removeUnreferencedUpload(deps, actor, stored.id, context);
+  return createdArtifact(row);
+}
+
+async function removeUnreferencedUpload(
+  deps: { prisma: PrismaClient; artifacts: ArtifactStore },
+  actor: Actor,
+  storageKey: string,
+  context: ReturnType<typeof adapterContext>,
+) {
+  // Some adapters return the same blob for equal bytes. Never remove a winner's blob.
+  const references = await deps.prisma.artifact
+    .count({
+      where: { spaceId: actor.spaceId, storageKey },
+    })
+    .catch(() => undefined);
+  if (references === 0) await deps.artifacts.remove(storageKey, context).catch(() => undefined);
+}
+
+async function findReplayedArtifact(
+  db: Pick<Prisma.TransactionClient, "artifact">,
+  actor: Actor,
+  input: {
+    botId: string;
+    groupId?: string;
+    clientNonce?: string;
+    name: string;
+    mimeType: string;
+    description?: string;
+  },
+  hash: string,
+) {
+  if (!input.clientNonce) return null;
+  const row = await db.artifact.findFirst({
+    where: { spaceId: actor.spaceId, userId: actor.userId, clientNonce: input.clientNonce },
+  });
+  if (!row) return null;
+  const sameTarget = input.groupId
+    ? row.groupId === input.groupId
+    : row.botId === input.botId && row.groupId === null;
+  if (!sameTarget) throw new IsolationError();
+  if (
+    row.hash !== hash ||
+    row.name !== input.name ||
+    row.mimeType !== input.mimeType ||
+    row.description !== (input.description?.trim() || null)
+  )
+    throw new AttachmentValidationError(
+      "This upload identity was already used for different content.",
+    );
+  return row;
+}
+
+function createdArtifact(row: Prisma.ArtifactGetPayload<Record<string, never>>) {
   return {
     id: row.id,
     botId: row.botId,

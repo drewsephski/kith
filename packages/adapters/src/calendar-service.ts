@@ -27,7 +27,9 @@ import {
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createThreadMessageInTransaction,
+  ExecutionQuotaError,
   IsolationError,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -444,12 +446,14 @@ export class CalendarService {
           }),
       );
       // Durable run repairs a missed wake; delivery failure cannot invalidate OAuth.
-      await this.deps.jobs
-        .enqueue(runContinueJob(committed.run.id))
-        .catch((error) => getLogger().error("calendar briefing enqueue", error));
-      await this.deps.events
-        .notify(committed.run.threadId, committed.event.seq)
-        .catch((error) => getLogger().error("calendar briefing notify", error));
+      if (committed) {
+        await this.deps.jobs
+          .enqueue(runContinueJob(committed.run.id))
+          .catch((error) => getLogger().error("calendar briefing enqueue", error));
+        await this.deps.events
+          .notify(committed.run.threadId, committed.event.seq)
+          .catch((error) => getLogger().error("calendar briefing notify", error));
+      }
       tokens = undefined;
     } catch (error) {
       if (tokens && exchangedConfig) {
@@ -504,6 +508,19 @@ export class CalendarService {
     generation: string,
     timezone: string,
   ) {
+    // Ordinary sends lock the thread before admitting a run; keep the same order.
+    const threads = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM threads WHERE id = ${bot.thread.id}
+        AND "userId" = ${actor.userId} AND "spaceId" = ${actor.spaceId} FOR UPDATE
+    `;
+    if (threads.length === 0) throw new IsolationError();
+    try {
+      await assertRunCreationQuota(tx, actor.userId);
+    } catch (error) {
+      // Connecting remains useful when the optional initial briefing cannot start.
+      if (error instanceof ExecutionQuotaError) return null;
+      throw error;
+    }
     const task = await tx.task.create({
       data: {
         spaceId: actor.spaceId,
@@ -676,6 +693,7 @@ export class CalendarService {
         input.timezone,
       );
     });
+    if (!committed) return;
     await this.deps.jobs
       .enqueue(runContinueJob(committed.run.id))
       .catch((error) => getLogger().error("calendar briefing enqueue", error));

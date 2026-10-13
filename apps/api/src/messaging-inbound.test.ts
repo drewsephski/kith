@@ -1,3 +1,4 @@
+import { ExecutionQuotaError } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   createMessagingInboundHandler,
@@ -894,6 +895,97 @@ describe("createMessagingInboundHandler channel routing", () => {
     );
     expect(runJobs).toHaveLength(2);
   });
+
+  it.each([
+    { routine: false, quota: true },
+    { routine: true, quota: true },
+    { routine: false, quota: false },
+    { routine: true, quota: false },
+  ])(
+    "isolates channel admission failures (routine=$routine, quota=$quota)",
+    async ({ routine, quota }) => {
+      const members = groupEvent.participants.map((address, index) => ({
+        id: `cm-${index + 1}`,
+        channelId: "ch-1",
+        address,
+        identityId: `mi-${index + 1}`,
+        status: "approved",
+      }));
+      const deps = createDeps({
+        members,
+        ...(routine
+          ? { routines: [{ id: "routine-1", name: "Triage", prompt: "Summarize" }] }
+          : {}),
+      });
+      deps.prisma.messagingIdentity.findUnique = vi.fn(
+        async ({ where }: { where: { id?: string; provider_address?: { address: string } } }) => {
+          const index =
+            where.id === "mi-2" || where.provider_address?.address === members[1]!.address ? 2 : 1;
+          return {
+            id: `mi-${index}`,
+            provider: "sendblue",
+            address: members[index - 1]!.address,
+            userId: `user-${index}`,
+            spaceId: `ws-${index}`,
+            botId: `bot-${index}`,
+            outboundSinceInbound: 0,
+          };
+        },
+      );
+      deps.prisma.thread.findFirst = vi.fn(async ({ where }: { where: { botId: string } }) => ({
+        id: `thread-${where.botId}`,
+      })) as never;
+      const failure = quota
+        ? new ExecutionQuotaError("Daily task limit reached")
+        : new Error("Fixture storage failure");
+      const accepted = new Set<string>();
+      deps.sendUserMessage.mockImplementation(
+        async (input: {
+          userId: string;
+          spaceId: string;
+          threadId: string;
+          clientNonce: string;
+        }) => {
+          if (input.userId === "user-1") throw failure;
+          const key = `${input.spaceId}:${input.threadId}:${input.clientNonce}`;
+          const replay = accepted.has(key);
+          accepted.add(key);
+          return { messageId: "fixture-message", runId: replay ? null : "fixture-run", seq: 1 };
+        },
+      );
+      const handle = createMessagingInboundHandler(deps);
+      if (!quota) {
+        await expect(handle(groupEvent)).rejects.toBe(failure);
+        expect(deps.sendUserMessage).toHaveBeenCalledOnce();
+        expect(accepted.size).toBe(0);
+        return;
+      }
+      await expect(handle(groupEvent)).resolves.toBeUndefined();
+      await expect(handle(groupEvent)).resolves.toBeUndefined();
+      expect(deps.sendUserMessage).toHaveBeenCalledTimes(4);
+      expect(deps.sendUserMessage).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          userId: "user-2",
+          spaceId: "ws-2",
+          botId: "bot-2",
+          threadId: "thread-bot-2",
+          trigger: routine ? "webhook" : "messaging",
+          clientNonce: routine
+            ? inboundDeliveryClientNonce(
+                "messaging",
+                "bot-2",
+                messagingWakeIdempotencyKey("sendblue", "handle-1"),
+              )
+            : "messaging:sendblue:handle-1",
+        }),
+      );
+      expect(accepted.size).toBe(1);
+      expect(deps.enqueue.mock.calls.filter(([job]) => job.name === "run.continue")).toHaveLength(
+        1,
+      );
+    },
+  );
 
   it("wakes matching routines only after a channel member is approved", async () => {
     const approved = {

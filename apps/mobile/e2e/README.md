@@ -1,41 +1,49 @@
-# Mobile emulator smoke test
+# Native mobile acceptance
 
-This opt-in [Maestro](https://maestro.mobile.dev/) flow exercises sign-in, bot creation,
-thread messaging, and computer takeover/release on a real Android emulator or iOS simulator. It
-expects a running Rakazo stack and deliberately stays out of ordinary pull-request CI.
+Pull-request CI runs **Android native acceptance** through
+[`mobile-android-screenshots.yml`](../../../.github/workflows/mobile-android-screenshots.yml).
+It builds and installs the current app, starts a disposable fixture backend, and runs screenshots,
+notifications, and the shared Maestro smoke flow. `pnpm test:mobile-screenshots` uses the same
+Android fixture harness; it expects an already installed app and running emulator, and defaults to
+`http://10.0.2.2:3110`. The harness seeds disposable accounts and uses deterministic provider
+emulators. It does not spend model-provider funds.
 
-## Prerequisites
+The [iOS screenshot catalog](ios-screenshots/README.md) is a separate local simulator command:
+`pnpm ios:screenshots`. It requires the existing installed app, running API/worker and disposable
+database described there. Its compose flow checks conversational identity with the native keyboard's
+Next and Done actions. iOS capture is not part of the Android CI job.
 
-1. Install the Maestro CLI and start an Android emulator or iOS simulator.
-2. Start Rakazo's database, API, worker, and sandbox supervisor. The computer portion requires a
-   working sandbox provider (the normal local Docker provider is sufficient).
-3. Create a disposable test account through the mobile or web sign-up screen. Never use a
-   production account or put credentials in this repository.
-4. Build/install the native app with an API URL that the emulator can reach. For the standard local
-   ports, use `http://10.0.2.2:3100` on the Android emulator and `http://127.0.0.1:3100` on the iOS
-   simulator. For example:
+## Run the shared smoke flow directly
 
-   ```sh
-   EXPO_PUBLIC_API_URL=http://10.0.2.2:3100 pnpm --filter @rakazo/mobile android
-   ```
+`pnpm --filter @rakazo/mobile test:e2e` invokes `.maestro/smoke.yaml`. A direct run needs an existing,
+seeded disposable fixture; it does not create the backend or seed its initial Researcher conversation.
+Install Maestro, start the emulator/simulator, and install the current native app first. The computer
+portion also requires the fixture's configured sandbox and supervisor. Use the isolated scripted
+runtime/provider setup for deterministic acceptance.
 
-## Run
-
-Pass all fixture values at invocation time so credentials never land in source control:
+Pass fixture values at invocation time. Never use a production account or store its credentials in
+tracked files. For example, against an existing Android fixture:
 
 ```sh
-pnpm --filter @rakazo/mobile test:e2e -- \
-  -e RAKAZO_E2E_EMAIL=mobile-smoke@example.test \
-  -e RAKAZO_E2E_PASSWORD='replace-with-the-disposable-password' \
-  -e RAKAZO_E2E_BOT_NAME=MaestroSmoke-001 \
-  -e RAKAZO_E2E_MESSAGE=mobile-smoke-message
+pnpm --filter @rakazo/mobile exec maestro test \
+  -e RAKAZO_API_URL=http://10.0.2.2:3110 \
+  -e RAKAZO_SCREENSHOT_EMAIL=mobile-smoke@example.test \
+  -e RAKAZO_SCREENSHOT_PASSWORD='replace-with-a-disposable-password' \
+  -e RAKAZO_SCREENSHOT_BOT_ID=replace-with-the-fixture-researcher-id \
+  .maestro/smoke.yaml
 ```
 
-Use a new bot name for each run if the backing database is persistent. `clearState` resets the app's
-local session and endpoint data; it does not delete server-side bots.
+Use `http://127.0.0.1:3110` when that fixture is running locally for an iOS simulator. Supply the
+actual fixture endpoint when its port differs. The shared flow uses Name autofocus, keyboard Next to
+Role, and Done to save the custom identity on both platforms. Native input identifiers are not exposed
+consistently to Maestro.
 
-## Screenshot catalog
+The flow deliberately clears app data and the iOS Keychain. This does not delete server-side bots;
+reset the disposable fixture before a repeat acceptance run. The obsolete `RAKAZO_E2E_*` variables
+are not consumed by this flow.
 
-Run **Actions → mobile Android screenshots → Run workflow** to build the app, seed an isolated fake
-workspace, capture light and dark Android emulator views, upload diagnostics for seven days, and publish a
-persistent gallery beside the Playwright reports.
+## Screenshot artifacts
+
+CI uploads native diagnostics and screenshots. The manually dispatched **mobile Android
+screenshots** workflow runs the same fixture capture. Gallery publication remains separate from
+native application acceptance; missing publication credentials do not prove an application failure.

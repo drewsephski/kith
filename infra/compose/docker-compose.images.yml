@@ -62,6 +62,7 @@ services:
     mem_limit: 512m
     environment:
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       DATA_DIR: /data
       SUPERVISOR_HOST: "0.0.0.0"
       SUPERVISOR_PORT: "7091"
@@ -126,6 +127,7 @@ services:
       INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-}
       INFISICAL_FOLDER: ${INFISICAL_FOLDER:-}
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       API_HOST: "0.0.0.0"
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -206,6 +208,7 @@ services:
       OIDC_CLIENT_SECRET: ""
       AUTH_PASSWORD_ENABLED: "true"
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       DATABASE_URL: postgres://${POSTGRES_USER:-rakazo}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rakazo}
       DATA_DIR: /data
       SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
@@ -251,6 +254,7 @@ services:
     mem_limit: 512m
     environment:
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       API_PROXY_TARGET: http://api:3100
       RAKAZO_HOST: ${RAKAZO_HOST:-localhost}
       # Set only by the packaged desktop app. Its authenticated probe prevents a

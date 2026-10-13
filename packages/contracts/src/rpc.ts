@@ -28,6 +28,8 @@ import {
   ArtifactWithContentSchema,
   AvatarStyleSchema,
   BillingStatusSchema,
+  BOT_NAME_MAX_LENGTH,
+  BOT_TITLE_MAX_LENGTH,
   BotMcpServerSchema,
   BotSchema,
   BotSectionSchema,
@@ -92,7 +94,7 @@ import {
   VoiceInfoSchema,
   VoiceStatusSchema,
 } from "./domain.js";
-import { ComputerCommandSchema, ProductEventSchema } from "./events.js";
+import { ChoiceBlockSchema, ComputerCommandSchema, ProductEventSchema } from "./events.js";
 import { ForYouDiscoverySchema } from "./for-you.js";
 import { Id, IsoDate } from "./ids.js";
 import {
@@ -852,6 +854,29 @@ export const appContract = {
     },
   },
   onboarding: {
+    /** Create or recover a durable additional bot without inference. */
+    create: oc
+      .errors({
+        ONBOARDING_TARGET_REMOVED: { status: 409, message: "This bot is no longer available." },
+      })
+      .input(z.object({ clientNonce: z.string().trim().min(1).max(120) }))
+      .output(BotSchema),
+    /** Answer the exact server-owned identity card, then advance to focus. */
+    identity: oc
+      .input(
+        z.object({
+          botId: Id,
+          messageId: Id,
+          identity: z.union([
+            z.object({ presetId: z.enum(["miso", "pippin", "orbit", "pixel"]) }),
+            z.object({
+              name: z.string().trim().min(1).max(BOT_NAME_MAX_LENGTH),
+              role: z.string().trim().min(1).max(BOT_TITLE_MAX_LENGTH),
+            }),
+          ]),
+        }),
+      )
+      .output(BotSchema.extend({ identityAnswer: ChoiceBlockSchema })),
     /** Seed the first-run greeting into the bot's thread (focus card is separate). */
     start: oc.input(z.object({ botId: Id })).output(z.object({ ok: z.literal(true) })),
     /** Post the focus choice card when the thread is still idle. */
@@ -991,6 +1016,7 @@ export const appContract = {
             description: z.string().max(ARTIFACT_DESCRIPTION_MAX_LENGTH).optional(),
             mimeType: z.string().min(1),
             contentBase64: z.string().min(1).max(ATTACHMENT_MAX_BASE64_LENGTH),
+            clientNonce: z.string().min(1).max(200).optional(),
           }),
         ),
       )

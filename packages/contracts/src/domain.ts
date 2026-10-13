@@ -1215,6 +1215,8 @@ export const ModelCatalogEntrySchema = z.object({
   placeholder: z.boolean().optional(),
   /** Models share one pinned HTTPS models-list URL that can be probed. */
   catalogProbe: z.boolean().optional(),
+  /** Server policy prevents a connection on this deployment; no token is accepted. */
+  connectionUnavailableReason: z.string().optional(),
 });
 export type ModelCatalogEntry = z.infer<typeof ModelCatalogEntrySchema>;
 
@@ -1385,6 +1387,8 @@ export const MeSchema = z.object({
   avatarStyle: AvatarStyleSchema,
   /** True when this deployment bills and the user is not the deployment owner. */
   billingEnabled: z.boolean(),
+  /** Active-model payer: managed Kith, self-hosted server, user credentials, or unavailable. */
+  defaultModelFunding: z.enum(["deployment", "server", "user", "unavailable"]).optional(),
 });
 export type Me = z.infer<typeof MeSchema>;
 

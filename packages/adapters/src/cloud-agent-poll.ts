@@ -7,7 +7,14 @@ import type {
 import { CloudAgentRequestRejected, runContinueJob } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
 import { cloudAgentHttpsUrl } from "@rakazo/core";
-import { appendEventInTransaction, type CloudAgent, Prisma } from "@rakazo/db";
+import {
+  appendEventInTransaction,
+  assertRunCreationQuota,
+  type CloudAgent,
+  ExecutionQuotaError,
+  Prisma,
+  resolveModelExecutionMode,
+} from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { cloudAgentsEnabled } from "./cloud-agent-factory.js";
 import { type CloudAgentDeps, cloudAgentBlock, enqueueCloudAgent } from "./cloud-agent-service.js";
@@ -293,35 +300,51 @@ async function finishPoll(
         seq = event.seq;
       }
       if (terminal && saved.wakeGeneration < saved.generation) {
-        // Provider text is untrusted. Wake with local identity and status only.
-        const summary = `Cloud agent ${agent.id} is ${status}. Use cloud_agent_status to inspect its result.`;
-        const task = await tx.task.create({
-          data: {
-            spaceId: agent.spaceId,
-            botId: agent.botId,
-            threadId: agent.threadId,
-            userId: agent.userId,
-            prompt: summary,
-            status: "queued",
-          },
-        });
-        const run = await tx.run.create({
-          data: {
-            spaceId: agent.spaceId,
-            botId: agent.botId,
-            threadId: agent.threadId,
-            userId: agent.userId,
-            taskId: task.id,
-            status: "queued",
-            trigger: "cloud_agent",
-            clientNonce: `cloud-agent-wake-run:${agent.id}:${saved.generation}`,
-          },
-        });
+        // Legacy rows without an attributable origin cannot acquire a new managed
+        // allowance. Their remote result still commits and remains inspectable.
+        let wakeAllowed = Boolean(saved.rootRunId) || resolveModelExecutionMode() !== "managed";
+        try {
+          if (wakeAllowed) await assertRunCreationQuota(tx, agent.userId);
+        } catch (error) {
+          if (!(error instanceof ExecutionQuotaError)) throw error;
+          // The remote result is authoritative; its optional local follow-up must not
+          // roll back the terminal snapshot or make reconciliation poll it again.
+          wakeAllowed = false;
+        }
+        if (wakeAllowed) {
+          // Provider text is untrusted. Wake with local identity and status only.
+          const summary = `Cloud agent ${agent.id} is ${status}. Use cloud_agent_status to inspect its result.`;
+          const task = await tx.task.create({
+            data: {
+              spaceId: agent.spaceId,
+              botId: agent.botId,
+              threadId: agent.threadId,
+              userId: agent.userId,
+              prompt: summary,
+              status: "queued",
+            },
+          });
+          const run = await tx.run.create({
+            data: {
+              spaceId: agent.spaceId,
+              botId: agent.botId,
+              threadId: agent.threadId,
+              userId: agent.userId,
+              taskId: task.id,
+              status: "queued",
+              trigger: "cloud_agent",
+              rootRunId: saved.rootRunId,
+              clientNonce: `cloud-agent-wake-run:${agent.id}:${saved.generation}`,
+            },
+          });
+          wakeRunId = run.id;
+        }
+        // Consume this generation even when quota intentionally skipped its wake.
+        // A later user-authorized follow-up increments generation and remains eligible.
         await tx.cloudAgent.update({
           where: { id: agent.id },
           data: { wakeGeneration: saved.generation },
         });
-        wakeRunId = run.id;
       }
     }
     return { seq, wakeRunId, nextPollAt };

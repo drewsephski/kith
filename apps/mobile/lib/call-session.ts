@@ -31,6 +31,7 @@ import {
 } from "./call-sounds";
 import * as dictation from "./dictation";
 import { getActiveUiLocale, t } from "./i18n";
+import { privateApiFetch } from "./private-api-fetch";
 import { errorText } from "./user-error";
 import { speakText, stopSpeaking } from "./voice";
 
@@ -683,7 +684,7 @@ function deleteQuietly(uri: string | null): void {
 
 async function transcribeClip(clip: CallClip, signal: AbortSignal): Promise<string> {
   const { apiBase, headers } = await captureApiRequestContext();
-  const res = await fetch(`${apiBase}/api/voice/transcribe`, {
+  const res = await privateApiFetch(`${apiBase}/api/voice/transcribe`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "rakazo://", ...headers },
     body: JSON.stringify({ audioBase64: clip.base64, mimeType: clip.mimeType }),

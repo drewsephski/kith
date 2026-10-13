@@ -11,6 +11,7 @@ import {
 } from "@rakazo/core";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createThreadMessageInTransaction,
   type PrismaClient,
   withTransactionRetry,
@@ -63,6 +64,7 @@ export async function messageBot(
   deps: Pick<ExecutorDeps, "prisma" | "events" | "jobs">,
   run: {
     id: string;
+    rootRunId?: string | null;
     spaceId: string;
     threadId: string;
     botId: string;
@@ -245,8 +247,10 @@ export async function messageBot(
             status: "queued",
           },
         });
+        await assertRunCreationQuota(tx, run.userId);
         const nextRun = await tx.run.create({
           data: {
+            rootRunId: run.rootRunId ?? run.id,
             spaceId: run.spaceId,
             botId: target.id,
             threadId: targetThreadId,

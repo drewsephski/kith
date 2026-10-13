@@ -6,12 +6,21 @@ import type {
   ModelCredentialRetireReason,
   SecretStore,
 } from "@rakazo/adapter-kit";
+import type { CodexLiveCatalog } from "@rakazo/adapters";
 import {
+  assertStoredModelCredentialAvailable,
+  codexLiveListsModel,
+  deploymentFundsModel,
   formatCurrentTimeInstruction,
   matchesFailedOAuthSecret,
+  modelExecutionMode,
+  modelProviderExecutionError,
+  modelSecretExecutionError,
+  parseModelSecret,
   resolveModelAuth,
   serializeModelSecret,
   toOAuthCredential,
+  validateModelAuthAvailability,
 } from "@rakazo/adapters";
 import type { PrismaClient } from "@rakazo/db";
 import {
@@ -114,12 +123,15 @@ export function parseTeamChatEngagementDecision(
 }
 
 interface ModelTeamChatEngagementJudgeDeps {
+  modelExecutionMode?: "managed" | "self-hosted";
+  codexCatalog?: CodexLiveCatalog;
   prisma: PrismaClient;
   runtime: AgentRuntime;
   secrets: SecretStore;
   deploymentProvider: string;
   deploymentModel: string;
   deploymentModelKey?: string;
+  deploymentModelHostCredentials?: boolean;
   providerOverride?: string;
   modelOverride?: string;
   timeoutMs?: number;
@@ -208,10 +220,7 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
     const overrideCredential = requestedProvider
       ? await findModelCredential(this.deps.prisma, scope, requestedProvider)
       : null;
-    const explicitJudgeOverride = Boolean(this.deps.providerOverride && this.deps.modelOverride);
-    const useOverride = Boolean(
-      requestedProvider && requestedModel && (explicitJudgeOverride || overrideCredential),
-    );
+    const useOverride = Boolean(requestedProvider && requestedModel);
     const credential = useOverride ? overrideCredential : defaultCredential;
     const provider =
       (useOverride ? requestedProvider : null) ??
@@ -226,11 +235,27 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
     if (!provider || !modelId) return null;
 
     if (!credential) {
-      const apiKey =
-        provider === this.deps.deploymentProvider ? this.deps.deploymentModelKey : undefined;
-      return { model: { provider, id: modelId, ...(apiKey ? { apiKey } : {}) } };
+      if (
+        !deploymentFundsModel(
+          provider,
+          modelId,
+          {
+            provider: this.deps.deploymentProvider,
+            model: this.deps.deploymentModel,
+          },
+          this.deps.modelExecutionMode,
+        )
+      )
+        return null;
+      const apiKey = this.deps.deploymentModelKey;
+      const hostCredentials =
+        this.deps.deploymentModelHostCredentials &&
+        (this.deps.modelExecutionMode ?? modelExecutionMode()) === "self-hosted";
+      if (!apiKey && !hostCredentials) return null;
+      return { model: { provider, id: modelId, fundingSource: "deployment", apiKey } };
     }
 
+    if (modelProviderExecutionError(provider, this.deps.modelExecutionMode)) return null;
     const secret = await this.deps.prisma.secret.findFirst({
       where: { id: credential.secretId, userId: bot.userId, spaceId: null },
     });
@@ -272,8 +297,30 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
           : undefined,
       });
     const plaintext = await this.deps.secrets.load(secret.ciphertext, secret.id);
-    const auth = await resolveModelAuth(plaintext, provider, { persist, retire });
+    if (modelSecretExecutionError(provider, plaintext, this.deps.modelExecutionMode)) return null;
+    const resolveAuth = () => resolveModelAuth(plaintext, provider, { persist, retire });
+    let auth: Awaited<ReturnType<typeof resolveAuth>> | undefined;
+    if (validateModelAuthAvailability(provider, modelId, plaintext)) {
+      if (
+        provider !== "openai-codex" ||
+        !this.deps.codexCatalog ||
+        parseModelSecret(plaintext).kind !== "oauth"
+      )
+        return null;
+      // Resolve/refresh before consulting the same account-scoped availability
+      // helper as ordinary runs. Managed plan-token policy already rejected above.
+      auth = await resolveAuth();
+      if (
+        !(await codexLiveListsModel(this.deps.codexCatalog, bot.userId, auth.secret, modelId, {
+          waitMs: 8_000,
+        }))
+      )
+        return null;
+    }
+    auth ??= await resolveAuth();
     const parsed = auth.secret;
+    const assertCredentialAvailable = () =>
+      assertStoredModelCredentialAvailable(this.deps.prisma, bot.userId, credential, bot.spaceId);
     const limit = parsed.maxTokens !== undefined ? { maxTokens: parsed.maxTokens } : {};
     const context =
       parsed.kind === "oauth"
@@ -287,6 +334,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         model: {
           provider,
           id: modelId,
+          fundingSource: "user",
+          assertCredentialAvailable,
           ...limit,
           oauth: {
             credential: { ...parsed.credential },
@@ -309,6 +358,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         model: {
           provider,
           id: modelId,
+          fundingSource: "user",
+          assertCredentialAvailable,
           apiKey: parsed.apiKey,
           baseUrl: parsed.baseUrl,
           ...limit,
@@ -321,6 +372,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         provider,
         id: modelId,
         apiKey: auth.apiKey,
+        fundingSource: "user",
+        assertCredentialAvailable,
         ...limit,
         ...context,
       },

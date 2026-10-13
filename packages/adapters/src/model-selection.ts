@@ -2,12 +2,10 @@ import type { AgentRunRequest, SecretStore } from "@rakazo/adapter-kit";
 import { SecretStoreUnavailableError } from "@rakazo/adapter-kit";
 import type { Actor } from "@rakazo/contracts";
 import { usableModelId } from "@rakazo/contracts";
-import {
-  chooseModelCredential,
-  type findDefaultModelCredential,
-  findModelCredential,
-  type PrismaClient,
-} from "@rakazo/db";
+import type { findDefaultModelCredential, PrismaClient } from "@rakazo/db";
+import { chooseModelCredential, findModelCredential } from "@rakazo/db";
+import type { ModelExecutionMode } from "./deployment-model.js";
+import { modelProviderExecutionError } from "./deployment-model.js";
 import type { ModelCredentialAuthKind } from "./pi-catalog-availability.js";
 import {
   catalogModelAvailableForAuth,
@@ -18,7 +16,7 @@ import {
 import type { CodexLiveCatalog, CodexLiveReadOptions } from "./pi-codex-catalog.js";
 import { codexLiveListsModel } from "./pi-codex-catalog.js";
 import { listPiCatalog, scriptedCatalogEntry } from "./pi-models.js";
-import { parseModelSecret } from "./pi-oauth.js";
+import { isChatGptPlanToken, modelSecretExecutionError, parseModelSecret } from "./pi-oauth.js";
 import { OPENAI_COMPATIBLE_PROVIDER_ID } from "./pi-openai-compatible-provider.js";
 
 type ModelCredential = Awaited<ReturnType<typeof findDefaultModelCredential>>;
@@ -50,6 +48,7 @@ export class UnavailableModelForAuthError extends Error {
 }
 
 export type SpaceCatalogAuth = {
+  unavailableByModel?: Partial<Record<string, Partial<Record<string, string>>>>;
   byProvider: Partial<Record<string, ModelCredentialAuthKind>>;
   /** Model-specific kinds. `"disconnected"` blocks the provider fallback. */
   byModel: Partial<
@@ -74,6 +73,7 @@ export async function modelCredentialAuthKindsForSpace(
   prisma: PrismaClient,
   secretStore: Pick<SecretStore, "load">,
   scope: Pick<Actor, "userId" | "spaceId">,
+  executionMode?: ModelExecutionMode,
 ): Promise<SpaceCatalogAuth> {
   const [credentials, preferences] = await Promise.all([
     prisma.userModelCredential.findMany({
@@ -117,6 +117,7 @@ export async function modelCredentialAuthKindsForSpace(
     modelSpecific: boolean;
   }> = [];
   for (const entry of listPiCatalog()) {
+    if (modelProviderExecutionError(entry.provider, executionMode)) continue;
     if (!connectedProviders.has(entry.provider)) continue;
     const choice = chooseModelCredential({
       provider: entry.provider,
@@ -159,18 +160,32 @@ export async function modelCredentialAuthKindsForSpace(
   const ciphertextById = new Map(secrets.map((secret) => [secret.id, secret.ciphertext]));
   // Every catalog model of a provider shares one secret; load each once per operation.
   const kindBySecretId = new Map<string, Promise<ModelCredentialAuthKind | undefined>>();
-  const decryptKind = async (secretId: string): Promise<ModelCredentialAuthKind | undefined> => {
+  const policyErrorBySecretId = new Map<string, string>();
+  const decryptKind = async (
+    secretId: string,
+    provider: string,
+  ): Promise<ModelCredentialAuthKind | undefined> => {
     const ciphertext = ciphertextById.get(secretId);
     if (!ciphertext) return undefined;
     try {
-      return modelCredentialAuthKindFromPlaintext(await secretStore.load(ciphertext, secretId));
+      const plaintext = await secretStore.load(ciphertext, secretId);
+      const policyError = modelSecretExecutionError(provider, plaintext, executionMode);
+      if (policyError) {
+        policyErrorBySecretId.set(secretId, policyError);
+        return undefined;
+      }
+      return modelCredentialAuthKindFromPlaintext(plaintext);
     } catch (error) {
       if (error instanceof SecretStoreUnavailableError) throw error;
       return undefined;
     }
   };
-  const readKind = (secretId: string): Promise<ModelCredentialAuthKind | undefined> => {
-    if (!kindBySecretId.has(secretId)) kindBySecretId.set(secretId, decryptKind(secretId));
+  const readKind = (
+    secretId: string,
+    provider: string,
+  ): Promise<ModelCredentialAuthKind | undefined> => {
+    if (!kindBySecretId.has(secretId))
+      kindBySecretId.set(secretId, decryptKind(secretId, provider));
     return kindBySecretId.get(secretId)!;
   };
 
@@ -181,7 +196,13 @@ export async function modelCredentialAuthKindsForSpace(
     secretIdByModel: {},
   };
   for (const selection of selections) {
-    const kind = await readKind(selection.secretId);
+    const kind = await readKind(selection.secretId, selection.provider);
+    const policyError = policyErrorBySecretId.get(selection.secretId);
+    if (policyError) {
+      auth.unavailableByModel ??= {};
+      auth.unavailableByModel[selection.provider] ??= {};
+      auth.unavailableByModel[selection.provider]![selection.modelId] = policyError;
+    }
     if (selection.modelSpecific) {
       const models = auth.byModel[selection.provider] ?? {};
       models[selection.modelId] = kind ?? "disconnected";
@@ -203,11 +224,20 @@ export function validateModelAuthAvailability(
   credentialPlaintext?: string,
 ): string | undefined {
   if (!credentialPlaintext) return undefined;
+  const parsed = parseModelSecret(credentialPlaintext);
   const authKind = modelCredentialAuthKindFromPlaintext(credentialPlaintext);
-  const catalogEntry = listPiCatalog().find(
-    (item) => item.provider === provider && item.id === modelId,
-  );
-  if (!catalogModelAvailableForAuth(provider, modelId, authKind, catalogEntry?.auth)) {
+  const catalog = listPiCatalog();
+  const catalogEntry = catalog.find((item) => item.provider === provider && item.id === modelId);
+  const providerAuth =
+    catalogEntry?.auth ?? catalog.find((item) => item.provider === provider)?.auth;
+  if (
+    (parsed.kind === "oauth" &&
+      provider !== "openai-codex" &&
+      isChatGptPlanToken(parsed.credential.access)) ||
+    (parsed.kind === "oauth" && providerAuth === "api-key") ||
+    (parsed.kind === "openai_compatible" && provider !== OPENAI_COMPATIBLE_PROVIDER_ID) ||
+    !catalogModelAvailableForAuth(provider, modelId, authKind, providerAuth)
+  ) {
     return UNAVAILABLE_MODEL_FOR_AUTH_MESSAGE;
   }
   return undefined;
@@ -259,6 +289,7 @@ export async function prepareStoredModelAuth(
   modelId: string,
   live?: CodexLiveCatalog,
   liveOpts?: CodexLiveReadOptions,
+  options?: { executionMode?: ModelExecutionMode; forExecution?: boolean },
 ): Promise<{ ref: string | null; auth: StoredModelAuthRead }> {
   const secret = await prisma.secret.findFirst({
     where: { id: secretId, userId, spaceId: null },
@@ -274,13 +305,25 @@ export async function prepareStoredModelAuth(
   }
   let message: string | undefined;
   try {
+    const policyError = modelSecretExecutionError(provider, plaintext, options?.executionMode);
+    if (policyError)
+      return { ref: secret.ciphertext, auth: { status: "rejected", message: policyError } };
     message = validateModelAuthAvailability(provider, modelId, plaintext);
+    // Execution can refresh self-hosted Codex OAuth before checking live entitlements.
+    // Read-only model selection cannot perform that refresh or override secret policy.
+    if (
+      options?.forExecution &&
+      provider === "openai-codex" &&
+      parseModelSecret(plaintext).kind === "oauth"
+    )
+      return { ref: secret.ciphertext, auth: { status: "ready" } };
   } catch {
     // A secret that decrypts but does not parse is as unreadable as a corrupt one.
     return { ref: secret.ciphertext, auth: { status: "unreadable" } };
   }
   // validateModelAuthAvailability already parsed the secret without throwing.
   if (
+    provider === "openai-codex" &&
     message &&
     (await codexLiveListsModel(live, userId, parseModelSecret(plaintext), modelId, liveOpts))
   ) {
@@ -442,7 +485,7 @@ export function selectConfiguredModel(input: {
   const { override: bot, overrideCredential, defaultCredential, settings, deployment } = input;
   const hasOverride = Boolean(bot?.modelProvider && usableModelId(bot.modelId));
   // The override provider, model and credential must win together.
-  const useOverride = Boolean(hasOverride && overrideCredential);
+  const useOverride = hasOverride;
   const credential = useOverride ? overrideCredential : defaultCredential;
   const id =
     usableModelId(useOverride ? bot!.modelId : null) ??
@@ -462,11 +505,42 @@ export function selectConfiguredModel(input: {
       deployment?.provider,
     id,
     credential,
-    // Preserve bot thinking for the Space default; drop it for an unavailable override.
+    // A missing override credential remains a rejected choice, never a different payer.
     thinkingLevel:
-      hasOverride && !useOverride
-        ? null
-        : (((bot?.thinkingLevel ??
-            credentialThinkingLevel) as AgentRunRequest["model"]["thinkingLevel"]) ?? null),
+      ((bot?.thinkingLevel ??
+        credentialThinkingLevel) as AgentRunRequest["model"]["thinkingLevel"]) ?? null,
   };
+}
+
+/** Recheck a stored user's authority before each inference, including retries and helpers. */
+export async function assertStoredModelCredentialAvailable(
+  prisma: Pick<PrismaClient, "userModelCredential" | "secret" | "spaceMember">,
+  userId: string,
+  credential: { id: string; provider: string; secretId: string },
+  spaceId: string,
+): Promise<void> {
+  const [current, secret, membership] = await Promise.all([
+    prisma.userModelCredential.findFirst({
+      where: {
+        id: credential.id,
+        userId,
+        provider: credential.provider,
+        secretId: credential.secretId,
+      },
+      select: { id: true },
+    }),
+    prisma.secret.findFirst({
+      where: { id: credential.secretId, userId, spaceId: null },
+      select: { id: true },
+    }),
+    prisma.spaceMember.findFirst({
+      where: { userId, spaceId, space: { deletingAt: null } },
+      select: { userId: true },
+    }),
+  ]);
+  if (!current || !secret || !membership) {
+    throw new UnavailableModelForAuthError(
+      "Model connection is no longer available. Connect the provider again.",
+    );
+  }
 }

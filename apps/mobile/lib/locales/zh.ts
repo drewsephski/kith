@@ -1,4 +1,16 @@
 export const ZH_MESSAGES: Record<string, string> = {
+  "Try again": "重试",
+  "Could not save this choice": "无法保存此选择",
+  "This bot is no longer available.": "此机器人已不可用。",
+  "Kith pays for this model.": "此模型的费用由 Kith 支付。",
+  "The server pays for this model.": "此模型的费用由服务器支付。",
+  "What should my name be, and what's my role?": "我应该叫什么名字，担任什么角色？",
+  "Inbox assistant": "收件箱助手",
+  "Research assistant": "研究助手",
+  "Planning assistant": "规划助手",
+  "Coding partner": "编程伙伴",
+  Role: "角色",
+  Custom: "自定义",
   "Start computer": "启动电脑",
   "Resume computer": "唤醒电脑",
 

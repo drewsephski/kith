@@ -52,13 +52,7 @@ import {
   withLiveStreamingProgress,
 } from "@rakazo/core";
 import * as Clipboard from "expo-clipboard";
-import {
-  useFocusEffect,
-  useIsFocused,
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-} from "expo-router";
+import { useIsFocused, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import {
   memo,
@@ -159,11 +153,10 @@ import { transparentColor } from "../lib/color";
 import { computerUpdates } from "../lib/computer-updates";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
-import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
+import { cancelFocusPrompt } from "../lib/focus-prompt";
 import { dateLocaleForUi, t, useI18n } from "../lib/i18n";
 import { takeIncomingShare } from "../lib/incoming-share-draft";
 import { isInlineImageMimeType } from "../lib/inline-image";
-import { saveLastBotId } from "../lib/last-bot";
 import {
   dismissThreadNotifications,
   resumeLiveNotifications,
@@ -201,6 +194,7 @@ import { selectableTextFromMarkdown } from "../lib/selectable-text";
 import { currentSessionGeneration } from "../lib/session";
 import type { ComposerSnapshot, SendAttempt } from "../lib/thread-feedback";
 import { deliverSend, settleComposer, useThreadFeedback } from "../lib/thread-feedback";
+import { useThreadFocus } from "../lib/thread-focus";
 import { ThreadJumpAnchor } from "../lib/thread-jump";
 import { ThreadReadOnlyContext } from "../lib/thread-read-only";
 import type { ThreadScrollAction, ThreadScrollState } from "../lib/thread-scroll";
@@ -860,12 +854,13 @@ function Thread() {
     if (!botId && !groupId) return;
     const generation = ++mentionBotsRefreshGeneration.current;
     const targetBotId = botId;
+    const scopeCurrent = captureMobileScreenScope();
     try {
       const bots = await rpc<MobileBot[]>("bots/list");
       // Apply any successful response that is still the newest applied so far.
       // A later failed refresh must not discard an earlier success.
       if (generation < mentionBotsAppliedGeneration.current) return;
-      if (targetBotId !== activeBotId.current) return;
+      if (!scopeCurrent() || targetBotId !== activeBotId.current) return;
       mentionBotsAppliedGeneration.current = generation;
       setMentionBots(bots);
       if (targetBotId) {
@@ -1410,45 +1405,16 @@ function Thread() {
     };
   }, [botId]);
 
-  // Covers returning from a pushed screen; the AppState listener covers returning from background.
-  useFocusEffect(
-    useCallback(() => {
-      if (botId && !readOnly) {
-        focusPromptThreadActive(botId);
-        void saveLastBotId(botId).catch(() => undefined);
-      } else {
-        // Group thread focus: prior bot screen may stay mounted, so clear any delayed setup.
-        cancelFocusPrompt();
-      }
-      if (AppState.currentState === "active" && notificationThreadId) {
-        void setOpenNotificationThread({
-          botId,
-          threadId: notificationThreadId,
-        }).catch(() => undefined);
-      }
-      let active = true;
-      const session = currentSessionGeneration();
-      void rpc<MobileMe>("me")
-        .then((me) => {
-          if (active && session === currentSessionGeneration()) setNeedsModel(me.needsModel);
-        })
-        .catch(() => undefined);
-      void refreshMentionBots();
-      markReadIfVisible();
-      if (!readOnly) speakFinishedReply();
-      return () => {
-        active = false;
-        void setOpenNotificationThread(null).catch(() => undefined);
-      };
-    }, [
-      botId,
-      readOnly,
-      markReadIfVisible,
-      notificationThreadId,
-      refreshMentionBots,
-      speakFinishedReply,
-    ]),
-  );
+  // Returning from pushed screens refreshes metadata once, using the latest read/speech state.
+  useThreadFocus({
+    botId,
+    readOnly,
+    notificationThreadId,
+    refreshBots: refreshMentionBots,
+    markRead: markReadIfVisible,
+    speakReply: speakFinishedReply,
+    onNeedsModel: setNeedsModel,
+  });
 
   useEffect(() => {
     const appState = AppState.addEventListener("change", (state) => {
@@ -4444,6 +4410,8 @@ const MessageBubble = memo(function MessageBubble({
         <ChoiceCard
           key={`choice-${index}`}
           botId={cardBotId}
+          botColor={bots.find((bot) => bot.id === cardBotId)?.color}
+          messageId={message.id}
           block={block}
           onDismissed={onChoiceDismissed ? () => onChoiceDismissed(block.question) : undefined}
           accessibilityActions={actionProps.accessibilityActions}

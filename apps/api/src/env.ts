@@ -1,4 +1,7 @@
+import type { ModelExecutionMode } from "@rakazo/adapters";
 import {
+  deploymentFundsModel,
+  modelExecutionMode,
   resolveCloudAgentProvider,
   resolveDeploymentModel,
   resolveSandboxProvider,
@@ -48,6 +51,7 @@ export interface AppEnv {
   cloudAgentSpaceId: string | undefined;
   cursorApiKey: string | undefined;
   agentRuntime: string;
+  modelExecutionMode?: ModelExecutionMode;
   deploymentModelKey: string | undefined;
   /** The deployment default model can run; see resolveDeploymentModel. */
   deploymentModelConfigured: boolean;
@@ -159,6 +163,18 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
   const sandboxProvider = resolveSandboxProvider(source);
   const cloudAgentProvider = resolveCloudAgentProvider(source);
   const deploymentModel = resolveDeploymentModel(source);
+  const executionMode = modelExecutionMode(source);
+  if (
+    executionMode === "managed" &&
+    !deploymentFundsModel(
+      deploymentModel.provider,
+      deploymentModel.model,
+      deploymentModel,
+      executionMode,
+    )
+  ) {
+    throw new Error("Managed Kith deployment funding requires openrouter/openai/gpt-6-luna");
+  }
   const updaterUrl = optional(source.RAKAZO_UPDATER_URL);
   const updaterToken = optional(source.RAKAZO_UPDATER_TOKEN);
   return {
@@ -190,6 +206,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     cursorApiKey: optional(source.CURSOR_API_KEY),
     agentRuntime: source.AGENT_RUNTIME ?? "pi",
     // Provider, model and key resolve together: see resolveDeploymentModel.
+    modelExecutionMode: executionMode,
     deploymentModelKey: deploymentModel.key,
     deploymentModelConfigured: deploymentModel.configured,
     deploymentModelHostCredentials: deploymentModel.hostCredentials,

@@ -69,6 +69,7 @@ services:
       INFISICAL_ENVIRONMENT: ${INFISICAL_ENVIRONMENT:-}
       INFISICAL_FOLDER: ${INFISICAL_FOLDER:-}
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       API_HOST: "0.0.0.0"
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -148,6 +149,7 @@ services:
       OIDC_CLIENT_SECRET: ""
       AUTH_PASSWORD_ENABLED: "true"
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       DATABASE_URL: postgres://${POSTGRES_USER:-rakazo}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rakazo}
       DATA_DIR: /data
       SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-e2b}
@@ -194,6 +196,7 @@ services:
     mem_limit: 512m
     environment:
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       API_PROXY_TARGET: http://api:3100
       RAKAZO_HOST: ${RAKAZO_HOST:-app.example.com}
       SCREEN_PROXY_SECRET: ${SCREEN_PROXY_SECRET:?Set SCREEN_PROXY_SECRET in .env}
@@ -232,6 +235,7 @@ services:
     mem_limit: 1g
     environment:
       NODE_ENV: production
+      MODEL_EXECUTION_MODE: ${MODEL_EXECUTION_MODE:-self-hosted}
       # Keep interpolation optional so deployments that do not enable this profile need no token.
       # resolveUpdaterConfig still refuses to start the sidecar without a dedicated secure value.
       RAKAZO_UPDATER_TOKEN: ${RAKAZO_UPDATER_TOKEN:-}

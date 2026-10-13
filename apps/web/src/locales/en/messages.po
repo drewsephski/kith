@@ -929,13 +929,10 @@ msgstr "Can't reach the server."
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
 msgstr "Cancel"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Cancel new bot"
-msgstr "Cancel new bot"
 
 #: src/pages/GroupPanel.tsx
 msgid "Cancel new group"
@@ -1234,6 +1231,10 @@ msgstr "Cloud"
 #: src/components/AskCard.tsx
 msgid "Code"
 msgstr "Code"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Coding partner"
+msgstr "Coding partner"
 
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
@@ -1673,7 +1674,7 @@ msgstr "Could not connect. Try again."
 msgid "Could not continue"
 msgstr "Could not continue"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 msgid "Could not create bot"
 msgstr "Could not create bot"
 
@@ -2063,6 +2064,7 @@ msgstr "Could not save that voice"
 msgid "Could not save the credential"
 msgstr "Could not save the credential"
 
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Could not save this choice"
 msgstr "Could not save this choice"
@@ -2175,7 +2177,6 @@ msgstr "Couldn't update avatars"
 msgid "Couldn't update messaging settings"
 msgstr "Couldn't update messaging settings"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "Create"
@@ -2228,7 +2229,7 @@ msgid "Created"
 msgstr "Created"
 
 #: src/pages/GroupPanel.tsx
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Creating…"
 msgstr "Creating…"
@@ -2262,6 +2263,10 @@ msgstr "Cron expression"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "Current password"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Custom"
+msgstr "Custom"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -3136,6 +3141,10 @@ msgstr "In progress"
 msgid "Inactive"
 msgstr "Inactive"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Inbox assistant"
+msgstr "Inbox assistant"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Inbox to-do list"
 msgstr "Inbox to-do list"
@@ -3238,6 +3247,10 @@ msgstr "Key events"
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr "Kith"
+
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Kith pays for this model."
+msgstr "Kith pays for this model."
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -3697,7 +3710,6 @@ msgstr "More categories"
 msgid "More computer actions"
 msgstr "More computer actions"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "More options"
@@ -3731,14 +3743,11 @@ msgstr "Mute"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
 msgstr "Name"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Name this bot"
-msgstr "Name this bot"
 
 #: src/pages/GroupPanel.tsx
 msgid "Name this group"
@@ -3769,10 +3778,6 @@ msgstr "Needs you"
 #: src/pages/Shell.tsx
 msgid "New"
 msgstr "New"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "New bot"
-msgstr "New bot"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4273,6 +4278,10 @@ msgstr "Plan infrastructure and usage alerts"
 msgid "Plan my day"
 msgstr "Plan my day"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Planning assistant"
+msgstr "Planning assistant"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "Playing…"
@@ -4747,6 +4756,10 @@ msgstr "Requesting…"
 msgid "Research and projects"
 msgstr "Research and projects"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Research assistant"
+msgstr "Research assistant"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Research partners and draft introductions"
@@ -4904,6 +4917,10 @@ msgstr "Revoke"
 msgid "Robot"
 msgstr "Robot"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Role"
+msgstr "Role"
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr "Room guidance"
@@ -4969,6 +4986,7 @@ msgstr "Saturday"
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -5044,6 +5062,7 @@ msgstr "Saving..."
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
@@ -5722,6 +5741,10 @@ msgstr "The selected memory provider is not available in this build."
 msgid "The selected space changed. Try again."
 msgstr "The selected space changed. Try again."
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "The server pays for this model."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr "The spreadsheet update could not be confirmed. Check the destination before starting another report."
@@ -5744,6 +5767,10 @@ msgstr "Thinking: {activeThinkingLabel}"
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "This app is unavailable from the configured integration provider."
 msgstr "This app is unavailable from the configured integration provider."
+
+#: src/pages/Shell.tsx
+msgid "This bot is no longer available."
+msgstr "This bot is no longer available."
 
 #: src/pages/Shell.tsx
 msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
@@ -5920,6 +5947,7 @@ msgstr "Trial ends {day}"
 #: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -6249,6 +6277,10 @@ msgstr "What result will you demonstrate?"
 msgid "What should I help you with first?"
 msgstr "What should I help you with first?"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "What should my name be, and what's my role?"
+msgstr "What should my name be, and what's my role?"
+
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
 msgstr "What should this routine do each time it runs?"
@@ -6256,10 +6288,6 @@ msgstr "What should this routine do each time it runs?"
 #: src/components/CalendarConnection.tsx
 msgid "What should your assistant keep in mind?"
 msgstr "What should your assistant keep in mind?"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "What this bot is for"
-msgstr "What this bot is for"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"

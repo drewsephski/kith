@@ -50,15 +50,38 @@ name: Kith mobile smoke
 - extendedWaitUntil:
     visible: ".*done. i handled: Mobile acceptance hello.*"
     timeout: 30000
-# Keep bot creation and native computer ownership coverage from the original smoke.
+# Conversational identity is saved before the established focus question.
 - openLink: "rakazo:///new"
 - extendedWaitUntil:
-    visible: "Name this bot"
-    timeout: 10000
-- tapOn: "Name this bot"
+    visible: "What should my name be, and what's my role?"
+    timeout: 30000
+- assertNotVisible: "What should I help you with first?"
+- assertVisible: "Miso, Inbox assistant"
+- assertVisible: "Pippin, Research assistant"
+- assertVisible: "Orbit, Planning assistant"
+- assertVisible: "Pixel, Coding partner"
+- tapOn: "Custom"
 - inputText: "Acceptance Bot"
-- hideKeyboard
-- tapOn: "Create"
+- pressKey: Enter
+- inputText: "Research assistant"
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Message Acceptance Bot"
+    timeout: 30000
+- assertNotVisible: "What should my name be, and what's my role?"
+- assertVisible: "What should I help you with first?"
+- tapOn: "Just start chatting"
+- stopApp
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      notVisible: "Message Acceptance Bot"
+    commands:
+      - extendedWaitUntil:
+          visible: "Acceptance Bot"
+          timeout: 30000
+      - tapOn: "Acceptance Bot"
 - extendedWaitUntil:
     visible: "Message Acceptance Bot"
     timeout: 30000

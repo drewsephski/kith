@@ -78,8 +78,16 @@ tags:
 - assertVisible: "New space"
 - takeScreenshot: "05c-create-menu"
 - tapOn: "New bot"
-- assertVisible: "Name this bot"
-- tapOn: "Cancel"
+- extendedWaitUntil:
+    visible: "What should my name be, and what's my role?"
+    timeout: 30000
+- tapOn:
+    id: "bot-identity-miso"
+- extendedWaitUntil:
+    visible: "Message Miso"
+    timeout: 30000
+- assertVisible: "What should I help you with first?"
+- openLink: "rakazo:///"
 
 - tapOn: "Search"
 - inputText: "fixture"
@@ -90,7 +98,9 @@ tags:
 - takeScreenshot: "06-search-results"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- extendedWaitUntil:
+    visible: "What should my name be, and what's my role?"
+    timeout: 30000
 - takeScreenshot: "07-new-bot"
 
 - openLink: "rakazo:///new-group"
@@ -255,7 +265,9 @@ tags:
 - takeScreenshot: "22-account-dark"
 
 - openLink: "rakazo:///new"
-- assertVisible: "Name this bot"
+- extendedWaitUntil:
+    visible: "What should my name be, and what's my role?"
+    timeout: 30000
 - takeScreenshot: "23-new-bot-dark"
 
 - openLink: "rakazo:///new-group"

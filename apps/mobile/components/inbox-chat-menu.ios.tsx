@@ -1,5 +1,12 @@
 import type { MenuAction } from "@expo/ui/community/menu";
-import { Button, ContextMenu, Host, Menu, RNHostView } from "@expo/ui/swift-ui";
+import { Button, ContextMenu, Host, HStack, Menu, RNHostView } from "@expo/ui/swift-ui";
+import {
+  accessibilityLabel,
+  buttonStyle,
+  contentShape,
+  frame,
+  shapes,
+} from "@expo/ui/swift-ui/modifiers";
 import { botColors } from "@rakazo/ui-tokens";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useI18n } from "../lib/i18n";
@@ -10,13 +17,32 @@ import { inboxChatActions } from "./inbox-chat-menu.shared";
 import { NativeSymbol } from "./native-symbol";
 
 export function InboxChatMenu(props: InboxChatMenuProps) {
-  useI18n();
+  const { t } = useI18n();
   const scheme = useResolvedAppearance();
   const styles = useThemedStyles(createStyles);
   const { width } = useWindowDimensions();
   if (!props.enabled) return <View style={props.style}>{props.children()}</View>;
   const triggerWidth = props.compact ? (width - 20) / 3 : width;
   const previewWidth = Math.min(width - 48, 360);
+  const trigger = (
+    <RNHostView matchContents>
+      <View
+        pointerEvents={props.compact ? "none" : "auto"}
+        accessibilityElementsHidden={props.compact}
+        style={{ width: triggerWidth }}
+      >
+        {props.children()}
+      </View>
+    </RNHostView>
+  );
+  const openLabel = [
+    props.chat.name,
+    props.chat.pinned ? t("Pinned") : null,
+    props.chat.unread ? t("unread") : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   function action(entry: MenuAction) {
     if (entry.subactions)
       return (
@@ -50,9 +76,21 @@ export function InboxChatMenu(props: InboxChatMenuProps) {
     <Host matchContents ignoreSafeArea="all" colorScheme={scheme} style={props.style}>
       <ContextMenu>
         <ContextMenu.Trigger>
-          <RNHostView matchContents>
-            <View style={{ width: triggerWidth }}>{props.children()}</View>
-          </RNHostView>
+          {props.compact ? (
+            <Button
+              onPress={props.onOpen}
+              modifiers={[buttonStyle("plain"), accessibilityLabel(openLabel)]}
+            >
+              <HStack
+                spacing={0}
+                modifiers={[frame({ width: triggerWidth }), contentShape(shapes.rectangle())]}
+              >
+                {trigger}
+              </HStack>
+            </Button>
+          ) : (
+            trigger
+          )}
         </ContextMenu.Trigger>
         <ContextMenu.Preview>
           <RNHostView matchContents>

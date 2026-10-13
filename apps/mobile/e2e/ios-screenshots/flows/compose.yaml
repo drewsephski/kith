@@ -7,10 +7,23 @@ name: Compose
       RAKAZO_ACTIVE_EMAIL: ${RAKAZO_SCREENSHOT_EMAIL}
 - openLink: "rakazo:///new"
 - extendedWaitUntil:
-    visible: "Name this bot"
+    visible: "What should my name be, and what's my role?"
     timeout: 15000
 - takeScreenshot: 01-new-bot
-- tapOn: "Cancel"
+- tapOn: "Custom"
+# Custom focuses the native Name field; input IDs are not exposed by iOS accessibility.
+- inputText: "Atlas"
+# Next transfers keyboard focus to Role without matching its static label.
+- pressKey: Enter
+- inputText: "Research lead"
+- takeScreenshot: 01b-custom-identity
+# Done submits the explicit identity. Do not tap a Save control that has already disappeared.
+- pressKey: Enter
+- extendedWaitUntil:
+    visible: "Message Atlas"
+    timeout: 30000
+- assertVisible: "What should I help you with first?"
+- takeScreenshot: 01c-focus-choice
 - openLink: "rakazo:///new-space"
 - extendedWaitUntil:
     visible: "Customer support|Create space"

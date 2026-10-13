@@ -929,13 +929,10 @@ msgstr "सर्वर तक नहीं पहुंचा जा सका�
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
 msgstr "रद्द करें"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Cancel new bot"
-msgstr "नया बॉट रद्द करें"
 
 #: src/pages/GroupPanel.tsx
 msgid "Cancel new group"
@@ -1234,6 +1231,10 @@ msgstr "क्लाउड"
 #: src/components/AskCard.tsx
 msgid "Code"
 msgstr "कोड"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Coding partner"
+msgstr "कोडिंग साथी"
 
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
@@ -1673,7 +1674,7 @@ msgstr ""
 msgid "Could not continue"
 msgstr "जारी नहीं रखा जा सका"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 msgid "Could not create bot"
 msgstr "बॉट नहीं बनाया जा सका"
 
@@ -2063,6 +2064,7 @@ msgstr "वह आवाज़ सहेजी नहीं जा सकी"
 msgid "Could not save the credential"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Could not save this choice"
 msgstr "यह विकल्प सहेजा नहीं जा सका"
@@ -2175,7 +2177,6 @@ msgstr ""
 msgid "Couldn't update messaging settings"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "बनाएं"
@@ -2228,7 +2229,7 @@ msgid "Created"
 msgstr ""
 
 #: src/pages/GroupPanel.tsx
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Creating…"
 msgstr "बनाया जा रहा है…"
@@ -2262,6 +2263,10 @@ msgstr "Cron एक्सप्रेशन"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "वर्तमान पासवर्ड"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Custom"
+msgstr "कस्टम"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -3136,6 +3141,10 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Inbox assistant"
+msgstr "इनबॉक्स सहायक"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Inbox to-do list"
 msgstr "इनबॉक्स कार्य सूची"
@@ -3238,6 +3247,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
+
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Kith pays for this model."
+msgstr "इस मॉडल का खर्च Kith उठाता है।"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -3697,7 +3710,6 @@ msgstr "और श्रेणियां"
 msgid "More computer actions"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "और विकल्प"
@@ -3731,14 +3743,11 @@ msgstr "म्यूट करें"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
 msgstr "नाम"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Name this bot"
-msgstr "इस बॉट को नाम दें"
 
 #: src/pages/GroupPanel.tsx
 msgid "Name this group"
@@ -3769,10 +3778,6 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "New"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "New bot"
-msgstr "नया बॉट"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4273,6 +4278,10 @@ msgstr "इंफ्रास्ट्रक्चर और उपयोग क
 msgid "Plan my day"
 msgstr "मेरे दिन की योजना बनाएँ"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Planning assistant"
+msgstr "योजना सहायक"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "प्ले हो रहा है…"
@@ -4747,6 +4756,10 @@ msgstr ""
 msgid "Research and projects"
 msgstr "शोध और परियोजनाएँ"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Research assistant"
+msgstr "शोध सहायक"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Research partners and draft introductions"
@@ -4904,6 +4917,10 @@ msgstr ""
 msgid "Robot"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Role"
+msgstr "भूमिका"
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr ""
@@ -4969,6 +4986,7 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -5044,6 +5062,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
@@ -5722,6 +5741,10 @@ msgstr "चयनित मेमोरी प्रोवाइडर इस �
 msgid "The selected space changed. Try again."
 msgstr "चुना हुआ स्पेस बदल गया। दोबारा प्रयास करें।"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "इस मॉडल का खर्च सर्वर उठाता है।"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""
@@ -5744,6 +5767,10 @@ msgstr ""
 #: src/components/task-starters/TaskStarterSetup.tsx
 msgid "This app is unavailable from the configured integration provider."
 msgstr ""
+
+#: src/pages/Shell.tsx
+msgid "This bot is no longer available."
+msgstr "यह बॉट अब उपलब्ध नहीं है।"
 
 #: src/pages/Shell.tsx
 msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
@@ -5920,6 +5947,7 @@ msgstr ""
 #: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "फिर से कोशिश करें"
 
@@ -6249,6 +6277,10 @@ msgstr "आप कौन-सा परिणाम दिखाकर बता�
 msgid "What should I help you with first?"
 msgstr "पहले किस काम में मदद करूँ?"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "What should my name be, and what's my role?"
+msgstr "मेरा नाम क्या होना चाहिए और मेरी भूमिका क्या है?"
+
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
 msgstr ""
@@ -6256,10 +6288,6 @@ msgstr ""
 #: src/components/CalendarConnection.tsx
 msgid "What should your assistant keep in mind?"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "What this bot is for"
-msgstr "यह बॉट किस लिए है"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"

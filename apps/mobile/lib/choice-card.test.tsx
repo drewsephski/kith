@@ -11,7 +11,7 @@ const rpc = vi.hoisted(() => vi.fn());
 const alert = vi.hoisted(() => vi.fn());
 
 vi.mock("react-native", async () => {
-  const { createElement } = await import("react");
+  const { createElement, forwardRef } = await import("react");
 
   function MockView(props: { children?: ReactNode; testID?: string }) {
     return createElement("div", { "data-testid": props.testID }, props.children);
@@ -48,6 +48,27 @@ vi.mock("react-native", async () => {
 
   return {
     Alert: { alert },
+    Keyboard: { dismiss: vi.fn() },
+    TextInput: forwardRef<
+      HTMLInputElement,
+      {
+        value?: string;
+        onChangeText?: (value: string) => void;
+        accessibilityLabel?: string;
+        editable?: boolean;
+        maxLength?: number;
+      }
+    >((props, ref) =>
+      createElement("input", {
+        ref,
+        value: props.value,
+        onChange: (event: { target: { value: string } }) =>
+          props.onChangeText?.(event.target.value),
+        "aria-label": props.accessibilityLabel,
+        disabled: props.editable === false,
+        maxLength: props.maxLength,
+      }),
+    ),
     Pressable: MockPressable,
     StyleSheet: { create: <T,>(styles: T) => styles },
     Text: MockText,
@@ -56,7 +77,12 @@ vi.mock("react-native", async () => {
   };
 });
 
-vi.mock("./api", () => ({ rpc }));
+vi.mock("./api", () => ({
+  rpc,
+  captureMobileScreenScope: () => () => true,
+  captureApiRequestContext: async () => ({ apiBase: "https://example.test", headers: {} }),
+}));
+vi.mock("../components/bot-avatar", () => ({ BotAvatar: () => null }));
 
 vi.mock("./native", () => ({
   native: { fill: "fill", fillPressed: "fill-pressed" },
@@ -75,7 +101,27 @@ vi.mock("../components/native-symbol", () => ({
 
 vi.mock("../components/CalendarConnection", () => ({ CalendarConnection: () => null }));
 vi.mock("../components/task-starters/setup", () => ({ TaskStarterSetup: () => null }));
-vi.mock("../components/native-action-button", () => ({ NativeActionButton: () => null }));
+vi.mock("../components/native-action-button", async () => {
+  const { createElement } = await import("react");
+  return {
+    NativeActionButton: (props: {
+      label: string;
+      onPress: () => void;
+      busy?: boolean;
+      disabled?: boolean;
+    }) =>
+      createElement(
+        "button",
+        {
+          type: "button",
+          "aria-label": props.label,
+          disabled: props.busy || props.disabled,
+          onClick: props.onPress,
+        },
+        props.label,
+      ),
+  };
+});
 
 import { ChoiceCard } from "../components/ChoiceCard";
 
@@ -122,7 +168,14 @@ describe("ChoiceCard", () => {
       root = createRoot(container);
     }
     act(() => {
-      root?.render(<ChoiceCard botId="bot-1" block={block} onDismissed={onDismissed} />);
+      root?.render(
+        <ChoiceCard
+          messageId="message-identity"
+          botId="bot-1"
+          block={block}
+          onDismissed={onDismissed}
+        />,
+      );
     });
     return container;
   }
@@ -239,5 +292,198 @@ describe("ChoiceCard", () => {
     expect(view.textContent).toContain("Email and follow-ups");
     expect(view.textContent).not.toContain("Organize my day");
     expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it("renders identity presets and sends the scoped message identity once on rapid taps", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    rpc.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const view = render({
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "What should my name be, and what's my role?",
+      options: [
+        { id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" },
+        { id: "pippin", letter: "B", label: "Pippin", description: "Research assistant" },
+        { id: "orbit", letter: "C", label: "Orbit", description: "Planning assistant" },
+        { id: "pixel", letter: "D", label: "Pixel", description: "Coding partner" },
+      ],
+    });
+    expect(view.textContent).toContain("What should my name be, and what's my role?");
+    expect(view.textContent).not.toContain("What should I help you with first?");
+    expect(view.querySelectorAll("[data-testid^='bot-identity-']")).toHaveLength(5);
+    await act(async () => {
+      button(view, "Pippin, Research assistant").click();
+      button(view, "Pixel, Coding partner").click();
+      await Promise.resolve();
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith(
+      "onboarding/identity",
+      { botId: "bot-1", messageId: "message-identity", identity: { presetId: "pippin" } },
+      { requestContext: { apiBase: "https://example.test", headers: {} } },
+    );
+    await act(async () => {
+      release({
+        identityAnswer: {
+          kind: "choice",
+          onboardingStage: "identity",
+          question: "Identity",
+          answerId: "pippin",
+          options: [
+            { id: "pippin", letter: "B", label: "Pippin", description: "Research assistant" },
+          ],
+        },
+      });
+      await Promise.resolve();
+    });
+    expect(button(view, "Pippin, Research assistant").disabled).toBe(true);
+    expect(view.textContent).not.toContain("Coding partner");
+  });
+
+  it.each([
+    { id: "miso", label: "Miso", role: "Inbox assistant" },
+    { id: "custom", label: "Sol", role: "Writing partner" },
+  ])("renders the server winner $id when a different preset was submitted", async (winner) => {
+    const identity: ChoiceBlock = {
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "Identity",
+      options: [
+        { id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" },
+        { id: "pixel", letter: "D", label: "Pixel", description: "Coding partner" },
+      ],
+    };
+    rpc.mockResolvedValue({
+      identityAnswer: {
+        ...identity,
+        answerId: winner.id,
+        options: [
+          ...identity.options,
+          ...(winner.id === "custom"
+            ? [{ id: winner.id, letter: "", label: winner.label, description: winner.role }]
+            : []),
+        ],
+      },
+    });
+    const view = render(identity);
+    await act(async () => {
+      button(view, "Pixel, Coding partner").click();
+    });
+    expect(button(view, `${winner.label}, ${winner.role}`).disabled).toBe(true);
+    expect(view.textContent).not.toContain("Pixel");
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("a durable identity answer suppresses a later lost-response error without remounting", async () => {
+    let reject: (reason: Error) => void = () => undefined;
+    rpc.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, fail) => {
+          reject = fail;
+        }),
+    );
+    const identity: ChoiceBlock = {
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "What should my name be, and what's my role?",
+      options: [{ id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" }],
+    };
+    const view = render(identity);
+    await act(async () => {
+      button(view, "Miso, Inbox assistant").click();
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    render({ ...identity, answerId: "miso" });
+    await act(async () => {
+      reject(new Error("Network down"));
+    });
+    expect(view.querySelector("[role='alert']")).toBeNull();
+    expect(view.textContent).not.toContain("Network down");
+    expect(view.textContent).not.toContain(identity.question);
+    expect(button(view, "Miso, Inbox assistant").disabled).toBe(true);
+    expect(button(view, "Miso, Inbox assistant").getAttribute("aria-selected")).toBe("true");
+    expect(view.querySelector("[aria-label='Custom']")).toBeNull();
+  });
+
+  it("hydrates a completed custom identity and keeps it read-only", () => {
+    const view = render({
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "What should my name be, and what's my role?",
+      answerId: "custom",
+      options: [{ id: "custom", letter: "", label: "Atlas", description: "Research lead" }],
+    });
+    expect(view.textContent).not.toContain("What should my name be, and what's my role?");
+    expect(view.textContent).toContain("Atlas");
+    expect(view.textContent).toContain("Research lead");
+    expect(button(view, "Atlas, Research lead").disabled).toBe(true);
+    expect(view.querySelector("[aria-label='Custom']")).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it("preserves failed custom input and renders a different accepted identity after retry", async () => {
+    const view = render({
+      kind: "choice",
+      onboardingStage: "identity",
+      question: "What should my name be, and what's my role?",
+      options: [{ id: "miso", letter: "A", label: "Miso", description: "Inbox assistant" }],
+    });
+    await act(async () => {
+      button(view, "Custom").click();
+    });
+    expect(view.querySelector("[aria-label='Miso, Inbox assistant']")).toBeNull();
+    expect(button(view, "Save").disabled).toBe(true);
+    const name = view.querySelector<HTMLInputElement>("[aria-label='Name']")!;
+    const role = view.querySelector<HTMLInputElement>("[aria-label='Role']")!;
+    expect(name.maxLength).toBe(80);
+    expect(role.maxLength).toBe(500);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        name,
+        " Atlas ",
+      );
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        role,
+        " Research lead ",
+      );
+      role.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    rpc.mockRejectedValueOnce(new Error("Network down"));
+    await act(async () => {
+      button(view, "Save").click();
+      await Promise.resolve();
+    });
+    expect(view.querySelector("[role='alert']")?.textContent).toBe("Network down");
+    expect(name.value).toBe(" Atlas ");
+    expect(role.value).toBe(" Research lead ");
+    rpc.mockResolvedValueOnce({
+      identityAnswer: {
+        kind: "choice",
+        onboardingStage: "identity",
+        question: "Identity",
+        answerId: "custom",
+        options: [{ id: "custom", letter: "", label: "Sol", description: "Writing partner" }],
+      },
+    });
+    await act(async () => {
+      button(view, "Save").click();
+      await Promise.resolve();
+    });
+    expect(rpc).toHaveBeenLastCalledWith(
+      "onboarding/identity",
+      {
+        botId: "bot-1",
+        messageId: "message-identity",
+        identity: { name: "Atlas", role: "Research lead" },
+      },
+      { requestContext: { apiBase: "https://example.test", headers: {} } },
+    );
+    expect(view.textContent).not.toContain("What should my name be, and what's my role?");
+    expect(button(view, "Sol, Writing partner").disabled).toBe(true);
+    expect(view.textContent).not.toContain("Atlas");
   });
 });

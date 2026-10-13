@@ -7,6 +7,7 @@ import {
   listVoiceCatalog,
   MAX_SPEAK_CHARS,
   MAX_TRANSCRIBE_BYTES,
+  modelSecretExecutionError,
   NoVoiceConfigured,
   voiceCatalogEntry,
 } from "@rakazo/adapters";
@@ -106,7 +107,10 @@ export async function loadVoiceCredential(deps: VoiceDeps, actor: Actor, provide
     where: { id: cred.secretId, userId: actor.userId, spaceId: null },
   });
   if (!secret) return null;
-  return { cred, apiKey: await deps.secrets.load(secret.ciphertext, secret.id) };
+  const apiKey = await deps.secrets.load(secret.ciphertext, secret.id);
+  const policyError = modelSecretExecutionError(cred.provider, apiKey);
+  if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
+  return { cred, apiKey };
 }
 
 export async function resolveVoiceTarget(
@@ -141,6 +145,8 @@ export async function persistVoiceCredential(
     signal?: AbortSignal;
   },
 ): Promise<VoiceCredential> {
+  const policyError = modelSecretExecutionError(input.provider, input.plaintext);
+  if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
   if (!isVoiceProviderId(input.provider)) {
     throw new ORPCError("BAD_REQUEST", { message: "Unknown voice provider." });
   }

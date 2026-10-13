@@ -1,5 +1,11 @@
 # Kith Desktop 0.1.7 release readiness
 
+Current private-beta availability and candidate gates are recorded in
+[private-beta readiness](private-beta-readiness.md). Its 2026-10-13 audit confirms existing
+operator signing credentials and advertised password recovery; older absence claims below
+are historical. Signing workflow wiring, actual recovery delivery and signed installation
+remain unverified release gates.
+
 Assessment: **BLOCKED**. No public desktop release exists. This implementation prepares the
 next unused stable version, 0.1.7; it does not create or push its tag or publish a release.
 Initial evidence collected on 2026-10-09 from reviewed baseline

@@ -1,83 +1,74 @@
-import type { ComputerMode } from "@rakazo/contracts";
-import {
-  BOT_DESCRIPTION_MAX_LENGTH,
-  BOT_NAME_MAX_LENGTH,
-  BOT_TITLE_MAX_LENGTH,
-  normalizeCreateBotProfile,
-} from "@rakazo/contracts";
-import { Stack, useRouter } from "expo-router";
-import { useRef, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
-import { ComputerModePicker } from "../components/computer-mode-picker";
-import { ScrollView } from "../components/minimal-scroll";
+import { botCreationIntentRemoved } from "@rakazo/core";
+import { Stack, useNavigation, useRouter } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 import { NativeActionButton } from "../components/native-action-button";
-import { Chevron } from "../components/row-accessories";
 import { cancelHeaderOptions } from "../components/sheet-header";
-import type { MobileBot } from "../lib/api";
-import { captureMobileScreenScope, rpc } from "../lib/api";
-import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
+import { captureMobileScreenScope } from "../lib/api";
+import { createConversationalBot } from "../lib/bot-creation";
 import { useI18n } from "../lib/i18n";
-import { native, useMobileTokens } from "../lib/native";
+import { useMobileTokens } from "../lib/native";
 import { errorText } from "../lib/user-error";
 
+/** Transient creation route: identity is configured inside the durable conversation. */
 export default function NewBot() {
   const { t } = useI18n();
   const tokens = useMobileTokens();
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [computerMode, setComputerMode] = useState<ComputerMode>("team");
+  const navigation = useNavigation();
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [moreOptions, setMoreOptions] = useState(false);
-  const submittingRef = useRef(false);
-  const descriptionRef = useRef<TextInput>(null);
-
-  function close() {
-    if (submittingRef.current) return;
-    if (router.canDismiss()) {
-      router.dismiss();
-      return;
+  const [pending, setPending] = useState(true);
+  const mounted = useRef(true);
+  const submitting = useRef(false);
+  const settled = useRef(false);
+  const operationScope = useRef<(() => boolean) | null>(null);
+  usePreventRemove(pending, ({ data }) => {
+    // Permit only the settled create's replacement or an authentication/Space boundary change.
+    if (settled.current || (operationScope.current && !operationScope.current())) {
+      navigation.dispatch(data.action);
     }
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace("/");
-  }
+  });
 
   async function create() {
-    if (!name.trim() || submittingRef.current) return;
-    submittingRef.current = true;
-    const current = captureMobileScreenScope();
+    if (submitting.current) return;
+    submitting.current = true;
+    settled.current = false;
+    const scopeCurrent = captureMobileScreenScope();
+    operationScope.current = scopeCurrent;
     setPending(true);
     setError(null);
     try {
-      // Failed list is unknown — delay focus rather than treating the bot as first.
-      const existing = await rpc<MobileBot[]>("bots/list").catch(() => null);
-      const isFirstBot = existing !== null && existing.length === 0;
-      const bot = await rpc<MobileBot>("bots/create", {
-        ...normalizeCreateBotProfile({ name, title, description }),
-        notifyOnFinish: true,
-        computerMode,
-      });
-      if (!current()) return;
-      allowFocusPrompt(bot.id);
-      router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
-      void (async () => {
-        const started = await rpc("onboarding/start", { botId: bot.id })
-          .then(() => true)
-          .catch(() => false);
-        if (!started) return;
-        scheduleFocusPrompt(bot.id, isFirstBot);
-      })();
-    } catch (err) {
-      setError(errorText(err, t("Could not create bot")));
+      const bot = await createConversationalBot();
+      if (bot && mounted.current && scopeCurrent()) {
+        settled.current = true;
+        router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
+      }
+    } catch (reason) {
+      if (mounted.current)
+        setError(
+          botCreationIntentRemoved(reason)
+            ? t("This bot is no longer available.")
+            : errorText(reason, t("Could not create bot")),
+        );
     } finally {
-      submittingRef.current = false;
-      setPending(false);
+      submitting.current = false;
+      if (mounted.current) setPending(false);
     }
+  }
+
+  useEffect(() => {
+    mounted.current = true;
+    void create();
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  function close() {
+    if (pending || submitting.current) return;
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
   }
 
   return (
@@ -89,113 +80,31 @@ export default function NewBot() {
           gestureEnabled: !pending,
         }}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={{ flex: 1, backgroundColor: tokens.background }}
-        contentContainerStyle={{ padding: 24 }}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: tokens.background,
+          padding: 24,
+          gap: 16,
+          justifyContent: "center",
+        }}
       >
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
-        <TextInput
-          value={name}
-          accessibilityLabel={t("Name")}
-          editable={!pending}
-          returnKeyType="next"
-          onSubmitEditing={() => descriptionRef.current?.focus()}
-          maxLength={BOT_NAME_MAX_LENGTH}
-          onChangeText={setName}
-          placeholder={t("Name this bot")}
-          placeholderTextColor={tokens.mutedForeground}
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-          }}
-        />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Description")}
-        </Text>
-        <TextInput
-          ref={descriptionRef}
-          value={description}
-          accessibilityLabel={t("Description")}
-          editable={!pending}
-          maxLength={BOT_DESCRIPTION_MAX_LENGTH}
-          onChangeText={setDescription}
-          placeholder={t("What this bot is for")}
-          placeholderTextColor={tokens.mutedForeground}
-          multiline
-          style={{
-            marginTop: 8,
-            backgroundColor: native.fill,
-            borderRadius: 11,
-            padding: 16,
-            color: tokens.foreground,
-            minHeight: 120,
-            textAlignVertical: "top",
-          }}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("More options")}
-          accessibilityState={{ expanded: moreOptions, disabled: pending }}
-          disabled={pending}
-          onPress={() => setMoreOptions((open) => !open)}
-          style={{
-            marginTop: 16,
-            minHeight: 44,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("More options")}</Text>
-          <Chevron expanded={moreOptions} />
-        </Pressable>
-        {moreOptions ? (
-          <View>
-            <Text style={{ color: tokens.mutedForeground, marginTop: 8, fontSize: 14 }}>
-              {t("Title")}
-            </Text>
-            <TextInput
-              value={title}
-              accessibilityLabel={t("Title")}
-              editable={!pending}
-              maxLength={BOT_TITLE_MAX_LENGTH}
-              onChangeText={setTitle}
-              placeholder={t("Describe what this bot does")}
-              placeholderTextColor={tokens.mutedForeground}
-              style={{
-                marginTop: 8,
-                backgroundColor: native.fill,
-                borderRadius: 11,
-                padding: 16,
-                color: tokens.foreground,
-              }}
-            />
-            <ComputerModePicker
-              value={computerMode}
-              onChange={setComputerMode}
-              disabled={pending}
-            />
-          </View>
+        {pending ? (
+          <ActivityIndicator accessibilityLabel={t("Creating…")} color={tokens.foreground} />
         ) : null}
         {error ? (
-          <Text accessibilityRole="alert" style={{ color: tokens.destructive, marginTop: 16 }}>
+          <Text selectable accessibilityRole="alert" style={{ color: tokens.destructive }}>
             {error}
           </Text>
         ) : null}
-        <NativeActionButton
-          disabled={!name.trim() || pending}
-          busy={pending}
-          label={pending ? t("Creating…") : t("Create")}
-          onPress={() => void create()}
-          style={{ marginTop: 24 }}
-        />
-      </ScrollView>
+        {error ? (
+          <NativeActionButton
+            label={t("Try again")}
+            disabled={pending}
+            onPress={() => void create()}
+          />
+        ) : null}
+      </View>
     </>
   );
 }

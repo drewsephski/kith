@@ -142,67 +142,49 @@ test("long replies and streaming stay inside narrow and split-panel layouts", as
   }
 });
 
-test("new bot creation keeps optional settings and failed input recoverable", async ({
-  page,
-}, testInfo) => {
+test("custom identity keeps failed input recoverable", async ({ page }, testInfo) => {
   await page.goto(`${fixture}?view=create&failure`);
-  const form = page.getByTestId("create-bot-form");
-  const name = form.getByRole("textbox", { name: "Name", exact: true });
-  const description = form.getByRole("textbox", { name: "Description", exact: true });
-  const title = form.getByRole("textbox", { name: "Title", exact: true });
-  const create = form.getByRole("button", { name: "Create", exact: true });
+  const card = page.getByTestId("bot-identity-card");
+  await expect(card.getByRole("button", { name: "Custom", exact: true })).toBeVisible();
+  await captureScreenshot(page, testInfo, "new-bot-identity");
+  await card.getByRole("button", { name: "Custom", exact: true }).click();
+  const name = card.getByRole("textbox", { name: "Name", exact: true });
+  const role = card.getByRole("textbox", { name: "Role", exact: true });
   await expect(name).toBeFocused();
-  await expect(create).toBeDisabled();
-  await expect(title).toBeHidden();
-  await captureScreenshot(page, testInfo, "new-bot-minimal");
-  await name.fill("   ");
-  await expect(create).toBeDisabled();
+  const save = card.getByRole("button", { name: "Save", exact: true });
+  await expect(save).toBeDisabled();
   await name.fill(" Research ");
-  await description.fill(" Summarize sources and keep useful links. ");
-  const options = form.getByRole("button", { name: "More options", exact: true });
-  await options.click();
-  await title.fill(" Source review ");
-  await form.getByTestId("create-bot-private").click();
-  await options.click();
-  await create.click();
-  await expect(form).toHaveAttribute("aria-busy", "true");
-  await expect(name).toBeDisabled();
-  await expect(form.getByRole("button", { name: "Cancel new bot" })).toBeDisabled();
-  await expect(form.getByRole("alert")).toBeVisible();
+  await role.fill(" Source review ");
+  await save.click();
+  await expect(card.getByRole("alert")).toBeVisible();
   await expect(name).toHaveValue(" Research ");
-  await expect(description).toHaveValue(" Summarize sources and keep useful links. ");
-  await options.click();
-  await expect(title).toHaveValue(" Source review ");
-  await expect(form.getByTestId("create-bot-private")).toHaveAttribute("aria-pressed", "true");
-  await captureScreenshot(page, testInfo, "new-bot-options-error");
-  await name.press("Enter");
-  await expect(page.getByTestId("created-profile")).toContainText('"computerMode":"dedicated"');
-  const created = JSON.parse((await page.getByTestId("created-profile").textContent()) ?? "{}");
-  expect(created).toEqual({
-    name: "Research",
-    title: "Source review",
-    description: "Summarize sources and keep useful links.",
-    computerMode: "dedicated",
-  });
+  await expect(role).toHaveValue(" Source review ");
+  await captureScreenshot(page, testInfo, "new-bot-custom-error");
+  await role.press("Enter");
+  await expect(page.getByTestId("created-profile")).toHaveText(
+    JSON.stringify({ name: "Research", role: "Source review" }),
+  );
 });
 
-test("new bot form fits mobile and cancellation is keyboard accessible", async ({
+test("identity cards and custom inputs fit mobile and respect keyboard cancellation", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await page.goto(`${fixture}?view=create`);
-  const form = page.getByTestId("create-bot-form");
-  await expect(form.getByRole("textbox", { name: "Name", exact: true })).toBeFocused();
-  await captureScreenshot(page, testInfo, "new-bot-mobile");
-  await form.getByRole("button", { name: "More options", exact: true }).click();
-  await expect(form.getByTestId("create-bot-private")).toBeVisible();
+  const card = page.getByTestId("bot-identity-card");
+  await expect(card.getByTestId("bot-identity-pippin")).toBeVisible();
+  await captureScreenshot(page, testInfo, "new-bot-mobile-identity");
+  await card.getByRole("button", { name: "Custom", exact: true }).click();
+  await card.getByRole("textbox", { name: "Name", exact: true }).fill("A".repeat(80));
+  await card.getByRole("textbox", { name: "Role", exact: true }).fill("Research partner");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-  await captureScreenshot(page, testInfo, "new-bot-mobile-options");
-  const cancel = form.getByRole("button", { name: "Cancel new bot" });
+  await captureScreenshot(page, testInfo, "new-bot-mobile-custom");
+  const cancel = card.getByRole("button", { name: "Cancel", exact: true });
   await cancel.focus();
   await cancel.press("Enter");
-  await expect(page.getByTestId("created-profile")).toHaveText("Cancelled");
+  await expect(card.getByRole("textbox", { name: "Name", exact: true })).toHaveCount(0);
+  await expect(card.getByTestId("bot-identity-miso")).toBeVisible();
 });
 
 test("shows Read beneath the user message while keeping the responding animation and text", async ({

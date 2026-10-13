@@ -246,10 +246,22 @@ describe("billing", () => {
 describe("model setup gate", () => {
   function modelGateDeps(options: {
     agentRuntime: string;
+    modelExecutionMode?: "managed" | "self-hosted";
+    defaultProvider?: string;
+    defaultModel?: string;
+    userCredential?: boolean;
     deploymentModelConfigured?: boolean;
     deploymentModelHostCredentials?: boolean;
     deploymentModelCredentialCipher?: string;
+    secretPlaintext?: string;
+    missingSecret?: boolean;
+    secretError?: Error;
+    codexCatalog?: RouterDeps["codexCatalog"];
   }) {
+    const load = vi.fn(async () => {
+      if (options.secretError) throw options.secretError;
+      return options.secretPlaintext ?? "fixture-user-api-key";
+    });
     const prisma = {
       user: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
@@ -258,7 +270,26 @@ describe("model setup gate", () => {
           avatarStyle: "robot",
         }),
       },
-      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+      spaceModelPreference: {
+        findFirst: vi.fn().mockResolvedValue(
+          options.userCredential
+            ? {
+                credential: {
+                  id: "fixture-credential",
+                  userId: "user-1",
+                  provider: options.defaultProvider ?? "openrouter",
+                  label: "Fixture",
+                  secretId: "fixture-secret",
+                  createdAt: new Date(0),
+                  updatedAt: new Date(0),
+                },
+                isDefault: true,
+                modelId: options.defaultModel ?? "test-model",
+                thinkingLevel: null,
+              }
+            : null,
+        ),
+      },
       deploymentSettings: {
         findUnique: vi
           .fn()
@@ -268,13 +299,34 @@ describe("model setup gate", () => {
               : null,
           ),
       },
+      secret: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue(
+            options.missingSecret ? null : { id: "fixture-secret", ciphertext: "fixture-cipher" },
+          ),
+      },
+      bot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "bot-1",
+          userId: "user-1",
+          spaceId: "workspace-1",
+          thread: { id: "thread-1" },
+          modelProvider: null,
+          modelId: null,
+          thinkingLevel: null,
+        }),
+      },
     } as unknown as PrismaClient;
     const deps = {
       prisma,
+      secrets: { load },
+      codexCatalog: options.codexCatalog,
       env: {
         agentRuntime: options.agentRuntime,
-        defaultProvider: "openrouter",
-        defaultModel: "test-model",
+        defaultProvider: options.defaultProvider ?? "openrouter",
+        defaultModel: options.defaultModel ?? "test-model",
+        modelExecutionMode: options.modelExecutionMode,
         deploymentModelConfigured: options.deploymentModelConfigured,
         deploymentModelHostCredentials: options.deploymentModelHostCredentials,
         webOrigin: "http://127.0.0.1:5173",
@@ -289,7 +341,7 @@ describe("model setup gate", () => {
       email: "user@rakazo.test",
       isDeploymentOwner: true,
     } satisfies Actor;
-    return { actor, handler: new RPCHandler(createRouter(deps)) };
+    return { actor, prisma, load, handler: new RPCHandler(createRouter(deps)) };
   }
 
   async function call(handler: RPCHandler<never>, actor: Actor, path: string, body: unknown) {
@@ -345,6 +397,151 @@ describe("model setup gate", () => {
     await expect(response.json()).resolves.toEqual({
       json: expect.objectContaining({ needsModel: false }),
     });
+  });
+
+  it.each([
+    {
+      name: "managed Luna",
+      mode: "managed" as const,
+      provider: "openrouter",
+      model: "openai/gpt-6-luna",
+      userCredential: false,
+      funding: "deployment",
+    },
+    {
+      name: "self-hosted provider",
+      mode: "self-hosted" as const,
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+      userCredential: false,
+      funding: "server",
+    },
+    {
+      name: "managed user key",
+      mode: "managed" as const,
+      provider: "openrouter",
+      model: "openai/gpt-6-luna",
+      userCredential: true,
+      funding: "user",
+    },
+    {
+      name: "self-hosted user key",
+      mode: "self-hosted" as const,
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+      userCredential: true,
+      funding: "user",
+    },
+  ])(
+    "reports the actual payer for $name",
+    async ({ mode, provider, model, userCredential, funding }) => {
+      const { actor, handler } = modelGateDeps({
+        agentRuntime: "pi",
+        modelExecutionMode: mode,
+        defaultProvider: provider,
+        defaultModel: model,
+        deploymentModelConfigured: true,
+        userCredential,
+      });
+      const response = await call(handler, actor, "me", null);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        json: { defaultModelFunding: funding, defaultProvider: provider, defaultModel: model },
+      });
+    },
+  );
+
+  it.each([
+    {
+      name: "legacy plan token",
+      secretPlaintext: `fixture.${Buffer.from(JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "fixture-account" } })).toString("base64url")}.signature`,
+    },
+    { name: "missing secret", missingSecret: true },
+    { name: "unreadable secret", secretError: new Error("fixture-decrypt-failure") },
+    {
+      name: "incompatible OAuth",
+      defaultProvider: "openai",
+      secretPlaintext: JSON.stringify({
+        type: "oauth",
+        access: "fixture-access",
+        refresh: "fixture-refresh",
+        expires: Date.now() + 60_000,
+      }),
+    },
+    {
+      name: "Vertex host marker",
+      defaultProvider: "google-vertex",
+      secretPlaintext: "gcp-vertex-credentials",
+    },
+  ])("rejects a $name default before admitting a run", async (secretOptions) => {
+    const { actor, handler, prisma } = modelGateDeps({
+      agentRuntime: "pi",
+      modelExecutionMode: "managed",
+      defaultModel: "openai/gpt-6-luna",
+      deploymentModelConfigured: true,
+      userCredential: true,
+      ...secretOptions,
+    });
+    const me = await call(handler, actor, "me", null);
+    expect(me.status).toBe(200);
+    await expect(me.json()).resolves.toMatchObject({
+      json: { needsModel: true, defaultModelFunding: "unavailable" },
+    });
+    const send = await call(handler, actor, "threads/send", { botId: "bot-1", text: "hello" });
+    expect(send.status).toBe(400);
+    await expect(send.json()).resolves.toMatchObject({
+      json: { code: "BAD_REQUEST", message: "Connect a model to start a run." },
+    });
+    expect(prisma.secret.findFirst).toHaveBeenCalledWith({
+      where: { id: "fixture-secret", userId: actor.userId, spaceId: null },
+      select: { id: true, ciphertext: true },
+    });
+  });
+
+  it("keeps secret-store outages distinct from a disconnected model", async () => {
+    const { actor, handler } = modelGateDeps({
+      agentRuntime: "pi",
+      modelExecutionMode: "managed",
+      userCredential: true,
+      secretError: new SecretStoreUnavailableError(503),
+    });
+    const response = await call(handler, actor, "me", null);
+    expect(response.status).toBe(500);
+  });
+
+  it("allows expired self-hosted Codex OAuth to reach execution-time refresh", async () => {
+    const read = vi.fn();
+    const { actor, handler } = modelGateDeps({
+      agentRuntime: "pi",
+      modelExecutionMode: "self-hosted",
+      defaultProvider: "openai-codex",
+      defaultModel: "gpt-5.3-codex-spark",
+      userCredential: true,
+      codexCatalog: { read },
+      secretPlaintext: JSON.stringify({
+        type: "oauth",
+        access: "fixture-access",
+        refresh: "fixture-refresh",
+        expires: Date.now() - 1_000,
+        accountId: "fixture-account",
+      }),
+    });
+    const response = await call(handler, actor, "me", null);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      json: { needsModel: false, defaultModelFunding: "user" },
+    });
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("does not decrypt credentials for deterministic scripted setup", async () => {
+    const { actor, handler, load } = modelGateDeps({
+      agentRuntime: "scripted",
+      userCredential: true,
+    });
+    const response = await call(handler, actor, "me", null);
+    expect(response.status).toBe(200);
+    expect(load).not.toHaveBeenCalled();
   });
 
   it("accepts a configured deployment model as model configuration", async () => {
@@ -2136,7 +2333,11 @@ describe("bot intro run", () => {
     const tx = { task: { create }, run: { create } };
     const preference =
       (options.hasCredential ?? true)
-        ? { isDefault: true, modelId: "model-1", credential: { id: "cred-1", provider: "test" } }
+        ? {
+            isDefault: true,
+            modelId: "model-1",
+            credential: { id: "cred-1", provider: "test", secretId: "fixture-secret" },
+          }
         : null;
     const spaceModelPreference = { findFirst: vi.fn().mockResolvedValue(preference) };
     const deps = {
@@ -2144,7 +2345,13 @@ describe("bot intro run", () => {
         $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
         spaceModelPreference,
         deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        secret: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: "fixture-secret", ciphertext: "fixture-cipher" }),
+        },
       },
+      secrets: { load: vi.fn().mockResolvedValue("fixture-user-api-key") },
       jobs: { enqueue },
       env: { agentRuntime: options.agentRuntime ?? "pi" },
     } as unknown as RouterDeps;
@@ -2448,13 +2655,13 @@ describe("codex live catalog", () => {
     expect(ids).not.toContain("gpt-unknown-from-backend");
   });
 
-  it("never reads the catalog for an API-key credential and still lists Spark", async () => {
+  it("never reads or authorizes a Codex catalog with an incompatible API key", async () => {
     const read = vi.fn().mockResolvedValue([liveModel(spark)]);
     const { handler } = catalogDeps({ read, apiKeyOnly: true });
 
     const ids = await listIds(handler);
 
-    expect(ids).toContain(spark);
+    expect(ids).not.toContain(spark);
     expect(read).not.toHaveBeenCalled();
   });
 
@@ -2846,7 +3053,7 @@ describe("model set default auth", () => {
     return response;
   }
 
-  it("sets Spark from the API-key preference when a newer ChatGPT credential exists", async () => {
+  it("rejects an API-key preference for the Codex OAuth-only transport", async () => {
     const older = new Date("2026-01-01T00:00:00.000Z");
     const newer = new Date("2026-02-01T00:00:00.000Z");
     const apiCredential = {
@@ -2924,8 +3131,10 @@ describe("model set default auth", () => {
       modelId: spark,
     });
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ json: { ok: true } });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({ code: "BAD_REQUEST" }),
+    });
     expect(secretFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: "secret-api", userId: actor.userId, spaceId: null }),
@@ -2933,18 +3142,7 @@ describe("model set default auth", () => {
     );
     expect(load).toHaveBeenCalledWith("cipher-api", "secret-api");
     expect(load).not.toHaveBeenCalledWith("cipher-oauth", "secret-oauth");
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          spaceId_userId_credentialId: {
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            credentialId: "cred-api",
-          },
-        },
-        update: { modelId: spark, isDefault: true, thinkingLevel: null },
-      }),
-    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("does not rewrite a Spark API-key preference when another Codex model becomes the default", async () => {
@@ -3047,7 +3245,7 @@ describe("model set default auth", () => {
     });
   });
 
-  it("keeps the working space credential when the other Codex secret cannot be read", async () => {
+  it("does not treat an API key as a working Codex connection when OAuth is unreadable", async () => {
     const older = new Date("2026-01-01T00:00:00.000Z");
     const newer = new Date("2026-02-01T00:00:00.000Z");
     const apiCredential = {
@@ -3122,19 +3320,8 @@ describe("model set default auth", () => {
       modelId: luna,
     });
 
-    expect(response.status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          spaceId_userId_credentialId: {
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            credentialId: "cred-api",
-          },
-        },
-        update: { modelId: luna, isDefault: true, thinkingLevel: null },
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 
@@ -3339,7 +3526,7 @@ describe("bot model auth on save", () => {
     );
   });
 
-  it("accepts Spark when the preference that owns that model is an API key", async () => {
+  it("rejects Spark when its Codex preference contains an incompatible API key", async () => {
     const apiCredential = credentialRow("cred-api", "secret-api");
     const oauthCredential = credentialRow("cred-oauth", "secret-oauth");
     const { secretFindFirst, handler } = saveDeps({
@@ -3361,7 +3548,7 @@ describe("bot model auth on save", () => {
       modelId: spark,
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(400);
     expect(secretFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: "secret-api", userId: actor.userId, spaceId: null }),
@@ -3666,6 +3853,7 @@ describe("threads.endCall", () => {
     const created: { blocks?: unknown; clientNonce?: string }[] = [];
     const events: { type: string; payload: Record<string, unknown> }[] = [];
     const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ dayStart: new Date("2026-10-13T00:00:00Z") }]),
       thread: { update: vi.fn().mockResolvedValue({ nextMessageSeq: 3, nextEventSeq: 5 }) },
       message: {
         create: vi.fn(async ({ data }: { data: { blocks: unknown; clientNonce?: string } }) => {
@@ -3677,6 +3865,7 @@ describe("threads.endCall", () => {
       event: vi.fn(),
       task: { create: vi.fn().mockResolvedValue({ id: "task-1" }) },
       run: {
+        count: vi.fn().mockResolvedValue(1),
         create: vi.fn().mockResolvedValue({ id: "run-1" }),
         findUnique: vi.fn().mockResolvedValue({ status: "queued", startedAt: null }),
       },
@@ -3764,6 +3953,25 @@ describe("threads.endCall", () => {
     expect(events).toEqual([]);
     expect(tx.run.create).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("preserves a hang-up when the optional recap reaches the daily task quota", async () => {
+    vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "1");
+    try {
+      const { call, created, events, tx, enqueue } = fixture();
+      const { response } = await call();
+      expect(response.status).toBe(200);
+      expect(created).toHaveLength(1);
+      expect(events.map((event) => event.type)).toEqual([
+        "thread.message.created",
+        "thread.call.ended",
+      ]);
+      expect(tx.task.create).not.toHaveBeenCalled();
+      expect(tx.run.create).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

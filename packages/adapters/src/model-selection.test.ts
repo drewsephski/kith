@@ -65,13 +65,13 @@ describe("configured model selection", () => {
       },
     },
     {
-      name: "drops override thinking when its provider has no credential",
+      name: "retains an unavailable override so authorization can reject it without changing funding",
       input: { override: bot },
       expected: {
-        provider: "space-provider",
-        id: "space-model",
-        credential: spaceCredential,
-        thinkingLevel: null,
+        provider: "bot-provider",
+        id: "bot-model",
+        credential: null,
+        thinkingLevel: "high",
       },
     },
     {
@@ -408,7 +408,7 @@ describe("space catalog auth", () => {
     expect(load).not.toHaveBeenCalledWith("cipher-api", "secret-api");
   });
 
-  it("shows Spark from the preference that owns that model when the default is ChatGPT sign-in", async () => {
+  it("rejects an API-key preference for the Codex OAuth transport", async () => {
     const { prisma } = authPrisma({
       credentials: [
         storedCredential("cred-api", "secret-api", "2026-02-01T00:00:00.000Z"),
@@ -447,7 +447,7 @@ describe("space catalog auth", () => {
     expect(auth.byProvider["openai-codex"]).toBe("oauth");
     expect(auth.secretIdByModel["openai-codex"]?.[spark]).toBe("secret-api");
     expect(auth.secretIdByProvider["openai-codex"]).toBe("secret-oauth");
-    expect(listsSpark(auth)).toBe(true);
+    expect(listsSpark(auth)).toBe(false);
     expect(
       listAvailablePiCatalog(auth.byProvider, auth.byModel).some(
         (entry) => entry.provider === "openai-codex" && entry.id === luna,
@@ -633,6 +633,50 @@ describe("default credential selection", () => {
 
 describe("stored model auth", () => {
   const userId = "user-1";
+
+  it("cannot clear managed secret policy with a live Codex catalog", async () => {
+    const prisma = {
+      secret: {
+        findFirst: vi.fn(async () => ({ id: "fixture-secret", ciphertext: "fixture-cipher" })),
+      },
+    } as unknown as PrismaClient;
+    const load = vi.fn(async () =>
+      JSON.stringify({
+        type: "oauth",
+        access: "fixture-access",
+        refresh: "fixture-refresh",
+        accountId: "fixture-account",
+        expires: Date.now() + 60_000,
+      }),
+    );
+    const live = {
+      read: vi.fn(async () => [
+        {
+          slug: "gpt-5.3-codex-spark",
+          reasoningEfforts: [],
+          supportsImages: false,
+          supportsFastTier: false,
+        },
+      ]),
+    };
+    await expect(
+      readStoredModelAuth(
+        prisma,
+        { load },
+        userId,
+        "fixture-secret",
+        "openai-codex",
+        "gpt-5.3-codex-spark",
+        live,
+        undefined,
+        { executionMode: "managed", forExecution: true },
+      ),
+    ).resolves.toEqual({
+      status: "rejected",
+      message: expect.stringMatching(/local or self-hosted/),
+    });
+    expect(live.read).not.toHaveBeenCalled();
+  });
 
   it("rejects an unreadable secret and a model the credential cannot call", async () => {
     const findFirst = vi.fn(async (args: { where: { id?: string } }) => {
@@ -961,7 +1005,7 @@ describe("model auth availability", () => {
     expect(validateModelAuthAvailability("openai-codex", "gpt-6-luna", oauth)).toBeUndefined();
     expect(
       validateModelAuthAvailability("openai-codex", "gpt-5.3-codex-spark", "sk-test-api-key"),
-    ).toBeUndefined();
+    ).toMatch(/not available/i);
   });
 });
 

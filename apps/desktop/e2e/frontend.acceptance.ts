@@ -112,6 +112,27 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
       exact: true,
     });
     await expect(newComposer).toBeEditable();
+    // Additional bots use the same conversational onboarding as the web surface.
+    await restored.getByTestId("create-menu-trigger").click();
+    await restored.getByTestId("create-new-bot").click();
+    await expect(restored.getByTestId("bot-identity-card")).toBeVisible();
+    await expect(
+      restored.getByText("What should I help you with first?", { exact: true }),
+    ).toHaveCount(0);
+    await restored.getByTestId("bot-identity-orbit").click();
+    await expect(
+      restored.getByRole("combobox", { name: "Message Orbit", exact: true }),
+    ).toBeEditable();
+    await expect(
+      restored.getByText("What should I help you with first?", { exact: true }),
+    ).toHaveCount(1);
+    await restored.getByRole("button", { name: /Just start chatting/ }).click();
+    const identityScreenshot = testInfo.outputPath("packaged-conversational-bot.png");
+    await restored.screenshot({ path: identityScreenshot });
+    await testInfo.attach("Packaged conversational bot", {
+      path: identityScreenshot,
+      contentType: "image/png",
+    });
     const newRoute = restored.url();
     const restoredId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
     // Subscribe before the native crash. The recovery target is a new window;
@@ -145,7 +166,7 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await recoveredWindow.goto(newRoute);
     await expect(
       recoveredWindow.getByRole("combobox", {
-        name: "Message New conversation",
+        name: "Message Orbit",
         exact: true,
       }),
     ).toBeEditable();

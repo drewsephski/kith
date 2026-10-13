@@ -64,6 +64,78 @@ describeWithDatabase("API authorization and resource isolation", () => {
     rmSync(dataDir, { recursive: true, force: true });
   });
 
+  it("distinguishes a removed onboarding target from an unavailable API route", async () => {
+    const cookie = await signup(app, `onboarding-replay-${stamp}@rakazo.test`, "Onboarding");
+    const clientNonce = `creation-${stamp}`;
+    const bot = await rpc<Bot>(app, cookie, "onboarding/create", { clientNonce });
+    await handles.prisma.bot.update({ where: { id: bot.id }, data: { archivedAt: new Date() } });
+    for (const deleted of [false, true]) {
+      if (deleted) await handles.prisma.bot.delete({ where: { id: bot.id } });
+      const response = await raw(app, cookie, "onboarding/create", { clientNonce });
+      expect(response.status).toBe(409);
+      const body = (await response.json()) as { json: { code: string; message: string } };
+      expect(body.json).toMatchObject({
+        code: "ONBOARDING_TARGET_REMOVED",
+        message: "This bot is no longer available.",
+      });
+    }
+    const unavailable = await raw(app, cookie, "onboarding/unavailable-route", {});
+    expect(unavailable.status).toBe(404);
+    expect(await unavailable.text()).not.toContain("ONBOARDING_TARGET_REMOVED");
+  });
+
+  it("keeps real auth and RPC replies private without relying on native cookies", async () => {
+    const email = `private-cache-${stamp}@rakazo.test`;
+    const signupResponse = await app.request("/api/auth/sign-up/email", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "rakazo://" },
+      body: JSON.stringify({ email, password: "password12", name: "Private Cache" }),
+    });
+    expect(signupResponse.status).toBe(200);
+    expect(signupResponse.headers.get("cache-control")).toBe("no-store");
+    const session = (await signupResponse.json()) as { token: string; user: { id: string } };
+    const unrelatedCookie = await signup(
+      app,
+      `private-cache-other-${stamp}@rakazo.test`,
+      "Other Account",
+    );
+    const headers = {
+      "content-type": "application/json",
+      origin: "rakazo://",
+      authorization: `Bearer ${session.token}`,
+      "cache-control": "no-store, no-cache",
+      cookie: unrelatedCookie,
+    };
+    const me = await app.request("/rpc/me", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ json: {} }),
+    });
+    expect(me.status).toBe(200);
+    expect(me.headers.get("cache-control")).toBe("no-store");
+    expect(await me.json()).toMatchObject({ json: { userId: session.user.id } });
+    const wrongPassword = await app.request("/api/auth/sign-in/email", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ email, password: "wrong-password" }),
+    });
+    expect(wrongPassword.status).toBe(401);
+    expect(wrongPassword.headers.get("cache-control")).toBe("no-store");
+    const signOut = await app.request("/api/auth/sign-out", { method: "POST", headers });
+    expect(signOut.status).toBe(200);
+    expect(signOut.headers.get("cache-control")).toBe("no-store");
+    const signedOut = await app.request("/rpc/me", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ json: {} }),
+    });
+    expect(signedOut.status).toBe(401);
+    expect(signedOut.headers.get("cache-control")).toBe("no-store");
+    expect(await rpc<Actor>(app, unrelatedCookie, "me")).not.toMatchObject({
+      userId: session.user.id,
+    });
+  });
+
   it("rejects unauthenticated calls to every protected RPC family", async () => {
     const calls = exhaustiveProtectedCalls([
       ["me"],

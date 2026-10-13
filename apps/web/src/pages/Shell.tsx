@@ -6,7 +6,6 @@ import type {
   AgentSkillCatalogEntry,
   Bot,
   BotSection,
-  ComputerMode,
   ComputerReleaseReason,
   ComputerStatus,
   Connection,
@@ -32,11 +31,13 @@ import {
   canReactToThreadMessage,
   MESSAGE_REACTIONS,
   type MessageReaction,
-  normalizeCreateBotProfile,
 } from "@rakazo/contracts";
 import type { ConnectedAppService, ForYouSuggestion } from "@rakazo/core";
 import {
   attachmentsForThread,
+  botCreationAttemptKey,
+  botCreationIntentRemoved,
+  botCreationNonce,
   buildComposerMentionOptions,
   type ComposerMention,
   captureThreadStop,
@@ -215,7 +216,6 @@ import {
 } from "../lib/computer-screen";
 import { publishComputerCommand } from "../lib/computer-workspace";
 import { desktopBridge } from "../lib/desktop";
-import { scheduleFocusPrompt } from "../lib/focus-prompt";
 import { localTimezone } from "../lib/local-timezone";
 import { copyableMessageText } from "../lib/message-text";
 import { messageProviderLabel } from "../lib/messaging";
@@ -289,7 +289,7 @@ import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { AssistantForYou } from "./shell/assistant-for-you";
 import { AssistantWelcome } from "./shell/assistant-welcome";
-import { BotSettings, CreateBotForm } from "./shell/bot-panel";
+import { BotSettings } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
 import { ComposerReplyPreview, ReplyLine, TimeSeparator } from "./shell/chat-context";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
@@ -442,6 +442,8 @@ export function ShellPage({
   const { t } = useLingui();
   const { botId, groupId } = useParams();
   const location = useLocation();
+  const navigationKeyRef = useRef(location.key);
+  navigationKeyRef.current = location.key;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // Mirrors searchParams for effects that only need to read it once on run,
@@ -495,6 +497,9 @@ export function ShellPage({
     };
   }, [quickAskMode, assistantId, navigate]);
   const [advancedNavigation, setAdvancedNavigation] = useState(false);
+  const [creatingBot, setCreatingBot] = useState(false);
+  const [createBotError, setCreateBotError] = useState<string | null>(null);
+  const creatingBotRef = useRef(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const creatingThreadRef = useRef(false);
   const [suggestedDraft, setSuggestedDraft] = useState<
@@ -557,6 +562,7 @@ export function ShellPage({
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [panel, setPanelState] = useState<Panel>(null);
+  const screenIntentEpoch = useRef(0);
   const [restoredPanelKey, setRestoredPanelKey] = useState<string | null>(null);
   const panelStorageKeyRef = useRef<string | null>(null);
   const observedPanelKey = useRef<string | null>(null);
@@ -566,6 +572,7 @@ export function ShellPage({
   const panelSearch = useRef({ searchParams, setSearchParams });
   panelSearch.current = { searchParams, setSearchParams };
   const setPanel = useCallback((next: Panel | ((current: Panel) => Panel)) => {
+    screenIntentEpoch.current += 1;
     // A user navigation wins over a saved routine still waiting for its list.
     pendingPanelRestore.current = null;
     pendingExplicitPanel.current = panelStorageKeyRef.current === null;
@@ -2656,6 +2663,7 @@ export function ShellPage({
   }
 
   function openSettings(section: SettingsSection = "general") {
+    screenIntentEpoch.current += 1;
     setSettingsSection(section);
     setSettingsOpen(true);
   }
@@ -2669,54 +2677,49 @@ export function ShellPage({
     );
   }
 
-  async function createBot(input: {
-    name: string;
-    title: string;
-    description: string;
-    computerMode: ComputerMode;
-  }) {
-    const isFirstBot = botsRef.current.length === 0;
-    const bot = await rpc.bots.create({
-      ...normalizeCreateBotProfile(input),
-      notifyOnFinish: true,
-      computerMode: input.computerMode,
-    });
-    commitCreatedBot(bot);
-    navigate(`/app/${bot.id}`);
-    setPanel(null);
-    // Register cancellation before awaiting start so leaving the bot during
-    // startup cannot miss the abort and still schedule a late focus card.
-    cancelFocusPrompt();
-    const controller = new AbortController();
-    focusPromptAbortRef.current = controller;
-    focusPromptBotIdRef.current = bot.id;
-    const started = await rpc.onboarding
-      .start({ botId: bot.id })
-      .then(() => true)
-      .catch(() => false);
-    if (!started || controller.signal.aborted || focusPromptBotIdRef.current !== bot.id) {
-      if (focusPromptAbortRef.current === controller) {
-        focusPromptAbortRef.current = null;
-        focusPromptBotIdRef.current = null;
+  async function createBot() {
+    if (creatingBotRef.current || !userId || !bootstrapMe?.spaceId) return;
+    creatingBotRef.current = true;
+    setCreatingBot(true);
+    setCreateBotError(null);
+    const owner = userId;
+    const spaceId = bootstrapMe.spaceId;
+    const selection = selectedSpaceId();
+    const originNavigationKey = navigationKeyRef.current;
+    const originScreenIntent = screenIntentEpoch.current;
+    const stillCreationIntent = () =>
+      navigationKeyRef.current === originNavigationKey &&
+      screenIntentEpoch.current === originScreenIntent;
+    const key = botCreationAttemptKey({ endpoint: window.location.origin, userId: owner, spaceId });
+    let clientNonce: string | undefined;
+    try {
+      // Persist before sending: an ambiguous result must be retried with the same intent.
+      clientNonce = botCreationNonce(localStorage.getItem(key), () => crypto.randomUUID());
+      localStorage.setItem(key, clientNonce);
+      const bot = await rpc.onboarding.create({ clientNonce }, { context: { spaceId } });
+      if (forYouUserRef.current !== owner || selectedSpaceId() !== selection) return;
+      commitCreatedBot(bot);
+      if (stillCreationIntent()) {
+        navigate(`/app/${bot.id}`);
+        setPanel(null);
       }
+      // Removal after confirmed persistence permits a subsequent intentional creation.
+      if (localStorage.getItem(key) === clientNonce) localStorage.removeItem(key);
       await refreshBots().catch(() => undefined);
-      return;
+    } catch (err) {
+      if (forYouUserRef.current !== owner || selectedSpaceId() !== selection) return;
+      if (botCreationIntentRemoved(err) && localStorage.getItem(key) === clientNonce)
+        localStorage.removeItem(key);
+      setCreateBotError(
+        botCreationIntentRemoved(err)
+          ? t`This bot is no longer available.`
+          : errorText(err, t`Could not create bot`),
+      );
+      if (stillCreationIntent()) setPanel("create");
+    } finally {
+      creatingBotRef.current = false;
+      setCreatingBot(false);
     }
-    void scheduleFocusPrompt({
-      immediate: isFirstBot,
-      signal: controller.signal,
-      shouldSkip: () => sendingRef.current,
-      prompt: async () => {
-        if (focusPromptBotIdRef.current !== bot.id || activeBotId.current !== bot.id) return;
-        await rpc.onboarding.promptFocus({ botId: bot.id }).catch(() => undefined);
-      },
-    }).finally(() => {
-      if (focusPromptAbortRef.current === controller) {
-        focusPromptAbortRef.current = null;
-        focusPromptBotIdRef.current = null;
-      }
-    });
-    await refreshBots().catch(() => undefined);
   }
 
   async function bootComputer({
@@ -3165,7 +3168,7 @@ export function ShellPage({
             className="h-10 w-full justify-start gap-3 px-3 font-normal text-muted-foreground"
           />
         }
-        disabled={creatingThread}
+        disabled={creatingThread || creatingBot || !userId || !bootstrapMe?.spaceId}
         aria-label={t`New`}
         data-testid="create-menu-trigger"
       >
@@ -3191,7 +3194,7 @@ export function ShellPage({
           onCreateBot={() => {
             setCreateMenuOpen(false);
             setMobileSidebarOpen(false);
-            setPanel("create");
+            void createBot();
           }}
           onOpenBot={(id) => {
             setCreateMenuOpen(false);
@@ -3902,7 +3905,10 @@ export function ShellPage({
             </div>
             <button
               type="button"
-              onClick={() => setPluginsOpen(true)}
+              onClick={() => {
+                screenIntentEpoch.current += 1;
+                setPluginsOpen(true);
+              }}
               className="mx-3 mb-1 flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-sidebar-accent"
             >
               <span className="grid h-[30px] w-[30px] place-items-center rounded-lg bg-accent text-foreground/80">
@@ -4161,7 +4167,7 @@ export function ShellPage({
             </div>
             {!active && !activeGroup && initialBotsLoaded ? (
               <div className="grid flex-1 place-items-center">
-                <Button onClick={() => setPanel("create")}>
+                <Button disabled={creatingBot} onClick={() => void createBot()}>
                   <Plus size={16} aria-hidden="true" />
                   <Trans>Set up Kith</Trans>
                 </Button>
@@ -4646,10 +4652,20 @@ export function ShellPage({
               />
             ) : null}
             {panel === "create" ? (
-              <CreateBotForm
-                onCancel={() => setPanel(null)}
-                onCreate={(input) => createBot(input)}
-              />
+              <div className="space-y-4" data-testid="create-bot-recovery" aria-busy={creatingBot}>
+                {createBotError ? (
+                  <p
+                    role="alert"
+                    data-testid="create-bot-error"
+                    className="text-sm text-destructive"
+                  >
+                    {createBotError}
+                  </p>
+                ) : null}
+                <Button disabled={creatingBot} onClick={() => void createBot()}>
+                  {creatingBot ? <Trans>Creating…</Trans> : <Trans>Try again</Trans>}
+                </Button>
+              </div>
             ) : null}
             {panel === "settings" && active ? (
               <BotSettings
@@ -4929,6 +4945,7 @@ export function ShellPage({
               setBotMenu(null);
             }}
             onEdit={() => {
+              screenIntentEpoch.current += 1;
               const destKey =
                 userId && bootstrapMe?.spaceId
                   ? rightPanelStorageKey(
@@ -7833,7 +7850,16 @@ const MessageView = memo(function MessageView({
         if (block.kind === "choice") {
           const botId = "botId" in artifactTarget ? artifactTarget.botId : message.botId;
           if (!botId) return null;
-          return <ChoiceCard key={i} botId={botId} block={block} onBotChanged={onBotChanged} />;
+          return (
+            <ChoiceCard
+              key={i}
+              botId={botId}
+              botColor={peerBot(botId)?.color}
+              messageId={message.id}
+              block={block}
+              onBotChanged={onBotChanged}
+            />
+          );
         }
         if (block.kind === "app_connect") {
           const botId = "botId" in artifactTarget ? artifactTarget.botId : message.botId;

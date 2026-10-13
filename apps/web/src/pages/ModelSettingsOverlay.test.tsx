@@ -390,3 +390,71 @@ it("shows a stored OpenAI-compatible key and stays empty when none is saved", as
     await empty.unmount();
   }
 });
+
+it("shows the managed ChatGPT connection boundary without starting an unsupported login", async () => {
+  const reason =
+    "ChatGPT plan connections require a local or self-hosted Kith server. Use an OpenAI API key on hosted Kith.";
+  vi.mocked(rpc.me).mockResolvedValue(account("openai-codex", "gpt-6-luna"));
+  models.list.mockResolvedValue([
+    {
+      provider: "openai-codex",
+      providerName: "ChatGPT",
+      id: "gpt-6-luna",
+      label: "GPT-6 Luna",
+      billing: reason,
+      auth: "oauth",
+      signIn: "device-code",
+      oauthLabel: "Sign in with ChatGPT Plus/Pro",
+      connectionUnavailableReason: reason,
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    expect(view.container.textContent).toContain(reason);
+    expect(
+      [...view.container.querySelectorAll("button")].some((button) =>
+        button.textContent?.includes("Sign in with ChatGPT"),
+      ),
+    ).toBe(false);
+    expect(models.beginOAuth).not.toHaveBeenCalled();
+  } finally {
+    await view.unmount();
+  }
+});
+
+it.each([
+  { funding: "deployment" as const, copy: "Kith pays for this model." },
+  { funding: "server" as const, copy: "The server pays for this model." },
+  {
+    funding: "user" as const,
+    copy: "Uses your OpenRouter API key. Kith does not pay for model usage.",
+  },
+])("shows the server-provided $funding payer for the active model", async ({ funding, copy }) => {
+  vi.mocked(rpc.me).mockResolvedValue({
+    ...account("openrouter", "openai/gpt-6-luna"),
+    defaultModelFunding: funding,
+  });
+  models.list.mockResolvedValue([
+    {
+      provider: "openrouter",
+      providerName: "OpenRouter",
+      id: "openai/gpt-6-luna",
+      label: "GPT-6 Luna",
+      billing: "Uses your OpenRouter API key. Kith does not pay for model usage.",
+      auth: "api-key",
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    expect(view.container.textContent).toContain(copy);
+    for (const other of [
+      "Kith pays for this model.",
+      "The server pays for this model.",
+      "Uses your OpenRouter API key. Kith does not pay for model usage.",
+    ]) {
+      if (other !== copy) expect(view.container.textContent).not.toContain(other);
+    }
+  } finally {
+    await view.unmount();
+  }
+});
