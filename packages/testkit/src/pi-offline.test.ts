@@ -157,7 +157,8 @@ describe("real Pi against an offline model HTTP endpoint", () => {
       const server = await startModelEmulator({
         steps: [
           {
-            expect: () => {},
+            expect: (request) =>
+              expect(JSON.stringify(request.messages)).toContain("no write was applied"),
             response: {
               type: "tool",
               id: "conflict",
