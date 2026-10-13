@@ -46,11 +46,9 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
                     ? "What else should I remember?"
                     : "Should I remember that you prefer violet?",
                 options:
-                  mode === "learning"
-                    ? undefined
-                    : mode === "directive"
-                      ? ["Remember that I prefer violet.", "Keep cobalt."]
-                      : ["Yes", "No"],
+                  mode === "directive"
+                    ? ["Remember that I prefer violet.", "Keep cobalt."]
+                    : ["Yes", "No"],
               },
             },
           },
@@ -143,7 +141,7 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
           botId: bot.id,
           runId: sent.runId,
           messageId: question.id,
-          answer: mode === "learning" ? "Yes" : ask!.actions![0]!.id,
+          answer: mode === "learning" ? "Yes, please." : ask!.actions![0]!.id,
         });
         await expect
           .poll(
