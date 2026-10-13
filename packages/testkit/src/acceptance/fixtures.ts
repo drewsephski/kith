@@ -82,7 +82,7 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
         prompt: "What is my saved preferred notebook color? Answer only the color; do not guess.",
         steps: [
           {
-            ...text("violet-731"),
+            ...text("Violet-731"),
             expect: (request: ModelEmulatorRequest) => {
               assert.ok(
                 JSON.stringify(request.messages).includes(MEMORY),

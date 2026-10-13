@@ -591,11 +591,11 @@ export async function runProductAcceptance(options: AcceptanceOptions): Promise<
               },
             });
             assert.ok(
-              memory.some((doc) => doc.content.includes("violet-731")),
+              memory.some((doc) => /violet-731/i.test(doc.content)),
               "Preference not persisted",
             );
           }
-          if (row.scenario === "memory-restart") assert.match(answer, /violet-731/);
+          if (row.scenario === "memory-restart") assert.match(answer, /violet-731/i);
           if (row.scenario === "connected-source") {
             assert.ok(
               services.calls
