@@ -31,8 +31,7 @@ name: Inbox
 - extendedWaitUntil:
     visible: "What should my name be, and what's my role?"
     timeout: 30000
-- tapOn:
-    id: "bot-identity-miso"
+- tapOn: "Miso, Inbox assistant"
 - extendedWaitUntil:
     visible: "Message Miso"
     timeout: 30000

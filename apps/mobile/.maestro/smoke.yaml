@@ -61,14 +61,26 @@ name: Kith mobile smoke
 - assertVisible: "Orbit, Planning assistant"
 - assertVisible: "Pixel, Coding partner"
 - tapOn: "Custom"
-- tapOn:
-    id: "bot-identity-name"
-- inputText: "Acceptance Bot"
-- tapOn:
-    id: "bot-identity-role"
-- inputText: "Research assistant"
-- hideKeyboard
-- tapOn: "Save"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: "bot-identity-name"
+      - inputText: "Acceptance Bot"
+      - tapOn:
+          id: "bot-identity-role"
+      - inputText: "Research assistant"
+      - hideKeyboard
+      - tapOn: "Save"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - inputText: "Acceptance Bot"
+      - pressKey: Enter
+      - inputText: "Research assistant"
+      - pressKey: Enter
 - extendedWaitUntil:
     visible: "Message Acceptance Bot"
     timeout: 30000

@@ -11,15 +11,14 @@ name: Compose
     timeout: 15000
 - takeScreenshot: 01-new-bot
 - tapOn: "Custom"
-- tapOn:
-    id: "bot-identity-name"
+# Custom focuses the native Name field; input IDs are not exposed by iOS accessibility.
 - inputText: "Atlas"
-- tapOn:
-    id: "bot-identity-role"
+# Next transfers keyboard focus to Role without matching its static label.
+- pressKey: Enter
 - inputText: "Research lead"
-- hideKeyboard
 - takeScreenshot: 01b-custom-identity
-- tapOn: "Save"
+# Done submits the explicit identity. Do not tap a Save control that has already disappeared.
+- pressKey: Enter
 - extendedWaitUntil:
     visible: "Message Atlas"
     timeout: 30000
