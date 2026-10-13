@@ -634,6 +634,50 @@ describe("default credential selection", () => {
 describe("stored model auth", () => {
   const userId = "user-1";
 
+  it("cannot clear managed secret policy with a live Codex catalog", async () => {
+    const prisma = {
+      secret: {
+        findFirst: vi.fn(async () => ({ id: "fixture-secret", ciphertext: "fixture-cipher" })),
+      },
+    } as unknown as PrismaClient;
+    const load = vi.fn(async () =>
+      JSON.stringify({
+        type: "oauth",
+        access: "fixture-access",
+        refresh: "fixture-refresh",
+        accountId: "fixture-account",
+        expires: Date.now() + 60_000,
+      }),
+    );
+    const live = {
+      read: vi.fn(async () => [
+        {
+          slug: "gpt-5.3-codex-spark",
+          reasoningEfforts: [],
+          supportsImages: false,
+          supportsFastTier: false,
+        },
+      ]),
+    };
+    await expect(
+      readStoredModelAuth(
+        prisma,
+        { load },
+        userId,
+        "fixture-secret",
+        "openai-codex",
+        "gpt-5.3-codex-spark",
+        live,
+        undefined,
+        { executionMode: "managed", forExecution: true },
+      ),
+    ).resolves.toEqual({
+      status: "rejected",
+      message: expect.stringMatching(/local or self-hosted/),
+    });
+    expect(live.read).not.toHaveBeenCalled();
+  });
+
   it("rejects an unreadable secret and a model the credential cannot call", async () => {
     const findFirst = vi.fn(async (args: { where: { id?: string } }) => {
       if (args.where.id === "secret-broken") {

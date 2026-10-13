@@ -34,6 +34,7 @@ import type {
   IntegrationProviderSettings,
   McpConnector,
   MemoryProviderResolver,
+  ModelChoice,
   PiOAuthLogins,
   RemoteConnectorDependencies,
   TaskStarterService,
@@ -92,6 +93,7 @@ import {
   parseModelSecret,
   persistPreparedSecret,
   pickReusableConnection,
+  pinnedModelCredentialError,
   planLiveConnectionSync,
   prepareApiInstall,
   prepareGraphqlInstall,
@@ -116,6 +118,7 @@ import {
   scheduleComputerSleep,
   screenLeaseIdForRun,
   scriptedCatalogEntry,
+  selectConfiguredModel,
   selectDefaultCredentialId,
   serializeModelSecret,
   storeBotSecret,
@@ -164,6 +167,7 @@ import {
   hasMixedOneShotSchedule,
   isOneShotRoutineCrons,
   nextCronDateAcrossStrict,
+  resolveGroupTargetBotIds,
 } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
@@ -279,6 +283,7 @@ import {
   loadMessagePage,
   shouldForwardPeerThreadEvent,
 } from "./thread-message-pages.js";
+import type { ThreadTarget } from "./thread-target.js";
 import {
   reactToThreadMessage,
   resolveThreadTarget,
@@ -722,7 +727,7 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
   // extra automatic run there competes with whatever response a test or eval
   // harness queued next, for a bot it doesn't otherwise get to opt out of.
   if (deps.env.agentRuntime === "scripted") return;
-  if ((await modelSetup(deps, actor)).needsModel) return;
+  if ((await modelSetup(deps, actor, bot)).needsModel) return;
   const run = await deps.prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
       data: {
@@ -1456,6 +1461,7 @@ export function createRouter(deps: RouterDeps) {
                             input.provider,
                           ),
                       },
+                      { executionMode: deps.env.modelExecutionMode },
                     ),
                   ] as const,
               ),
@@ -2222,14 +2228,17 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       send: authed.threads.send.handler(async ({ context, input }) => {
-        if ((await modelSetup(deps, context.actor)).needsModel) {
-          throw new ORPCError("BAD_REQUEST", { message: "Connect a model to start a run." });
-        }
         const target = await resolveThreadTarget(deps.prisma, context.actor, input);
-        if (target.kind === "bot") {
-          await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
-        }
-        const accepted = await sendThreadMessage(deps, context.actor, target, input, {
+        const sendDeps = {
+          ...deps,
+          beforeNewSend: async (normalized: Parameters<typeof sendThreadMessage>[3]) => {
+            if (await threadNeedsModel(deps, context.actor, target, normalized))
+              throw new ORPCError("BAD_REQUEST", { message: "Connect a model to start a run." });
+            if (target.kind === "bot")
+              await assertTeachingSendAllowed(deps.prisma, context.actor.spaceId, target.botId);
+          },
+        };
+        const accepted = await sendThreadMessage(sendDeps, context.actor, target, input, {
           requestReceivedAt: context.requestReceivedAt,
           authFinishedAt: context.authFinishedAt,
           validatedAt: performance.now(),
@@ -6501,28 +6510,95 @@ function requireBilling(deps: RouterDeps): BillingService {
   return deps.billing;
 }
 
-async function modelSetup(deps: RouterDeps, actor: Actor) {
+async function modelSetup(deps: RouterDeps, actor: Actor, override?: ModelChoice) {
   const [credential, settings] = await Promise.all([
     findDefaultModelCredential(deps.prisma, actor),
     deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
   ]);
+  const overrideCredential =
+    deps.env.agentRuntime !== "scripted" && override?.modelProvider && override.modelId
+      ? await findModelCredential(deps.prisma, actor, override.modelProvider, override.modelId)
+      : null;
+  const selected = selectConfiguredModel({
+    override: override ?? null,
+    overrideCredential,
+    defaultCredential: credential,
+    settings,
+    deployment: { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
+  });
   const hasDeployment =
     Boolean(deps.env.deploymentModelConfigured) &&
     deploymentFundsModel(
-      settings?.defaultModelProvider ?? deps.env.defaultProvider,
-      settings?.defaultModelId ?? deps.env.defaultModel,
+      selected.provider ?? deps.env.defaultProvider,
+      selected.id ?? deps.env.defaultModel,
       { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
       deps.env.modelExecutionMode,
     );
+  let needsModel = false;
+  if (deps.env.agentRuntime !== "scripted") {
+    if (override && pinnedModelCredentialError(override, overrideCredential)) needsModel = true;
+    else if (!selected.credential) needsModel = !hasDeployment;
+    else if (modelProviderExecutionError(selected.credential.provider, deps.env.modelExecutionMode))
+      needsModel = true;
+    else {
+      const { auth } = await prepareStoredModelAuth(
+        deps.prisma,
+        deps.secrets,
+        actor.userId,
+        selected.credential.secretId,
+        selected.credential.provider,
+        selected.id ?? deps.env.defaultModel,
+        deps.codexCatalog,
+        undefined,
+        { executionMode: deps.env.modelExecutionMode, forExecution: true },
+      );
+      needsModel = auth.status !== "ready";
+    }
+  }
   return {
-    credential,
+    credential: selected.credential,
     settings,
-    needsModel:
-      deps.env.agentRuntime !== "scripted" &&
-      (credential
-        ? Boolean(modelProviderExecutionError(credential.provider, deps.env.modelExecutionMode))
-        : !hasDeployment),
+    needsModel,
   };
+}
+
+async function threadNeedsModel(
+  deps: RouterDeps,
+  actor: Actor,
+  target: ThreadTarget,
+  input: Pick<Parameters<typeof sendThreadMessage>[3], "text" | "mentions" | "emailAction">,
+): Promise<boolean> {
+  if (target.kind === "bot") return (await modelSetup(deps, actor, target.bot)).needsModel;
+  if (!(await modelSetup(deps, actor)).needsModel) return false;
+  let mentions = input.mentions ?? [];
+  if (input.emailAction) {
+    // The transaction still validates the card; readiness must check its actual recipient.
+    const reply = await deps.prisma.message.findFirst({
+      where: { id: input.emailAction.messageId, threadId: target.threadId, role: "bot" },
+      select: { botId: true },
+    });
+    if (!reply) throw new ORPCError("NOT_FOUND", { message: "This email is no longer available." });
+    mentions = reply.botId ? [{ kind: "bot", id: reply.botId }] : [];
+  }
+  const targetIds = resolveGroupTargetBotIds({
+    text: input.text ?? "",
+    members: target.members.map((member) => ({ id: member.botId, name: member.name })),
+    explicitMentions: mentions.flatMap((mention) =>
+      typeof mention === "string" ? [mention] : mention.kind === "bot" ? [mention.id] : [],
+    ),
+  });
+  const bots = await deps.prisma.bot.findMany({
+    where: {
+      id: { in: targetIds },
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      archivedAt: null,
+    },
+    select: { modelProvider: true, modelId: true, thinkingLevel: true },
+  });
+  // Preserve partial group execution; each unavailable recipient fails before inference.
+  for (const bot of bots) if (!(await modelSetup(deps, actor, bot)).needsModel) return false;
+  return true;
 }
 
 /**

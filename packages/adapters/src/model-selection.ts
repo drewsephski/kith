@@ -226,16 +226,17 @@ export function validateModelAuthAvailability(
   if (!credentialPlaintext) return undefined;
   const parsed = parseModelSecret(credentialPlaintext);
   const authKind = modelCredentialAuthKindFromPlaintext(credentialPlaintext);
-  const catalogEntry = listPiCatalog().find(
-    (item) => item.provider === provider && item.id === modelId,
-  );
+  const catalog = listPiCatalog();
+  const catalogEntry = catalog.find((item) => item.provider === provider && item.id === modelId);
+  const providerAuth =
+    catalogEntry?.auth ?? catalog.find((item) => item.provider === provider)?.auth;
   if (
     (parsed.kind === "oauth" &&
       provider !== "openai-codex" &&
       isChatGptPlanToken(parsed.credential.access)) ||
-    (parsed.kind === "oauth" && catalogEntry?.auth === "api-key") ||
+    (parsed.kind === "oauth" && providerAuth === "api-key") ||
     (parsed.kind === "openai_compatible" && provider !== OPENAI_COMPATIBLE_PROVIDER_ID) ||
-    !catalogModelAvailableForAuth(provider, modelId, authKind, catalogEntry?.auth)
+    !catalogModelAvailableForAuth(provider, modelId, authKind, providerAuth)
   ) {
     return UNAVAILABLE_MODEL_FOR_AUTH_MESSAGE;
   }
@@ -288,6 +289,7 @@ export async function prepareStoredModelAuth(
   modelId: string,
   live?: CodexLiveCatalog,
   liveOpts?: CodexLiveReadOptions,
+  options?: { executionMode?: ModelExecutionMode; forExecution?: boolean },
 ): Promise<{ ref: string | null; auth: StoredModelAuthRead }> {
   const secret = await prisma.secret.findFirst({
     where: { id: secretId, userId, spaceId: null },
@@ -303,9 +305,18 @@ export async function prepareStoredModelAuth(
   }
   let message: string | undefined;
   try {
-    message =
-      modelSecretExecutionError(provider, plaintext) ??
-      validateModelAuthAvailability(provider, modelId, plaintext);
+    const policyError = modelSecretExecutionError(provider, plaintext, options?.executionMode);
+    if (policyError)
+      return { ref: secret.ciphertext, auth: { status: "rejected", message: policyError } };
+    message = validateModelAuthAvailability(provider, modelId, plaintext);
+    // Execution can refresh self-hosted Codex OAuth before checking live entitlements.
+    // Read-only model selection cannot perform that refresh or override secret policy.
+    if (
+      options?.forExecution &&
+      provider === "openai-codex" &&
+      parseModelSecret(plaintext).kind === "oauth"
+    )
+      return { ref: secret.ciphertext, auth: { status: "ready" } };
   } catch {
     // A secret that decrypts but does not parse is as unreadable as a corrupt one.
     return { ref: secret.ciphertext, auth: { status: "unreadable" } };

@@ -666,27 +666,26 @@ function mapRun(run: {
   };
 }
 
+type ThreadSendInput = {
+  emailAction?: { messageId: string; blockIndex: number; edits?: EmailDraftEdits };
+  text?: string;
+  artifactIds?: string[];
+  mentions?: MentionTargetInput[];
+  replyToMessageId?: string;
+  replyQuote?: string;
+  clientNonce?: string;
+};
+
 export async function sendThreadMessage(
   deps: {
     prisma: PrismaClient;
     events: ThreadEvents;
     jobs: JobPublisher;
+    beforeNewSend?: (input: ThreadSendInput) => Promise<void>;
   },
   actor: Actor,
   target: ThreadTarget,
-  input: {
-    emailAction?: {
-      messageId: string;
-      blockIndex: number;
-      edits?: EmailDraftEdits;
-    };
-    text?: string;
-    artifactIds?: string[];
-    mentions?: MentionTargetInput[];
-    replyToMessageId?: string;
-    replyQuote?: string;
-    clientNonce?: string;
-  },
+  input: ThreadSendInput,
   timing?: { requestReceivedAt?: number; authFinishedAt?: number; validatedAt: number },
 ) {
   if (input.emailAction) {
@@ -698,6 +697,7 @@ export async function sendThreadMessage(
   }
   const existing = await replayExistingSend(deps, target.threadId, input.clientNonce);
   if (existing) return existing;
+  await deps.beforeNewSend?.(input);
   // Live events carry the call id so a spoken turn joins the call card on first
   // paint; without it the bubble shows loose until a refetch reads the nonce.
   const callId = callIdFromClientNonce(input.clientNonce);
