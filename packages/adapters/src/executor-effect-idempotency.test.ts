@@ -1,4 +1,5 @@
 import type { AgentRunRequest } from "@rakazo/adapter-kit";
+import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import {
   legacyScopedToolEffectIdempotencyKey,
   toolEffectIdempotencyKey,
@@ -263,6 +264,37 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
+  it.each(["same-attempt", "restart"])(
+    "permits an exact-args retry only after a durable nonmutating memory conflict: %s",
+    async (mode) => {
+      const f = fixture("memory-cas-retry", "Remember I prefer coffee.");
+      const input = "memory-cas-retry:input:initial";
+      f.memoryCommit.mockRejectedValueOnce(new Error(MEMORY_REVISION_CONFLICT_ERROR));
+      const call = {
+        name: "save_shared_memory",
+        args: { path: "MEMORY.md", content: "coffee" },
+        executionId: "first",
+        memoryRequestId: input,
+      };
+      const retry = { ...call, executionId: "retry" };
+      f.setCalls(mode === "same-attempt" ? [call, retry] : [call]);
+      await f.run();
+      if (mode === "restart") {
+        f.setCalls([retry]);
+        await f.run();
+      }
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      expect(f.results[0]).toMatchObject({
+        error: MEMORY_REVISION_CONFLICT_ERROR,
+        safeToRetry: true,
+      });
+      expect(f.results.at(-1)).toMatchObject({ ok: true });
+      expect(f.effects).toHaveLength(2);
+      expect(f.effects[0]!.idempotencyKey).not.toBe(f.effects[1]!.idempotencyKey);
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).not.toBe(true);
+    },
+  );
+
   it.each(["same-attempt", "restart"])(
     "reuses a confirmed request despite changed alias/content: %s",
     async (mode) => {

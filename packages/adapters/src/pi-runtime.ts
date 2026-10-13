@@ -28,7 +28,7 @@ import type {
   ConnectorTool,
   ModelCallObserver,
 } from "@rakazo/adapter-kit";
-import { DEFAULT_CONTEXT_STRATEGY } from "@rakazo/adapter-kit";
+import { DEFAULT_CONTEXT_STRATEGY, MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import { usableModelId } from "@rakazo/contracts";
 import { getLogger } from "@rakazo/logging";
 import { isToolPauseResult } from "./approval-effect.js";
@@ -1609,7 +1609,13 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         })();
         if (memorySave) {
           const details = (result as AgentToolResult<unknown>).details as
-            | { ok?: boolean; error?: unknown; uncertain?: boolean; memoryRequestId?: string }
+            | {
+                ok?: boolean;
+                error?: unknown;
+                uncertain?: boolean;
+                memoryRequestId?: string;
+                safeToRetry?: boolean;
+              }
             | undefined;
           const receiptId =
             details?.memoryRequestId ??
@@ -1627,7 +1633,12 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
               memoryState.retryBlocked = false;
             }
           } else if (memoryState && !memoryRequestError && !host.pausePending) {
-            memoryState.retryBlocked = true;
+            const safeConflict =
+              details?.safeToRetry === true &&
+              details.uncertain !== true &&
+              details.error === MEMORY_REVISION_CONFLICT_ERROR;
+            memoryState.retryBlocked = !safeConflict;
+            if (safeConflict) memoryState.attempted = false;
           }
         }
         return boundAgentToolResult(result as AgentToolResult<unknown>);

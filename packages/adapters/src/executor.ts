@@ -3686,6 +3686,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           });
 
         const uncertainMemoryInputs = new Set<string>();
+        const memoryConflictRetries = new Map<string, number>();
         let legacyUncertainMemory = false;
         for (const effect of priorMemoryEffects) {
           if (!isMemorySaveCall(effect.kind, {}, false)) continue;
@@ -3694,6 +3695,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
             error?: unknown;
             ok?: boolean;
           } | null;
+          if (
+            effect.status === "completed" &&
+            effect.kind === "save_shared_memory" &&
+            result?.uncertain !== true &&
+            result?.error === MEMORY_REVISION_CONFLICT_ERROR
+          ) {
+            const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;
+            if (id) memoryConflictRetries.set(id, (memoryConflictRetries.get(id) ?? 0) + 1);
+            continue;
+          }
           if (
             effect.status !== "executing" &&
             effect.status !== "failed" &&
@@ -5016,9 +5027,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
           // key) cannot collide with a later identical-args call in this attempt.
           // request_secret stays single-use: retries must reuse the same card.
           const occurrence =
-            name === "request_secret" || (memorySave && memoryRequestId)
+            name === "request_secret"
               ? 0
-              : nextMutatingEffectOccurrence(replayEffectToolName, effectIdentityArgs);
+              : memorySave && memoryRequestId
+                ? (memoryConflictRetries.get(memoryRequestId) ?? 0)
+                : nextMutatingEffectOccurrence(replayEffectToolName, effectIdentityArgs);
           let effectKey = emailSendAuthorized
             ? emailEffectKey
             : usesApprovalKey && occurrence === 0
@@ -5041,7 +5054,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const legacy = await deps.prisma.externalEffect.findUnique({
               where: { idempotencyKey: legacyKey },
             });
-            if (legacy) {
+            const retryableConflict =
+              legacy?.status === "completed" &&
+              legacy.kind === "save_shared_memory" &&
+              (legacy.result as { error?: unknown } | null)?.error ===
+                MEMORY_REVISION_CONFLICT_ERROR;
+            if (legacy && !retryableConflict) {
               // Keep legacy mutation identity; an unbound receipt cannot confirm new steering.
               effectKey = legacyKey;
               effectRequest = legacy.request;
@@ -5439,7 +5457,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 record?.kind === "agent_tool_result"
                   ? (record.details as Record<string, unknown> | undefined)
                   : record;
-              if (outcome?.ok !== true || outcome.error || outcome.uncertain === true)
+              const safeConflict =
+                name === "save_shared_memory" &&
+                outcome?.error === MEMORY_REVISION_CONFLICT_ERROR &&
+                outcome.uncertain !== true &&
+                outcome.safeToRetry === true;
+              if (
+                !safeConflict &&
+                (outcome?.ok !== true || outcome.error || outcome.uncertain === true)
+              )
                 uncertainMemoryInputs.add(memoryRequestId);
             }
             if (!(await persistEffectResult(boundResult))) return uncertainEffectResult(name);
@@ -5449,6 +5475,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 record.kind === "agent_tool_result"
                   ? (record.details as Record<string, unknown> | undefined)
                   : record;
+              if (
+                name === "save_shared_memory" &&
+                outcome?.error === MEMORY_REVISION_CONFLICT_ERROR &&
+                outcome.uncertain !== true &&
+                outcome.safeToRetry === true
+              )
+                memoryConflictRetries.set(
+                  memoryRequestId,
+                  (memoryConflictRetries.get(memoryRequestId) ?? 0) + 1,
+                );
               if (outcome?.ok === true && !outcome.error && outcome.uncertain !== true)
                 confirmedMemoryResults.set(memoryRequestId, {
                   result: boundResult,
@@ -6005,7 +6041,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             } catch (error) {
               const message =
                 error instanceof Error ? error.message : "Could not save shared memory.";
-              if (message === MEMORY_REVISION_CONFLICT_ERROR) return finish({ error: message });
+              if (message === MEMORY_REVISION_CONFLICT_ERROR)
+                return finish({ error: message, safeToRetry: true });
               throw error;
             }
           }

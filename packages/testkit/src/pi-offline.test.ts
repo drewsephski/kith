@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AgentRunRequest, AgentRuntimeEvent, ConnectorTool } from "@rakazo/adapter-kit";
+import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import { PiAgentRuntime } from "@rakazo/adapters";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ModelEmulatorRequest } from "./model-emulator.js";
@@ -149,6 +150,91 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     expect(mutations).toBe(1);
     expect(await readFile(file, "utf8")).toBe("coffee");
   });
+
+  it.each([false, true])(
+    "retries a definitive shared-memory conflict only when not uncertain: %s",
+    async (uncertain) => {
+      const server = await startModelEmulator({
+        steps: [
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "conflict",
+              name: "save_shared_memory",
+              arguments: { path: "MEMORY.md", content: "coffee" },
+            },
+          },
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "read-current",
+              name: "read_shared_memory",
+              arguments: { path: "MEMORY.md" },
+            },
+          },
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "corrected-save",
+              name: "save_shared_memory",
+              arguments: { path: "MEMORY.md", content: "tea and coffee" },
+            },
+          },
+          { expect: () => {}, response: { type: "text", text: "Saved coffee and preserved tea." } },
+        ],
+      });
+      cleanups.push(() => server.close());
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-cas-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "MEMORY.md");
+      await writeFile(file, "tea");
+      let attempts = 0;
+      let writes = 0;
+      let reads = 0;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "Remember I prefer coffee.",
+            tools: ["save_shared_memory", "read_shared_memory"].map((name) => ({
+              name,
+              description: "Shared memory",
+              inputSchema: {
+                type: "object",
+                properties: { path: { type: "string" }, content: { type: "string" } },
+              },
+            })),
+            executeTool: async (name, args) => {
+              if (name === "read_shared_memory") {
+                reads++;
+                return { content: await readFile(file, "utf8") };
+              }
+              if (++attempts === 1)
+                return { error: MEMORY_REVISION_CONFLICT_ERROR, safeToRetry: true, uncertain };
+              expect(reads).toBe(1);
+              writes++;
+              await writeFile(file, String(args.content));
+              return { ok: true };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      if (uncertain) {
+        await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+        expect(await readFile(file, "utf8")).toBe("tea");
+        expect(attempts).toBe(1);
+        expect(writes).toBe(0);
+      } else {
+        await execution;
+        expect(await readFile(file, "utf8")).toBe("tea and coffee");
+        expect(attempts).toBe(2);
+        expect(writes).toBe(1);
+      }
+    },
+  );
 
   it("keeps a known uncertain parent receipt blocking untouched child writes", async () => {
     const server = await startModelEmulator({

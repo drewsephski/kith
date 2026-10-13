@@ -594,7 +594,7 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect.anything(),
     );
     expect(f.sharedMemoryState.content).toBe("Someone else edited");
-    expect(f.results.at(-1)).toEqual({ error: MEMORY_REVISION_CONFLICT_ERROR });
+    expect(f.results.at(-1)).toEqual({ error: MEMORY_REVISION_CONFLICT_ERROR, safeToRetry: true });
   });
 
   it("rejects shared memory content over the size limit", async () => {
