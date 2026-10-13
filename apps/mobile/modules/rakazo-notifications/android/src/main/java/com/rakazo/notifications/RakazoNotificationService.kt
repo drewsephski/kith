@@ -931,7 +931,9 @@ private fun rpc(
     connection.connectTimeout = 8_000
     connection.readTimeout = 15_000
     connection.doOutput = true
+    connection.useCaches = false
     connection.setRequestProperty("Content-Type", "application/json")
+    connection.setRequestProperty("Cache-Control", "no-store, no-cache")
     connection.setRequestProperty("Origin", "rakazo://")
     connection.setRequestProperty("Authorization", "Bearer $token")
     if (spaceId.isNotBlank()) {

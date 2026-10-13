@@ -65,6 +65,10 @@ describe("Android mobile platform contract", () => {
       /export async function resumeLiveNotifications[\s\S]*normalizeApiBase\(endpoint\)[\s\S]*nativeNotifications\.resume\(parsed\.url/,
     );
     expect(service).toContain('connection.setRequestProperty("x-rakazo-space-id", spaceId)');
+    expect(service).toContain("connection.useCaches = false");
+    expect(service).toContain(
+      'connection.setRequestProperty("Cache-Control", "no-store, no-cache")',
+    );
     expect(service).toContain("storage.spaceId.isBlank()");
     expect(service).toContain("private fun prepareHistorySpace(");
     expect(service).toContain("knownCompleted.clear()");
