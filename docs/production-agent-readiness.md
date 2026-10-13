@@ -162,9 +162,9 @@ The complete live trial on `4e574dd0` delivered safe streamed text in conversati
 
 ## Remaining release gates
 
-- PR CI and review are tracked at the exact head in [PR #18](https://github.com/drewsephski/kith/pull/18). Public screenshot-gallery publication requires operator storage credentials; signing, notarization, updater and distribution remain separate operator gates.
+- PR CI and review are tracked at the exact heads in [PR #18](https://github.com/drewsephski/kith/pull/18) and [PR #19](https://github.com/drewsephski/kith/pull/19). Public screenshot-gallery publication requires operator storage credentials; signing, notarization, updater and distribution remain separate operator gates.
 - Installed iOS sessions, drafts, approval restoration and restart were exercised above; physical iOS/Android push notifications, production OAuth return, share extensions and cross-device provider sessions are not established by emulator exports or backend tests.
-- Production must apply existing migration `20261011210000_computer_activity` before upgrading API/worker. This change adds no migration. Local acceptance executed no production migration; the authorized hosted rollout uses the existing forward migration entrypoint.
+- Production must apply `20261011210000_computer_activity` before upgrading API/worker and the combined UX migration `20261012150000_organic_avatar_default`, which changes only the default for new user avatars. Reliability changes add no further migration. Local acceptance executed no production migration; the authorized hosted rollout uses the existing forward migration entrypoint.
 - Production revision/health, exact auth origins, actual password recovery delivery, operator provider access/billing and supported older-client compatibility must be verified at deployment time. Repository configuration is not hosted acceptance.
 - Existing local observability records response stages, model/tool counts, provider usage, cancellations and computer resource/lifecycle events without payload logging. This work consumes those records and does not add a dashboard. Parallel-user capacity/security regressions remain part of deterministic integration acceptance; real fleet load and bill reconciliation are not established.
 
