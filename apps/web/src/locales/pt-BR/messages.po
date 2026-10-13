@@ -5741,6 +5741,10 @@ msgstr "O provedor de memória selecionado não está disponível nesta compila�
 msgid "The selected space changed. Try again."
 msgstr "O espaço selecionado mudou. Tente novamente."
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "O servidor paga por este modelo."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""

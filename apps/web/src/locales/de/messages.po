@@ -5741,6 +5741,10 @@ msgstr "Der ausgewählte Erinnerungsanbieter ist in diesem Build nicht verfügba
 msgid "The selected space changed. Try again."
 msgstr "Der ausgewählte Bereich hat sich geändert. Versuche es erneut."
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "Der Server bezahlt dieses Modell."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""

@@ -422,10 +422,17 @@ it("shows the managed ChatGPT connection boundary without starting an unsupporte
   }
 });
 
-it("shows deployment funding for the active default instead of a BYOK billing claim", async () => {
+it.each([
+  { funding: "deployment" as const, copy: "Kith pays for this model." },
+  { funding: "server" as const, copy: "The server pays for this model." },
+  {
+    funding: "user" as const,
+    copy: "Uses your OpenRouter API key. Kith does not pay for model usage.",
+  },
+])("shows the server-provided $funding payer for the active model", async ({ funding, copy }) => {
   vi.mocked(rpc.me).mockResolvedValue({
     ...account("openrouter", "openai/gpt-6-luna"),
-    defaultModelFunding: "deployment",
+    defaultModelFunding: funding,
   });
   models.list.mockResolvedValue([
     {
@@ -439,7 +446,14 @@ it("shows deployment funding for the active default instead of a BYOK billing cl
   ]);
   const view = await renderSettings();
   try {
-    expect(view.container.textContent).toContain("Kith pays for this model.");
+    expect(view.container.textContent).toContain(copy);
+    for (const other of [
+      "Kith pays for this model.",
+      "The server pays for this model.",
+      "Uses your OpenRouter API key. Kith does not pay for model usage.",
+    ]) {
+      if (other !== copy) expect(view.container.textContent).not.toContain(other);
+    }
   } finally {
     await view.unmount();
   }

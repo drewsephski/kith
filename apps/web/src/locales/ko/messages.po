@@ -5741,6 +5741,10 @@ msgstr "선택한 기억 서비스는 현재 빌드에서 사용할 수 없습�
 msgid "The selected space changed. Try again."
 msgstr "선택한 공간이 변경되었습니다. 다시 시도하세요."
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "서버가 이 모델의 비용을 부담합니다."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""

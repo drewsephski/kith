@@ -3,6 +3,7 @@ export const DE_MESSAGES: Record<string, string> = {
   "Could not save this choice": "Diese Auswahl konnte nicht gespeichert werden",
   "This bot is no longer available.": "Dieser Bot ist nicht mehr verfügbar.",
   "Kith pays for this model.": "Kith bezahlt dieses Modell.",
+  "The server pays for this model.": "Der Server bezahlt dieses Modell.",
   "What should my name be, and what's my role?": "Wie soll ich heißen und was ist meine Aufgabe?",
   "Inbox assistant": "Posteingangsassistent",
   "Research assistant": "Rechercheassistent",

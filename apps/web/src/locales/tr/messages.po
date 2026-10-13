@@ -5741,6 +5741,10 @@ msgstr "Seçilen hafıza sağlayıcısı bu sürümde kullanılamıyor."
 msgid "The selected space changed. Try again."
 msgstr "Seçilen alan değişti. Tekrar deneyin."
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "Bu modelin ücretini sunucu öder."
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""

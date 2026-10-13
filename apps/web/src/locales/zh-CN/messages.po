@@ -5741,6 +5741,10 @@ msgstr "所选记忆提供方在此构建中不可用。"
 msgid "The selected space changed. Try again."
 msgstr "所选空间已更改。请重试。"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "此模型的费用由服务器支付。"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""

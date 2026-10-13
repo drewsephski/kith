@@ -1387,8 +1387,8 @@ export const MeSchema = z.object({
   avatarStyle: AvatarStyleSchema,
   /** True when this deployment bills and the user is not the deployment owner. */
   billingEnabled: z.boolean(),
-  /** Funding for the active model, determined by the server. */
-  defaultModelFunding: z.enum(["deployment", "user", "unavailable"]).optional(),
+  /** Active-model payer: managed Kith, self-hosted server, user credentials, or unavailable. */
+  defaultModelFunding: z.enum(["deployment", "server", "user", "unavailable"]).optional(),
 });
 export type Me = z.infer<typeof MeSchema>;
 

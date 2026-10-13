@@ -328,6 +328,7 @@ export function ModelSettingsOverlay({
     me?.defaultModel === (isOpenAiCompatible ? modelId.trim() : selected?.id);
   // Space still bills the host while this provider matches; model id alone is not credentials.
   const usingServerCredentials = provider === me?.hostCredentialProvider;
+  const selectedFunding = isActive ? me?.defaultModelFunding : undefined;
   const acceptsKey = selected?.auth !== "oauth";
   const subscriptionSignIn =
     selected?.signIn !== undefined && !selected.connectionUnavailableReason;
@@ -808,12 +809,14 @@ export function ModelSettingsOverlay({
             />
           </label>
         ) : null}
-        {(selected.billing || (isActive && me?.defaultModelFunding === "deployment")) &&
-        !usingServerCredentials ? (
+        {(selected.billing || selectedFunding === "deployment" || selectedFunding === "server") &&
+        (!usingServerCredentials || selectedFunding === "server") ? (
           <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
-            {isActive && me?.defaultModelFunding === "deployment"
+            {selectedFunding === "deployment"
               ? t`Kith pays for this model.`
-              : selected.billing}
+              : selectedFunding === "server"
+                ? t`The server pays for this model.`
+                : selected.billing}
           </p>
         ) : null}
       </>

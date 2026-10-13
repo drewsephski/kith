@@ -1202,8 +1202,13 @@ export default function Models() {
         {selected.connectionUnavailableReason ? (
           <Text style={styles.secondary}>{selected.connectionUnavailableReason}</Text>
         ) : null}
-        {isActive && me?.defaultModelFunding === "deployment" ? (
-          <Text style={styles.secondary}>{t("Kith pays for this model.")}</Text>
+        {isActive &&
+        (me?.defaultModelFunding === "deployment" || me?.defaultModelFunding === "server") ? (
+          <Text style={styles.secondary}>
+            {me.defaultModelFunding === "deployment"
+              ? t("Kith pays for this model.")
+              : t("The server pays for this model.")}
+          </Text>
         ) : null}
         {subscriptionSignIn ? (
           oauth ? (

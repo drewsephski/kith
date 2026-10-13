@@ -6490,7 +6490,9 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
       ? "unavailable"
       : setup.credential
         ? "user"
-        : "deployment",
+        : deps.env.modelExecutionMode === "managed"
+          ? "deployment"
+          : "server",
   };
 }
 

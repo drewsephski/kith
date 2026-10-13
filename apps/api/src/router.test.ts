@@ -246,6 +246,10 @@ describe("billing", () => {
 describe("model setup gate", () => {
   function modelGateDeps(options: {
     agentRuntime: string;
+    modelExecutionMode?: "managed" | "self-hosted";
+    defaultProvider?: string;
+    defaultModel?: string;
+    userCredential?: boolean;
     deploymentModelConfigured?: boolean;
     deploymentModelHostCredentials?: boolean;
     deploymentModelCredentialCipher?: string;
@@ -258,7 +262,26 @@ describe("model setup gate", () => {
           avatarStyle: "robot",
         }),
       },
-      spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
+      spaceModelPreference: {
+        findFirst: vi.fn().mockResolvedValue(
+          options.userCredential
+            ? {
+                credential: {
+                  id: "fixture-credential",
+                  userId: "user-1",
+                  provider: options.defaultProvider ?? "openrouter",
+                  label: "Fixture",
+                  secretId: "fixture-secret",
+                  createdAt: new Date(0),
+                  updatedAt: new Date(0),
+                },
+                isDefault: true,
+                modelId: options.defaultModel ?? "test-model",
+                thinkingLevel: null,
+              }
+            : null,
+        ),
+      },
       deploymentSettings: {
         findUnique: vi
           .fn()
@@ -273,8 +296,9 @@ describe("model setup gate", () => {
       prisma,
       env: {
         agentRuntime: options.agentRuntime,
-        defaultProvider: "openrouter",
-        defaultModel: "test-model",
+        defaultProvider: options.defaultProvider ?? "openrouter",
+        defaultModel: options.defaultModel ?? "test-model",
+        modelExecutionMode: options.modelExecutionMode,
         deploymentModelConfigured: options.deploymentModelConfigured,
         deploymentModelHostCredentials: options.deploymentModelHostCredentials,
         webOrigin: "http://127.0.0.1:5173",
@@ -346,6 +370,58 @@ describe("model setup gate", () => {
       json: expect.objectContaining({ needsModel: false }),
     });
   });
+
+  it.each([
+    {
+      name: "managed Luna",
+      mode: "managed" as const,
+      provider: "openrouter",
+      model: "openai/gpt-6-luna",
+      userCredential: false,
+      funding: "deployment",
+    },
+    {
+      name: "self-hosted provider",
+      mode: "self-hosted" as const,
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+      userCredential: false,
+      funding: "server",
+    },
+    {
+      name: "managed user key",
+      mode: "managed" as const,
+      provider: "openrouter",
+      model: "openai/gpt-6-luna",
+      userCredential: true,
+      funding: "user",
+    },
+    {
+      name: "self-hosted user key",
+      mode: "self-hosted" as const,
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+      userCredential: true,
+      funding: "user",
+    },
+  ])(
+    "reports the actual payer for $name",
+    async ({ mode, provider, model, userCredential, funding }) => {
+      const { actor, handler } = modelGateDeps({
+        agentRuntime: "pi",
+        modelExecutionMode: mode,
+        defaultProvider: provider,
+        defaultModel: model,
+        deploymentModelConfigured: true,
+        userCredential,
+      });
+      const response = await call(handler, actor, "me", null);
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        json: { defaultModelFunding: funding, defaultProvider: provider, defaultModel: model },
+      });
+    },
+  );
 
   it("accepts a configured deployment model as model configuration", async () => {
     const { actor, handler } = modelGateDeps({

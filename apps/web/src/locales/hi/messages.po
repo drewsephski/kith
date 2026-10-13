@@ -5741,6 +5741,10 @@ msgstr "चयनित मेमोरी प्रोवाइडर इस �
 msgid "The selected space changed. Try again."
 msgstr "चुना हुआ स्पेस बदल गया। दोबारा प्रयास करें।"
 
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "The server pays for this model."
+msgstr "इस मॉडल का खर्च सर्वर उठाता है।"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "The spreadsheet update could not be confirmed. Check the destination before starting another report."
 msgstr ""
