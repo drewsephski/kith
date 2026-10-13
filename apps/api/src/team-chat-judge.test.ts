@@ -8,6 +8,62 @@ import {
 
 describe("team chat engagement judge", () => {
   it.each([
+    { provider: "amazon-bedrock", mode: "self-hosted", host: true, override: false, allowed: true },
+    { provider: "google-vertex", mode: "self-hosted", host: true, override: false, allowed: true },
+    {
+      provider: "amazon-bedrock",
+      mode: "self-hosted",
+      host: false,
+      override: false,
+      allowed: false,
+    },
+    { provider: "amazon-bedrock", mode: "self-hosted", host: true, override: true, allowed: false },
+    { provider: "amazon-bedrock", mode: "managed", host: true, override: false, allowed: false },
+    { provider: "openrouter", mode: "managed", host: true, override: false, allowed: false },
+  ] as const)(
+    "scopes deployment host auth for $provider/$mode (host=$host, override=$override)",
+    async ({ provider, mode, host, override, allowed }) => {
+      const modelId = provider === "openrouter" ? "openai/gpt-6-luna" : "fixture-model";
+      const run = vi.fn(async function* () {
+        yield { type: "done", text: '{"act":true,"reason":"asked"}' };
+      });
+      const judge = new ModelTeamChatEngagementJudge({
+        prisma: {
+          deploymentSettings: { findUnique: vi.fn(async () => null) },
+          spaceModelPreference: { findFirst: vi.fn(async () => null) },
+          userModelCredential: { findFirst: vi.fn(async () => null) },
+        } as never,
+        runtime: { run } as never,
+        secrets: {} as never,
+        deploymentProvider: provider,
+        deploymentModel: modelId,
+        deploymentModelHostCredentials: host,
+        modelExecutionMode: mode,
+      });
+      await expect(
+        judge.decide({
+          bot: {
+            id: "fixture-bot",
+            userId: "fixture-user",
+            spaceId: "fixture-space",
+            name: "Fixture",
+            modelProvider: override ? provider : null,
+            modelId: override ? "another-model" : null,
+          },
+          channelId: "fixture-channel",
+          rules: "",
+          messages: [],
+        }),
+      ).resolves.toEqual(allowed ? { act: true, reason: "asked" } : { act: false });
+      expect(run).toHaveBeenCalledTimes(allowed ? 1 : 0);
+      if (allowed)
+        expect(run.mock.calls[0]?.[0]).toMatchObject({
+          model: { provider, id: modelId, fundingSource: "deployment", apiKey: undefined },
+        });
+    },
+  );
+
+  it.each([
     { mode: "managed", planToken: true, allowed: false },
     { mode: "managed", planToken: false, allowed: true },
     { mode: "self-hosted", planToken: true, allowed: true },

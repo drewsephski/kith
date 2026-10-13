@@ -11,6 +11,7 @@ import {
   deploymentFundsModel,
   formatCurrentTimeInstruction,
   matchesFailedOAuthSecret,
+  modelExecutionMode,
   modelProviderExecutionError,
   modelSecretExecutionError,
   resolveModelAuth,
@@ -126,6 +127,7 @@ interface ModelTeamChatEngagementJudgeDeps {
   deploymentProvider: string;
   deploymentModel: string;
   deploymentModelKey?: string;
+  deploymentModelHostCredentials?: boolean;
   providerOverride?: string;
   modelOverride?: string;
   timeoutMs?: number;
@@ -242,7 +244,10 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
       )
         return null;
       const apiKey = this.deps.deploymentModelKey;
-      if (!apiKey) return null;
+      const hostCredentials =
+        this.deps.deploymentModelHostCredentials &&
+        (this.deps.modelExecutionMode ?? modelExecutionMode()) === "self-hosted";
+      if (!apiKey && !hostCredentials) return null;
       return { model: { provider, id: modelId, fundingSource: "deployment", apiKey } };
     }
 
