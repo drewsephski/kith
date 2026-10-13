@@ -5,6 +5,7 @@ import {
   createBotFromPicker,
   openAdvancedNavigation,
   openNewBot,
+  openUserSettings,
   rpc,
   signup,
 } from "./helpers";
@@ -127,6 +128,81 @@ test("lost create response retries one durable bot and rapid taps do not create 
     page.getByText("What should my name be, and what's my role?", { exact: true }),
   ).toHaveCount(1);
 });
+
+for (const scenario of ["settings", "panel-round-trip", "failed-panel"] as const) {
+  test(`a delayed bot creation preserves newer ${scenario} navigation`, async ({
+    page,
+  }, testInfo) => {
+    await setup(page, `create-intent-${scenario}`);
+    const originalUrl = page.url();
+    const before = await rpc<Array<{ id: string }>>(page, "bots/list", {});
+    let release = () => {};
+    let started = () => {};
+    const receiptGate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const creationStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let createdId = "";
+    await page.route("**/rpc/onboarding/create", async (route) => {
+      if (scenario === "failed-panel") {
+        started();
+        await receiptGate;
+        await route.abort("failed");
+      } else {
+        const response = await route.fetch();
+        createdId = (await response.json()).json.id;
+        started();
+        await receiptGate;
+        await route.fulfill({ response });
+      }
+    });
+    await openNewBot(page);
+    await creationStarted;
+    if (scenario === "settings") {
+      await openUserSettings(page);
+    } else {
+      await page.getByRole("button", { name: "Conversation details", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
+      await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "settings");
+      if (scenario === "panel-round-trip") {
+        await page.getByRole("button", { name: "Close panel", exact: true }).click();
+        await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+      }
+    }
+    release();
+    await expect(page.getByTestId("create-menu-trigger")).toBeEnabled();
+    await expect(page).toHaveURL(originalUrl);
+    await expect(page.getByTestId("bot-identity-card")).toHaveCount(0);
+    if (scenario === "settings") {
+      await expect(page.getByTestId("user-settings")).toBeVisible();
+      await captureScreenshot(page, testInfo, "conversational-bot-preserved-settings");
+    } else {
+      await expect(page.getByTestId("side-panel")).toHaveAttribute(
+        "data-panel",
+        scenario === "failed-panel" ? "settings" : "closed",
+      );
+    }
+    const after = await rpc<Array<{ id: string }>>(page, "bots/list", {});
+    if (scenario === "failed-panel") {
+      expect(after).toHaveLength(before.length);
+      expect(
+        await page.evaluate(() =>
+          Object.keys(localStorage).some((key) => key.startsWith("rakazo.bot-create.")),
+        ),
+      ).toBe(true);
+    } else {
+      expect(after).toHaveLength(before.length + 1);
+      expect(after.some((bot) => bot.id === createdId)).toBe(true);
+      expect(
+        await page.evaluate(() =>
+          Object.keys(localStorage).some((key) => key.startsWith("rakazo.bot-create.")),
+        ),
+      ).toBe(false);
+    }
+  });
+}
 
 test("first ordinary message before identity is retained and does not force focus", async ({
   page,

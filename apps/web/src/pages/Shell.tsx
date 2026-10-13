@@ -562,6 +562,7 @@ export function ShellPage({
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [panel, setPanelState] = useState<Panel>(null);
+  const screenIntentEpoch = useRef(0);
   const [restoredPanelKey, setRestoredPanelKey] = useState<string | null>(null);
   const panelStorageKeyRef = useRef<string | null>(null);
   const observedPanelKey = useRef<string | null>(null);
@@ -571,6 +572,7 @@ export function ShellPage({
   const panelSearch = useRef({ searchParams, setSearchParams });
   panelSearch.current = { searchParams, setSearchParams };
   const setPanel = useCallback((next: Panel | ((current: Panel) => Panel)) => {
+    screenIntentEpoch.current += 1;
     // A user navigation wins over a saved routine still waiting for its list.
     pendingPanelRestore.current = null;
     pendingExplicitPanel.current = panelStorageKeyRef.current === null;
@@ -2661,6 +2663,7 @@ export function ShellPage({
   }
 
   function openSettings(section: SettingsSection = "general") {
+    screenIntentEpoch.current += 1;
     setSettingsSection(section);
     setSettingsOpen(true);
   }
@@ -2683,6 +2686,10 @@ export function ShellPage({
     const spaceId = bootstrapMe.spaceId;
     const selection = selectedSpaceId();
     const originNavigationKey = navigationKeyRef.current;
+    const originScreenIntent = screenIntentEpoch.current;
+    const stillCreationIntent = () =>
+      navigationKeyRef.current === originNavigationKey &&
+      screenIntentEpoch.current === originScreenIntent;
     const key = botCreationAttemptKey({ endpoint: window.location.origin, userId: owner, spaceId });
     let clientNonce: string | undefined;
     try {
@@ -2692,8 +2699,10 @@ export function ShellPage({
       const bot = await rpc.onboarding.create({ clientNonce }, { context: { spaceId } });
       if (forYouUserRef.current !== owner || selectedSpaceId() !== selection) return;
       commitCreatedBot(bot);
-      if (navigationKeyRef.current === originNavigationKey) navigate(`/app/${bot.id}`);
-      setPanel(null);
+      if (stillCreationIntent()) {
+        navigate(`/app/${bot.id}`);
+        setPanel(null);
+      }
       // Removal after confirmed persistence permits a subsequent intentional creation.
       if (localStorage.getItem(key) === clientNonce) localStorage.removeItem(key);
       await refreshBots().catch(() => undefined);
@@ -2706,7 +2715,7 @@ export function ShellPage({
           ? t`This bot is no longer available.`
           : errorText(err, t`Could not create bot`),
       );
-      setPanel("create");
+      if (stillCreationIntent()) setPanel("create");
     } finally {
       creatingBotRef.current = false;
       setCreatingBot(false);
@@ -3896,7 +3905,10 @@ export function ShellPage({
             </div>
             <button
               type="button"
-              onClick={() => setPluginsOpen(true)}
+              onClick={() => {
+                screenIntentEpoch.current += 1;
+                setPluginsOpen(true);
+              }}
               className="mx-3 mb-1 flex items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-sidebar-accent"
             >
               <span className="grid h-[30px] w-[30px] place-items-center rounded-lg bg-accent text-foreground/80">
@@ -4933,6 +4945,7 @@ export function ShellPage({
               setBotMenu(null);
             }}
             onEdit={() => {
+              screenIntentEpoch.current += 1;
               const destKey =
                 userId && bootstrapMe?.spaceId
                   ? rightPanelStorageKey(
