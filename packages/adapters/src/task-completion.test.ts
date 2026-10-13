@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  confirmedMemoryPrompt,
   isMemorySaveCall,
   isUnfulfilledActionReply,
   memoryReplyIsBlocked,
@@ -37,6 +38,21 @@ describe("unfinished action recovery", () => {
 });
 
 describe("fresh memory receipt boundary", () => {
+  it.each(["Yes", "Sure.", "Please do"])("retains confirmed memory intent: %s", (answer) => {
+    const prompt = confirmedMemoryPrompt("Should I remember that you prefer violet?", answer);
+    expect(prompt).toContain("you prefer violet");
+    expect(needsFreshMemoryWrite(prompt!)).toBe(true);
+  });
+  it.each([
+    ["Do you remember my preference?", "Yes"],
+    ["Should I remember that you prefer violet?", "No"],
+    ["Should I remember that you prefer violet?", "Yes, but don't save it"],
+    ["Should I remember that you prefer violet?", "Maybe"],
+    ["Should I not remember this?", "Yes"],
+    ["Would you like me to create the file?", "Yes"],
+  ])("does not create memory intent for %s / %s", (question, answer) => {
+    expect(confirmedMemoryPrompt(question, answer)).toBeUndefined();
+  });
   it.each([
     "Also remember that I prefer dark mode.",
     "Just remember my timezone is UTC.",
