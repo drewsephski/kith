@@ -1,9 +1,11 @@
 import { botCreationIntentRemoved } from "@rakazo/core";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useNavigation, useRouter } from "expo-router";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { NativeActionButton } from "../components/native-action-button";
 import { cancelHeaderOptions } from "../components/sheet-header";
+import { captureMobileScreenScope } from "../lib/api";
 import { createConversationalBot } from "../lib/bot-creation";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
@@ -14,20 +16,33 @@ export default function NewBot() {
   const { t } = useI18n();
   const tokens = useMobileTokens();
   const router = useRouter();
+  const navigation = useNavigation();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(true);
   const mounted = useRef(true);
   const submitting = useRef(false);
+  const settled = useRef(false);
+  const operationScope = useRef<(() => boolean) | null>(null);
+  usePreventRemove(pending, ({ data }) => {
+    // Permit only the settled create's replacement or an authentication/Space boundary change.
+    if (settled.current || (operationScope.current && !operationScope.current())) {
+      navigation.dispatch(data.action);
+    }
+  });
 
   async function create() {
     if (submitting.current) return;
     submitting.current = true;
+    settled.current = false;
+    operationScope.current = captureMobileScreenScope();
     setPending(true);
     setError(null);
     try {
       const bot = await createConversationalBot();
-      if (bot && mounted.current)
+      if (bot && mounted.current) {
+        settled.current = true;
         router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
+      }
     } catch (reason) {
       if (mounted.current)
         setError(
@@ -50,13 +65,20 @@ export default function NewBot() {
   }, []);
 
   function close() {
+    if (pending || submitting.current) return;
     if (router.canGoBack()) router.back();
     else router.replace("/");
   }
 
   return (
     <>
-      <Stack.Screen options={{ ...cancelHeaderOptions(t("Cancel"), close), title: t("New bot") }} />
+      <Stack.Screen
+        options={{
+          ...cancelHeaderOptions(t("Cancel"), close, pending),
+          title: t("New bot"),
+          gestureEnabled: !pending,
+        }}
+      />
       <View
         style={{
           flex: 1,

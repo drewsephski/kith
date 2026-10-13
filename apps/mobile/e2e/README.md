@@ -34,8 +34,9 @@ pnpm --filter @rakazo/mobile exec maestro test \
 ```
 
 Use `http://127.0.0.1:3110` when that fixture is running locally for an iOS simulator. Supply the
-actual fixture endpoint when its port differs. The shared flow keeps Android's field identifiers and
-uses iOS Name autofocus, keyboard Next to Role, and Done to save the custom identity.
+actual fixture endpoint when its port differs. The shared flow uses Name autofocus, keyboard Next to
+Role, and Done to save the custom identity on both platforms. Native input identifiers are not exposed
+consistently to Maestro.
 
 The flow deliberately clears app data and the iOS Keychain. This does not delete server-side bots;
 reset the disposable fixture before a repeat acceptance run. The obsolete `RAKAZO_E2E_*` variables
