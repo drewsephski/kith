@@ -4,7 +4,10 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** The candidate must pass its own checks,
+**External testers are not yet cleared.** Required CI passed at `d4df39a6`, but a subsequent
+review correction for whitespace-padded managed configuration requires its own CI/review.
+The two-hour review-watch limit ended before that new-head gate could be completed.
+ The candidate must pass its own checks,
 an authorized hosted rollout, and installed native acceptance before inviting 5–10 testers.
 Existing credentials are available; remaining signing work is configuration and acceptance,
 not a request to obtain another Apple account or application identifier.
@@ -81,6 +84,11 @@ Steering and optional call recaps cannot roll back completion, cancellation or h
 an admission quota is exhausted.
 
 These controls bound requests; they are not a claim about a provider's final invoice.
+One validated execution-mode resolver now serves model policy and every quota boundary.
+Whitespace-padded managed configuration cannot disable default run, computer or tool limits;
+invalid modes and managed zero limits fail closed. The correction passed 63 focused tests,
+workspace lint and all 22 type-check tasks. Its new-head CI/review remains pending.
+
 Operators must also configure provider spending alerts/limits and E2B billing controls.
 Self-hosted execution retains its existing configurable behavior.
 
@@ -161,10 +169,10 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
 | Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PENDING final head | Earlier candidate virtual-display jobs passed; required final-head CI remains authoritative; routine focus-stealing local Electron E2E is prohibited. |
-| Android candidate native acceptance | PENDING final head | The second candidate emulator job passed onboarding and actual network-policy recording; require the final head again. |
-| iOS candidate simulator | PASSED | Full current-source 1.0.9 UI journey passed; fresh 1.0.10 app/runtime with final navigation guard also passed persisted login, pinned Kith, custom keyboard identity, focus, task and reply restoration after relaunch; normal navigation, account/Kith, preset/custom identity, focus, scripted tasks, interrupted setup, relaunch persistence, early message, background/resume/cancel and final pinned avatar/label/menu probes passed. Ad-hoc simulator signing is not distribution signing. |
-| Native disk/network cache privacy | PARTIAL | Fresh iOS simulator: 1,380 observed private successful replies had no-store responses, no-store/no-cache requests and zero cookies; NSURLCache had zero private Kith API entries or payload markers; one unrelated existing Expo Observe metrics response remained cached. Shared transport and server error/SSE tests passed. Android native CI wire guard and old-install cache inspection remain separate gates. |
+| Packaged Electron candidate | PASSED at d4df39a6; PENDING final head | Virtual-display acceptance passed in the last green CI; the quota correction requires new-head CI; routine focus-stealing local Electron E2E is prohibited. |
+| Android candidate native acceptance | PASSED at d4df39a6; PENDING final head | Installed emulator onboarding and actual network-policy recording passed; the quota correction requires new-head CI. |
+| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota changes affect only backend modules. Distribution/device proof remains separate. |
+| Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
 
 Native final-account evidence included six durable runs (five completed, one canceled), zero
@@ -211,17 +219,21 @@ offline-canary suites, not claims that production outages or physical-device flo
 | OAuth cancellation | PASSED locally | Only the owning account/Space can cancel; cancellation winning finalization prevents storage. Production local/self-hosted provider return flow remains unexecuted; managed plan flow is blocked. |
 | Interrupted bot setup | PASSED locally | Lost create/identity responses replay without duplicate effects; early user messages persist; an uncertain mobile creation nonce is reused only on explicit retry. |
 | Failed or offline send | PASSED locally | Frozen target, delivery nonce, routine nonces and artifact IDs survive explicit retry; encrypted delivery state restores after restart; newly edited text is retained. Retry/delete/cancel remain user choices. |
-| Expired session / Space switch | PASSED locally | Current rejected sessions clear once; stale 401 and snapshot responses cannot mutate the newly selected account/Space. Fresh cold offline launch remains unexecuted. |
+| Expired session / Space switch | PASSED locally | Current rejected sessions clear once; stale 401 and snapshot responses cannot mutate the newly selected account/Space. Final-source controlled API-unavailable cold launch showed a truthful error; restoring the API recovered the inbox and encrypted unsent draft with unchanged run count and zero draft delivery. Recovery preceded a Retry tap; no Retry-tap proof is claimed. Physical offline behavior remains unexecuted. |
 | Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
 | Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
 
-This document records evidence available before the final push; pending rows require the final
-head receipts. Candidate CI and automated review are tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
+This document distinguishes the last green head from the subsequent quota correction; pending
+rows require the new head receipts. The last green [CI run](https://github.com/drewsephski/kith/actions/runs/38389041422)
+recorded 13 successful checks, including web, PostgreSQL, Android and packaged Electron, with
+eight release/promotion jobs correctly skipped. The automated review found the whitespace
+configuration edge case described above. The corrected head still needs CI and automated
+review; the repository review-watch limit ended before that additional cycle could finish. Candidate CI and automated review are tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
 The first candidate's [CI run](https://github.com/drewsephski/kith/actions/runs/38378998483)
 passed web and packaged Electron acceptance but failed Android's input locator; it does not
 certify the corrected final head. The [second run](https://github.com/drewsephski/kith/actions/runs/38384808353)
 passed Android and packaged Electron, while one MCP-navigation assertion failed in web E2E.
-[Retained CI screenshots](https://github.com/drewsephski/kith/actions/runs/38378998483/artifacts/11804376345)
+[Latest passing CI screenshots](https://github.com/drewsephski/kith/actions/runs/38389041422/artifacts/11809616690)
 include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
 `conversational-bot-custom-persisted.png`. Persistent gallery publication is separate.
 
@@ -230,7 +242,7 @@ include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
 | Gate | Status | Required action |
 | --- | --- | --- |
 | Hosted anonymous session / auth capabilities | PASSED | Read-only check: session returns null normally; password auth and recovery advertised available. |
-| Actual hosted readiness | FAILED | Reviewed app and direct API `/ready` return static HTML rather than readiness JSON. Verify matching API/worker/gateway revision during authorized rollout. |
+| Actual hosted readiness | FAILED | Reviewed app and direct API `/ready` return static HTML rather than readiness JSON. Tracked routing correctly forwards readiness JSON; the exact live revision/configuration mismatch is unverified. Verify matching API/worker/gateway revision during authorized rollout. |
 | Production migrations / exact revisions | UNEXECUTED | Apply the three forward migrations below through the existing entrypoint only after authorization; API and worker must be compatible. Read-only startup checks cover the new schema. |
 | Password recovery delivery | UNEXECUTED | SMTP configuration exists; dedicated mailbox reset, old-session invalidation and new sign-in still need proof. |
 | Hosted effective funding / quotas | UNEXECUTED | Verify managed mode, exact Luna default, entitlements and finite effective limits after authorized rollout. |
