@@ -4,9 +4,11 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** Required CI passed at `4a30e26c` after the quota
-normalization correction. The resumed review then found two model-readiness/host-authentication
-edge cases; the fixes and recovery regressions below require their own exact-head CI/review.
+**External testers are not yet cleared.** Application source at `d3d09f2e` passed
+[required CI](https://github.com/drewsephski/kith/actions/runs/38403078857) and completed
+automated review without new source findings. This includes the resumed model-readiness,
+host-authentication and durable recovery corrections. The final documentation-only update
+uses the same application source; its own CI/review is tracked in PR #20.
 The candidate still needs an authorized hosted rollout and installed native acceptance before
 inviting 5–10 testers.
 Existing credentials are available; remaining signing work is configuration and acceptance,
@@ -182,13 +184,13 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed on the committed source; exact-head CI also required. |
 | Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,040 tests, including final focus and pending-creation route regressions. |
-| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: Latest stable rerun: 699 files, 8,938 tests; 365 explicitly gated tests skipped. A later inverse email-recipient matrix case passed in the ten-case focused suite; exact-head CI covers the final collection. |
+| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: stable local rerun passed 699 files and 8,938 tests with 365 gated tests skipped. Application-source CI at `d3d09f2e` passed 699 files and 8,950 tests with 354 gated tests skipped, including the final inverse email-recipient case. |
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
 | Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PASSED at 4a30e26c; PENDING final head | Virtual-display acceptance passed in the last green CI; the readiness/recovery corrections require new-head CI; routine focus-stealing local Electron E2E is prohibited. |
-| Android candidate native acceptance | PASSED at 4a30e26c; PENDING final head | Installed emulator onboarding and actual network-policy recording passed; the readiness/recovery corrections require new-head CI. |
-| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota changes affect only backend modules. Distribution/device proof remains separate. |
+| Packaged Electron candidate | PASSED | Virtual-display acceptance passed at application source `d3d09f2e`, including readiness/recovery corrections; routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
+| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at application source `d3d09f2e`, including readiness/recovery corrections. Physical signed-device acceptance remains separate. |
+| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota and model-readiness/recovery changes affect only backend modules. Distribution/device proof remains separate. |
 | Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
 
@@ -214,8 +216,9 @@ Android and packaged Electron but failed one MCP-settings navigation assertion a
 web passes. The strict MCP spec also passed with the actual baseline Shell/dependency restored;
 the failed trace showed a click during the existing panel-height transition. The spec now waits
 for the real animations to finish and retains every navigation/OAuth assertion. The smoke uses
-native keyboard Next/Done and keeps the identity/focus/task outcome assertions; final Android CI
-must establish the correction. These were separate from the native build
+native keyboard Next/Done and keeps the identity/focus/task outcome assertions. Those corrections
+passed at `4a30e26c`; the later backend changes also passed Android acceptance at `d3d09f2e`.
+These were separate from the native build
 storage failure. Live model, signed-device and exact-candidate CI evidence remain distinct.
 
 Independent source review reported 18 passed requirements, no unresolved source failures and
@@ -243,17 +246,20 @@ offline-canary suites, not claims that production outages or physical-device flo
 | Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
 | Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
 
-Required CI passed at `4a30e26c`, including the whitespace quota correction. Its review
-identified the two readiness/host-authentication cases fixed above. The resumed exact-head
-CI/review cycle is tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
-The previous green [CI run](https://github.com/drewsephski/kith/actions/runs/38389041422)
-recorded 13 successful checks with eight release/promotion jobs correctly skipped. These
-passes do not certify the subsequent readiness/recovery corrections.
+Required CI passed at application source `d3d09f2e`, including all resumed readiness,
+host-authentication and recovery corrections. The [CI run](https://github.com/drewsephski/kith/actions/runs/38403078857)
+recorded 13 successful checks with eight release/promotion jobs correctly skipped. Automated
+review completed on that source without new findings; the previously actionable findings
+were corrected, validated and answered. Threads remain unresolved because resolving them
+requires operator authorization. The final documentation-only update and its exact-head
+CI/review remain tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
+The preceding [quota-normalization CI run](https://github.com/drewsephski/kith/actions/runs/38393238783)
+passed at `4a30e26c`; its two later review findings were the cases corrected above.
 The first candidate's [CI run](https://github.com/drewsephski/kith/actions/runs/38378998483)
 passed web and packaged Electron acceptance but failed Android's input locator; it does not
 certify the corrected final head. The [second run](https://github.com/drewsephski/kith/actions/runs/38384808353)
 passed Android and packaged Electron, while one MCP-navigation assertion failed in web E2E.
-[Latest passing CI screenshots](https://github.com/drewsephski/kith/actions/runs/38389041422/artifacts/11809616690)
+[Candidate CI screenshots](https://github.com/drewsephski/kith/actions/runs/38403078857/artifacts/11818512851)
 include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
 `conversational-bot-custom-persisted.png`. Persistent gallery publication is separate.
 
@@ -302,7 +308,8 @@ The main implementation boundaries are:
 - Funding: `packages/adapters/src/deployment-model.ts`, `model-selection.ts`,
   `model-connect.ts`, `pi-catalog-availability.ts`, `pi-oauth.ts`, `pi-runtime.ts`,
   `executor.ts`, `auto-review.ts` and `cloud-agent-factory.ts`; API model router,
-  team-chat judge and voice; web/mobile model settings; managed Fly and Compose configuration.
+  team-chat judge and voice; `apps/api/src/model-setup-target.test.ts`, durable send admission
+  in `apps/api/src/thread-target.ts`; web/mobile model settings; managed Fly and Compose configuration.
 - Budgets: `packages/adapters/src/model-call-quota.ts`, `model-request-size.ts`,
   delegated/scheduled run admission call sites, API/worker composition,
   `packages/db/src/execution-quotas.ts`, computer limits, schema and reservation migration.
