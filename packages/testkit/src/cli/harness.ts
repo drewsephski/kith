@@ -117,6 +117,7 @@ async function main() {
         "packages/db/src/messaging.postgres.test.ts",
         "packages/db/src/billing.postgres.test.ts",
         "apps/api/src/billing.postgres.test.ts",
+        "apps/api/src/calendar.postgres.test.ts",
         "apps/api/src/for-you-launch.postgres.test.ts",
         "apps/api/src/personal-assistant.postgres.test.ts",
         "apps/api/src/onboarding.postgres.test.ts",

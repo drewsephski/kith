@@ -131,6 +131,7 @@ describeDatabase("calendar OAuth → durable briefing (PostgreSQL, offline provi
     await service.configure({ clientId: "fake-client", clientSecret: "fake-secret" }, actor);
   });
   afterEach(async () => {
+    vi.unstubAllEnvs();
     await prisma.organization.deleteMany({ where: { id: actor.spaceId } });
     await prisma.user.deleteMany({ where: { id: actor.userId } });
     await prisma.integrationProviderConfig.deleteMany({ where: { id: "calendar-google" } });
@@ -197,6 +198,82 @@ describeDatabase("calendar OAuth → durable briefing (PostgreSQL, offline provi
     });
     return { source, reader };
   }
+  it.each(["direct", "managed"] as const)(
+    "preserves the %s calendar connection when the optional initial briefing exceeds quota",
+    async (kind) => {
+      const task = await prisma.task.create({
+        data: {
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          botId,
+          threadId,
+          prompt: "Earlier task",
+          status: "completed",
+        },
+      });
+      await prisma.run.create({
+        data: {
+          spaceId: actor.spaceId,
+          userId: actor.userId,
+          botId,
+          threadId,
+          taskId: task.id,
+          trigger: "user",
+          status: "completed",
+        },
+      });
+      vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+      vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "1");
+      const notify = vi.spyOn(events, "notify");
+      try {
+        if (kind === "direct") {
+          const state = await begin();
+          await expect(service.callback({ state, code: "fake-code" })).resolves.toBeUndefined();
+          await expect(service.callback({ state, code: "fake-code" })).rejects.toThrow();
+          expect(provider.exchange).toHaveBeenCalledTimes(1);
+          expect(await prisma.secret.count({ where: { userId: actor.userId } })).toBe(1);
+          expect(
+            await prisma.secret.count({
+              where: { userId: actor.userId, kind: "calendar-oauth-pending" },
+            }),
+          ).toBe(0);
+        } else {
+          const { source } = await managedAccount();
+          await expect(
+            service.connectAccount(actor, { connectionId: source.id, botId, timezone: "UTC" }),
+          ).resolves.toBeUndefined();
+          expect((await service.status(actor)).managedConnectionId).toBe(source.id);
+          expect(await prisma.secret.count({ where: { userId: actor.userId } })).toBe(0);
+        }
+        const status = await service.status(actor);
+        expect(status.status).toBe("connected");
+        const connection = await prisma.connection.findUniqueOrThrow({
+          where: { id: status.connectionId! },
+        });
+        if (kind === "direct") {
+          const secret = await prisma.secret.findUniqueOrThrow({
+            where: { id: connection.secretId! },
+          });
+          expect(JSON.parse(await secrets.load(secret.ciphertext, secret.id))).toMatchObject({
+            tokens: { accessToken: "fake-access", refreshToken: "fake-refresh" },
+          });
+        }
+        expect(await prisma.task.count({ where: { userId: actor.userId } })).toBe(1);
+        expect(await prisma.run.count({ where: { userId: actor.userId } })).toBe(1);
+        expect(
+          await prisma.calendarBriefing.count({ where: { connectionId: connection.id } }),
+        ).toBe(0);
+        expect(await prisma.message.count({ where: { threadId } })).toBe(0);
+        expect(await prisma.event.count({ where: { threadId } })).toBe(0);
+        expect(jobs.enqueue).not.toHaveBeenCalled();
+        expect(notify).not.toHaveBeenCalled();
+        expect(provider.revoke).not.toHaveBeenCalled();
+      } finally {
+        notify.mockRestore();
+      }
+    },
+  );
+
   it("reuses a managed account without token export and queues only one briefing on concurrent clicks", async () => {
     const { source } = await managedAccount();
     await Promise.all(
