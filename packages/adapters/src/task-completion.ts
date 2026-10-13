@@ -24,9 +24,9 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
     (quote) => " ".repeat(quote.length),
   );
   const patterns = [
-    /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
-    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
-    /(?:^|[.!?,;\n…]\s*)(?:please\s+)?(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
+    /^\s*(?:(?:please|also|just|now|then)\s+){0,3}remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
+    /(?:^|[.!?,;\n…]\s*)(?:(?:please|also|just|now|then)\s+){0,3}remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
+    /(?:^|[.!?,;\n…]\s*)(?:(?:please|also|just|now|then)\s+){0,3}(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
     /(?:^|[.!?;\n…]\s*)I(?:\s+(?:want|need)\s+you\s+to|(?:['’]d|\s+would)\s+like\s+you\s+to)\s+(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
     /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
   ];
@@ -47,7 +47,7 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
     if (
       clause.trim() &&
       !hasEarlierDirective &&
-      !/^\s*(?:(?:hi|hello|hey)(?:\s+[\p{L}\p{N}_-]+){0,3}|ok(?:ay)?|thanks|thank\s+you|great|by\s+the\s+way|also)[,!:\s]*$/iu.test(
+      !/^\s*(?:(?:hi|hello|hey)(?:\s+[\p{L}\p{N}_-]+){0,3}|ok(?:ay)?|thanks|thank\s+you|great|by\s+the\s+way|(?:(?:please|also|just|now|then)\s*){1,3})[,!:\s]*$/iu.test(
         clause,
       )
     )
@@ -65,7 +65,13 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
   for (const pattern of patterns) {
     for (const match of directive.matchAll(pattern)) {
       const delimiter = match[0].match(/^[.!?,;\n…]\s*/)?.[0] ?? "";
-      candidates.add((match.index ?? 0) + delimiter.length);
+      // Normalize prefixes to the command token so a coordinating adverb cannot
+      // produce a second receipt for the same directive in the joined pass.
+      const prefix =
+        match[0]
+          .slice(delimiter.length)
+          .match(/^\s*(?:(?:please|also|just|now|then)\s+){0,3}/i)?.[0] ?? "";
+      candidates.add((match.index ?? 0) + delimiter.length + prefix.length);
     }
   }
   for (const start of [...candidates].sort((a, b) => a - b)) addStart(start);
