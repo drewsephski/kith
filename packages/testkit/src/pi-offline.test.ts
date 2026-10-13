@@ -493,10 +493,14 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     },
   );
 
-  it.each(["initial", "steering", "recovered", "uncertain"])(
-    "verifies both save directives in one %s message independently",
-    async (source) => {
-      const prompt = "Remember I prefer dark mode. Remember my timezone is UTC.";
+  it.each(
+    ["initial", "steering", "recovered", "uncertain"].flatMap((source) =>
+      [". Remember", ", and remember"].map((join) => ({ source, join })),
+    ),
+  )(
+    "verifies both save directives in one $source message independently ($join)",
+    async ({ source, join }) => {
+      const prompt = `Remember I prefer dark mode${join} my timezone is UTC.`;
       const id = source === "steering" ? "preferences" : "multi-input";
       const firstId = `${id}:memory:0`;
       const secondId = `${id}:memory:1`;

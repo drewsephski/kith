@@ -63,6 +63,36 @@ describe("fresh memory receipt boundary", () => {
     ]);
     expect(memorySaveRequests("Explain the sentence, Remember my birthday.", "input")).toEqual([]);
   });
+  it.each([", and ", " and ", ", and also ", ", and then ", ", then ", ", also ", " & "])(
+    "requires independent receipts for joined directives: %s",
+    (join) => {
+      expect(
+        memorySaveRequests(
+          `Remember I prefer dark mode${join}remember my timezone is UTC.`,
+          "input",
+        ),
+      ).toEqual([
+        { id: "input:memory:0", text: "Remember I prefer dark mode" },
+        { id: "input:memory:1", text: "remember my timezone is UTC." },
+      ]);
+    },
+  );
+  it.each([
+    'Remember my preference is "coffee and remember UTC".',
+    "Remember my preference is 'coffee and remember UTC'.",
+    "Remember my preference is “coffee and remember UTC”.",
+    'Remember my preference is "coffee and remember UTC.',
+    "Remember the sentence Alice said, and remember UTC.",
+  ])("does not split a quoted or reported directive: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([{ id: "input", text: prompt }]);
+  });
+  it.each([
+    "If you had memory and remember I prefer dark mode, what would happen?",
+    'Explain "Remember dark mode, and remember UTC".',
+    "Alice said, Remember dark mode and remember UTC.",
+  ])("does not create authorization from joined data: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([]);
+  });
   it.each([
     "Alice said, Remember that I prefer cobalt.",
     "Explain the sentence, Remember my birthday.",

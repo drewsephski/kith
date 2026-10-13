@@ -27,24 +27,42 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
     /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
   ];
   const starts = new Set<number>();
+  const addStart = (start: number) => {
+    const clause =
+      directive
+        .slice(0, start)
+        .split(/[.!?;\n…]/)
+        .at(-1) ?? "";
+    // Reported instructions are data, not authorization to persist their facts.
+    if (
+      !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
+        clause,
+      )
+    ) {
+      starts.add(start);
+    }
+  };
   for (const pattern of patterns) {
     for (const match of directive.matchAll(pattern)) {
       const delimiter = match[0].match(/^[.!?,;\n…]\s*/)?.[0] ?? "";
-      const start = (match.index ?? 0) + delimiter.length;
-      const clause =
-        directive
-          .slice(0, start)
-          .split(/[.!?;\n…]/)
-          .at(-1) ?? "";
-      // Reported instructions are data, not authorization to persist their facts.
-      if (
-        !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
-          clause,
-        )
-      ) {
-        starts.add(start);
-      }
+      addStart((match.index ?? 0) + delimiter.length);
     }
+  }
+  // A coordinating imperative is separate work only after a recognized request.
+  // Mask quoted data without changing offsets or the actual text sent to the model.
+  const unquoted = directive.replace(
+    /"(?:\\.|[^"\\])*(?:"|$)|(?<!\w)'(?:\\.|[^'\\])*(?:'(?!\w)|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)/g,
+    (quote) => " ".repeat(quote.length),
+  );
+  for (const match of unquoted.matchAll(/(?:\b(?:and|then|also)|&)\s+(?:(?:also|then)\s+)?/gi)) {
+    const start = (match.index ?? 0) + match[0].length;
+    if (![...starts].some((prior) => prior < (match.index ?? 0))) continue;
+    if (
+      patterns.some(
+        (pattern) => new RegExp(pattern.source, "i").exec(unquoted.slice(start))?.index === 0,
+      )
+    )
+      addStart(start);
   }
   return { text: directive, starts: [...starts].sort((a, b) => a - b) };
 }
@@ -62,7 +80,13 @@ export function memorySaveRequests(
   if (starts.length === 1) return [{ id: requestId, text: prompt }];
   return starts.map((start, index) => ({
     id: `${requestId}:memory:${index}`,
-    text: text.slice(start, starts[index + 1]).trim(),
+    text:
+      index === starts.length - 1
+        ? text.slice(start).trim()
+        : text
+            .slice(start, starts[index + 1])
+            .replace(/(?:,\s*)?(?:\b(?:and|then|also)|&)(?:\s+(?:also|then))?\s*$/i, "")
+            .trim(),
   }));
 }
 

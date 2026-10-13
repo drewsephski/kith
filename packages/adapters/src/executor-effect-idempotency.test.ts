@@ -355,47 +355,50 @@ describe("mutating tool effect idempotency keys", () => {
       expect(f.results.at(-1)).toMatchObject({ alreadyCompleted: true, memoryRequestId: input });
     },
   );
-  it("restores per-directive receipts and reuses completed writes across restart", async () => {
-    const f = fixture("multi-save", "Remember I prefer dark mode. Remember my timezone is UTC.");
-    const first = "multi-save:input:initial:memory:0";
-    const second = "multi-save:input:initial:memory:1";
-    f.setCalls([
-      {
-        name: "remember",
-        args: { content: "dark mode" },
-        executionId: "first",
-        memoryRequestId: first,
-      },
-    ]);
-    await f.run();
-    f.setCalls([
-      {
-        name: "remember",
-        args: { content: "UTC" },
-        executionId: "second",
-        memoryRequestId: second,
-      },
-    ]);
-    await f.run();
-    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
-      { requestId: first, confirmed: true },
-    ]);
-    expect(f.memoryCommit).toHaveBeenCalledTimes(2);
-    f.setCalls([
-      {
-        name: "remember",
-        args: { content: "dark mode" },
-        executionId: "retry-first",
-        memoryRequestId: first,
-      },
-    ]);
-    await f.run();
-    expect(f.memoryCommit).toHaveBeenCalledTimes(2);
-    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
-      { requestId: first, confirmed: true },
-      { requestId: second, confirmed: true },
-    ]);
-  });
+  it.each([". Remember", ", and remember"])(
+    "restores per-directive receipts across restart: %s",
+    async (join) => {
+      const f = fixture("multi-save", `Remember I prefer dark mode${join} my timezone is UTC.`);
+      const first = "multi-save:input:initial:memory:0";
+      const second = "multi-save:input:initial:memory:1";
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "dark mode" },
+          executionId: "first",
+          memoryRequestId: first,
+        },
+      ]);
+      await f.run();
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "UTC" },
+          executionId: "second",
+          memoryRequestId: second,
+        },
+      ]);
+      await f.run();
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
+        { requestId: first, confirmed: true },
+      ]);
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "dark mode" },
+          executionId: "retry-first",
+          memoryRequestId: first,
+        },
+      ]);
+      await f.run();
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
+        { requestId: first, confirmed: true },
+        { requestId: second, confirmed: true },
+      ]);
+    },
+  );
   it.each(["executing", "completed", "failed"])(
     "restores %s input state and blocks a changed-payload memory retry after recovery",
     async (status) => {
