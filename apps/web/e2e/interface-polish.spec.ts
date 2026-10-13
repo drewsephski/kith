@@ -2,6 +2,21 @@ import { expect, test } from "@playwright/test";
 import { captureScreenshot, completeOnboarding, signup } from "./helpers";
 
 const fixture = "/e2e/fixtures/interface-polish.html";
+test("a restored panel preserves an open sidebar menu", async ({ page }, testInfo) => {
+  await page.goto(`${fixture}?panel-focus`);
+  const more = page.getByRole("button", { name: "More options", exact: true });
+  const focusInMenu = () =>
+    page.getByRole("menu").evaluate((menu) => menu.contains(document.activeElement));
+  await more.click();
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(focusInMenu).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("fixture:restore-panel")));
+  await expect(page.getByRole("button", { name: "Close restored panel" })).toBeVisible();
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(focusInMenu).toBe(true);
+  await expect(page.getByRole("menuitem", { name: "Workspace", exact: true })).toBeVisible();
+  await captureScreenshot(page, testInfo, "kith-more-restored-panel");
+});
 test("the main sidebar offers creation and a menu without switching views", async ({
   page,
 }, testInfo) => {

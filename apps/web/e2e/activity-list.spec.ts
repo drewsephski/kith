@@ -54,7 +54,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await expect(aside.locator("[data-sidebar-group]").getByText("Kith").first()).toBeVisible();
   await captureActivitySidebar(page, testInfo, "57-activity-mode-off");
 
-  const composer = page.getByPlaceholder(/Message/);
+  const composer = page.getByRole("combobox", { name: /^Message/ });
   await composer.fill("keep working until I stop you");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({

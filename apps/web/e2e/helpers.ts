@@ -72,6 +72,7 @@ export async function newConversation(page: Page) {
 
 /** Advanced roster workflows are intentionally disclosed separately from the main assistant. */
 export async function openAdvancedNavigation(page: Page) {
+  await expect(page.getByTestId("shell-root")).toHaveAttribute("data-ready", "true");
   const trigger = page
     .getByTestId("kith-navigation")
     .getByRole("button", { name: "More options", exact: true });

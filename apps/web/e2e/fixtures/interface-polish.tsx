@@ -2,7 +2,7 @@ import { I18nProvider } from "@lingui/react";
 import type { Bot, ComputerUpdate } from "@rakazo/contracts";
 import { Button, KithAvatar, Popover, PopoverContent, PopoverTrigger } from "@rakazo/ui-web";
 import { Menu, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { RunStatus } from "../../src/components/ai/RunStatus";
 import { ComputerUpdateProgress } from "../../src/components/ComputerUpdateProgress";
@@ -11,6 +11,7 @@ import { ToolSteps } from "../../src/components/ToolActivityDisclosure";
 import { computerUpdates } from "../../src/lib/computer-updates";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { applyUiAppearance } from "../../src/lib/ui-appearance";
+import { ResizableSidePanel } from "../../src/pages/ResizableSidePanel";
 import { BotCreatePicker } from "../../src/pages/shell/bot-picker";
 import { KithSidebar } from "../../src/pages/shell/kith-sidebar";
 import "../../src/styles.css";
@@ -105,6 +106,12 @@ function Fixture() {
   const [panel, setPanel] = useState(params.has("calendar"));
   const [menu, setMenu] = useState(false);
   const [selected, setSelected] = useState("");
+  const [restoredPanel, setRestoredPanel] = useState(false);
+  useEffect(() => {
+    const restore = () => setRestoredPanel(true);
+    window.addEventListener("fixture:restore-panel", restore);
+    return () => window.removeEventListener("fixture:restore-panel", restore);
+  }, []);
   const close = () => setNavigation(false);
   const creationMenu = (
     <Popover open={menu} onOpenChange={setMenu}>
@@ -220,6 +227,17 @@ function Fixture() {
         </aside>
       ) : null}
       <ComputerUpdateProgress onCompleted={() => setSelected("Computer refreshed")} />
+      {params.has("panel-focus") ? (
+        <ResizableSidePanel
+          open={restoredPanel}
+          panel="Restored panel"
+          onClose={() => setRestoredPanel(false)}
+        >
+          <Button aria-label="Close restored panel" onClick={() => setRestoredPanel(false)}>
+            Close restored panel
+          </Button>
+        </ResizableSidePanel>
+      ) : null}
     </main>
   );
 }

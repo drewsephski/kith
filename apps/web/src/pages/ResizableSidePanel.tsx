@@ -71,6 +71,8 @@ export function ResizableSidePanel({
     if (!open || !closeRef.current) return;
     const trigger = document.activeElement;
     const frame = requestAnimationFrame(() => {
+      // A restored panel must not displace a menu the user has already opened.
+      if (document.querySelector('[aria-haspopup="menu"][aria-expanded="true"]')) return;
       const panel = panelRef.current;
       (
         panel?.querySelector<HTMLElement>("[data-autofocus]") ??
