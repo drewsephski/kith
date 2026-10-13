@@ -7,10 +7,24 @@ name: Compose
       RAKAZO_ACTIVE_EMAIL: ${RAKAZO_SCREENSHOT_EMAIL}
 - openLink: "rakazo:///new"
 - extendedWaitUntil:
-    visible: "Name this bot"
+    visible: "What should my name be, and what's my role?"
     timeout: 15000
 - takeScreenshot: 01-new-bot
-- tapOn: "Cancel"
+- tapOn: "Custom"
+- tapOn:
+    id: "bot-identity-name"
+- inputText: "Atlas"
+- tapOn:
+    id: "bot-identity-role"
+- inputText: "Research lead"
+- hideKeyboard
+- takeScreenshot: 01b-custom-identity
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: "Message Atlas"
+    timeout: 30000
+- assertVisible: "What should I help you with first?"
+- takeScreenshot: 01c-focus-choice
 - openLink: "rakazo:///new-space"
 - extendedWaitUntil:
     visible: "Customer support|Create space"

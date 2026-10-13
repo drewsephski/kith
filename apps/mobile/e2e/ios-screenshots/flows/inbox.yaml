@@ -28,8 +28,16 @@ name: Inbox
 - assertVisible: "New space"
 - takeScreenshot: 02c-create-menu
 - tapOn: "New bot"
-- assertVisible: "Name this bot"
-- tapOn: "Cancel"
+- extendedWaitUntil:
+    visible: "What should my name be, and what's my role?"
+    timeout: 30000
+- tapOn:
+    id: "bot-identity-miso"
+- extendedWaitUntil:
+    visible: "Message Miso"
+    timeout: 30000
+- assertVisible: "What should I help you with first?"
+- openLink: "rakazo:///"
 - openLink: "rakazo:///artifacts"
 - extendedWaitUntil:
     visible: ".*launch-notes.txt.*|.*No artifacts yet.*|.*Artifacts.*"

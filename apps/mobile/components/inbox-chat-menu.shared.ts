@@ -21,6 +21,7 @@ export type InboxChatMenuProps = {
   style?: StyleProp<ViewStyle>;
   children: (onLongPress?: () => void) => ReactNode;
   onAction: (action: string) => void;
+  onOpen: () => void;
 };
 
 export function inboxChatActions({ chat, sections }: InboxChatMenuProps): MenuAction[] {

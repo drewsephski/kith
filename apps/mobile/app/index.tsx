@@ -808,6 +808,7 @@ export default function Home() {
                     compact
                     style={styles.pinnedCell}
                     onAction={(action) => handleChatAction(entry.type, chat, action)}
+                    onOpen={() => openChat(entry.type, chat)}
                   >
                     {(onLongPress) => (
                       <Pressable
@@ -917,6 +918,7 @@ export default function Home() {
               onAction={(action) =>
                 handleChatAction(item.type, item.type === "bot" ? item.bot : item.group, action)
               }
+              onOpen={() => openChat(item.type, item.type === "bot" ? item.bot : item.group)}
             >
               {(onLongPress) =>
                 item.type === "group" ? (
