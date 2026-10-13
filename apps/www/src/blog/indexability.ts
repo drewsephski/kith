@@ -71,6 +71,12 @@ export function noindexPathnames(): string[] {
   return [
     "/blog/openclaw-vs-hermes-vs-rakazo/",
     "/blog/openclaw-vs-hermes-vs-rakazo.md/",
+    "/self-hosted-ai-agent/",
+    "/self-hosted-ai-agent.md/",
+    "/blog/self-host-an-ai-agent/",
+    "/blog/self-host-an-ai-agent.md/",
+    "/blog/best-open-source-ai-agents-2026/",
+    "/blog/best-open-source-ai-agents-2026.md/",
     ...BLOG_CATEGORIES.filter((category) => !categoryIsIndexed(category)).map(categoryPath),
   ];
 }

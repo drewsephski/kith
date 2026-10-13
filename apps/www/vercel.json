@@ -2,7 +2,11 @@
   "framework": "astro",
   "buildCommand": "pnpm build",
   "redirects": [
-    { "source": "/sitemap.xml", "destination": "/sitemap-index.xml", "statusCode": 301 },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap-index.xml",
+      "statusCode": 301
+    },
     {
       "source": "/blog/openclaw-vs-hermes-vs-rakazo",
       "destination": "/blog/openclaw-vs-hermes-vs-kith/",
@@ -11,6 +15,36 @@
     {
       "source": "/blog/openclaw-vs-hermes-vs-rakazo.md",
       "destination": "/blog/openclaw-vs-hermes-vs-kith.md",
+      "statusCode": 301
+    },
+    {
+      "source": "/self-hosted-ai-agent",
+      "destination": "/blog/getting-started-with-kith/",
+      "statusCode": 301
+    },
+    {
+      "source": "/self-hosted-ai-agent.md",
+      "destination": "/blog/getting-started-with-kith.md",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/self-host-an-ai-agent",
+      "destination": "/blog/getting-started-with-kith/",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/self-host-an-ai-agent.md",
+      "destination": "/blog/getting-started-with-kith.md",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/best-open-source-ai-agents-2026",
+      "destination": "/blog/choosing-an-ai-assistant/",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/best-open-source-ai-agents-2026.md",
+      "destination": "/blog/choosing-an-ai-assistant.md",
       "statusCode": 301
     }
   ]
