@@ -69,6 +69,11 @@ function fixture(status = "queued") {
   return { row, computer, computerUpdate, deps, jobs };
 }
 describe("background computer maintenance", () => {
+  it("exposes attended stopping recovery only to the deployment owner", () => {
+    const { row } = fixture("stopping");
+    expect(computerUpdateView(row, true).canReleaseReservation).toBe(true);
+    expect(computerUpdateView(row, false).canReleaseReservation).toBe(false);
+  });
   it("stops queued work before the worker can claim it", async () => {
     const { row, deps, computer } = fixture();
     await cancelComputerUpdate(

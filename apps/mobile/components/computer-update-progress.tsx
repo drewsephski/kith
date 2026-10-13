@@ -147,7 +147,8 @@ export function ComputerUpdateProgress() {
                 {t("Could not complete action")}
               </Text>
             ) : null}
-            {selected.status === "interrupted" && selected.canReleaseReservation ? (
+            {["interrupted", "stopping"].includes(selected.status) &&
+            selected.canReleaseReservation ? (
               <NativeActionButton
                 label={t("Release computer")}
                 prominence="secondary"

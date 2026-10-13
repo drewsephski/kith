@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -11,6 +11,39 @@ import {
 } from "./preview-mobile-update.mjs";
 
 const source = "a".repeat(40);
+test("optional preview publishing cleanly skips without Expo credentials", (t) => {
+  const cwd = mkdtempSync(join(tmpdir(), "preview-configuration-test-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const workflow = readFileSync(
+    new URL("../.github/workflows/mobile-preview.yml", import.meta.url),
+    "utf8",
+  );
+  const block = workflow
+    .split("- name: Check preview publishing configuration")[1]
+    .split("- uses:")[0];
+  const script = block
+    .split("run: |\n")[1]
+    .split("\n")
+    .map((line) => line.replace(/^ {10}/, ""))
+    .join("\n");
+  for (const token of ["", "synthetic-preview-token"]) {
+    const summary = join(cwd, `summary-${token ? "configured" : "missing"}`);
+    const output = join(cwd, `output-${token ? "configured" : "missing"}`);
+    const result = spawnSync("bash", ["-euo", "pipefail", "-c", script], {
+      env: {
+        ...process.env,
+        EXPO_TOKEN: token,
+        GITHUB_STEP_SUMMARY: summary,
+        GITHUB_OUTPUT: output,
+      },
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(output, "utf8").trim(), `configured=${Boolean(token)}`);
+    assert.ok(!`${result.stdout}${result.stderr}`.includes("synthetic-preview-token"));
+    if (!token) assert.match(readFileSync(summary, "utf8"), /NOT RUN/);
+  }
+});
 const build = {
   status: "FINISHED",
   platform: "IOS",

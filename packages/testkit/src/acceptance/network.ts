@@ -32,7 +32,9 @@ export function guardAcceptanceNetwork(
       init?.signal,
       input instanceof Request ? input.signal : undefined,
     ].filter((signal): signal is AbortSignal => Boolean(signal));
-    return original(input, { ...init, signal: AbortSignal.any(signals) });
+    // Fetch otherwise follows redirects internally, outside this destination
+    // check and physical-request budget. Operators must configure the final URL.
+    return original(input, { ...init, redirect: "error", signal: AbortSignal.any(signals) });
   };
   return {
     fetch: guarded,

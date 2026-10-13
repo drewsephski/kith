@@ -74,7 +74,7 @@ export function computerUpdateView(
   isDeploymentOwner = false,
 ): ComputerUpdate {
   return ComputerUpdateSchema.parse({
-    canReleaseReservation: isDeploymentOwner && row.status === "interrupted",
+    canReleaseReservation: isDeploymentOwner && ["interrupted", "stopping"].includes(row.status),
     action: row.action,
     id: row.id,
     botId: row.computer.bots.some((bot) => bot.id === row.botId)

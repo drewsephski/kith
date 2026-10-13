@@ -189,7 +189,8 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                   {selected.status === "stopping" ? <Trans>Stopping…</Trans> : <Trans>Stop</Trans>}
                 </Button>
               ) : null}
-              {selected.status === "interrupted" && selected.canReleaseReservation ? (
+              {["interrupted", "stopping"].includes(selected.status) &&
+              selected.canReleaseReservation ? (
                 <Button variant="outline" onClick={() => setReleaseId(selected.id)}>
                   <Trans>Release computer</Trans>
                 </Button>

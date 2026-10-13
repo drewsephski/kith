@@ -2698,7 +2698,7 @@ export function createRouter(deps: RouterDeps) {
           const update = await tx.computerUpdate.findFirst({
             where: {
               id: input.id,
-              status: "interrupted",
+              status: { in: ["interrupted", "stopping"] },
               computer: {
                 spaceId: context.actor.spaceId,
                 bots: { some: { userId: context.actor.userId, archivedAt: null } },
@@ -2707,8 +2707,8 @@ export function createRouter(deps: RouterDeps) {
           });
           if (!update) throw new ORPCError("CONFLICT");
           const failed = await tx.computerUpdate.updateMany({
-            where: { id: update.id, status: "interrupted" },
-            data: { status: "failed" },
+            where: { id: update.id, status: update.status },
+            data: { status: update.status === "stopping" ? "cancelled" : "failed" },
           });
           if (failed.count !== 1) throw new ORPCError("CONFLICT");
           const released = await tx.computer.updateMany({

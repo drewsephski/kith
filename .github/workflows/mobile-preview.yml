@@ -8,7 +8,7 @@ on:
         required: true
     secrets:
       EXPO_TOKEN:
-        required: true
+        required: false
   workflow_dispatch:
 
 permissions:
@@ -63,33 +63,36 @@ jobs:
           gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/jobs?per_page=100" > "$RUNNER_TEMP/preview-ci-jobs.json"
           node scripts/verify-deployment-gates.mjs "$RUNNER_TEMP/preview-ci-jobs.json"
           echo 'current=true' >> "$GITHUB_OUTPUT"
-      - name: Require Expo automation token
+      - name: Check preview publishing configuration
+        id: expo
         if: steps.source.outputs.current == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [[ -z "$EXPO_TOKEN" ]]; then
-            echo 'Add the EXPO_TOKEN Actions secret with access to this Expo project.' >&2
-            exit 1
+            echo 'NOT RUN: optional Expo preview publishing is not configured.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
           fi
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        if: steps.source.outputs.current == 'true'
+        if: steps.source.outputs.current == 'true' && steps.expo.outputs.configured == 'true'
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        if: steps.source.outputs.current == 'true'
+        if: steps.source.outputs.current == 'true' && steps.expo.outputs.configured == 'true'
         with:
           node-version: 24
           cache: pnpm
       - uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
-        if: steps.source.outputs.current == 'true'
+        if: steps.source.outputs.current == 'true' && steps.expo.outputs.configured == 'true'
         with:
           eas-version: 24.12.1
           packager: pnpm
           token: ${{ secrets.EXPO_TOKEN }}
       - name: Install dependencies
-        if: steps.source.outputs.current == 'true'
+        if: steps.source.outputs.current == 'true' && steps.expo.outputs.configured == 'true'
         run: pnpm install --frozen-lockfile
       - name: Compare against the finished device preview build
-        if: steps.source.outputs.current == 'true'
+        if: steps.source.outputs.current == 'true' && steps.expo.outputs.configured == 'true'
         id: ota
         env:
           PLATFORM: ${{ matrix.platform }}
