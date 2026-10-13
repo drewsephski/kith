@@ -1,5 +1,5 @@
 import type { MenuAction } from "@expo/ui/community/menu";
-import { Button, ContextMenu, Host, Menu, RNHostView } from "@expo/ui/swift-ui";
+import { Button, ContextMenu, Host, HStack, Menu, RNHostView } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   buttonStyle,
@@ -26,7 +26,11 @@ export function InboxChatMenu(props: InboxChatMenuProps) {
   const previewWidth = Math.min(width - 48, 360);
   const trigger = (
     <RNHostView matchContents>
-      <View pointerEvents={props.compact ? "none" : "auto"} style={{ width: triggerWidth }}>
+      <View
+        pointerEvents={props.compact ? "none" : "auto"}
+        accessibilityElementsHidden={props.compact}
+        style={{ width: triggerWidth }}
+      >
         {props.children()}
       </View>
     </RNHostView>
@@ -75,14 +79,14 @@ export function InboxChatMenu(props: InboxChatMenuProps) {
           {props.compact ? (
             <Button
               onPress={props.onOpen}
-              modifiers={[
-                buttonStyle("plain"),
-                frame({ width: triggerWidth }),
-                contentShape(shapes.rectangle()),
-                accessibilityLabel(openLabel),
-              ]}
+              modifiers={[buttonStyle("plain"), accessibilityLabel(openLabel)]}
             >
-              {trigger}
+              <HStack
+                spacing={0}
+                modifiers={[frame({ width: triggerWidth }), contentShape(shapes.rectangle())]}
+              >
+                {trigger}
+              </HStack>
             </Button>
           ) : (
             trigger
