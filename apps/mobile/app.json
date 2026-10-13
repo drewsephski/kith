@@ -3,7 +3,7 @@
     "name": "Kith",
     "slug": "kith",
     "scheme": "rakazo",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
