@@ -94,6 +94,17 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     .click();
   // The server list adds a row above these controls when its request settles.
   await expect(page.getByText("Linear MCP", { exact: true })).toBeVisible();
+  // The panel's height transition changes the scrollable clip after the button is stable.
+  const advancedPanel = page
+    .getByTestId("integrations-advanced")
+    .locator('[data-slot="collapsible-content"]');
+  await advancedPanel.evaluate(async (panel) => {
+    await Promise.all(
+      panel
+        .getAnimations({ subtree: true })
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
   await page.getByRole("button", { name: "Manage MCP servers", exact: true }).click();
   await expect(page.getByRole("heading", { name: "MCP servers" })).toBeVisible();
   await expect(page.getByText("Linear MCP", { exact: true })).toBeVisible();
