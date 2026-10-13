@@ -12,6 +12,7 @@ import type {
 } from "@rakazo/db";
 import {
   createThreadMessage,
+  ExecutionQuotaError,
   normalizeMessagingLinkCode,
   redeemMessagingLinkCode,
 } from "@rakazo/db";
@@ -616,22 +617,29 @@ async function handleChannelEvent(
       botId: identity.botId,
       threadId: thread.id,
     };
-    if (await wakeMessageRoutines(deps, target, event)) continue;
+    try {
+      if (await wakeMessageRoutines(deps, target, event)) continue;
 
-    const sent = await deps.events.sendUserMessage({
-      spaceId: identity.spaceId,
-      threadId: thread.id,
-      botId: identity.botId,
-      userId: identity.userId,
-      blocks: [block],
-      prompt,
-      trigger: "messaging",
-      clientNonce: `messaging:${event.provider}:${event.handle}`,
-    });
-    if (sent.runId) {
-      await deps.jobs.enqueue(runContinueJob(sent.runId)).catch((error) => {
-        getLogger().error("messaging channel fan-out enqueue error", error);
+      const sent = await deps.events.sendUserMessage({
+        spaceId: identity.spaceId,
+        threadId: thread.id,
+        botId: identity.botId,
+        userId: identity.userId,
+        blocks: [block],
+        prompt,
+        trigger: "messaging",
+        clientNonce: `messaging:${event.provider}:${event.handle}`,
       });
+      if (sent.runId) {
+        await deps.jobs.enqueue(runContinueJob(sent.runId)).catch((error) => {
+          getLogger().error("messaging channel fan-out enqueue error", error);
+        });
+      }
+    } catch (error) {
+      if (!(error instanceof ExecutionQuotaError)) throw error;
+      // Admission is account-scoped: one exhausted owner must not prevent
+      // delivery to later approved recipients or trigger a channel-wide retry.
+      getLogger().warn("messaging channel recipient quota exceeded", { botId: identity.botId });
     }
   }
 }
