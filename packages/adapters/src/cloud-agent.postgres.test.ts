@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AdapterContext, BackgroundJob, JobPublisher } from "@rakazo/adapter-kit";
 import { clearThread, createDb, type PrismaClient } from "@rakazo/db";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CloudAgentConnection } from "./cloud-agent-factory.js";
 import { pollCloudAgent } from "./cloud-agent-poll.js";
 import { executeCloudAgentTool, reconcileCloudAgents } from "./cloud-agent-service.js";
@@ -28,6 +28,7 @@ describePostgres("cloud agent lifecycle and recovery (PostgreSQL + Cursor emulat
     db = createDb(process.env.DATABASE_URL!);
     prisma = db.prisma;
   });
+  afterEach(() => vi.unstubAllEnvs());
   afterAll(async () => {
     if (!db) return;
     await prisma.cloudAgent.deleteMany({ where: { userId: { in: users } } });
@@ -165,6 +166,83 @@ describePostgres("cloud agent lifecycle and recovery (PostgreSQL + Cursor emulat
     await prisma.cloudAgent.update({ where: { id }, data: { nextPollAt: new Date() } });
     await h.poll(id);
     expect(await h.wakes()).toHaveLength(1);
+  });
+
+  it.each(["finished", "failed", "cancelled"] as const)(
+    "commits a %s terminal result when daily quota skips its optional wake",
+    async (status) => {
+      vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+      vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "1");
+      const h = await setup();
+      const id = await h.launch();
+      await h.poll(id);
+      const before = {
+        tasks: await prisma.task.count({ where: { userId: h.id } }),
+        runs: await prisma.run.count({ where: { userId: h.id } }),
+      };
+      if (status === "cancelled") await h.tool("cancel", { id });
+      else h.wire.complete((await h.state(id)).remoteId!, { failed: status === "failed" });
+      h.enqueue.mockClear();
+      h.deps.events.notify.mockClear();
+      await Promise.all(Array.from({ length: 8 }, () => h.poll(id)));
+      const terminal = await h.state(id);
+      expect(terminal).toMatchObject({
+        status,
+        nextPollAt: null,
+        errorCount: 0,
+        wakeGeneration: 0,
+        generation: 0,
+        leaseToken: null,
+        leaseExpiresAt: null,
+      });
+      const card = await prisma.message.findUniqueOrThrow({ where: { id: terminal.messageId! } });
+      expect(card.blocks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ kind: "cloud_agent", agentId: id, status }),
+        ]),
+      );
+      expect(await prisma.task.count({ where: { userId: h.id } })).toBe(before.tasks);
+      expect(await prisma.run.count({ where: { userId: h.id } })).toBe(before.runs);
+      expect(await h.wakes()).toHaveLength(0);
+      expect(h.deps.events.notify).toHaveBeenCalledOnce();
+      expect(h.enqueue).not.toHaveBeenCalled();
+      const requests = h.wire.requests.length;
+      await h.poll(id);
+      await reconcileCloudAgents(h.deps);
+      expect(h.wire.requests).toHaveLength(requests);
+      expect(h.enqueue).not.toHaveBeenCalled();
+      // A later recovery of this same snapshot must not turn a consumed generation into a wake.
+      vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "2");
+      await prisma.cloudAgent.update({ where: { id }, data: { nextPollAt: new Date() } });
+      await h.poll(id);
+      expect(await h.wakes()).toHaveLength(0);
+      expect((await h.state(id)).nextPollAt).toBeNull();
+    },
+  );
+
+  it("keeps a later user-authorized generation eligible after a quota-skipped wake", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "1");
+    const h = await setup();
+    const id = await h.launch();
+    await h.poll(id);
+    await h.finish(id);
+    expect(await h.wakes()).toHaveLength(0);
+    expect((await h.state(id)).wakeGeneration).toBe(0);
+    vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "2");
+    await h.tool("reply", { id, prompt: "Continue with a fixture follow-up" });
+    await h.poll(id);
+    await h.finish(id);
+    await h.poll(id);
+    const wakes = await h.wakes();
+    expect(wakes).toHaveLength(1);
+    expect(wakes[0]!.clientNonce).toBe(`cloud-agent-wake-run:${id}:1`);
+    expect(await h.state(id)).toMatchObject({
+      generation: 1,
+      wakeGeneration: 1,
+      status: "finished",
+      nextPollAt: null,
+    });
   });
 
   it("recovers an accepted launch whose response was lost without creating a second remote agent", async () => {
