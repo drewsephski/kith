@@ -4444,6 +4444,8 @@ const MessageBubble = memo(function MessageBubble({
         <ChoiceCard
           key={`choice-${index}`}
           botId={cardBotId}
+          botColor={bots.find((bot) => bot.id === cardBotId)?.color}
+          messageId={message.id}
           block={block}
           onDismissed={onChoiceDismissed ? () => onChoiceDismissed(block.question) : undefined}
           accessibilityActions={actionProps.accessibilityActions}

@@ -329,7 +329,8 @@ export function ModelSettingsOverlay({
   // Space still bills the host while this provider matches; model id alone is not credentials.
   const usingServerCredentials = provider === me?.hostCredentialProvider;
   const acceptsKey = selected?.auth !== "oauth";
-  const subscriptionSignIn = selected?.signIn !== undefined;
+  const subscriptionSignIn =
+    selected?.signIn !== undefined && !selected.connectionUnavailableReason;
   // Effort levels for the staged catalog model — "off" stays out, matching the
   // per-bot Thinking picker.
   const catalogThinkingLevels =
@@ -807,8 +808,13 @@ export function ModelSettingsOverlay({
             />
           </label>
         ) : null}
-        {selected.billing && !usingServerCredentials ? (
-          <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">{selected.billing}</p>
+        {(selected.billing || (isActive && me?.defaultModelFunding === "deployment")) &&
+        !usingServerCredentials ? (
+          <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
+            {isActive && me?.defaultModelFunding === "deployment"
+              ? t`Kith pays for this model.`
+              : selected.billing}
+          </p>
         ) : null}
       </>
     ) : null;
@@ -1084,7 +1090,9 @@ export function ModelSettingsOverlay({
         </div>
       ) : null}
 
-      {selected?.auth === "oauth" && !subscriptionSignIn ? (
+      {selected?.auth === "oauth" &&
+      !subscriptionSignIn &&
+      !selected.connectionUnavailableReason ? (
         <p className="mt-5 text-sm leading-[1.5] text-muted-foreground first:mt-0">
           <Trans>
             This subscription sign-in is not available in Kith yet. Use a deployment credential or

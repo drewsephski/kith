@@ -929,13 +929,10 @@ msgstr "Не удаётся связаться с сервером."
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
 msgstr "Отмена"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Cancel new bot"
-msgstr "Отменить создание бота"
 
 #: src/pages/GroupPanel.tsx
 msgid "Cancel new group"
@@ -1234,6 +1231,10 @@ msgstr "Облако"
 #: src/components/AskCard.tsx
 msgid "Code"
 msgstr "Код"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Coding partner"
+msgstr "Партнёр по программированию"
 
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
@@ -1673,7 +1674,7 @@ msgstr ""
 msgid "Could not continue"
 msgstr "Не удалось продолжить"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 msgid "Could not create bot"
 msgstr "Не удалось создать бота"
 
@@ -2063,6 +2064,7 @@ msgstr "Не удалось сохранить этот голос"
 msgid "Could not save the credential"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Could not save this choice"
 msgstr "Не удалось сохранить этот выбор."
@@ -2175,7 +2177,6 @@ msgstr "Не удалось обновить аватары"
 msgid "Couldn't update messaging settings"
 msgstr "Не удалось обновить настройки обмена сообщениями."
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "Создать"
@@ -2228,7 +2229,7 @@ msgid "Created"
 msgstr "Создано"
 
 #: src/pages/GroupPanel.tsx
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Creating…"
 msgstr "Создание…"
@@ -2262,6 +2263,10 @@ msgstr "Выражение Cron"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "Текущий пароль"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Custom"
+msgstr "Свой вариант"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -3136,6 +3141,10 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Inbox assistant"
+msgstr "Помощник по почте"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Inbox to-do list"
 msgstr "Задачи из почты"
@@ -3238,6 +3247,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
+
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Kith pays for this model."
+msgstr "Kith оплачивает эту модель."
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -3697,7 +3710,6 @@ msgstr "Другие категории"
 msgid "More computer actions"
 msgstr "Больше действий с компьютером"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "Дополнительные параметры"
@@ -3731,14 +3743,11 @@ msgstr "Выключить микрофон"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
 msgstr "Имя"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Name this bot"
-msgstr "Назовите этого бота"
 
 #: src/pages/GroupPanel.tsx
 msgid "Name this group"
@@ -3769,10 +3778,6 @@ msgstr "Требуется ваше участие"
 #: src/pages/Shell.tsx
 msgid "New"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "New bot"
-msgstr "Новый бот"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4273,6 +4278,10 @@ msgstr "Спланировать оповещения об инфраструк�
 msgid "Plan my day"
 msgstr "Спланировать день"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Planning assistant"
+msgstr "Помощник по планированию"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "Воспроизведение…"
@@ -4747,6 +4756,10 @@ msgstr ""
 msgid "Research and projects"
 msgstr "Исследования и проекты"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Research assistant"
+msgstr "Помощник по исследованиям"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Research partners and draft introductions"
@@ -4904,6 +4917,10 @@ msgstr "Отозвать"
 msgid "Robot"
 msgstr "Робот"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Role"
+msgstr "Роль"
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr "Инструкции для комнаты"
@@ -4969,6 +4986,7 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -5044,6 +5062,7 @@ msgstr "Сохранение..."
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
@@ -5746,6 +5765,10 @@ msgid "This app is unavailable from the configured integration provider."
 msgstr ""
 
 #: src/pages/Shell.tsx
+msgid "This bot is no longer available."
+msgstr "Этот бот больше недоступен."
+
+#: src/pages/Shell.tsx
 msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
 msgstr "Этот бот работает на этом компьютере, а не на рабочем столе Linux. Оболочка и файлы используют вашу домашнюю папку."
 
@@ -5920,6 +5943,7 @@ msgstr ""
 #: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr ""
 
@@ -6249,6 +6273,10 @@ msgstr "Какой результат вы продемонстрируете?"
 msgid "What should I help you with first?"
 msgstr "С чем помочь сначала?"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "What should my name be, and what's my role?"
+msgstr "Как меня назвать и какая у меня роль?"
+
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
 msgstr "Что должна делать эта задача при каждом запуске?"
@@ -6256,10 +6284,6 @@ msgstr "Что должна делать эта задача при каждом
 #: src/components/CalendarConnection.tsx
 msgid "What should your assistant keep in mind?"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "What this bot is for"
-msgstr "Для чего нужен этот бот"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"

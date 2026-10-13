@@ -929,13 +929,10 @@ msgstr "Impossible d'atteindre le serveur."
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
 msgstr "Annuler"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Cancel new bot"
-msgstr "Annuler le nouveau bot"
 
 #: src/pages/GroupPanel.tsx
 msgid "Cancel new group"
@@ -1234,6 +1231,10 @@ msgstr "Cloud"
 #: src/components/AskCard.tsx
 msgid "Code"
 msgstr "Code"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Coding partner"
+msgstr "Partenaire de programmation"
 
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
@@ -1673,7 +1674,7 @@ msgstr ""
 msgid "Could not continue"
 msgstr "Impossible de continuer"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 msgid "Could not create bot"
 msgstr "Impossible de créer le bot"
 
@@ -2063,6 +2064,7 @@ msgstr "Impossible d'enregistrer cette voix"
 msgid "Could not save the credential"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Could not save this choice"
 msgstr "Impossible d'enregistrer ce choix"
@@ -2175,7 +2177,6 @@ msgstr "Impossible de mettre à jour les avatars"
 msgid "Couldn't update messaging settings"
 msgstr "Impossible de mettre à jour les paramètres de messagerie"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "Créer"
@@ -2228,7 +2229,7 @@ msgid "Created"
 msgstr "Créé"
 
 #: src/pages/GroupPanel.tsx
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Creating…"
 msgstr "Création en cours…"
@@ -2262,6 +2263,10 @@ msgstr "Expression Cron"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "Mot de passe actuel"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Custom"
+msgstr "Personnalisé"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -3136,6 +3141,10 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Inbox assistant"
+msgstr "Assistant de messagerie"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Inbox to-do list"
 msgstr "Liste de tâches de la messagerie"
@@ -3238,6 +3247,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
+
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Kith pays for this model."
+msgstr "Kith paie pour ce modèle."
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -3697,7 +3710,6 @@ msgstr "Autres catégories"
 msgid "More computer actions"
 msgstr "Plus d'actions pour l'ordinateur"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "Plus d’options"
@@ -3731,14 +3743,11 @@ msgstr "Couper le micro"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
 msgstr "Nom"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Name this bot"
-msgstr "Nommez ce bot"
 
 #: src/pages/GroupPanel.tsx
 msgid "Name this group"
@@ -3769,10 +3778,6 @@ msgstr "A besoin de vous"
 #: src/pages/Shell.tsx
 msgid "New"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "New bot"
-msgstr "Nouveau bot"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4273,6 +4278,10 @@ msgstr "Planifier les alertes d'infrastructure et d'utilisation"
 msgid "Plan my day"
 msgstr "Planifier ma journée"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Planning assistant"
+msgstr "Assistant de planification"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "Lecture en cours…"
@@ -4747,6 +4756,10 @@ msgstr ""
 msgid "Research and projects"
 msgstr "Recherche et projets"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Research assistant"
+msgstr "Assistant de recherche"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Research partners and draft introductions"
@@ -4904,6 +4917,10 @@ msgstr "Révoquer"
 msgid "Robot"
 msgstr "Robot"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Role"
+msgstr "Rôle"
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr "Guide de la salle"
@@ -4969,6 +4986,7 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -5044,6 +5062,7 @@ msgstr "Enregistrement..."
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
@@ -5746,6 +5765,10 @@ msgid "This app is unavailable from the configured integration provider."
 msgstr ""
 
 #: src/pages/Shell.tsx
+msgid "This bot is no longer available."
+msgstr "Ce bot n’est plus disponible."
+
+#: src/pages/Shell.tsx
 msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
 msgstr "Ce bot s'exécute sur cet ordinateur, pas sur un bureau Linux. Le shell et les fichiers utilisent votre dossier personnel."
 
@@ -5920,6 +5943,7 @@ msgstr ""
 #: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "Réessayer"
 
@@ -6249,6 +6273,10 @@ msgstr "Quel résultat allez-vous démontrer ?"
 msgid "What should I help you with first?"
 msgstr "Comment puis-je vous aider en premier ?"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "What should my name be, and what's my role?"
+msgstr "Comment dois-je m’appeler et quel est mon rôle ?"
+
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
 msgstr "Que devrait faire cette routine à chaque exécution ?"
@@ -6256,10 +6284,6 @@ msgstr "Que devrait faire cette routine à chaque exécution ?"
 #: src/components/CalendarConnection.tsx
 msgid "What should your assistant keep in mind?"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "What this bot is for"
-msgstr "À quoi sert ce bot"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"

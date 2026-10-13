@@ -1,19 +1,27 @@
 import { I18nProvider } from "@lingui/react";
 import type { ThreadMessage } from "@rakazo/contracts";
+import { BOT_IDENTITY_PRESETS } from "@rakazo/core";
 import { KithAvatar } from "@rakazo/ui-web";
-import type { ComponentProps } from "react";
 import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { bootstrapI18n, i18n } from "../../src/lib/i18n";
 import { Composer, Transcript } from "../../src/pages/Shell";
-import { CreateBotForm } from "../../src/pages/shell/bot-panel";
+import { BotIdentityCard } from "../../src/pages/shell/bot-identity-card";
 import "../../src/styles.css";
 
 // This offline fixture renders production components with synthetic data.
+let identityRequest: ((body: unknown) => Promise<Response>) | undefined;
 const realFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
+  if (new URL(url, location.origin).pathname.endsWith("/onboarding/identity") && identityRequest) {
+    const request =
+      input instanceof Request
+        ? await input.clone().json()
+        : JSON.parse(String(init?.body ?? "{}"));
+    return identityRequest(request.json?.identity);
+  }
   if (new URL(url, location.origin).pathname.startsWith("/rpc/")) {
     return new Response(JSON.stringify({ json: [] }), {
       headers: { "content-type": "application/json" },
@@ -225,30 +233,43 @@ function Conversation() {
 }
 
 function Creation() {
-  const [created, setCreated] = useState<
-    Parameters<ComponentProps<typeof CreateBotForm>["onCreate"]>[0] | null
-  >(null);
-  const [cancelled, setCancelled] = useState(false);
+  const [created, setCreated] = useState<unknown>(null);
   const attempts = useRef(0);
+  identityRequest = async (identity) => {
+    attempts.current += 1;
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    if (params.has("failure") && attempts.current === 1)
+      return new Response(
+        JSON.stringify({
+          json: { message: "Could not save this choice", code: "INTERNAL_SERVER_ERROR" },
+        }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    setCreated(identity);
+    return new Response(JSON.stringify({ json: {} }), {
+      headers: { "content-type": "application/json" },
+    });
+  };
   return (
     <main className="flex min-h-dvh items-start justify-center bg-background px-6 py-10 text-foreground md:py-16">
-      <div className="w-full max-w-sm">
-        {created || cancelled ? (
-          <output data-testid="created-profile">
-            {cancelled ? "Cancelled" : JSON.stringify(created)}
-          </output>
-        ) : (
-          <CreateBotForm
-            onCancel={() => setCancelled(true)}
-            onCreate={async (input) => {
-              attempts.current += 1;
-              await new Promise((resolve) => window.setTimeout(resolve, 300));
-              if (params.has("failure") && attempts.current === 1)
-                throw new Error("Could not create bot");
-              setCreated(input);
-            }}
-          />
-        )}
+      <div className="w-full max-w-md">
+        {created ? <output data-testid="created-profile">{JSON.stringify(created)}</output> : null}
+        <BotIdentityCard
+          botId="fixture-bot"
+          messageId="fixture-identity"
+          onBotChanged={resolve}
+          block={{
+            kind: "choice",
+            onboardingStage: "identity",
+            question: "What should my name be, and what's my role?",
+            options: BOT_IDENTITY_PRESETS.map((preset, index) => ({
+              id: preset.id,
+              letter: String(index),
+              label: preset.name,
+              description: preset.role,
+            })),
+          }}
+        />
       </div>
     </main>
   );

@@ -8,6 +8,7 @@ import { aiConsentCoalesceKey, captureApiRequestContext, rpc } from "./api";
 import { voiceForBot } from "./bot-voices";
 import { loadDeviceVoiceEnabled } from "./device-voice";
 import { t } from "./i18n";
+import { privateApiFetch } from "./private-api-fetch";
 import { errorText } from "./user-error";
 
 /** Who is speaking, for the dock: it is mounted outside any one thread's bot list. */
@@ -368,7 +369,7 @@ async function renderUtterance(
   const deadline = requestDeadline(VOICE_RESPONSE_TIMEOUT_MS);
   try {
     const res = await withAbort(
-      fetch(`${requestContext.apiBase}/api/voice/speak`, {
+      privateApiFetch(`${requestContext.apiBase}/api/voice/speak`, {
         method: "POST",
         headers: {
           "content-type": "application/json",

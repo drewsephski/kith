@@ -88,7 +88,12 @@ describe("mobile API authentication", () => {
       "http://127.0.0.1:3100/api/auth/sign-in/email",
       expect.objectContaining({
         method: "POST",
-        headers: { "content-type": "application/json", origin: "rakazo://" },
+        credentials: "omit",
+        headers: {
+          "content-type": "application/json",
+          origin: "rakazo://",
+          "cache-control": "no-store, no-cache",
+        },
         body: JSON.stringify({ email: "ada@example.com", password: "correct horse" }),
       }),
     );
@@ -106,7 +111,12 @@ describe("mobile API authentication", () => {
       "http://127.0.0.1:3100/api/auth/sign-up/email",
       expect.objectContaining({
         method: "POST",
-        headers: { "content-type": "application/json", origin: "rakazo://" },
+        credentials: "omit",
+        headers: {
+          "content-type": "application/json",
+          origin: "rakazo://",
+          "cache-control": "no-store, no-cache",
+        },
         body: JSON.stringify({
           email: "new@example.com",
           password: "correct horse",
@@ -734,7 +744,7 @@ describe("mobile API authentication", () => {
     );
 
     await expect(rpc("bots/create", { name: "Ada" })).rejects.toThrow(
-      new Error("Connect a model to start a run."),
+      "Connect a model to start a run.",
     );
   });
 
@@ -756,6 +766,22 @@ describe("mobile API authentication", () => {
     await expect(rpc("bots/create", { name: "Ada" })).rejects.toThrow(
       new Error("Something went wrong. Try again."),
     );
+  });
+
+  it("preserves the precise removed creation target code for explicit retry recovery", async () => {
+    const { rpc } = await import("./api");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        rpcErrorResponse(409, "ONBOARDING_TARGET_REMOVED", "This bot is no longer available."),
+      ),
+    );
+    await expect(
+      rpc("onboarding/create", { clientNonce: "test-create-intent" }),
+    ).rejects.toMatchObject({
+      code: "ONBOARDING_TARGET_REMOVED",
+      message: "This bot is no longer available.",
+    });
   });
 
   it("keeps the Space when a non-401 failure mentions unauthorized", async () => {

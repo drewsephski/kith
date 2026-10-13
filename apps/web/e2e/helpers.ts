@@ -94,8 +94,6 @@ export async function openNewBot(page: Page) {
   }
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-bot").click();
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
-  await expect(page.getByTestId("create-bot-form")).toBeVisible();
 }
 
 export async function openNewGroup(page: Page) {
@@ -116,7 +114,7 @@ export async function openNewSpace(page: Page) {
   await page.getByTestId("create-new-space").click();
 }
 
-/** Open the create form from the + picker, submit, and wait for the new chat. */
+/** Create directly into a conversation, then choose an explicit custom identity. */
 export async function createBotFromPicker(
   page: Page,
   options: {
@@ -128,31 +126,18 @@ export async function createBotFromPicker(
 ) {
   const name = options.name ?? "New Bot";
   await openNewBot(page);
-  const form = page.getByTestId("create-bot-form");
-  await form.locator("label:has-text('Name') input").fill(name);
-  if (options.title != null || options.computerMode != null) {
-    await form.getByRole("button", { name: "More options", exact: true }).click();
-    const panel = form.locator('[data-slot="collapsible-content"]');
-    await expect(panel).not.toHaveAttribute("data-starting-style");
-    await panel.evaluate(async (element) => {
-      await Promise.all(element.getAnimations().map((animation) => animation.finished));
-    });
-  }
-  if (options.title != null) {
-    await form.locator("label:has-text('Title') input").fill(options.title);
-  }
-  if (options.description != null) {
-    await form.locator("label:has-text('Description') textarea").fill(options.description);
-  }
-  if (options.computerMode === "dedicated") {
-    await form.getByTestId("create-bot-private").click();
-    await expect(form.getByTestId("create-bot-private")).toHaveAttribute("aria-pressed", "true");
-  } else if (options.computerMode === "team") {
-    await form.getByTestId("create-bot-team").click();
-    await expect(form.getByTestId("create-bot-team")).toHaveAttribute("aria-pressed", "true");
-  }
-  await form.getByRole("button", { name: "Create", exact: true }).click();
-  await page.waitForURL(/\/app\/[^/]+$/);
+  const card = page.getByTestId("bot-identity-card");
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "Custom", exact: true }).click();
+  await card.getByRole("textbox", { name: "Name", exact: true }).fill(name);
+  await card.getByRole("textbox", { name: "Role", exact: true }).fill(options.title ?? "Assistant");
+  await card.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByPlaceholder(`Message ${name}`)).toBeVisible();
+  const botId = activeBotId(page);
+  if (options.description !== undefined)
+    await rpc(page, "bots/update", { botId, description: options.description });
+  if (options.computerMode !== undefined)
+    await rpc(page, "bots/setComputer", { botId, mode: options.computerMode });
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
 }
 

@@ -21,14 +21,19 @@ import { rpc } from "../../lib/rpc";
 import { useArtifactImage } from "../../lib/use-artifact-image";
 import { errorText } from "../../lib/user-error";
 import { focusLabel } from "./assistant-focus";
+import { BotIdentityCard } from "./bot-identity-card";
 import { FocusNextAction } from "./focus-next-action";
 
 export function ChoiceCard({
   botId,
+  botColor,
+  messageId,
   block,
   onBotChanged,
 }: {
   botId: string;
+  botColor?: string;
+  messageId: string;
   block: Extract<MessageBlock, { kind: "choice" }>;
   onBotChanged: () => Promise<void>;
 }) {
@@ -69,6 +74,16 @@ export function ChoiceCard({
   }
 
   if (dismissed) return null;
+  if (block.onboardingStage === "identity")
+    return (
+      <BotIdentityCard
+        botId={botId}
+        botColor={botColor}
+        messageId={messageId}
+        block={block}
+        onBotChanged={onBotChanged}
+      />
+    );
 
   return (
     <div className="flex justify-start">

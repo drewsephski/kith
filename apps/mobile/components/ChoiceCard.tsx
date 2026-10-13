@@ -13,6 +13,7 @@ import {
 import { native, useMobileTokens } from "../lib/native";
 import { useThreadReadOnly } from "../lib/thread-read-only";
 import { errorText } from "../lib/user-error";
+import { BotIdentityCard } from "./bot-identity-card";
 import { CalendarConnection } from "./CalendarConnection";
 import { NativeActionButton } from "./native-action-button";
 import { NativeSymbol } from "./native-symbol";
@@ -53,12 +54,16 @@ const styles = StyleSheet.create({
 
 export function ChoiceCard({
   botId,
+  botColor,
+  messageId,
   block,
   onDismissed,
   accessibilityActions,
   onAccessibilityAction,
 }: {
   botId: string;
+  botColor?: string;
+  messageId: string;
   block: Extract<MessageBlock, { kind: "choice" }>;
   onDismissed?: () => void;
   accessibilityActions?: ViewProps["accessibilityActions"];
@@ -83,6 +88,10 @@ export function ChoiceCard({
     everything: t("Just start chatting"),
   };
   if (answerId === DISMISSED_CHOICE_ANSWER_ID) return null;
+  if (block.onboardingStage === "identity")
+    return (
+      <BotIdentityCard botId={botId} botColor={botColor} messageId={messageId} block={block} />
+    );
 
   // Dismissing records the server's dismissed answer id, so both outcomes share this path.
   async function submit(optionId: string) {

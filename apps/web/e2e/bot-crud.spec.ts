@@ -25,23 +25,20 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const createAborted = new Promise<void>((resolve) => {
     resolveCreateAborted = resolve;
   });
-  await page.route("**/rpc/bots/create", async (route) => {
+  await page.route("**/rpc/onboarding/create", async (route) => {
     createFailed = true;
     await route.abort("failed");
     resolveCreateAborted();
   });
   await openNewBot(page);
-  const form = page.getByTestId("create-bot-form");
-  await form.locator("label:has-text('Name') input").fill("New Bot");
-  await form.getByRole("button", { name: "Create", exact: true }).click();
   await createAborted;
-  // Failed create keeps the form open on the current bot chat.
+  // Failed creation preserves the current chat and the durable retry intent.
   await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
   await expect(page.getByTestId("create-bot-error")).toBeVisible();
   expect(createFailed).toBe(true);
-  await page.unroute("**/rpc/bots/create");
-  await page.getByRole("button", { name: "Cancel new bot" }).click();
+  await page.unroute("**/rpc/onboarding/create");
+  await page.keyboard.press("Escape");
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
 
   let failedPostCreateRefresh = false;

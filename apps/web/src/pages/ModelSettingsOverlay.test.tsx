@@ -390,3 +390,57 @@ it("shows a stored OpenAI-compatible key and stays empty when none is saved", as
     await empty.unmount();
   }
 });
+
+it("shows the managed ChatGPT connection boundary without starting an unsupported login", async () => {
+  const reason =
+    "ChatGPT plan connections require a local or self-hosted Kith server. Use an OpenAI API key on hosted Kith.";
+  vi.mocked(rpc.me).mockResolvedValue(account("openai-codex", "gpt-6-luna"));
+  models.list.mockResolvedValue([
+    {
+      provider: "openai-codex",
+      providerName: "ChatGPT",
+      id: "gpt-6-luna",
+      label: "GPT-6 Luna",
+      billing: reason,
+      auth: "oauth",
+      signIn: "device-code",
+      oauthLabel: "Sign in with ChatGPT Plus/Pro",
+      connectionUnavailableReason: reason,
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    expect(view.container.textContent).toContain(reason);
+    expect(
+      [...view.container.querySelectorAll("button")].some((button) =>
+        button.textContent?.includes("Sign in with ChatGPT"),
+      ),
+    ).toBe(false);
+    expect(models.beginOAuth).not.toHaveBeenCalled();
+  } finally {
+    await view.unmount();
+  }
+});
+
+it("shows deployment funding for the active default instead of a BYOK billing claim", async () => {
+  vi.mocked(rpc.me).mockResolvedValue({
+    ...account("openrouter", "openai/gpt-6-luna"),
+    defaultModelFunding: "deployment",
+  });
+  models.list.mockResolvedValue([
+    {
+      provider: "openrouter",
+      providerName: "OpenRouter",
+      id: "openai/gpt-6-luna",
+      label: "GPT-6 Luna",
+      billing: "Uses your OpenRouter API key. Kith does not pay for model usage.",
+      auth: "api-key",
+    },
+  ]);
+  const view = await renderSettings();
+  try {
+    expect(view.container.textContent).toContain("Kith pays for this model.");
+  } finally {
+    await view.unmount();
+  }
+});

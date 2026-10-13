@@ -9,79 +9,155 @@ import {
   signup,
 } from "./helpers";
 
-test("create opens form, then empty chat; picker lists bots; sidebar collapses", async ({
+async function setup(page: Parameters<typeof signup>[0], label: string) {
+  await signup(page, `${label}-${Date.now()}@rakazo.test`, "password12", "Bot onboarding");
+  await completeOnboarding(page);
+}
+
+test("New Bot opens a durable conversation with identity before focus", async ({
   page,
 }, testInfo) => {
-  const stamp = Date.now();
-  await signup(page, `new-bot-ux-${stamp}@rakazo.test`, "password12", "New Bot UX");
-  await completeOnboarding(page);
-  await openAdvancedNavigation(page);
-  await page.goto("/app");
-  await page.waitForURL(/\/app\/[^/]+$/);
-  await openAdvancedNavigation(page);
-
-  await page.getByTestId("create-menu-trigger").click();
-  const picker = page.getByTestId("bot-create-picker");
-  await expect(picker).toBeVisible();
-  await expect(picker.getByPlaceholder("Search")).toBeVisible();
-  await expect(picker.getByTestId("create-new-bot")).toBeVisible();
-  await expect(picker.getByText("Kith", { exact: true })).toBeVisible();
-  await captureScreenshot(page, testInfo, "plus-picker-bots");
-
-  await picker.getByTestId("create-new-bot").click();
-  const form = page.getByTestId("create-bot-form");
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
-  await expect(form).toBeVisible();
-  await expect(form.locator("label:has-text('Name') input")).toBeVisible();
-  await expect(form.locator("label:has-text('Name') input")).toBeFocused();
-  await expect(form.locator("label:has-text('Title') input")).toBeHidden();
-  await form.getByRole("button", { name: "More options", exact: true }).click();
-  await expect(form.locator("label:has-text('Title') input")).toBeVisible();
-  await expect(form.locator("label:has-text('Description') textarea")).toBeVisible();
-  await expect(form.getByTestId("create-bot-computer")).toBeVisible();
-  await expect(form.getByTestId("create-bot-team")).toBeVisible();
-  await expect(form.getByTestId("create-bot-private")).toBeVisible();
-  await captureScreenshot(page, testInfo, "create-bot-form");
-
-  await form.locator("label:has-text('Name') input").fill("New Bot");
-  await form.getByRole("button", { name: "Create", exact: true }).click();
-  await page.waitForURL(/\/app\/[^/]+$/);
-  await openAdvancedNavigation(page);
-  await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+  await setup(page, "identity-first");
+  const originalPath = new URL(page.url()).pathname;
+  await openNewBot(page);
+  const card = page.getByTestId("bot-identity-card");
+  await expect(card).toBeVisible();
+  await expect(page).not.toHaveURL(new RegExp(`${originalPath}$`));
+  await expect(page.getByTestId("create-bot-form")).toHaveCount(0);
+  await expect(
+    page.getByText("What should my name be, and what's my role?", { exact: true }),
+  ).toHaveCount(1);
   await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
     0,
   );
-  await captureScreenshot(page, testInfo, "create-chat-sidepanel-closed");
+  for (const [id, name, role] of [
+    ["miso", "Miso", "Inbox assistant"],
+    ["pippin", "Pippin", "Research assistant"],
+    ["orbit", "Orbit", "Planning assistant"],
+    ["pixel", "Pixel", "Coding partner"],
+  ]) {
+    await expect(card.getByTestId(`bot-identity-${id}`)).toContainText(name);
+    await expect(card.getByTestId(`bot-identity-${id}`)).toContainText(role);
+  }
+  await captureScreenshot(page, testInfo, "conversational-bot-identity");
+  const botPath = new URL(page.url()).pathname;
+  await page.reload();
+  await expect(card).toBeVisible();
+  await card.getByTestId("bot-identity-pippin").click();
+  await expect(page.getByPlaceholder("Message Pippin")).toBeVisible();
+  await expect(
+    page.getByText("What should my name be, and what's my role?", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    1,
+  );
+  await captureScreenshot(page, testInfo, "conversational-bot-focus");
+  const bots = await rpc<Array<{ id: string; name: string; title: string; description: string }>>(
+    page,
+    "bots/list",
+    {},
+  );
+  const bot = bots.find((entry) => botPath.endsWith(entry.id))!;
+  expect(bot).toMatchObject({ name: "Pippin", title: "Research assistant" });
+  expect(bot.description).toBeTruthy();
+  expect(bots.find((entry) => originalPath.endsWith(entry.id))?.name).toBe("Kith");
+  await page.getByRole("button", { name: /Just start chatting/ }).click();
+  await page.reload();
+  await expect(page.getByPlaceholder("Message Pippin")).toBeVisible();
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    1,
+  );
+});
 
-  await page.getByTestId("minimize-bots-sidebar").click();
-  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
-  const edge = page.getByTestId("bots-sidebar-edge");
-  await expect(edge).toBeVisible();
-  const restore = page.getByTestId("restore-bots-sidebar");
-  await expect(restore).toBeVisible();
-  await captureScreenshot(page, testInfo, "bots-sidebar-collapsed");
-
-  await restore.click();
-  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
-  await expect(restore).toHaveCount(0);
-  await page.getByTestId("bots-sidebar").evaluate(async (sidebar) => {
-    await Promise.all(
-      sidebar.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
-    );
+test("custom identity survives a lost response and remains consistent after reload", async ({
+  page,
+}, testInfo) => {
+  await setup(page, "identity-custom");
+  await openNewBot(page);
+  const card = page.getByTestId("bot-identity-card");
+  await card.getByRole("button", { name: "Custom", exact: true }).click();
+  const name = card.getByRole("textbox", { name: "Name", exact: true });
+  const role = card.getByRole("textbox", { name: "Role", exact: true });
+  await expect(name).toBeFocused();
+  await name.fill("Atlas");
+  await role.fill("Research lead");
+  await page.route("**/rpc/onboarding/identity", async (route) => {
+    await route.fetch();
+    await route.abort("failed");
   });
+  await card.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();
+  await page.unroute("**/rpc/onboarding/identity");
+  await page.reload();
+  await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();
+  await expect(card).toContainText("Research lead");
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    1,
+  );
+  await captureScreenshot(page, testInfo, "conversational-bot-custom-persisted");
+});
 
-  await page.getByTestId("minimize-bots-sidebar").click();
-  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
+test("lost create response retries one durable bot and rapid taps do not create another", async ({
+  page,
+}) => {
+  await setup(page, "create-retry");
+  const before = await rpc<Array<{ id: string }>>(page, "bots/list", {});
+  await page.route("**/rpc/onboarding/create", async (route) => {
+    await route.fetch();
+    await route.abort("failed");
+  });
+  await openNewBot(page);
+  await expect(page.getByTestId("create-bot-error")).toBeVisible();
+  await page.unroute("**/rpc/onboarding/create");
+  const retry = page
+    .getByTestId("create-bot-recovery")
+    .getByRole("button", { name: "Try again", exact: true });
+  await retry.dblclick();
+  await expect(page.getByTestId("bot-identity-card")).toBeVisible();
+  const after = await rpc<Array<{ id: string }>>(page, "bots/list", {});
+  expect(after.length).toBe(before.length + 1);
+  await expect(
+    page.getByText("What should my name be, and what's my role?", { exact: true }),
+  ).toHaveCount(1);
+});
 
-  const box = await edge.boundingBox();
-  expect(box).toBeTruthy();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box!.x + 80, box!.y + box!.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
-  await captureScreenshot(page, testInfo, "bots-sidebar-expanded");
+test("first ordinary message before identity is retained and does not force focus", async ({
+  page,
+}) => {
+  await setup(page, "free-chat");
+  await openNewBot(page);
+  await expect(page.getByTestId("bot-identity-card")).toBeVisible();
+  const composer = page.getByRole("combobox", { name: /^Message/ });
+  await composer.fill("Please help me research my project");
+  await composer.press("Enter");
+  await expect(
+    page
+      .getByTestId("transcript")
+      .getByTestId("message-user-bubble")
+      .getByText("Please help me research my project", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page
+      .getByTestId("transcript")
+      .getByTestId("message-user-bubble")
+      .getByText("Please help me research my project", { exact: true }),
+  ).toBeVisible();
+  await page.getByTestId("bot-identity-pixel").click();
+  await expect(page.getByPlaceholder("Message Pixel")).toBeVisible();
+  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
+    0,
+  );
+});
+
+test("advanced bot editing still supports Private computer mode", async ({ page }, testInfo) => {
+  await setup(page, "advanced-mode");
+  await createBotFromPicker(page, { computerMode: "dedicated" });
+  await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
+  const botId = page.url().split("/").pop()!;
+  const bots = await rpc<Array<{ id: string; computerMode: string }>>(page, "bots/list", {});
+  expect(bots.find((bot) => bot.id === botId)?.computerMode).toBe("dedicated");
+  await captureScreenshot(page, testInfo, "conversational-bot-advanced-computer");
 });
 
 test("picker rows explain groups and spaces", async ({ page }, testInfo) => {
@@ -125,105 +201,39 @@ test("picker rows explain groups and spaces", async ({ page }, testInfo) => {
   await expect(dialog).toBeHidden();
 });
 
-test("later bot waits before showing the focus card; sending cancels it", async ({ page }) => {
-  const stamp = Date.now();
-  await signup(page, `focus-delay-${stamp}@rakazo.test`, "password12", "Focus Delay");
-  await completeOnboarding(page);
-  await openAdvancedNavigation(page);
-  // The personal assistant offers its focus choices immediately.
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible();
-
-  await page.clock.install();
-  const started = page.waitForResponse(
-    (response) => response.url().includes("/rpc/onboarding/start") && response.ok(),
-  );
+// Preserve the existing sidebar preference and drag-recovery acceptance.
+test("sidebar collapse and drag recovery remain available after conversational creation", async ({
+  page,
+}, testInfo) => {
+  await setup(page, "sidebar-preference");
   await createBotFromPicker(page);
-  await started;
-  await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
-    0,
-  );
-
-  await page.clock.fastForward(9_000);
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
-    0,
-  );
-  await page.clock.fastForward(1_500);
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toBeVisible();
-
-  await createBotFromPicker(page, { name: "Later Bot" });
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
-    0,
-  );
-  // Closing the create panel can precede the new thread loading; the previous
-  // bot's composer must not receive this draft.
-  const composer = page.getByRole("combobox", { name: "Message Later Bot", exact: true });
-  await expect(composer).toBeEditable();
-  await composer.fill("I'll set this up myself");
-  // Send must finish before the delay is advanced: cancel runs after a successful
-  // RPC, and promptFocus will still post if the clock fires while send is in flight.
-  const sent = page.waitForResponse(
-    (response) => response.url().includes("/rpc/threads/send") && response.ok(),
-  );
-  await composer.press("Enter");
-  await sent;
-  // Scope to the user bubble: the assistant reply can echo this phrase as a substring.
-  await expect(
-    page
-      .getByTestId("transcript")
-      .getByTestId("message-user-bubble")
-      .getByText("I'll set this up myself", { exact: true }),
-  ).toBeVisible();
-  await page.clock.fastForward(12_000);
-  await expect(page.getByText("What should I help you with first?", { exact: true })).toHaveCount(
-    0,
-  );
-});
-
-test("plus picker can create a Private computer bot", async ({ page }, testInfo) => {
-  const stamp = Date.now();
-  await signup(page, `new-bot-private-${stamp}@rakazo.test`, "password12", "New Bot Private");
-  await completeOnboarding(page);
   await openAdvancedNavigation(page);
-  await page.goto("/app");
-  await page.waitForURL(/\/app\/[^/]+$/);
-  await openAdvancedNavigation(page);
+  await page.getByTestId("minimize-bots-sidebar").click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
+  const edge = page.getByTestId("bots-sidebar-edge");
+  await expect(edge).toBeVisible();
+  const restore = page.getByTestId("restore-bots-sidebar");
+  await expect(restore).toBeVisible();
+  await captureScreenshot(page, testInfo, "bots-sidebar-collapsed");
 
-  await createBotFromPicker(page, { computerMode: "dedicated" });
-  await expect(page.getByPlaceholder("Message New Bot")).toBeVisible();
-  await captureScreenshot(page, testInfo, "create-private-computer-bot");
+  await restore.click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
+  await expect(restore).toHaveCount(0);
+  await page.getByTestId("bots-sidebar").evaluate(async (sidebar) => {
+    await Promise.all(
+      sidebar.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
 
-  const botId = page.url().split("/").pop()!;
-  const bots = await rpc<Array<{ id: string; computerMode: string }>>(page, "bots/list", {});
-  expect(bots.find((bot) => bot.id === botId)?.computerMode).toBe("dedicated");
-});
+  await page.getByTestId("minimize-bots-sidebar").click();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "true");
 
-test("second bot from plus opens create form before persist", async ({ page }, testInfo) => {
-  const stamp = Date.now();
-  await signup(page, `second-bot-form-${stamp}@rakazo.test`, "password12", "Second Bot Form");
-  await completeOnboarding(page);
-  await openAdvancedNavigation(page);
-  await page.goto("/app");
-  await page.waitForURL(/\/app\/[^/]+$/);
-  await openAdvancedNavigation(page);
-
-  await openNewBot(page);
-  const form = page.getByTestId("create-bot-form");
-  await expect(form).toBeVisible();
-  await form.locator("label:has-text('Name') input").fill("Researcher");
-  await form.getByRole("button", { name: "More options", exact: true }).click();
-  await form.locator("label:has-text('Title') input").fill("Finds sources");
-  await form.locator("label:has-text('Description') textarea").fill("Briefs from the web.");
-  await captureScreenshot(page, testInfo, "second-bot-create-form");
-
-  const create = page.waitForResponse(
-    (response) => response.url().includes("/rpc/bots/create") && response.ok(),
-  );
-  await form.getByRole("button", { name: "Create", exact: true }).click();
-  await create;
-  await page.waitForURL(/\/app\/[^/]+$/);
-  await openAdvancedNavigation(page);
-  await expect(page.getByPlaceholder("Message Researcher")).toBeVisible();
-  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
-  await captureScreenshot(page, testInfo, "second-bot-created");
+  const box = await edge.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + 80, box!.y + box!.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByTestId("bots-sidebar")).toHaveAttribute("data-collapsed", "false");
+  await captureScreenshot(page, testInfo, "bots-sidebar-expanded");
 });

@@ -1,4 +1,15 @@
 export const RU_MESSAGES: Record<string, string> = {
+  "Try again": "Попробовать снова",
+  "Could not save this choice": "Не удалось сохранить этот выбор",
+  "This bot is no longer available.": "Этот бот больше недоступен.",
+  "Kith pays for this model.": "Kith оплачивает эту модель.",
+  "What should my name be, and what's my role?": "Как меня назвать и какая у меня роль?",
+  "Inbox assistant": "Помощник по почте",
+  "Research assistant": "Помощник по исследованиям",
+  "Planning assistant": "Помощник по планированию",
+  "Coding partner": "Партнёр по программированию",
+  Role: "Роль",
+  Custom: "Свой вариант",
   "Start computer": "Запустить компьютер",
   "Resume computer": "Возобновить компьютер",
 

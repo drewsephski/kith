@@ -66,7 +66,7 @@ export async function deliverSend(
   }
   if (!plan.shouldSend) return;
   const artifactIds: string[] = [];
-  for (const pending of attachments) {
+  for (const [index, pending] of attachments.entries()) {
     let id = attempt.artifactIds.get(pending.id);
     if (!id) {
       const artifact = await request<{ id: string }>("artifacts/create", {
@@ -74,6 +74,7 @@ export async function deliverSend(
         name: pending.name,
         mimeType: pending.mimeType,
         contentBase64: pending.contentBase64,
+        clientNonce: `${attempt.clientNonce}:${index}`,
       });
       id = artifact.id;
       attempt.artifactIds.set(pending.id, id);

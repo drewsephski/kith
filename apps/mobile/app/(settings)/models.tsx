@@ -462,7 +462,8 @@ export default function Models() {
   // Space still bills the host while this provider matches; model id alone is not credentials.
   const usingServerCredentials = provider === me?.hostCredentialProvider;
   const acceptsKey = selected?.auth !== "oauth";
-  const subscriptionSignIn = selected?.signIn !== undefined;
+  const subscriptionSignIn =
+    selected?.signIn !== undefined && !selected.connectionUnavailableReason;
   // Effort levels for the staged catalog model — "off" stays out, matching the
   // model settings and per-bot Thinking pickers.
   const catalogThinkingLevels =
@@ -1198,6 +1199,12 @@ export default function Models() {
   const catalogConnectionControls =
     !isOpenAiCompatible && selected ? (
       <>
+        {selected.connectionUnavailableReason ? (
+          <Text style={styles.secondary}>{selected.connectionUnavailableReason}</Text>
+        ) : null}
+        {isActive && me?.defaultModelFunding === "deployment" ? (
+          <Text style={styles.secondary}>{t("Kith pays for this model.")}</Text>
+        ) : null}
         {subscriptionSignIn ? (
           oauth ? (
             <View style={styles.oauthCard}>
@@ -1355,7 +1362,9 @@ export default function Models() {
             />
           </View>
         ) : null}
-        {selected.auth === "oauth" && !subscriptionSignIn ? (
+        {selected.auth === "oauth" &&
+        !subscriptionSignIn &&
+        !selected.connectionUnavailableReason ? (
           <Text style={styles.secondary}>
             {t(
               "This subscription sign-in is not available in Kith yet. Use a deployment credential or choose another provider.",

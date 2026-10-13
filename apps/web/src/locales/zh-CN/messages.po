@@ -929,13 +929,10 @@ msgstr "无法连接服务器。"
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/PluginsOverlay.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Cancel"
 msgstr "取消"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Cancel new bot"
-msgstr "取消新建 Bot"
 
 #: src/pages/GroupPanel.tsx
 msgid "Cancel new group"
@@ -1234,6 +1231,10 @@ msgstr "云端"
 #: src/components/AskCard.tsx
 msgid "Code"
 msgstr "代码"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Coding partner"
+msgstr "编程伙伴"
 
 #. placeholder {0}: group.title
 #. placeholder {0}: item.chat.name
@@ -1673,7 +1674,7 @@ msgstr ""
 msgid "Could not continue"
 msgstr "无法继续"
 
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 msgid "Could not create bot"
 msgstr "无法创建 Bot"
 
@@ -2063,6 +2064,7 @@ msgstr "无法保存该语音"
 msgid "Could not save the credential"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/message-cards.tsx
 msgid "Could not save this choice"
 msgstr "无法保存此选择"
@@ -2175,7 +2177,6 @@ msgstr "无法更新头像"
 msgid "Couldn't update messaging settings"
 msgstr "无法更新消息设置"
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Create"
 msgstr "创建"
@@ -2228,7 +2229,7 @@ msgid "Created"
 msgstr "已创建"
 
 #: src/pages/GroupPanel.tsx
-#: src/pages/shell/bot-panel.tsx
+#: src/pages/Shell.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Creating…"
 msgstr "正在创建…"
@@ -2262,6 +2263,10 @@ msgstr "Cron 表达式"
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Current password"
 msgstr "当前密码"
+
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Custom"
+msgstr "自定义"
 
 #: src/pages/shell/bot-credentials.tsx
 msgid "Custom header"
@@ -3136,6 +3141,10 @@ msgstr ""
 msgid "Inactive"
 msgstr ""
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Inbox assistant"
+msgstr "收件箱助手"
+
 #: src/components/task-starters/TaskStarterReceipt.tsx
 msgid "Inbox to-do list"
 msgstr "收件箱待办清单"
@@ -3238,6 +3247,10 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "Kith"
 msgstr ""
+
+#: src/pages/ModelSettingsOverlay.tsx
+msgid "Kith pays for this model."
+msgstr "此模型的费用由 Kith 支付。"
 
 #: src/pages/KnowledgeSection.tsx
 msgid "Knowledge"
@@ -3697,7 +3710,6 @@ msgstr "更多分类"
 msgid "More computer actions"
 msgstr ""
 
-#: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/kith-sidebar.tsx
 msgid "More options"
 msgstr "更多选项"
@@ -3731,14 +3743,11 @@ msgstr "静音"
 #: src/pages/GroupPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Name"
 msgstr "名称"
-
-#: src/pages/shell/bot-panel.tsx
-msgid "Name this bot"
-msgstr "给这个 Bot 命名"
 
 #: src/pages/GroupPanel.tsx
 msgid "Name this group"
@@ -3769,10 +3778,6 @@ msgstr ""
 #: src/pages/Shell.tsx
 msgid "New"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "New bot"
-msgstr "新建 Bot"
 
 #: src/pages/Shell.tsx
 #: src/pages/shell/kith-sidebar.tsx
@@ -4273,6 +4278,10 @@ msgstr "规划基础设施和用量提醒"
 msgid "Plan my day"
 msgstr "规划我的一天"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Planning assistant"
+msgstr "规划助手"
+
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Playing…"
 msgstr "播放中…"
@@ -4747,6 +4756,10 @@ msgstr ""
 msgid "Research and projects"
 msgstr "研究和项目"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Research assistant"
+msgstr "研究助手"
+
 #. js-lingui-explicit-id
 #: src/lib/for-you-messages.ts
 msgid "Research partners and draft introductions"
@@ -4904,6 +4917,10 @@ msgstr "撤销"
 msgid "Robot"
 msgstr "机器人"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "Role"
+msgstr "角色"
+
 #: src/pages/ExternalConversationSettings.tsx
 msgid "Room guidance"
 msgstr ""
@@ -4969,6 +4986,7 @@ msgstr ""
 #: src/pages/PersonalMemoryPanel.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/assistant-focus.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Save"
@@ -5044,6 +5062,7 @@ msgstr ""
 #: src/pages/ModelSettingsOverlay.tsx
 #: src/pages/RoutineEditor.tsx
 #: src/pages/shell/bot-credentials.tsx
+#: src/pages/shell/bot-identity-card.tsx
 #: src/pages/shell/bot-panel.tsx
 #: src/pages/shell/dialogs.tsx
 msgid "Saving…"
@@ -5746,6 +5765,10 @@ msgid "This app is unavailable from the configured integration provider."
 msgstr ""
 
 #: src/pages/Shell.tsx
+msgid "This bot is no longer available."
+msgstr "此机器人已不可用。"
+
+#: src/pages/Shell.tsx
 msgid "This bot runs on this computer, not a Linux desktop. Shell and files use your home folder."
 msgstr "此 Bot 运行在这台电脑上，而不是 Linux 桌面。Shell 和文件使用你的主目录。"
 
@@ -5920,6 +5943,7 @@ msgstr ""
 #: src/components/integrations/ConnectionsPanel.tsx
 #: src/pages/ActivityList.tsx
 #: src/pages/Onboarding.tsx
+#: src/pages/Shell.tsx
 msgid "Try again"
 msgstr "重试"
 
@@ -6249,6 +6273,10 @@ msgstr "你要示范什么结果？"
 msgid "What should I help you with first?"
 msgstr "我应该先帮你做什么？"
 
+#: src/pages/shell/bot-identity-card.tsx
+msgid "What should my name be, and what's my role?"
+msgstr "我应该叫什么名字，担任什么角色？"
+
 #: src/pages/RoutineEditor.tsx
 msgid "What should this routine do each time it runs?"
 msgstr "每次运行时，这个例行任务应做什么？"
@@ -6256,10 +6284,6 @@ msgstr "每次运行时，这个例行任务应做什么？"
 #: src/components/CalendarConnection.tsx
 msgid "What should your assistant keep in mind?"
 msgstr ""
-
-#: src/pages/shell/bot-panel.tsx
-msgid "What this bot is for"
-msgstr "这个 Bot 是做什么的"
 
 #: src/components/teach/SkillDraftCard.tsx
 msgid "What to return"
