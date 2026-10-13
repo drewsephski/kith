@@ -126,6 +126,7 @@ async function main() {
         "packages/adapters/src/wakeup.postgres.test.ts",
         "packages/adapters/src/model-call-quota.postgres.test.ts",
         "packages/adapters/src/computer-activation-quota.postgres.test.ts",
+        "packages/adapters/src/routine-quota.postgres.test.ts",
         "packages/adapters/src/realtime.postgres.test.ts",
         "packages/adapters/src/job-reconciler.postgres.test.ts",
         "packages/adapters/src/cloud-agent.postgres.test.ts",

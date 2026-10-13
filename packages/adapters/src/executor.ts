@@ -115,6 +115,7 @@ import {
   assertRunCreationQuota,
   createSpaceForMember,
   createThreadMessageInTransaction,
+  ExecutionQuotaError,
   effectiveMemoryScope,
   executionLimit,
   findDefaultModelCredential,
@@ -3228,6 +3229,29 @@ export function createRunExecutor(deps: ExecutorDeps) {
           },
         });
         if (!currentModel) return null;
+        try {
+          await assertRunCreationQuota(tx, routine.userId);
+        } catch (error) {
+          if (!(error instanceof ExecutionQuotaError)) throw error;
+          // Daily admission is exhausted. Retain scheduled intent without recording a
+          // firing or leaving an overdue wake that retries until the UTC allowance resets.
+          const [{ resetAt }] = await tx.$queryRaw<[{ resetAt: Date }]>`
+            SELECT (date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'UTC') + interval '1 day')
+              AT TIME ZONE 'UTC' AS "resetAt"
+          `;
+          const deferredUntil = isOneShotRoutineCrons(routine.crons)
+            ? resetAt
+            : (nextCronDateAcross(
+                routine.crons,
+                new Date(resetAt.getTime() - 1),
+                routine.timezone,
+              ) ?? resetAt);
+          await tx.routine.update({
+            where: { id: routine.id },
+            data: { lastRunAt: previousLastRunAt, nextRunAt: deferredUntil, active: true },
+          });
+          return { quotaDeferredUntil: deferredUntil };
+        }
         const task = await tx.task.create({
           data: {
             spaceId: routine.spaceId,
@@ -3238,7 +3262,6 @@ export function createRunExecutor(deps: ExecutorDeps) {
             status: "queued",
           },
         });
-        await assertRunCreationQuota(tx, routine.userId);
         const run = await tx.run.create({
           data: {
             spaceId: routine.spaceId,
@@ -3271,6 +3294,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
         return run;
       });
       if (!claimed) return;
+      if ("quotaDeferredUntil" in claimed) {
+        // The durable schedule also lets reconciliation repair a missed future wake.
+        await deps.jobs.enqueue(routineWakeupJob(routine.id, claimed.quotaDeferredUntil));
+        return;
+      }
       // Enqueue continuation first so a thread-signal failure cannot strand the run.
       try {
         await deps.jobs.enqueue(runContinueJob(claimed.id));
