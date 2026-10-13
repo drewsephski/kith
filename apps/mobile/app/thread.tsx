@@ -1895,7 +1895,7 @@ function Thread() {
       if (current() && !threadStopIsSettled(request, next)) {
         Alert.alert(t("Failed to stop work"), errorText(err, t("Try again.")));
       }
-      if (current()) setSending(false);
+      setSending(false);
       return;
     }
     try {
