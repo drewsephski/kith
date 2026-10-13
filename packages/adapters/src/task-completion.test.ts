@@ -38,6 +38,24 @@ describe("unfinished action recovery", () => {
 
 describe("fresh memory receipt boundary", () => {
   it.each([
+    "Also remember that I prefer dark mode.",
+    "Just remember my timezone is UTC.",
+    "Please also remember that I prefer coffee.",
+    "Now save this to memory.",
+    "Then please store this in memory.",
+    "Also remember: cobalt.",
+  ])("requires receipts for adverb-prefixed directives: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([{ id: "input", text: prompt }]);
+  });
+  it.each([
+    "Alice said, Also remember that I prefer dark mode.",
+    "Make a sign saying, Just remember my timezone is UTC.",
+    'Explain "Also remember that I prefer coffee".',
+    "If you also remember my preference, what happens?",
+  ])("keeps prefixed reported and hypothetical instructions as data: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([]);
+  });
+  it.each([
     "I want you to remember that I prefer dark mode.",
     "I'd like you to remember that my timezone is UTC.",
     "I would like you to save my preference to memory.",

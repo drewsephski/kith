@@ -866,65 +866,69 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe("violet");
     server.assertComplete();
   });
-  it("persists a memory write when the supported default path is omitted", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-default-"));
-    cleanups.push(() => rm(directory, { recursive: true, force: true }));
-    const content = "I prefer cobalt notebooks.";
-    const server = await startModelEmulator({
-      steps: [
-        {
-          expect: () => {},
-          response: {
-            type: "tool",
-            id: "memory-default",
-            name: "remember",
-            arguments: { content },
-          },
-        },
-        {
-          expect(request) {
-            expect(JSON.parse(String(latestToolResult(request)?.content))).toMatchObject({
-              ok: true,
-            });
-          },
-          response: { type: "text", text: "Saved the preference." },
-        },
-      ],
-    });
-    cleanups.push(() => server.close());
-    let writes = 0;
-    await collect(
-      new PiAgentRuntime().run(
-        runRequest(server.model, {
-          prompt: `Remember that ${content}`,
-          tools: [
-            {
+  it.each(["", "Also ", "Just "])(
+    "%spersists a memory write after an unsupported success claim with the default path omitted",
+    async (prefix) => {
+      const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-default-"));
+      cleanups.push(() => rm(directory, { recursive: true, force: true }));
+      const content = "I prefer cobalt notebooks.";
+      const server = await startModelEmulator({
+        steps: [
+          { expect: () => {}, response: { type: "text", text: "Saved the preference." } },
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "memory-default",
               name: "remember",
-              description: "Store a durable fact",
-              inputSchema: {
-                type: "object",
-                properties: { content: { type: "string" }, path: { type: "string" } },
-                required: ["content"],
-              },
+              arguments: { content },
             },
-          ],
-          executeTool: async (name, args) => {
-            expect(name).toBe("remember");
-            writes++;
-            await writeFile(
-              path.join(directory, String(args.path ?? "MEMORY.md")),
-              String(args.content),
-            );
-            return { ok: true };
           },
-        }),
-        { signal: new AbortController().signal },
-      ),
-    );
-    expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe(content);
-    expect(writes).toBe(1);
-    server.assertComplete();
-  });
+          {
+            expect(request) {
+              expect(JSON.parse(String(latestToolResult(request)?.content))).toMatchObject({
+                ok: true,
+              });
+            },
+            response: { type: "text", text: "Saved the preference." },
+          },
+        ],
+      });
+      cleanups.push(() => server.close());
+      let writes = 0;
+      await collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: `${prefix}Remember that ${content}`,
+            tools: [
+              {
+                name: "remember",
+                description: "Store a durable fact",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" }, path: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            executeTool: async (name, args) => {
+              expect(name).toBe("remember");
+              writes++;
+              await writeFile(
+                path.join(directory, String(args.path ?? "MEMORY.md")),
+                String(args.content),
+              );
+              return { ok: true };
+            },
+          }),
+          { signal: new AbortController().signal },
+        ),
+      );
+      expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe(content);
+      expect(writes).toBe(1);
+      server.assertComplete();
+    },
+  );
   it("continues a promise-only reply into real tool execution and a verified answer", async () => {
     const server = await startModelEmulator({
       steps: [
