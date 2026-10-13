@@ -111,6 +111,7 @@ vi.mock("expo-secure-store", () => ({
 }));
 
 import NewBot from "../app/new";
+import * as botCreation from "./bot-creation";
 
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;
@@ -139,6 +140,7 @@ describe("new bot creation removal guard", () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
+    vi.restoreAllMocks();
   });
   function button(label: string) {
     const result = [...host.querySelectorAll("button")].find((item) => item.textContent === label);
@@ -235,5 +237,28 @@ describe("new bot creation removal guard", () => {
       create.resolve({ id: "old-bot", name: "New bot" });
     });
     expect(state.replace).not.toHaveBeenCalled();
+  });
+  it("a scope change after the helper settles cannot redirect a still-mounted creation screen", async () => {
+    const original = botCreation.createConversationalBot;
+    const settled = vi.fn();
+    vi.spyOn(botCreation, "createConversationalBot").mockImplementationOnce(() =>
+      original().then((bot) => {
+        // The helper returned an accepted bot; the account/Space changes before the screen resumes.
+        expect(bot?.id).toBe("old-bot");
+        settled();
+        state.epoch += 1;
+        return bot;
+      }),
+    );
+    const create = deferred<{ id: string; name: string }>();
+    await mount(create.promise);
+    await act(async () => {
+      create.resolve({ id: "old-bot", name: "New bot" });
+    });
+    expect(settled).toHaveBeenCalledTimes(1);
+    expect(host.isConnected).toBe(true);
+    expect(button("Cancel").disabled).toBe(false);
+    expect(state.replace).not.toHaveBeenCalled();
+    expect(state.actions).toEqual([]);
   });
 });

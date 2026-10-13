@@ -34,12 +34,13 @@ export default function NewBot() {
     if (submitting.current) return;
     submitting.current = true;
     settled.current = false;
-    operationScope.current = captureMobileScreenScope();
+    const scopeCurrent = captureMobileScreenScope();
+    operationScope.current = scopeCurrent;
     setPending(true);
     setError(null);
     try {
       const bot = await createConversationalBot();
-      if (bot && mounted.current) {
+      if (bot && mounted.current && scopeCurrent()) {
         settled.current = true;
         router.replace({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
       }
