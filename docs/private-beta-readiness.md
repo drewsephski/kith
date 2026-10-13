@@ -4,11 +4,11 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** Application source `25b9bbb8` passed required
+**External testers are not yet cleared.** Application source `fe5db747` passed required
 CI: 13 active checks succeeded and eight release/promotion jobs correctly skipped, including
-the canonical identity-response/bootstrap, self-hosted Codex judge and BYOK retry corrections.
-Subsequent review found channel-wide delivery interruption when one recipient exhausts quota;
-the per-recipient correction passes focused verification below. The exact final-head CI/review result is recorded in
+the canonical identity/bootstrap, self-hosted Codex judge, BYOK retry and channel-quota corrections.
+Subsequent review found that cloud-agent wakeups lost their originating model budget;
+the per-generation root correction passes focused verification below. The exact final-head CI/review result is recorded in
 [PR #20](https://github.com/drewsephski/kith/pull/20); passing checks and completed review on
 that head are required before the authorized merge.
 The candidate still needs an authorized hosted rollout, budgeted real-provider acceptance
@@ -136,7 +136,7 @@ back its claim and repeatedly re-enqueuing the same wakeup. One-shot intent is r
 the next UTC allowance reset; recurring schedules choose their next eligible occurrence.
 No run, task, firing event, inference or computer is created while admission is exhausted.
 Temporary run concurrency is a separate admission path and is not delayed to the next day.
-Application-source CI at `25b9bbb8` passed 8,967 unit tests, 42 PostgreSQL
+Application-source CI at `fe5db747` passed 8,971 unit tests, 42 PostgreSQL
 suites/331 tests and all 11 offline canaries. Six actual PostgreSQL regressions and 101 existing executor tests
 passed for this correction, including eight concurrent stale wakeups, queue-publication failure, resumed one-shot intent,
 account isolation and invalid-configuration rollback.
@@ -167,6 +167,19 @@ cases cover ordinary/routine quota isolation and genuine failure propagation; bo
 assertions failed against the previous handler. The focused messaging/admission checks,
 workspace lint and all 22 type-check tasks passed. No deferred/background sender or new
 metering system was introduced.
+
+Cloud-agent launch and reply now atomically persist the current run's root with each
+remote generation. Completion wakeups copy that durable root, including after recovery,
+so repeated remote generations cannot acquire a fresh hosted allowance. An independently
+authorized user task can start its own root. Legacy card origins are backfilled only when
+account, Space, bot and thread agree; unattributable managed rows retain their terminal
+result without starting an unbudgeted wake. Self-hosted behavior is preserved. Three strict
+actual PostgreSQL regressions failed against the previous service/poller; all 38 cloud,
+model-quota and schema cases passed with the correction. The scoped legacy backfill also
+passed against real rows, including a cross-account card rejection. All 111 migrations
+applied to an isolated fresh database. The API/worker startup probe requires the new column;
+no production migration was applied. Thirty-two deterministic cloud/quota/preflight tests passed.
+
 
 ### Conversational additional-bot creation
 
@@ -258,16 +271,16 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Gate | Status | Evidence / limit |
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
-| Candidate CI / review | PASSED at 25b9bbb8; final-head merge gate required | Canonical-response/bootstrap, judge and retry source passed 13 active checks. The later recipient-isolation correction passed focused verification; final exact-head checks, bot signals and answered findings are recorded in PR #20 and must be green before merge. |
+| Candidate CI / review | PASSED at fe5db747; final-head merge gate required | Canonical-response/bootstrap, judge and retry source passed 13 active checks. The later cloud-root correction passed focused verification; final exact-head checks, bot signals and answered findings are recorded in PR #20 and must be green before merge. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed locally and on the exact application source in CI. |
 | Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,042 tests, including final focus and pending-creation route regressions. |
-| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: full local rerun at `1808e919` passed 700 files and 8,946 tests with 377 gated tests skipped. Application-source CI at `25b9bbb8` passed 700 files and 8,967 tests with 368 gated tests skipped, including the deterministic calendar checks. |
-| PostgreSQL journeys | PASSED | `pnpm test:integration`: application-source CI at `25b9bbb8`: 42 suites, 331 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
+| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: full local rerun at `1808e919` passed 700 files and 8,946 tests with 377 gated tests skipped. Application-source CI at `fe5db747` passed 700 files and 8,971 tests with 368 gated tests skipped, including the deterministic calendar checks. |
+| PostgreSQL journeys | PASSED | `pnpm test:integration`: application-source CI at `fe5db747`: 42 suites, 331 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
-| Web creation / recovery acceptance | PASSED | Thirteen real API/PostgreSQL Playwright creation/CRUD cases, including three delayed-navigation cases, two canonical-response races and held-bootstrap creation, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Exact source `25b9bbb8` passed 322 web tests plus that separate sidebar regression; final-head checks are enforced through PR #20. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PASSED at 25b9bbb8 | Virtual-display packaged acceptance passed at exact application source `25b9bbb8`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
-| Android candidate native acceptance | PASSED at 25b9bbb8 | Installed emulator onboarding and actual network-policy recording passed at exact application source `25b9bbb8`, including the final backend corrections. Physical signed-device acceptance remains separate. |
+| Web creation / recovery acceptance | PASSED | Thirteen real API/PostgreSQL Playwright creation/CRUD cases, including three delayed-navigation cases, two canonical-response races and held-bootstrap creation, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Exact source `fe5db747` passed 322 web tests plus that separate sidebar regression; final-head checks are enforced through PR #20. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
+| Packaged Electron candidate | PASSED at fe5db747 | Virtual-display packaged acceptance passed at exact application source `fe5db747`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
+| Android candidate native acceptance | PASSED at fe5db747 | Installed emulator onboarding and actual network-policy recording passed at exact application source `fe5db747`, including the final backend corrections. Physical signed-device acceptance remains separate. |
 | iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. The canonical-response JavaScript refresh on the existing 1.0.10 native binary also passed preset Miso, custom Clover, focus and full terminate/relaunch persistence. Three runtime source files changed; the new source scan had zero drift. No setup runs were created. Distribution/device proof remains separate. |
 | Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
@@ -308,7 +321,7 @@ Electron, but Android failed installing NDK 27.1.12297006 because the downloaded
 not a ZIP. App compilation, installation and Maestro assertions did not run. This is an SDK
 setup failure, not an application assertion or screenshot-publication failure. The later BYOK
 retry correction requires a fresh full CI/review pass; no native assertion or release guard
-was weakened to accommodate the failed download. Fresh installed Android acceptance passed at `25b9bbb8`.
+was weakened to accommodate the failed download. Fresh installed Android acceptance passed at `fe5db747`.
 
 Independent source review reported 18 passed requirements, no unresolved source failures and
 three cross-platform/provider/release requirements awaiting empirical acceptance. It caught and
@@ -335,11 +348,11 @@ offline-canary suites, not claims that production outages or physical-device flo
 | Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
 | Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
 
-Required CI passed at application source `25b9bbb8`, including quota/finalization,
+Required CI passed at application source `fe5db747`, including quota/finalization,
 calendar lock-order, delayed-navigation, canonical identity/bootstrap, judge and retry corrections. The
-[CI run](https://github.com/drewsephski/kith/actions/runs/38445950878) recorded
+[CI run](https://github.com/drewsephski/kith/actions/runs/38450874167) recorded
 13 successful checks and eight correctly skipped release/promotion jobs. The subsequent
-channel-recipient quota finding is corrected and verified above. Final-head CI/review evidence is
+cloud-generation root-budget finding is corrected and verified above. Final-head CI/review evidence is
 recorded on PR #20 rather than assuming an earlier green run certifies a later commit.
 Review threads remain unresolved because resolving them requires separate operator authorization.
 The authorized merge must wait for terminal checks/reviews and answers to every actionable root.
@@ -347,7 +360,7 @@ The authorized merge must wait for terminal checks/reviews and answers to every 
 Earlier passing runs at `d3d09f2e` and `0ae0b155` remain historical evidence; their later
 review findings were corrected above. Earlier failed Android input, web MCP transition and
 Android SDK archive attempts remain failures rather than being relabeled as passes.
-[Application-source CI screenshots](https://github.com/drewsephski/kith/actions/runs/38445950878/artifacts/11838954108)
+[Application-source CI screenshots](https://github.com/drewsephski/kith/actions/runs/38450874167/artifacts/11840999479)
 include `conversational-bot-identity.png`, `conversational-bot-focus.png`,
 `conversational-bot-custom-persisted.png`, `conversational-bot-preserved-settings.png` and the two `conversational-bot-authoritative-*` response-race captures.
 Persistent gallery publication is separate from retained screenshots and application acceptance.
@@ -358,7 +371,7 @@ Persistent gallery publication is separate from retained screenshots and applica
 | --- | --- | --- |
 | Hosted anonymous session / auth capabilities | PASSED | Read-only check: session returns null normally; password auth and recovery advertised available. |
 | Actual hosted readiness | FAILED | Reviewed app and direct API `/ready` return static HTML rather than readiness JSON. Tracked routing correctly forwards readiness JSON; the exact live revision/configuration mismatch is unverified. Verify matching API/worker/gateway revision during authorized rollout. |
-| Production migrations / exact revisions | UNEXECUTED | Apply the three forward migrations below through the existing entrypoint only after authorization; API and worker must be compatible. Read-only startup checks cover the new schema. |
+| Production migrations / exact revisions | UNEXECUTED | Apply the four forward migrations below through the existing entrypoint only after authorization; API and worker must be compatible. Read-only startup checks cover the new schema. |
 | Password recovery delivery | UNEXECUTED | SMTP configuration exists; dedicated mailbox reset, old-session invalidation and new sign-in still need proof. |
 | Hosted effective funding / quotas | UNEXECUTED | Verify managed mode, exact Luna default, entitlements and finite effective limits after authorized rollout. |
 | Signing credential availability | PRESENT | Metadata confirms existing local Developer ID and authenticated existing EAS/ASC configuration; no secret values inspected or published. |
@@ -370,7 +383,8 @@ Persistent gallery publication is separate from retained screenshots and applica
 | Notifications / OAuth / share extension on devices | UNEXECUTED | Physical permission, return-link, delivery and cross-device acceptance remain separate. |
 
 The new forward migrations are `20261013110000_artifact_client_nonce`,
-`20261013160000_model_call_reservations` and `20261013170000_bot_creation_requests`.
+`20261013160000_model_call_reservations`, `20261013170000_bot_creation_requests` and
+`20261013193000_cloud_agent_root_budget`.
 Their account/Space constraints and deletion behavior are exercised against PostgreSQL.
 
 Mobile app version/runtime is prepared as **1.0.10**. Fresh **iOS and Android native builds**
@@ -403,7 +417,7 @@ The main implementation boundaries are:
   delegated/scheduled run admission and durable routine deferral, `routine-quota.postgres.test.ts`,
   optional follow-up guards in `calendar-service.ts` and `cloud-agent-poll.ts`, typed recipient isolation in `messaging-inbound.ts`, calendar/cloud
   regression suites and the integration registry; API/worker composition,
-  `packages/db/src/execution-quotas.ts`, computer limits, schema and reservation migration.
+  `packages/db/src/execution-quotas.ts`, computer limits, schema/reservation migration, and the cloud-agent generation root migration/service/poller.
 - Onboarding: `apps/api/src/onboarding.ts`, shared choice/RPC/event contracts,
   `packages/core/src/onboarding-focus.ts`, `bot-creation-attempt.ts`, database repository,
   scoped creation migration, `apps/web/src/pages/Shell.tsx`, shared identity/message cards,

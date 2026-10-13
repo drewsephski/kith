@@ -736,6 +736,8 @@ model Attempt {
 // to cancel remote work after its originating chat or account is deleted.
 model CloudAgent {
   id                  String   @id @default(uuid())
+  /// Current generation's durable originating spend scope, independent of run deletion.
+  rootRunId           String?
   operationKey        String   @unique
   providerKey         String
   spaceId             String

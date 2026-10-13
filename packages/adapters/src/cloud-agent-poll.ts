@@ -13,6 +13,7 @@ import {
   type CloudAgent,
   ExecutionQuotaError,
   Prisma,
+  resolveModelExecutionMode,
 } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { cloudAgentsEnabled } from "./cloud-agent-factory.js";
@@ -299,9 +300,11 @@ async function finishPoll(
         seq = event.seq;
       }
       if (terminal && saved.wakeGeneration < saved.generation) {
-        let wakeAllowed = true;
+        // Legacy rows without an attributable origin cannot acquire a new managed
+        // allowance. Their remote result still commits and remains inspectable.
+        let wakeAllowed = Boolean(saved.rootRunId) || resolveModelExecutionMode() !== "managed";
         try {
-          await assertRunCreationQuota(tx, agent.userId);
+          if (wakeAllowed) await assertRunCreationQuota(tx, agent.userId);
         } catch (error) {
           if (!(error instanceof ExecutionQuotaError)) throw error;
           // The remote result is authoritative; its optional local follow-up must not
@@ -330,6 +333,7 @@ async function finishPoll(
               taskId: task.id,
               status: "queued",
               trigger: "cloud_agent",
+              rootRunId: saved.rootRunId,
               clientNonce: `cloud-agent-wake-run:${agent.id}:${saved.generation}`,
             },
           });

@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { AdapterContext, BackgroundJob, JobPublisher } from "@rakazo/adapter-kit";
+import { readFile } from "node:fs/promises";
+import type {
+  AdapterContext,
+  AgentRunRequest,
+  BackgroundJob,
+  JobPublisher,
+} from "@rakazo/adapter-kit";
 import { clearThread, createDb, type PrismaClient } from "@rakazo/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CloudAgentConnection } from "./cloud-agent-factory.js";
@@ -7,6 +13,7 @@ import { pollCloudAgent } from "./cloud-agent-poll.js";
 import { executeCloudAgentTool, reconcileCloudAgents } from "./cloud-agent-service.js";
 import { CursorCloudAgentProvider } from "./cursor-cloud-agent.js";
 import { createJobReconciler } from "./job-reconciler.js";
+import { createModelCallQuotaObserver } from "./model-call-quota.js";
 import { CursorCloudAgentEmulator } from "./testing/cursor-cloud-agent-emulator.js";
 
 function deferred() {
@@ -166,6 +173,116 @@ describePostgres("cloud agent lifecycle and recovery (PostgreSQL + Cursor emulat
     await prisma.cloudAgent.update({ where: { id }, data: { nextPollAt: new Date() } });
     await h.poll(id);
     expect(await h.wakes()).toHaveLength(1);
+  });
+
+  it("shares the originating funded allowance across cloud generations and wake runs", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    vi.stubEnv("MAX_HOSTED_MODEL_CALLS_PER_RUN", "1");
+    const h = await setup();
+    const call = {
+      provider: "openrouter",
+      modelId: "openai/gpt-6-luna",
+      fundingSource: "deployment" as const,
+      inputTokensEstimate: 10,
+      requestBytes: 256,
+      textRequestBytes: 256,
+      maxOutputTokens: 256,
+    };
+    const observer = (runId: string, rootRunId?: string | null) =>
+      createModelCallQuotaObserver(prisma, { runId, rootRunId } as AgentRunRequest, h.context, {
+        mode: "managed",
+        billingRequired: false,
+      })!;
+    const initial = observer(h.run.id);
+    const reservation = await initial.beforeCall(call);
+    await initial.afterCall(reservation, null);
+    const id = await h.launch();
+    expect((await h.state(id)).rootRunId).toBe(h.run.id);
+    await h.poll(id);
+    await h.finish(id);
+    await h.tool("reply", { id, prompt: "Continue" }, { operationId: randomUUID() });
+    await h.poll(id);
+    await h.finish(id);
+    const wakes = await h.wakes();
+    expect(wakes).toHaveLength(2);
+    for (const wake of wakes) {
+      expect(wake.rootRunId).toBe(h.run.id);
+      await expect(observer(wake.id, wake.rootRunId).beforeCall(call)).rejects.toThrow(
+        "task reached",
+      );
+    }
+    await prisma.modelCallReservation.deleteMany({ where: { userId: h.id } });
+  });
+
+  it("atomically replaces the generation budget when an independently authorized run replies", async () => {
+    const h = await setup();
+    const id = await h.launch();
+    await h.poll(id);
+    await h.finish(id);
+    const next = await prisma.run.create({
+      data: {
+        spaceId: h.id,
+        userId: h.id,
+        botId: h.bot.id,
+        threadId: h.thread.id,
+        taskId: h.run.taskId,
+        status: "completed",
+        trigger: "user",
+      },
+    });
+    await executeCloudAgentTool(
+      h.deps,
+      { ...h.context, operationId: randomUUID() },
+      next,
+      "cloud_agent_reply",
+      { id, prompt: "New task" },
+    );
+    expect((await h.state(id)).rootRunId).toBe(next.id);
+    await h.poll(id);
+    await h.finish(id);
+    expect((await h.wakes()).map((wake) => wake.rootRunId).sort()).toEqual(
+      [h.run.id, next.id].sort(),
+    );
+  });
+
+  it("preserves a legacy terminal result without minting an unattributed managed allowance", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    const h = await setup();
+    const id = await h.launch();
+    await prisma.cloudAgent.update({ where: { id }, data: { rootRunId: null } });
+    await h.poll(id);
+    await h.finish(id);
+    expect(await h.state(id)).toMatchObject({
+      status: "finished",
+      wakeGeneration: 0,
+      nextPollAt: null,
+    });
+    expect(await h.wakes()).toHaveLength(0);
+  });
+
+  it("backfills only a legacy card origin in the same account, Space and thread", async () => {
+    const owned = await setup();
+    const other = await setup();
+    const id = await owned.launch();
+    const otherId = await other.launch();
+    await prisma.cloudAgent.update({ where: { id }, data: { rootRunId: null } });
+    await prisma.cloudAgent.update({
+      where: { id: otherId },
+      data: {
+        rootRunId: null,
+        messageId: (await owned.state(id)).messageId,
+      },
+    });
+    const migration = await readFile(
+      new URL(
+        "../../db/prisma/migrations/20261013193000_cloud_agent_root_budget/migration.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    await prisma.$executeRawUnsafe(migration.slice(migration.indexOf('UPDATE "cloud_agents"')));
+    expect((await owned.state(id)).rootRunId).toBe(owned.run.id);
+    expect((await other.state(otherId)).rootRunId).toBeNull();
   });
 
   it.each(["finished", "failed", "cancelled"] as const)(

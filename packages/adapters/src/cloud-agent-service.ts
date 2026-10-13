@@ -27,7 +27,7 @@ export function cloudAgentBlock(agent: CloudAgent) {
 export async function executeCloudAgentTool(
   deps: CloudAgentDeps,
   context: AdapterContext & { botId: string },
-  run: { id: string; threadId: string },
+  run: { id: string; threadId: string; rootRunId?: string | null },
   name: string,
   args: Record<string, unknown>,
 ) {
@@ -65,6 +65,7 @@ export async function executeCloudAgentTool(
           userId: context.userId,
           botId: context.botId,
           threadId: run.threadId,
+          rootRunId: run.rootRunId ?? run.id,
           title: request.prompt.split(/\r?\n/, 1)[0]!.slice(0, 80),
           launchRequest: request,
         },
@@ -122,6 +123,7 @@ export async function executeCloudAgentTool(
           followupDispatching: false,
           status: "running",
           generation: { increment: 1 },
+          rootRunId: run.rootRunId ?? run.id,
           version: { increment: 1 },
           nextPollAt: new Date(),
           errorCount: 0,

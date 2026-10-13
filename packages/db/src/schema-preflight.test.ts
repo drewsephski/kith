@@ -5,6 +5,7 @@ const probes = [
   'SELECT "lastUsedAt" FROM "computers" LIMIT 0',
   'SELECT "clientNonce" FROM "artifacts" LIMIT 0',
   'SELECT "rootRunId" FROM "runs" LIMIT 0',
+  'SELECT "rootRunId" FROM "cloud_agents" LIMIT 0',
   'SELECT "requestKey", "botId" FROM "bot_creation_requests" LIMIT 0',
   'SELECT "runId", "modelId", "expiresAt", "settledAt" FROM "model_call_reservations" LIMIT 0',
 ];
