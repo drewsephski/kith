@@ -71,7 +71,9 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
               );
             },
           },
-          tool("remember", { content: MEMORY }),
+          // The product reads both bot and shared memory. Exercise the shared
+          // writer here; the runtime/product regressions also cover remember.
+          tool("save_shared_memory", { path: "MEMORY.md", content: MEMORY }),
           result("Remembered your preference.", /true/),
         ],
       };

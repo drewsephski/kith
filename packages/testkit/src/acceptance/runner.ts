@@ -579,7 +579,17 @@ export async function runProductAcceptance(options: AcceptanceOptions): Promise<
             );
           }
           if (row.scenario === "memory-save") {
-            const memory = await handles!.prisma.memoryDocument.findMany({ where: { botId } });
+            const bot = await handles!.prisma.bot.findUniqueOrThrow({ where: { id: botId } });
+            const memory = await handles!.prisma.memoryDocument.findMany({
+              where: {
+                spaceId: bot.spaceId,
+                userId: bot.userId,
+                OR: [
+                  { scope: "bot", botId },
+                  { scope: "user", botId: null },
+                ],
+              },
+            });
             assert.ok(
               memory.some((doc) => doc.content.includes("violet-731")),
               "Preference not persisted",
