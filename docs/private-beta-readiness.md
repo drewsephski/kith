@@ -48,7 +48,10 @@ requests use their existing user-owned voice credentials rather than a deploymen
 Managed execution rejects the existing Codex subscription-token connection before initiation,
 storage and inference. Local/self-hosted Codex OAuth, device-code and refresh infrastructure
 remain available. Kith account authentication remains separate from a model connection.
-No identity provider or commercial SIWC client was introduced.
+No identity provider or commercial SIWC client was introduced. The team-chat judge also
+checks the explicit execution mode and secret policy before auth resolution, blocking legacy
+plan tokens misfiled under another provider. Three regressions prove the managed rejection
+before inference while preserving valid user keys and self-hosted behavior.
 
 The official [quickstart](https://developers.openai.com/siwc/quickstart),
 [open-source token-sharing guidance](https://developers.openai.com/siwc/token-sharing-open-source)
@@ -158,8 +161,8 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
 | Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PENDING | Required CI virtual-display job; routine focus-stealing local Electron E2E is prohibited. |
-| Android candidate native acceptance | PENDING | Required CI emulator job, including changed onboarding. |
+| Packaged Electron candidate | PENDING final head | Earlier candidate virtual-display jobs passed; required final-head CI remains authoritative; routine focus-stealing local Electron E2E is prohibited. |
+| Android candidate native acceptance | PENDING final head | The second candidate emulator job passed onboarding and actual network-policy recording; require the final head again. |
 | iOS candidate simulator | PASSED | Full current-source 1.0.9 UI journey passed; fresh 1.0.10 app/runtime with final navigation guard also passed persisted login, pinned Kith, custom keyboard identity, focus, task and reply restoration after relaunch; normal navigation, account/Kith, preset/custom identity, focus, scripted tasks, interrupted setup, relaunch persistence, early message, background/resume/cancel and final pinned avatar/label/menu probes passed. Ad-hoc simulator signing is not distribution signing. |
 | Native disk/network cache privacy | PARTIAL | Fresh iOS simulator: 1,380 observed private successful replies had no-store responses, no-store/no-cache requests and zero cookies; NSURLCache had zero private Kith API entries or payload markers; one unrelated existing Expo Observe metrics response remained cached. Shared transport and server error/SSE tests passed. Android native CI wire guard and old-install cache inspection remain separate gates. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
@@ -180,7 +183,9 @@ The corrected stable complete runs above passed. The first PR head also passed r
 web and packaged Electron acceptance, but Android failed on a missing custom-field test ID.
 Its captured hierarchy showed the Name field visible and focused. The next CI head passed
 Android and packaged Electron but failed one MCP-settings navigation assertion after 315
-web passes; that failure is retained separately from onboarding acceptance. The smoke now uses
+web passes. The strict MCP spec also passed with the actual baseline Shell/dependency restored;
+the failed trace showed a click during the existing panel-height transition. The spec now waits
+for the real animations to finish and retains every navigation/OAuth assertion. The smoke uses
 native keyboard Next/Done and keeps the identity/focus/task outcome assertions; final Android CI
 must establish the correction. These were separate from the native build
 storage failure. Live model, signed-device and exact-candidate CI evidence remain distinct.
