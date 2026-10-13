@@ -18,11 +18,13 @@ export function confirmedMemoryPrompt(question: string, answer: string): string 
   if (
     !/\b(?:remember|remembered|memory)\b/i.test(question) ||
     !/\b(?:should|shall|want|like|confirm|save|store)\b|\b(?:may|can) I\b/i.test(question) ||
-    /\b(?:not|don['’]t|forget|remove|delete)\b/i.test(question) ||
-    !/^(?:yes|yep|yeah|sure|ok(?:ay)?|correct|confirmed|please do|do it|save it|remember it)(?:[.!?,\s]|$)/i.test(
+    /\b(?:should|shall|can|may|could|would)\s+(?:I|we)\s+(?:not|never|avoid|forget|remove|delete)\b|\b(?:want|like)\s+(?:me|us)\s+(?:not\s+to|to\s+(?:not|never))\b|\b(?:not|don['’]t)\s+want\s+(?:me|us)\s+to\b|^\s*(?:don['’]t|do not|never)\s+(?:remember|save|store)\b/i.test(
+      question,
+    ) ||
+    !/^(?:yes|yep|yup|yeah|sure|ok(?:ay)?|correct|confirmed|absolutely|definitely|certainly|affirmative|indeed|of course|go ahead|sounds (?:good|great)|that(?:['’]s| is) (?:right|correct)|please do|do it|save it|remember it)(?:[.!,\s]|$)/i.test(
       answer.trim(),
     ) ||
-    /\b(?:but|except|not|don['’]t|no|wait)\b/i.test(answer)
+    /\b(?:but|except|not|don['’]t|no|wait|if|when|unless|after|later|tomorrow)\b/i.test(answer)
   )
     return undefined;
   // The answered question remains data; only the user's affirmative answer grants
@@ -44,8 +46,10 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
     /^\s*(?:(?:please|also|just|now|then)\s+){0,3}remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
     /(?:^|[.!?,;\n…]\s*)(?:(?:please|also|just|now|then)\s+){0,3}remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
     /(?:^|[.!?,;\n…]\s*)(?:(?:please|also|just|now|then)\s+){0,3}(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b(?![^.!?\n]*\?)/gi,
-    /(?:^|[.!?;\n…]\s*)I(?:\s+(?:want|need)\s+you\s+to|(?:['’]d|\s+would)\s+like\s+you\s+to)\s+(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
+    /(?:^|[.!?;\n…]\s*)I(?:\s+(?:want|need)\s+you\s+to|(?:['’]d|\s+would)\s+like\s+you\s+to)\s+(?:remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
     /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?(?:remember\s+(?:that|I)\s+\S|(?:save|store)\s+[^.!?\n]+?\s+(?:to|in)\s+(?:(?:my|your|the|durable)\s+)?memory\b)/gi,
+    /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?remember\s+(?!to\b)(?=[^.!?\n]*\bfor\s+(?:future(?:\s+conversations)?|later|next\s+time)\b)\S/gi,
+    /(?:^|[.!?;\n…]\s*)(?:can|could|will|would)\s+you\s+(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?=[^.!?\n]*\b(?:is|are|equals)\b)\S/gi,
   ];
   const starts = new Set<number>();
   const addStart = (start: number) => {

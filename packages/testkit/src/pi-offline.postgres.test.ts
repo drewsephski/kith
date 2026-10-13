@@ -19,7 +19,7 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
   beforeAll(async () => {
     ({ createApp: createProductApp } = await import("../../../apps/api/src/app.ts"));
   });
-  it.each(["directive", "confirmation", "learning"] as const)(
+  it.each(["directive", "confirmation", "learning", "enthusiastic", "negative-fact"] as const)(
     "verifies memory intent from a human %s answer without repeating prior work",
     async (mode) => {
       const model = await startModelEmulator({
@@ -42,9 +42,11 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
               name: "ask_user",
               arguments: {
                 question:
-                  mode === "directive"
-                    ? "What else should I remember?"
-                    : "Should I remember that you prefer violet?",
+                  mode === "negative-fact"
+                    ? "Should I remember that you don't eat peanuts?"
+                    : mode === "directive"
+                      ? "What else should I remember?"
+                      : "Should I remember that you prefer violet?",
                 options:
                   mode === "directive"
                     ? ["Remember that I prefer violet.", "Keep cobalt."]
@@ -59,7 +61,9 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
               type: "tool",
               id: "second-memory",
               name: "remember",
-              arguments: { content: "I prefer violet." },
+              arguments: {
+                content: mode === "negative-fact" ? "I don't eat peanuts." : "I prefer violet.",
+              },
             },
           },
           { expect: () => {}, response: { type: "text", text: "Saved violet." } },
@@ -141,7 +145,12 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
           botId: bot.id,
           runId: sent.runId,
           messageId: question.id,
-          answer: mode === "learning" ? "Yes, please." : ask!.actions![0]!.id,
+          answer:
+            mode === "enthusiastic"
+              ? "Absolutely."
+              : mode === "learning"
+                ? "Yes, please."
+                : ask!.actions![0]!.id,
         });
         await expect
           .poll(
@@ -152,7 +161,11 @@ describe.skipIf(!databaseAvailable)("offline Pi product journey", () => {
           .toBe("completed");
         model.assertComplete();
         const documents = await app.prisma.memoryDocument.findMany({ where: { botId: bot.id } });
-        expect(documents.some((doc) => doc.content.includes("violet"))).toBe(true);
+        expect(
+          documents.some((doc) =>
+            doc.content.includes(mode === "negative-fact" ? "peanuts" : "violet"),
+          ),
+        ).toBe(true);
         const receipts = await app.prisma.externalEffect.findMany({
           where: { runId: sent.runId, kind: "remember", status: "completed" },
         });
