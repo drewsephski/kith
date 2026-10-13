@@ -1,6 +1,6 @@
 import type { SpaceBot, SpaceGroup } from "@rakazo/contracts";
 import { nestRosterByParent } from "@rakazo/core";
-import type { MobileBot, MobileGroup, MobileSpace } from "./api";
+import type { MobileBot, MobileGroup, MobileMe, MobileSpace, MobileSpaceNavigation } from "./api";
 import { adoptDeletedSpaceFallback, rpc, selectedSpaceId, selectSpace } from "./api";
 
 export type InboxSpace = Pick<
@@ -25,6 +25,14 @@ export type InboxSpaceItem =
 export type InboxPinnedChat =
   | { type: "bot"; bot: MobileBot | SpaceBot }
   | { type: "group"; group: MobileGroup | SpaceGroup };
+
+export function fetchInboxOverview() {
+  return Promise.all([
+    rpc<MobileSpaceNavigation>("spaces/list"),
+    rpc<MobileMe>("me"),
+    rpc<{ botId: string | null }>("assistant/get").catch(() => ({ botId: null })),
+  ]);
+}
 
 export function canDeleteInboxSpace(
   space: Pick<InboxSpace, "isDefault" | "hasContent" | "canDelete">,

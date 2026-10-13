@@ -50,6 +50,7 @@ import { filterBots, formatThreadTime, userInitials } from "../lib/inbox";
 import type { InboxSpace, InboxSpaceItem } from "../lib/inbox-spaces";
 import {
   canDeleteInboxSpace,
+  fetchInboxOverview,
   inboxNeedsCreateHint,
   removeInboxSpace,
   retryInboxSpaceFallback,
@@ -144,11 +145,7 @@ export default function Home() {
     let defaultSpace: string | null = null;
     setError(null);
     try {
-      const [navigation, nextMe, assistant] = await Promise.all([
-        rpc<MobileSpaceNavigation>("spaces/list"),
-        rpc<MobileMe>("me"),
-        rpc<{ botId: string | null }>("assistant/get"),
-      ]);
+      const [navigation, nextMe, assistant] = await fetchInboxOverview();
       defaultSpace = nextMe.spaceId;
       if (!current()) return;
       if (!(await selectInitialSpace(nextMe.spaceId))) {

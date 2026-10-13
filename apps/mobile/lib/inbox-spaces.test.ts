@@ -8,6 +8,7 @@ import {
 } from "./api";
 import {
   canDeleteInboxSpace,
+  fetchInboxOverview,
   type InboxSpace,
   inboxNeedsCreateHint,
   removeInboxSpace,
@@ -57,6 +58,29 @@ const bot: MobileBot = {
   thinkingLevel: null,
   autoSpeak: false,
 };
+
+describe("fetchInboxOverview", () => {
+  it("keeps existing chats available when optional assistant identity is unavailable", async () => {
+    vi.mocked(rpc).mockImplementation(async (proc) => {
+      if (proc === "assistant/get") throw new Error("temporary lookup failure");
+      if (proc === "spaces/list") return { current: { bots: [bot], groups: [] }, spaces: [] };
+      if (proc === "me") return { userId: "user-one", spaceId: "space-one" };
+      throw new Error("unexpected request");
+    });
+    const [navigation, me, assistant] = await fetchInboxOverview();
+    expect(navigation.current.bots).toEqual([bot]);
+    expect(me.spaceId).toBe("space-one");
+    expect(assistant.botId).toBeNull();
+  });
+
+  it.each(["spaces/list", "me"])("retains required %s failures", async (failed) => {
+    vi.mocked(rpc).mockImplementation(async (proc) => {
+      if (proc === failed) throw new Error("required request failed");
+      return proc === "assistant/get" ? { botId: "assistant-one" } : {};
+    });
+    await expect(fetchInboxOverview()).rejects.toThrow("required request failed");
+  });
+});
 
 describe("spaceInboxItems", () => {
   it("keeps an empty space visible and selectable by its own id", () => {
