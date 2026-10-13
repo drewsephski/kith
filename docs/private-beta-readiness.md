@@ -4,13 +4,14 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** Required CI passed at `0ae0b155` with
-13 successful checks and eight release/promotion jobs correctly skipped. Automated review
-then identified group-target admission and daily-quota routine wakeup edge cases. The
-corrections below require their own exact-head CI/review. Historical passing CI and installed
-acceptance remain evidence for those revisions, not certification of the later corrections.
-The candidate still needs an authorized hosted rollout and installed native acceptance before
-inviting 5–10 testers.
+**External testers are not yet cleared.** Final application source `ebfec679` passed
+[required CI](https://github.com/drewsephski/kith/actions/runs/38422279429): 13 active
+checks succeeded and eight release/promotion jobs correctly skipped. Automated review
+completed; actionable findings were corrected, validated and answered. The final
+report-only commit also goes through CI/review before the authorized merge in
+[PR #20](https://github.com/drewsephski/kith/pull/20).
+The candidate still needs an authorized hosted rollout, budgeted real-provider acceptance
+and installed signed-device acceptance before inviting 5–10 testers.
 Existing credentials are available; remaining signing work is configuration and acceptance,
 not a request to obtain another Apple account or application identifier.
 
@@ -119,10 +120,27 @@ back its claim and repeatedly re-enqueuing the same wakeup. One-shot intent is r
 the next UTC allowance reset; recurring schedules choose their next eligible occurrence.
 No run, task, firing event, inference or computer is created while admission is exhausted.
 Temporary run concurrency is a separate admission path and is not delayed to the next day.
-The latest full verification passed 8,944 unit tests, 41 PostgreSQL suites/299 tests and
-all 11 offline canaries. Six actual PostgreSQL regressions and 101 existing executor tests
+Latest application-source CI at `ebfec679` passed 8,957 unit tests, 42 PostgreSQL
+suites/330 tests and all 11 offline canaries. Six actual PostgreSQL regressions and 101 existing executor tests
 passed for this correction, including eight concurrent stale wakeups, queue-publication failure, resumed one-shot intent,
 account isolation and invalid-configuration rollback.
+
+Successful direct and managed calendar connections now survive daily-quota exhaustion in
+an optional initial briefing. The quota is checked before briefing task/receipt writes;
+only the typed quota outcome is skipped, while genuine storage/configuration failures remain
+errors. Finalized OAuth tokens and consumed callback state stay durable. Calendar acceptance
+is now registered in the supported full PostgreSQL integration command. A controlled real
+PostgreSQL ordinary-send/OAuth race exposed a thread/quota lock inversion. Calendar briefings
+now lock the owned thread before quota admission; the regression failed before that fix and
+passed afterward, with both sends committed. The earlier 42-suite/329-test run preceded this
+last lock-order correction; its 27-case calendar rerun passed, and final CI included the race
+in the full 42-suite/330-test integration run.
+
+Terminal cloud-agent status, result cards and cleared polling state also commit when quota
+blocks an optional local follow-up. The handled generation is consumed without an orphan
+task/run or repeated terminal polling; a later user-authorized generation remains eligible.
+Focused actual PostgreSQL suites passed 27 calendar and 22 cloud-agent cases, alongside nine
+focused deterministic calendar checks. These fixes do not raise spending limits.
 
 ### Conversational additional-bot creation
 
@@ -146,7 +164,11 @@ redirecting, including the microtask between request settlement and navigation. 
 create replaces the route exactly once; a failed request restores Cancel/retry without discarding its uncertain nonce. Durable identity
 receipts take precedence over late HTTP failures, so an accepted choice never displays a false
 save error. Mounted native and real API-backed web regressions cover that lost-response seam.
-Ordinary messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
+Delayed web/Electron creation receipts now respect newer Settings, panel and route intent,
+including a panel open/close round trip. Accepted receipts still update the roster and clear
+the scoped nonce; failed responses preserve the nonce without reopening a superseded panel.
+The strict Settings regression failed before the guard and the complete ten-case API-backed
+onboarding suite passed afterward. Ordinary messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
 cloned/helper bots retain their established behavior and advanced editing.
 
 Web and Electron use the shared renderer. iOS and Android render the same durable cards with
@@ -194,16 +216,16 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Gate | Status | Evidence / limit |
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
-| Corrected candidate CI / review | PENDING | Predecessor `0ae0b155` passed 13 active checks. The group-target and routine-quota corrections need their own exact-head CI/review in PR #20. |
+| Corrected application-source CI / review | PASSED | Exact application source `ebfec679`: 13 successful checks, eight release/promotion jobs skipped; automated review completed and all actionable comments answered. Final report-only merge head is checked separately in PR #20. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
-| Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed on the committed source; exact-head CI also required. |
+| Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed locally and on the exact application source in CI. |
 | Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,040 tests, including final focus and pending-creation route regressions. |
-| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: latest corrected local rerun passed 699 files and 8,944 tests with 371 gated tests skipped. Application-source CI at `d3d09f2e` passed 699 files and 8,950 tests with 354 gated tests skipped, including the final inverse email-recipient case. |
-| PostgreSQL journeys | PASSED | `pnpm test:integration`: latest corrected run: 41 suites, 299 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
+| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: full local rerun at `1808e919` passed 700 files and 8,946 tests with 377 gated tests skipped. Application-source CI at `ebfec679` passed 700 files and 8,957 tests with 367 gated tests skipped, including the deterministic calendar checks. |
+| PostgreSQL journeys | PASSED | `pnpm test:integration`: latest application-source CI at `ebfec679`: 42 suites, 330 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
-| Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PASSED | Virtual-display acceptance passed at application source `d3d09f2e`, including readiness/recovery corrections; subsequent group/routine corrections still require new-head CI; routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
-| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at application source `d3d09f2e`, including readiness/recovery corrections; subsequent group/routine corrections still require new-head CI. Physical signed-device acceptance remains separate. |
+| Web creation / recovery acceptance | PASSED | Ten real API/PostgreSQL Playwright creation/CRUD tests, including three delayed-navigation cases, and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Latest exact-source CI passed 319 web tests plus that separate sidebar regression. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
+| Packaged Electron candidate | PASSED | Virtual-display packaged acceptance passed at exact application source `ebfec679`, including the final backend and navigation corrections. Routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
+| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at exact application source `ebfec679`, including the final backend corrections. Physical signed-device acceptance remains separate. |
 | iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota, model-readiness/recovery and group/routine changes affect only backend modules. Distribution/device proof remains separate. |
 | Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
@@ -233,7 +255,11 @@ for the real animations to finish and retains every navigation/OAuth assertion. 
 native keyboard Next/Done and keeps the identity/focus/task outcome assertions. Those corrections
 passed at `4a30e26c`; the later backend changes also passed Android acceptance at `d3d09f2e`.
 These were separate from the native build
-storage failure. Live model, signed-device and exact-candidate CI evidence remain distinct.
+storage failure. The later Android job at `c380d671` failed installing the emulator SDK
+archive with an invalid ZIP before app installation or Maestro assertions. Its missing
+screenshot artifact followed that setup failure; it was not a storage-gallery publication
+failure. The later exact application source `ebfec679` passed fresh installed Android acceptance.
+Live model, signed-device and exact-candidate CI evidence remain distinct.
 
 Independent source review reported 18 passed requirements, no unresolved source failures and
 three cross-platform/provider/release requirements awaiting empirical acceptance. It caught and
@@ -260,23 +286,21 @@ offline-canary suites, not claims that production outages or physical-device flo
 | Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
 | Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
 
-Required CI passed at application source `d3d09f2e`, including all resumed readiness,
-host-authentication and recovery corrections. The [CI run](https://github.com/drewsephski/kith/actions/runs/38403078857)
-recorded 13 successful checks with eight release/promotion jobs correctly skipped. Automated
-review completed on that source without new findings; the previously actionable findings
-were corrected, validated and answered. Threads remain unresolved because resolving them
-requires operator authorization. The documentation-only update at `0ae0b155` also passed
-required CI, but its review found the later group/routine cases corrected above. Their exact-head
-CI/review remain tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
-The preceding [quota-normalization CI run](https://github.com/drewsephski/kith/actions/runs/38393238783)
-passed at `4a30e26c`; its two later review findings were the cases corrected above.
-The first candidate's [CI run](https://github.com/drewsephski/kith/actions/runs/38378998483)
-passed web and packaged Electron acceptance but failed Android's input locator; it does not
-certify the corrected final head. The [second run](https://github.com/drewsephski/kith/actions/runs/38384808353)
-passed Android and packaged Electron, while one MCP-navigation assertion failed in web E2E.
-[Candidate CI screenshots](https://github.com/drewsephski/kith/actions/runs/38403078857/artifacts/11818512851)
-include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
-`conversational-bot-custom-persisted.png`. Persistent gallery publication is separate.
+Required CI passed at final application source `ebfec679`, including the quota/finalization,
+calendar lock-order and delayed-navigation corrections. The
+[CI run](https://github.com/drewsephski/kith/actions/runs/38422279429) recorded
+13 successful checks and eight correctly skipped release/promotion jobs. Automated review
+completed with all actionable findings corrected, validated and answered. Threads remain
+unresolved because resolving them requires separate operator authorization; no actionable
+feedback remains. The final report-only head receives its own CI/review before merge.
+
+Earlier passing runs at `d3d09f2e` and `0ae0b155` remain historical evidence; their later
+review findings were corrected above. Earlier failed Android input, web MCP transition and
+Android SDK archive attempts remain failures rather than being relabeled as passes.
+[Final application-source CI screenshots](https://github.com/drewsephski/kith/actions/runs/38422279429/artifacts/11828534402)
+include `conversational-bot-identity.png`, `conversational-bot-focus.png`,
+`conversational-bot-custom-persisted.png` and `conversational-bot-preserved-settings.png`.
+Persistent gallery publication is separate from retained screenshots and application acceptance.
 
 ## Release and operator gates
 
@@ -308,7 +332,7 @@ Preserve the existing identifiers, `rakazo` scheme, project and channels. EAS re
 versioning owns archive counters. An OTA to an older runtime cannot substitute for those builds.
 Desktop remains on the prepared **0.1.7** infrastructure; no stable tag or updater channel changes.
 
-Before inviting testers: complete exact-candidate CI/review, authorize and verify hosted rollout,
+Before inviting testers: authorize and verify hosted rollout,
 run a budgeted new-account Luna/BYOK/revocation journey, verify recovery delivery, and complete
 installed native/signed desktop acceptance. Document each failure and retry independently.
 Configure the existing signup allowlist for the intended tester group and verify effective
@@ -327,7 +351,8 @@ The main implementation boundaries are:
   in `apps/api/src/thread-target.ts`; web/mobile model settings; managed Fly and Compose configuration.
 - Budgets: `packages/adapters/src/model-call-quota.ts`, `model-request-size.ts`,
   delegated/scheduled run admission and durable routine deferral, `routine-quota.postgres.test.ts`,
-  API/worker composition,
+  optional follow-up guards in `calendar-service.ts` and `cloud-agent-poll.ts`, calendar/cloud
+  regression suites and the integration registry; API/worker composition,
   `packages/db/src/execution-quotas.ts`, computer limits, schema and reservation migration.
 - Onboarding: `apps/api/src/onboarding.ts`, shared choice/RPC/event contracts,
   `packages/core/src/onboarding-focus.ts`, `bot-creation-attempt.ts`, database repository,
