@@ -4,11 +4,11 @@ Assessment date: 2026-10-13. Reviewed starting main: `080a5b0dbe840bd81922339da2
 This prepares a private-beta candidate. It does not authorize production migrations,
 deployment, distribution, store submission, a release tag, or updater publication.
 
-**External testers are not yet cleared.** Application source at `d3d09f2e` passed
-[required CI](https://github.com/drewsephski/kith/actions/runs/38403078857) and completed
-automated review without new source findings. This includes the resumed model-readiness,
-host-authentication and durable recovery corrections. The final documentation-only update
-uses the same application source; its own CI/review is tracked in PR #20.
+**External testers are not yet cleared.** Required CI passed at `0ae0b155` with
+13 successful checks and eight release/promotion jobs correctly skipped. Automated review
+then identified group-target admission and daily-quota routine wakeup edge cases. The
+corrections below require their own exact-head CI/review. Historical passing CI and installed
+acceptance remain evidence for those revisions, not certification of the later corrections.
 The candidate still needs an authorized hosted rollout and installed native acceptance before
 inviting 5–10 testers.
 Existing credentials are available; remaining signing work is configuration and acceptance,
@@ -81,8 +81,11 @@ managed secret policy or performs a new inference/refresh just to render readine
 Send admission now runs after canonical nonce normalization and durable receipt replay, but
 before any new send effects. An accepted request can reconcile after credential disconnection
 without creating another run or bypassing per-call authorization. The transaction still validates
-actionable email cards and edits. Focused API/replay/model suites passed, including ten effective
-conversation admission regressions and independent replay/email review.
+actionable email cards and edits. Focused API/replay/model suites passed, including fifteen effective
+conversation admission regressions and independent replay/email review. Subsequent review
+removed a usable-default shortcut: group and email sends now validate their actual pinned
+recipients even when the Space default is available. An entirely unavailable group is rejected
+before committing a new message; valid recipients and mixed-group execution remain supported.
 
 ### Hosted spending safeguards
 
@@ -110,6 +113,16 @@ workspace lint and all 22 type-check tasks. CI subsequently passed that correcti
 
 Operators must also configure provider spending alerts/limits and E2B billing controls.
 Self-hosted execution retains its existing configurable behavior.
+
+Daily-quota exhaustion now durably defers an already-due scheduled routine instead of rolling
+back its claim and repeatedly re-enqueuing the same wakeup. One-shot intent is retained until
+the next UTC allowance reset; recurring schedules choose their next eligible occurrence.
+No run, task, firing event, inference or computer is created while admission is exhausted.
+Temporary run concurrency is a separate admission path and is not delayed to the next day.
+The latest full verification passed 8,944 unit tests, 41 PostgreSQL suites/299 tests and
+all 11 offline canaries. Six actual PostgreSQL regressions and 101 existing executor tests
+passed for this correction, including eight concurrent stale wakeups, queue-publication failure, resumed one-shot intent,
+account isolation and invalid-configuration rollback.
 
 ### Conversational additional-bot creation
 
@@ -181,16 +194,17 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Gate | Status | Evidence / limit |
 | --- | --- | --- |
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
+| Corrected candidate CI / review | PENDING | Predecessor `0ae0b155` passed 13 active checks. The group-target and routine-quota corrections need their own exact-head CI/review in PR #20. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed on the committed source; exact-head CI also required. |
 | Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,040 tests, including final focus and pending-creation route regressions. |
-| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: stable local rerun passed 699 files and 8,938 tests with 365 gated tests skipped. Application-source CI at `d3d09f2e` passed 699 files and 8,950 tests with 354 gated tests skipped, including the final inverse email-recipient case. |
-| PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
+| Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: latest corrected local rerun passed 699 files and 8,944 tests with 371 gated tests skipped. Application-source CI at `d3d09f2e` passed 699 files and 8,950 tests with 354 gated tests skipped, including the final inverse email-recipient case. |
+| PostgreSQL journeys | PASSED | `pnpm test:integration`: latest corrected run: 41 suites, 299 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
 | Web creation / recovery acceptance | PASSED | Seven real API/PostgreSQL Playwright creation/CRUD tests and two responsive production-card tests; the retained sidebar collapse/drag test also passed. Shared browser new-account → Kith → task → preset/custom bot → focus → task → reload passed at 375px without overflow. |
-| Packaged Electron candidate | PASSED | Virtual-display acceptance passed at application source `d3d09f2e`, including readiness/recovery corrections; routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
-| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at application source `d3d09f2e`, including readiness/recovery corrections. Physical signed-device acceptance remains separate. |
-| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota and model-readiness/recovery changes affect only backend modules. Distribution/device proof remains separate. |
+| Packaged Electron candidate | PASSED | Virtual-display acceptance passed at application source `d3d09f2e`, including readiness/recovery corrections; subsequent group/routine corrections still require new-head CI; routine focus-stealing local Electron E2E is prohibited. Signed macOS installation remains a separate gate. |
+| Android candidate native acceptance | PASSED | Installed emulator onboarding and actual network-policy recording passed at application source `d3d09f2e`, including readiness/recovery corrections; subsequent group/routine corrections still require new-head CI. Physical signed-device acceptance remains separate. |
+| iOS candidate simulator | PASSED | Final application source at d4df39a6 ran in the fresh 1.0.10 native app, with zero drift across 322 mobile/shared/config files and verified simulator ad-hoc signing. Normal New → Orbit → focus D → scripted task → cold relaunch → saved reply passed. Earlier detailed preset/custom keyboard, interruption, background/cancel and pinned tap/menu journeys passed separately. Later quota, model-readiness/recovery and group/routine changes affect only backend modules. Distribution/device proof remains separate. |
 | Native disk/network cache privacy | PARTIAL | Final iOS: 1,716 native-origin private requests used no-store/no-cache, no-store responses and zero cookies; NSURLCache had zero private API entries, with one unrelated Expo Observe response. Android installed wire guard passed at d4df39a6. The earlier 4914834 receipt counted 873 private requests, 24 errors and 12 streams with zero policy failures. Voice and Android/old-install disk-cache inspection remain unexecuted. |
 | Candidate real Luna / E2B smoke | UNEXECUTED | No implicit provider funds spent. Explicit operator budgets/configuration required. |
 
@@ -251,7 +265,8 @@ host-authentication and recovery corrections. The [CI run](https://github.com/dr
 recorded 13 successful checks with eight release/promotion jobs correctly skipped. Automated
 review completed on that source without new findings; the previously actionable findings
 were corrected, validated and answered. Threads remain unresolved because resolving them
-requires operator authorization. The final documentation-only update and its exact-head
+requires operator authorization. The documentation-only update at `0ae0b155` also passed
+required CI, but its review found the later group/routine cases corrected above. Their exact-head
 CI/review remain tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
 The preceding [quota-normalization CI run](https://github.com/drewsephski/kith/actions/runs/38393238783)
 passed at `4a30e26c`; its two later review findings were the cases corrected above.
@@ -311,7 +326,8 @@ The main implementation boundaries are:
   team-chat judge and voice; `apps/api/src/model-setup-target.test.ts`, durable send admission
   in `apps/api/src/thread-target.ts`; web/mobile model settings; managed Fly and Compose configuration.
 - Budgets: `packages/adapters/src/model-call-quota.ts`, `model-request-size.ts`,
-  delegated/scheduled run admission call sites, API/worker composition,
+  delegated/scheduled run admission and durable routine deferral, `routine-quota.postgres.test.ts`,
+  API/worker composition,
   `packages/db/src/execution-quotas.ts`, computer limits, schema and reservation migration.
 - Onboarding: `apps/api/src/onboarding.ts`, shared choice/RPC/event contracts,
   `packages/core/src/onboarding-focus.ts`, `bot-creation-attempt.ts`, database repository,
