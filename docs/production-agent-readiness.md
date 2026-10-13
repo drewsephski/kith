@@ -1,6 +1,6 @@
 # Production agent readiness
 
-Evidence date: 2026-10-12. Base: `708482e55c78123ebec1172c772db6bfbe6e82e6`.
+Evidence dates: 2026-10-12–2026-10-13. Base: `708482e55c78123ebec1172c772db6bfbe6e82e6`.
 This records implementation and acceptance evidence. Hosted rollout outcomes are tracked in
 [PR #18](https://github.com/drewsephski/kith/pull/18); app distribution remains a separate gate.
 
@@ -88,6 +88,10 @@ Four new cases also passed one real-model trial each using an isolated connector
 - Final review reproduced common directive prefixes bypassing the fresh-memory receipt guard. “Also,” “Just,” “Now” and “Then” prefixes now retain command identity without duplicating joined requests; quoted, reported and hypothetical uses remain data. Six prefix regressions failed before the correction. All 305 focused tests passed afterward, including real-SDK persistence after an unsupported success claim.
 
 ## Verification record
+
+Final review corrections cover factual/possessive modal saves, ordinary affirmations, confirmed negative preferences, explicit persistence questions and compound clarification replies. The consent regressions failed before correction; 342 focused tests and seven actual API/Pi/Postgres cases passed afterward. Quoted recall phrases cannot authorize saves. The combined maintenance path now permits attended owner release of stopping reservations, retains cancellation and uses the existing stopped-workers assertion and atomic reservation checks; no automatic release or mutation replay was added. The web/Electron and native progress controls reuse the existing release confirmation.
+
+The live-test network boundary now rejects automatic redirects, including a Request explicitly configured to follow them. A real loopback redirect test verifies that no unapproved destination is reached and the request budget is retained. Optional Expo preview publishing reports NOT RUN when its token is absent, with both configured and missing-token shell behavior verified. Boundary regressions: 160 tests passed after four before-fix failures. The installed React Native Pressability implementation already suppresses onPress after a recognized long press, so that review suggestion was declined with source evidence. Full combined lint, all 22 package type checks, mobile types and 1012 mobile tests passed; the actual stopping-release browser journey passed. Prior heads `22a96e6c` and `1f02141e` each finished with 14 successful checks and eight explicit skips; later review findings required these corrections, so final-head CI/review remain the merge gate.
 
 The final UX handoff was reconciled in an isolated integration branch, preserving both workstreams and the Expo/EAS skill payloads. Full combined lint and all 22 package type checks passed; native mobile types and 108 files / 1012 mobile tests passed. An early integration-panel click acceptance guard passed locally. Final combined-head CI and review remain required before merge.
 
