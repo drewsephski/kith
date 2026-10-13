@@ -1,0 +1,15 @@
+---
+import { SITE_URL } from "../site";
+const { destination } = Astro.props as { destination: string };
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kith</title>
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content={`0;url=${destination}`} />
+    <link rel="canonical" href={new URL(destination, SITE_URL).href} />
+  </head>
+  <body><a href={destination}>Continue to article</a></body>
+</html>

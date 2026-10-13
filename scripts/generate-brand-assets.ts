@@ -160,7 +160,6 @@ try {
   }
   copy(`${assets}/kith-companion.webp`, "apps/www/public/brand/kith-companion.webp");
   svgMark("apps/www/public/favicon-32x32.png", "apps/www/public/favicon.svg");
-  svgMark(`${assets}/kith-companion.png`, "apps/www/public/brand/rakazo-mark.svg");
 
   convert(
     source,

@@ -1,5 +1,17 @@
 {
   "framework": "astro",
   "buildCommand": "pnpm build",
-  "redirects": [{ "source": "/sitemap.xml", "destination": "/sitemap-index.xml", "statusCode": 301 }]
+  "redirects": [
+    { "source": "/sitemap.xml", "destination": "/sitemap-index.xml", "statusCode": 301 },
+    {
+      "source": "/blog/openclaw-vs-hermes-vs-rakazo",
+      "destination": "/blog/openclaw-vs-hermes-vs-kith/",
+      "statusCode": 301
+    },
+    {
+      "source": "/blog/openclaw-vs-hermes-vs-rakazo.md",
+      "destination": "/blog/openclaw-vs-hermes-vs-kith.md",
+      "statusCode": 301
+    }
+  ]
 }

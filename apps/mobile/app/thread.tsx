@@ -16,6 +16,7 @@ import {
   appendNewerThreadPage,
   attachmentsForThread,
   buildComposerMentionOptions,
+  captureThreadStop,
   cloudAgentHttpsUrl,
   formatFileSize,
   formatMessageTime,
@@ -42,6 +43,7 @@ import {
   SLASH_ACTIONS,
   selectedAskActionLabel,
   serializeComposerPrompt,
+  threadStopIsSettled,
   threadWindowMessages,
   timeSeparatorIds,
   truncateSlashDescription,
@@ -1875,6 +1877,13 @@ function Thread() {
     const targetBotId = botId;
     const targetGroupId = groupId;
     if ((!targetBotId && !targetGroupId) || sending) return;
+    const request = captureThreadStop(snapRef.current);
+    const scopeCurrent = captureMobileScreenScope();
+    const epoch = historyEpoch.current;
+    const current = () =>
+      scopeCurrent() &&
+      epoch === historyEpoch.current &&
+      isCurrentTarget(targetBotId, targetGroupId);
     setSending(true);
     try {
       await rpc(
@@ -1882,10 +1891,11 @@ function Thread() {
         targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
       );
     } catch (err) {
-      if (isCurrentTarget(targetBotId, targetGroupId)) {
+      const next = current() ? await refresh().catch(() => null) : null;
+      if (current() && !threadStopIsSettled(request, next)) {
         Alert.alert(t("Failed to stop work"), errorText(err, t("Try again.")));
       }
-      setSending(false);
+      if (current()) setSending(false);
       return;
     }
     try {

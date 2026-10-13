@@ -68,9 +68,11 @@ function normalizePath(pathname: string): string {
 }
 
 export function noindexPathnames(): string[] {
-  return BLOG_CATEGORIES.filter((category) => !categoryIsIndexed(category)).map((category) =>
-    categoryPath(category),
-  );
+  return [
+    "/blog/openclaw-vs-hermes-vs-rakazo/",
+    "/blog/openclaw-vs-hermes-vs-rakazo.md/",
+    ...BLOG_CATEGORIES.filter((category) => !categoryIsIndexed(category)).map(categoryPath),
+  ];
 }
 
 /** True when a built URL should appear in the sitemap. */

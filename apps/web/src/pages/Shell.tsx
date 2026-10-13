@@ -39,6 +39,7 @@ import {
   attachmentsForThread,
   buildComposerMentionOptions,
   type ComposerMention,
+  captureThreadStop,
   clampMentionHighlightIndex,
   connectedAppServices,
   cronFromPreset,
@@ -71,6 +72,7 @@ import {
   speechFromBlocks,
   startForYouConversation,
   taskStarterApp,
+  threadStopIsSettled,
   timeSeparatorIds,
   truncateSlashDescription,
   userVisibleMessages,
@@ -2508,12 +2510,22 @@ export function ShellPage({
     try {
       const botTarget = activeBotId.current;
       const groupTarget = activeGroupId.current;
+      const request = captureThreadStop(snapshotRef.current);
+      const epoch = historyEpoch.current;
       if (groupTarget) {
         setSendError(null);
         try {
           await rpc.threads.stop({ groupId: groupTarget });
         } catch (error) {
-          if (activeGroupId.current === groupTarget) {
+          const next =
+            activeGroupId.current === groupTarget && epoch === historyEpoch.current
+              ? await refreshGroupThreadRef.current(groupTarget).catch(() => null)
+              : null;
+          if (
+            activeGroupId.current === groupTarget &&
+            epoch === historyEpoch.current &&
+            !threadStopIsSettled(request, next)
+          ) {
             setSendError(errorText(error, t`Failed to stop`));
           }
           return;
@@ -2532,7 +2544,15 @@ export function ShellPage({
       try {
         await rpc.threads.stop({ botId: botTarget });
       } catch (error) {
-        if (activeBotId.current === botTarget) {
+        const next =
+          activeBotId.current === botTarget && epoch === historyEpoch.current
+            ? await refreshThreadRef.current(botTarget).catch(() => null)
+            : null;
+        if (
+          activeBotId.current === botTarget &&
+          epoch === historyEpoch.current &&
+          !threadStopIsSettled(request, next)
+        ) {
           setSendError(errorText(error, t`Failed to stop`));
         }
         return;
