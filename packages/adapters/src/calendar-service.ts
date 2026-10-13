@@ -508,6 +508,12 @@ export class CalendarService {
     generation: string,
     timezone: string,
   ) {
+    // Ordinary sends lock the thread before admitting a run; keep the same order.
+    const threads = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM threads WHERE id = ${bot.thread.id}
+        AND "userId" = ${actor.userId} AND "spaceId" = ${actor.spaceId} FOR UPDATE
+    `;
+    if (threads.length === 0) throw new IsolationError();
     try {
       await assertRunCreationQuota(tx, actor.userId);
     } catch (error) {

@@ -13,8 +13,8 @@ import {
 import type { Actor } from "@rakazo/contracts";
 import { AI_DISCLOSURE_VERSION } from "@rakazo/contracts";
 import { CALENDAR_PREFERENCES_PATH } from "@rakazo/core";
-import type { PrismaClient, ThreadEvents } from "@rakazo/db";
-import { createDb, createThreadEvents } from "@rakazo/db";
+import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
+import { createDb, createThreadEvents, sendUserMessage } from "@rakazo/db";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -198,6 +198,100 @@ describeDatabase("calendar OAuth → durable briefing (PostgreSQL, offline provi
     });
     return { source, reader };
   }
+  it("orders a direct OAuth briefing's thread lock before the ordinary-send quota lock", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "10");
+    const state = await begin();
+    let senderPid = 0;
+    let calendarPid = 0;
+    let calendarHasQuotaLock = false;
+    let senderReady!: () => void;
+    let releaseSender!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      senderReady = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      releaseSender = resolve;
+    });
+    const instrument = (role: "sender" | "calendar") =>
+      new Proxy(prisma, {
+        get(target, key, receiver) {
+          if (key !== "$transaction") return Reflect.get(target, key, receiver);
+          return (commit: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
+            target.$transaction(
+              async (tx) => {
+                const [{ pid }] = await tx.$queryRaw<
+                  [{ pid: number }]
+                >`SELECT pg_backend_pid() AS pid`;
+                if (role === "sender") senderPid = pid;
+                else calendarPid = pid;
+                return commit(
+                  new Proxy(tx, {
+                    get(client, field, txReceiver) {
+                      if (field !== "$queryRaw") return Reflect.get(client, field, txReceiver);
+                      return async (strings: TemplateStringsArray, ...values: unknown[]) => {
+                        const quota = strings
+                          .join("")
+                          .includes("pg_advisory_xact_lock(hashtextextended");
+                        if (quota && role === "sender") {
+                          senderReady();
+                          await released;
+                        }
+                        const result = await client.$queryRaw(strings, ...values);
+                        if (quota && role === "calendar") calendarHasQuotaLock = true;
+                        return result;
+                      };
+                    },
+                  }),
+                );
+              },
+              { timeout: 15_000 },
+            );
+        },
+      });
+    const sender = sendUserMessage(instrument("sender"), {
+      spaceId: actor.spaceId,
+      userId: actor.userId,
+      botId,
+      threadId,
+      prompt: "Hello",
+      blocks: [{ kind: "text", text: "Hello" }],
+      trigger: "user",
+      clientNonce: "calendar-concurrent-user-send",
+    });
+    await ready;
+    const callback = new CalendarService({
+      ...service.deps,
+      prisma: instrument("calendar"),
+    }).callback({ state, code: "fake-code" });
+    // Attach rejection handlers immediately; a failed lock-order assertion still releases both transactions.
+    const completion = Promise.allSettled([sender, callback]);
+    try {
+      let blockedBySender = false;
+      const deadline = Date.now() + 5_000;
+      while (!blockedBySender && Date.now() < deadline) {
+        if (calendarPid) {
+          const [{ blockers }] = await prisma.$queryRaw<[{ blockers: number[] }]>`
+            SELECT pg_blocking_pids(${calendarPid}) AS blockers
+          `;
+          blockedBySender = blockers.includes(senderPid);
+        }
+        if (!blockedBySender) await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(blockedBySender).toBe(true);
+      expect(calendarHasQuotaLock).toBe(false);
+    } finally {
+      releaseSender();
+      await completion;
+    }
+    expect((await completion).map((result) => result.status)).toEqual(["fulfilled", "fulfilled"]);
+    expect((await service.status(actor)).status).toBe("connected");
+    expect(await prisma.run.count({ where: { userId: actor.userId } })).toBe(2);
+    expect(await prisma.message.count({ where: { threadId } })).toBe(2);
+    expect(await prisma.calendarBriefing.count({ where: { run: { userId: actor.userId } } })).toBe(
+      1,
+    );
+  });
   it.each(["direct", "managed"] as const)(
     "preserves the %s calendar connection when the optional initial briefing exceeds quota",
     async (kind) => {

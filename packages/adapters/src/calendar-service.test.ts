@@ -27,7 +27,7 @@ describe("optional initial calendar briefing", () => {
     const createConnection = vi.fn(async () => ({ id: "fixture-attachment" }));
     const tx = {
       $executeRaw: vi.fn(),
-      $queryRaw: vi.fn(),
+      $queryRaw: vi.fn(async () => [{ id: bot.thread.id }]),
       connection: {
         findFirst: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(source),
         create: createConnection,
