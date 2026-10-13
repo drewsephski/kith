@@ -112,9 +112,11 @@ import {
 } from "@rakazo/core/node/approval-effect-key";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createSpaceForMember,
   createThreadMessageInTransaction,
   effectiveMemoryScope,
+  executionLimit,
   findDefaultModelCredential,
   findModelCredential,
   InvalidSpaceNameError,
@@ -127,6 +129,7 @@ import {
   readHistory,
   recordUsage,
   retireModelCredential,
+  runConcurrencyAvailable,
   SpaceLimitError,
   searchHistory,
   type ThreadEvents,
@@ -262,7 +265,12 @@ import {
 import { checkpointRunComputerWorkspace } from "./computer-workspace.js";
 import { redactConnectorPayload, sanitizeConnectorError } from "./connector-safety.js";
 import { formatCurrentTimeInstruction } from "./current-time.js";
-import { resolveDeploymentModel } from "./deployment-model.js";
+import type { ModelExecutionMode } from "./deployment-model.js";
+import {
+  deploymentFundsModel,
+  modelProviderExecutionError,
+  resolveDeploymentModel,
+} from "./deployment-model.js";
 import { emailCardFromTool } from "./email-card.js";
 import { executionProfile } from "./execution-profile.js";
 import { handoffToGroupBot, loadGroupContext } from "./group-handoff.js";
@@ -297,6 +305,7 @@ import { loadAgentMemoryContext } from "./memory-context.js";
 import type { MemoryProviderResolver } from "./memory-provider-factory.js";
 import { selectMemoryTools } from "./memory-tools.js";
 import {
+  assertStoredModelCredentialAvailable,
   isCatalogModelChoice,
   pinnedModelCredentialError,
   routineRunModelPin,
@@ -319,6 +328,7 @@ import { toOAuthCredential } from "./pi-credentials.js";
 import {
   isRetiredModelCredentialError,
   matchesFailedOAuthSecret,
+  modelSecretExecutionError,
   parseModelSecret,
   persistStoredModelSecret,
   resolveModelAuth,
@@ -2688,6 +2698,7 @@ export interface ExecutorDeps {
   secretStore: SecretStore;
   deploymentModelKey?: string;
   /** The deployment default model can run; see resolveDeploymentModel. */
+  modelExecutionMode?: ModelExecutionMode;
   deploymentModelConfigured?: boolean;
   dataDir?: string;
   notifications?: NotificationProvider;
@@ -3027,6 +3038,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
     return {
       provider,
       id: modelId,
+      fundingSource: resolved.fundingSource,
+      assertCredentialAvailable: resolved.assertCredentialAvailable,
       apiKey: resolved.oauth ? undefined : resolved.apiKey,
       ...cloudflareRunFields(resolved),
       baseUrl: resolved.baseUrl,
@@ -3070,6 +3083,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             select: { modelProvider: true, modelId: true, thinkingLevel: true },
           })
         : null;
+      if (scope.botId && !override)
+        throw new Error("Bot is not available in this account and Space");
       const hasOverride = Boolean(override?.modelProvider && override.modelId);
       const [overrideCredential, defaultCredential, settings] = await Promise.all([
         hasOverride
@@ -3107,6 +3122,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
       return {
         provider,
         id,
+        fundingSource: resolved.fundingSource,
+        assertCredentialAvailable: resolved.assertCredentialAvailable,
         apiKey: resolved.oauth ? undefined : resolved.apiKey,
         ...cloudflareRunFields(resolved),
         baseUrl: resolved.baseUrl,
@@ -3221,6 +3238,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             status: "queued",
           },
         });
+        await assertRunCreationQuota(tx, routine.userId);
         const run = await tx.run.create({
           data: {
             spaceId: routine.spaceId,
@@ -3315,28 +3333,45 @@ export function createRunExecutor(deps: ExecutorDeps) {
 
       const fence = nextFence(run.leaseFence);
       const now = new Date();
-      const leased = await deps.prisma.run.updateMany({
-        where: {
-          id: runId,
-          ...continueRunClaimFence(run),
-          OR: [
-            { status: { in: ["queued", "waiting_input", "waiting_takeover"] } },
-            {
-              status: { in: ["leased", "running"] },
-              leaseExpiresAt: { lte: now },
-            },
-          ],
-        },
-        data: {
-          status: "leased",
-          leaseOwner: workerId,
-          leaseFence: fence,
-          leaseExpiresAt: new Date(Date.now() + 5 * 60_000),
-          error: null,
-          checkpoint: null,
-        },
-      });
-      if (leased.count !== 1) return;
+      const claimLease = (tx: Pick<Prisma.TransactionClient, "run">) =>
+        tx.run.updateMany({
+          where: {
+            id: runId,
+            ...continueRunClaimFence(run),
+            OR: [
+              { status: { in: ["queued", "waiting_input", "waiting_takeover"] } },
+              {
+                status: { in: ["leased", "running"] },
+                leaseExpiresAt: { lte: now },
+              },
+            ],
+          },
+          data: {
+            status: "leased",
+            leaseOwner: workerId,
+            leaseFence: fence,
+            leaseExpiresAt: new Date(Date.now() + 5 * 60_000),
+            error: null,
+            checkpoint: null,
+          },
+        });
+      const leased = executionLimit("MAX_CONCURRENT_RUNS_PER_USER", 2)
+        ? await deps.prisma.$transaction(async (tx) => {
+            if (
+              !(await runConcurrencyAvailable(tx, {
+                userId: run.userId,
+                runId,
+                rootRunId: run.rootRunId,
+              }))
+            )
+              return { count: 0 };
+            return claimLease(tx);
+          })
+        : await claimLease(deps.prisma);
+      if (leased.count !== 1) {
+        // Existing reconciliation will retry the queued run; admission never discards user intent.
+        return;
+      }
 
       const current = await deps.prisma.run.findUniqueOrThrow({
         where: { id: runId },
@@ -4024,7 +4059,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         }
         const runDeployment = deps.deploymentModelConfigured ? resolveDeploymentModel() : null;
         const runtimeFallback = runtimeFallbackModel(deps.runtime);
-        const pinError = run.modelPinned
+        const pinError = hasModelOverride
           ? pinnedModelCredentialError(modelChoice, overrideCredential)
           : undefined;
         const selected = selectConfiguredModel({
@@ -5151,6 +5186,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       runtime: deps.runtime,
                       checker: checker!,
                       apiKey: judgeKey.oauth ? undefined : judgeKey.apiKey,
+                      fundingSource: judgeKey.fundingSource,
+                      assertCredentialAvailable: judgeKey.assertCredentialAvailable,
                       accountId: judgeKey.accountId,
                       gatewayId: judgeKey.gatewayId,
                       baseUrl: judgeKey.baseUrl,
@@ -5166,6 +5203,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                           }
                         : undefined,
                       runId,
+                      rootRunId: run.rootRunId ?? run.id,
                       spaceId: run.spaceId,
                       userId: run.userId,
                       botId: bot.id,
@@ -7397,6 +7435,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               botId: bot.id,
               threadId: thread.id,
               runId,
+              rootRunId: run.rootRunId ?? run.id,
               sourceMessageId: run.sourceMessageId,
               executionProfile: profile,
               onTiming: (timing) => {
@@ -7473,6 +7512,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
               model: {
                 provider: runModelProvider,
                 id: runModelId,
+                fundingSource: resolved.fundingSource,
+                assertCredentialAvailable: resolved.assertCredentialAvailable,
                 apiKey: resolved.oauth ? undefined : resolved.apiKey,
                 ...cloudflareRunFields(resolved),
                 baseUrl: resolved.baseUrl,
@@ -9439,9 +9480,15 @@ function uncertainEffectError(toolName: string): Error {
  * only when the provider that won the resolution above is that vendor. A provider named
  * by deployment settings or a bot override gets no key rather than another vendor's.
  */
-function deploymentKeyFor(deps: ExecutorDeps, provider: string): string | undefined {
+function deploymentKeyFor(
+  deps: ExecutorDeps,
+  provider: string,
+  modelId: string,
+): string | undefined {
   if (!deps.deploymentModelKey) return undefined;
-  return provider === resolveDeploymentModel().provider ? deps.deploymentModelKey : undefined;
+  return deploymentFundsModel(provider, modelId, resolveDeploymentModel(), deps.modelExecutionMode)
+    ? deps.deploymentModelKey
+    : undefined;
 }
 
 /**
@@ -9467,6 +9514,8 @@ async function resolveModelKey(
   registerSecrets?: (values: string[]) => void,
   requireStoredSecret = false,
 ): Promise<{
+  fundingSource?: "deployment" | "user";
+  assertCredentialAvailable?: () => Promise<void>;
   apiKey?: string;
   accountId?: string;
   gatewayId?: string;
@@ -9487,17 +9536,30 @@ async function resolveModelKey(
   ) => Promise<boolean | undefined>;
   redact: string[];
 }> {
+  const executionError = modelProviderExecutionError(provider, deps.modelExecutionMode);
+  if (executionError) throw new UnavailableModelForAuthError(executionError);
+  if (credential && credential.provider !== provider) {
+    throw new UnavailableModelForAuthError("Connect that model provider first");
+  }
   if (credential) {
     return withModelCredentialLock(credential.secretId, async () => {
       const row = await deps.prisma.secret.findFirst({
         where: { id: credential.secretId, userId, spaceId: null },
       });
       if (!row) {
-        if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
-        cloudflareGatewayProviderEnv({ provider });
-        return { apiKey: deploymentKeyFor(deps, provider), redact: [] };
+        if (requireStoredSecret)
+          throw new UnavailableModelForAuthError("Backup model credential is no longer available");
+        throw new UnavailableModelForAuthError(
+          "Model connection is no longer available. Connect the provider again.",
+        );
       }
       const plaintext = await deps.secretStore.load(row.ciphertext, row.id);
+      const secretPolicyError = modelSecretExecutionError(
+        provider,
+        plaintext,
+        deps.modelExecutionMode,
+      );
+      if (secretPolicyError) throw new UnavailableModelForAuthError(secretPolicyError);
       registerSecrets?.(secretValuesToRedact(parseModelSecret(plaintext)));
       const persist = persistStoredModelSecret(
         deps.prisma,
@@ -9535,7 +9597,11 @@ async function resolveModelKey(
         // never refreshes or writes credentials, so resolve inside this lock
         // first — rotating a stale token the way any run would — then ask.
         let liveListed = false;
-        if (deps.codexCatalog && parseModelSecret(plaintext).kind === "oauth") {
+        if (
+          provider === "openai-codex" &&
+          deps.codexCatalog &&
+          parseModelSecret(plaintext).kind === "oauth"
+        ) {
           resolved = await resolveAuth();
           liveListed = await codexLiveListsModel(
             deps.codexCatalog,
@@ -9564,6 +9630,9 @@ async function resolveModelKey(
       const gatewayId = resolved.secret.kind === "api_key" ? resolved.secret.gatewayId : undefined;
       cloudflareGatewayProviderEnv({ provider, accountId, gatewayId });
       return {
+        fundingSource: "user",
+        assertCredentialAvailable: () =>
+          assertStoredModelCredentialAvailable(deps.prisma, userId, credential, spaceId),
         apiKey: resolved.apiKey,
         accountId,
         gatewayId,
@@ -9620,9 +9689,26 @@ async function resolveModelKey(
       };
     });
   }
-  if (requireStoredSecret) throw new Error("Backup model credential is no longer available");
+  if (requireStoredSecret)
+    throw new UnavailableModelForAuthError("Backup model credential is no longer available");
+  const deployment = resolveDeploymentModel();
+  const funded = deploymentFundsModel(provider, modelId, deployment, deps.modelExecutionMode);
+  const local = provider === "local" || provider === "scripted";
+  if (
+    !local &&
+    !(
+      funded &&
+      (deps.deploymentModelKey || (deps.deploymentModelConfigured && deployment.hostCredentials))
+    )
+  ) {
+    throw new UnavailableModelForAuthError("Connect that model provider first");
+  }
   cloudflareGatewayProviderEnv({ provider });
-  return { apiKey: deploymentKeyFor(deps, provider), redact: [] };
+  return {
+    fundingSource: funded ? "deployment" : undefined,
+    apiKey: deploymentKeyFor(deps, provider, modelId),
+    redact: [],
+  };
 }
 
 function cloudflareRunFields(resolved: { accountId?: string; gatewayId?: string }): {

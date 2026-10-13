@@ -133,7 +133,15 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     kind: z.literal("choice"),
     question: z.string(),
     subtitle: z.string().optional(),
-    options: z.array(z.object({ id: z.string(), letter: z.string(), label: z.string() })),
+    onboardingStage: z.enum(["identity", "focus"]).optional(),
+    options: z.array(
+      z.object({
+        id: z.string(),
+        letter: z.string(),
+        label: z.string(),
+        description: z.string().optional(),
+      }),
+    ),
     /** Set once the user picks an option; renders the picker as answered. */
     answerId: z.string().optional(),
   }),

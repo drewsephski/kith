@@ -7,6 +7,21 @@ const base = {
 };
 
 describe("loadEnv", () => {
+  it("requires the managed Luna funding policy while preserving self-hosted defaults", () => {
+    expect(loadEnv({ ...base, MODEL_EXECUTION_MODE: "managed" }).modelExecutionMode).toBe(
+      "managed",
+    );
+    expect(() =>
+      loadEnv({
+        ...base,
+        MODEL_EXECUTION_MODE: "managed",
+        PI_DEFAULT_MODEL: "anthropic/claude-sonnet-5",
+      }),
+    ).toThrow("Managed Kith deployment funding requires");
+    expect(loadEnv({ ...base, PI_DEFAULT_PROVIDER: "anthropic" }).modelExecutionMode).toBe(
+      "self-hosted",
+    );
+  });
   it("keeps client IP normalization optional and validates the configured trust boundary", () => {
     expect(loadEnv(base).authClientIp).toBeUndefined();
     expect(loadEnv({ ...base, AUTH_EDGE_IP_HEADER: " Fly-Client-IP " }).authClientIp).toEqual({

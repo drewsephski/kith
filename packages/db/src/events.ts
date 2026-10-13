@@ -25,6 +25,7 @@ import { getLogger } from "@rakazo/logging";
 import { cancelRunsInTransaction } from "./cancel-runs.js";
 import type { Prisma, PrismaClient } from "./client.js";
 import { expireComputerExecutionLeases } from "./computers.js";
+import { assertRunCreationQuota, ExecutionQuotaError } from "./execution-quotas.js";
 import {
   assertRunCanWriteHistory,
   assertRunIsCancelled,
@@ -452,6 +453,7 @@ export async function sendUserMessage(
             status: "queued",
           },
         });
+        await assertRunCreationQuota(tx, input.userId);
         run = await tx.run.create({
           data: {
             spaceId: input.spaceId,
@@ -1357,6 +1359,14 @@ export async function createPendingSteeringRun(
   const batch = pending.filter((item) => steeringOrigin(item) === origin);
   const source = batch.at(-1)!;
   const modelPin = continuationModelPin(batch);
+  try {
+    await assertRunCreationQuota(tx, batch[0]!.userId);
+  } catch (error) {
+    // Completing/cancelling a task must commit even when its queued follow-up cannot start.
+    // Unclaimed steering stays durable and will be included by the next admitted user run.
+    if (error instanceof ExecutionQuotaError) return null;
+    throw error;
+  }
   const task = await tx.task.create({
     data: {
       spaceId: input.spaceId,

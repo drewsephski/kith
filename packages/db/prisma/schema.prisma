@@ -22,6 +22,8 @@ model AiDataConsent {
 }
 
 model User {
+  botCreationRequests BotCreationRequest[]
+  modelCallReservations ModelCallReservation[]
   forYouRecommendations ForYouRecommendation[]
   aiDataConsents AiDataConsent[]
   id                          String                       @id
@@ -194,6 +196,8 @@ model Member {
 }
 
 model Space {
+  modelCallReservations ModelCallReservation[]
+  botCreationRequests BotCreationRequest[]
   forYouRecommendations ForYouRecommendation[]
   aiDataConsents AiDataConsent[]
   id                          String                       @id
@@ -387,6 +391,7 @@ model SpaceVoicePreference {
 }
 
 model Bot {
+  creationRequests BotCreationRequest[]
   forYouRecommendations ForYouRecommendation[]
   personalAssistants PersonalAssistant[]
   screenGeneration Int @default(0)
@@ -442,11 +447,32 @@ model Bot {
   externalConversations ExternalConversation[]
 
   @@unique([spaceId, spawnKey])
+  @@unique([id, spaceId, userId])
   @@index([spaceId, userId, archivedAt, pinned, updatedAt])
   @@index([sectionId])
   @@index([computerId])
   @@index([parentBotId])
   @@map("bots")
+}
+
+
+// Creation identities survive history clearing and retain a tombstone on bot
+// deletion. The migration also enforces composite bot/account/Space ownership.
+model BotCreationRequest {
+  id String @id @default(cuid())
+  spaceId String
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestKey String
+  botId String?
+  bot Bot? @relation(fields: [botId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([spaceId, userId, requestKey])
+  @@index([botId])
+  @@index([userId])
+  @@map("bot_creation_requests")
 }
 
 model BotSection {
@@ -609,6 +635,8 @@ model Task {
 }
 
 model Run {
+  /// Durable spend scope inherited by bot delegation and handoff; deliberately no lifecycle FK.
+  rootRunId String?
   id                   String           @id @default(cuid())
   spaceId              String
   space                Space            @relation(fields: [spaceId], references: [id], onDelete: Cascade)
@@ -661,6 +689,7 @@ model Run {
   @@index([spaceId, botId])
   @@index([sourceMessageId])
   @@index([threadId, status, createdAt])
+  @@index([userId, createdAt])
   @@index([routineId])
   @@map("runs")
 }
@@ -1053,7 +1082,10 @@ model Artifact {
   rootArtifact   Artifact?  @relation("ArtifactVersions", fields: [rootArtifactId], references: [id], onDelete: Cascade)
   versions       Artifact[] @relation("ArtifactVersions")
   version        Int        @default(1)
+  // Optional upload identity; retries cannot allocate another artifact version.
+  clientNonce    String?
 
+  @@unique([spaceId, userId, clientNonce])
   @@index([spaceId, botId])
   @@index([groupId])
   @@index([rootArtifactId])
@@ -1502,4 +1534,24 @@ model ForYouRecommendation {
   @@unique([userId, spaceId, assistantId, sourceKey])
   @@index([userId, spaceId, assistantId, state])
   @@map("for_you_recommendations")
+}
+
+/// Admission receipts, separate from provider usage and retained when a run is cleared.
+model ModelCallReservation {
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  id        String   @id
+  userId    String
+  spaceId   String?
+  runId     String
+  provider  String
+  modelId   String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  expiresAt DateTime @db.Timestamptz
+  settledAt DateTime? @db.Timestamptz
+
+  @@index([userId, createdAt])
+  @@index([userId, expiresAt])
+  @@index([runId])
+  @@map("model_call_reservations")
 }

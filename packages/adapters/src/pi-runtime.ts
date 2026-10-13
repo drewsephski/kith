@@ -30,13 +30,22 @@ import type {
 } from "@rakazo/adapter-kit";
 import { DEFAULT_CONTEXT_STRATEGY, MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import { usableModelId } from "@rakazo/contracts";
+import { executionLimit } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { isToolPauseResult } from "./approval-effect.js";
 import { connectionIdArgument, credentialArgument } from "./bot-secrets.js";
 import { DELEGATION_TOOL_NAMES } from "./builtin-tools.js";
 import { withCloudflareGatewayAuth } from "./cloudflare-ai-gateway.js";
 import { shortenToolResultText } from "./context-selection.js";
-import { DEFAULT_OPENROUTER_MODEL_ID } from "./deployment-model.js";
+import type { ModelExecutionMode } from "./deployment-model.js";
+import {
+  DEFAULT_OPENROUTER_MODEL_ID,
+  deploymentFundsModel,
+  modelExecutionMode,
+  modelProviderExecutionError,
+  resolveDeploymentModel,
+} from "./deployment-model.js";
+import { managedCompletionTokens } from "./model-call-quota.js";
 import { estimateModelContextTokens } from "./model-context.js";
 import { IMAGE_RETURNING_COMPUTER_TOOLS } from "./model-vision.js";
 import {
@@ -145,6 +154,8 @@ const FALLBACK_AGENT_TOOL_NAME = "connector_tool";
 
 /** Optional self-host fuse. Unset, empty, or 0 means unlimited (default). */
 export function maxToolCallsPerTurn(env: NodeJS.ProcessEnv = process.env): number {
+  if (env.MODEL_EXECUTION_MODE === "managed")
+    return executionLimit("MAX_TOOL_CALLS_PER_TURN", 40, env);
   const raw = env.MAX_TOOL_CALLS_PER_TURN?.trim();
   if (!raw) return 0;
   const parsed = Number(raw);
@@ -153,9 +164,14 @@ export function maxToolCallsPerTurn(env: NodeJS.ProcessEnv = process.env): numbe
 }
 
 export interface PiAgentRuntimeOptions {
+  modelExecutionMode?: ModelExecutionMode;
   /** Directory where Pi JSONL sessions are written. Omit to disable recording. */
   sessionRoot?: string;
   modelCallObserver?: ModelCallObserver;
+  modelCallObserverFor?: (
+    request: AgentRunRequest,
+    context?: Partial<AdapterContext>,
+  ) => ModelCallObserver | undefined;
   /** Sanitized per-call selection telemetry; never includes prompt or credentials. */
   onContextDecision?: (
     decision: RuntimeContextDecision & {
@@ -167,12 +183,16 @@ export interface PiAgentRuntimeOptions {
 }
 
 export class PiAgentRuntime implements AgentRuntime {
+  private readonly executionMode: ModelExecutionMode;
   private readonly sessionRecorder?: PiSessionRecorder;
   private readonly modelCallObserver?: ModelCallObserver;
+  private readonly modelCallObserverFor?: PiAgentRuntimeOptions["modelCallObserverFor"];
   private readonly onContextDecision?: PiAgentRuntimeOptions["onContextDecision"];
 
   constructor(options: PiAgentRuntimeOptions = {}) {
+    this.executionMode = options.modelExecutionMode ?? modelExecutionMode();
     this.modelCallObserver = options.modelCallObserver;
+    this.modelCallObserverFor = options.modelCallObserverFor;
     this.onContextDecision = options.onContextDecision;
     this.sessionRecorder = options.sessionRoot
       ? new PiJsonlSessionRecorder(options.sessionRoot)
@@ -250,8 +270,15 @@ export class PiAgentRuntime implements AgentRuntime {
         const { models, model, apiKey } = selectedModel;
         const toolDefs = request.tools;
         const nestedAgents = new Set<Agent>();
-        const completionModel = modelForCompletion(model, request.model.maxTokens);
-        trackedBudget = toolCallBudgetFor(request.runId);
+        const completionModel = modelForCompletion(
+          model,
+          managedCompletionTokens(request.model, this.executionMode),
+        );
+        const modelCallObserver =
+          this.modelCallObserverFor?.(request, context) ?? this.modelCallObserver;
+        if (this.executionMode === "managed" && !modelCallObserver)
+          throw new Error("Managed model execution requires a quota observer");
+        trackedBudget = toolCallBudgetFor(request.runId, this.executionMode);
         const initialModelTarget: RuntimeModelTarget = {
           config: request.model,
           models,
@@ -263,7 +290,8 @@ export class PiAgentRuntime implements AgentRuntime {
           queue,
           context,
           onContextDecision: this.onContextDecision,
-          modelCallObserver: this.modelCallObserver,
+          modelCallObserver,
+          executionMode: this.executionMode,
           request,
           activeModel: initialModelTarget,
           models,
@@ -395,6 +423,7 @@ export class PiAgentRuntime implements AgentRuntime {
         let agent: Agent;
         let activeStreamTarget = host.activeModel;
         const fallbackState: FallbackStreamState = {
+          executionMode: this.executionMode,
           request,
           getActive: () => activeStreamTarget,
           signal,
@@ -416,10 +445,14 @@ export class PiAgentRuntime implements AgentRuntime {
                   ctx,
                   preparedOptions,
                   (event) => queue.push(event),
-                  this.modelCallObserver,
-                  { operationKind: request.usageOperationKind ?? "answer" },
+                  modelCallObserver,
+                  {
+                    operationKind: request.usageOperationKind ?? "answer",
+                    fundingSource: target.config.fundingSource,
+                  },
                   {
                     ...usageHooks,
+                    beforeCall: target.config.assertCredentialAvailable,
                     prepareContext: (ctx, m) => contextPolicy.prepareContext(ctx, m),
                     onProviderError: (message) => providerFailures.add(message.content),
                   },
@@ -474,9 +507,12 @@ export class PiAgentRuntime implements AgentRuntime {
                       ctx,
                       preparedOptions,
                       (event) => queue.push(event),
-                      this.modelCallObserver,
-                      { operationKind: request.usageOperationKind ?? "answer" },
-                      usageHooks,
+                      modelCallObserver,
+                      {
+                        operationKind: request.usageOperationKind ?? "answer",
+                        fundingSource: request.model.fundingSource,
+                      },
+                      { ...usageHooks, beforeCall: request.model.assertCredentialAvailable },
                     ),
                   request.model.cacheCapabilities?.retentionMode,
                 ),
@@ -887,6 +923,8 @@ export function resolveRuntimeModel(modelConfig: AgentRunRequest["model"]): {
   credentials: PiRuntimeCredentialStore | undefined;
 } {
   const provider = modelConfig.provider === "scripted" ? "openrouter" : modelConfig.provider;
+  const executionError = modelProviderExecutionError(provider);
+  if (executionError) throw new Error(executionError);
   const envDefaultModel = process.env.PI_DEFAULT_MODEL?.trim();
   const envDefaultProvider = process.env.PI_DEFAULT_PROVIDER?.trim() || "openrouter";
   const requestedId =
@@ -895,9 +933,6 @@ export function resolveRuntimeModel(modelConfig: AgentRunRequest["model"]): {
   const credentials = credentialStoreForRequest({ model: modelConfig }, provider);
   const models = modelsForRequest({ model: modelConfig }, provider, credentials);
   let model = models.getModel(provider, modelId);
-  if (!model && provider !== "openrouter" && provider !== OPENAI_COMPATIBLE_PROVIDER_ID) {
-    model = models.getModel("openrouter", modelId);
-  }
   if (
     !model &&
     provider === "openrouter" &&
@@ -920,10 +955,10 @@ export function resolveRuntimeModel(modelConfig: AgentRunRequest["model"]): {
     ? undefined
     : modelConfig.provider === OPENAI_COMPATIBLE_PROVIDER_ID
       ? modelConfig.apiKey || "local"
-      : // Only OpenRouter may fall back to the OpenRouter env key. Handing it to
-        // another provider would ship our key to a vendor it was not issued for.
-        (modelConfig.apiKey ??
-        (provider === "openrouter" ? process.env.OPENROUTER_API_KEY : undefined));
+      : (modelConfig.apiKey ??
+        (deploymentFundsModel(provider, modelId, resolveDeploymentModel())
+          ? resolveDeploymentModel().key
+          : undefined));
   return { provider, modelId, models, model, apiKey, credentials };
 }
 
@@ -942,15 +977,24 @@ function credentialStoreForRequest(
   );
 }
 
+const noAmbientAuth = { env: async () => undefined, fileExists: async () => false };
+let isolatedCatalogModels: Models | undefined;
+
 export function modelsForRequest(
   request: Pick<AgentRunRequest, "model">,
   provider: string,
   credentials?: PiRuntimeCredentialStore,
 ): Models {
   const store = credentials ?? credentialStoreForRequest(request, provider);
+  // Pi otherwise resolves host environment keys when request auth is absent.
+  // Only the explicitly configured host-authenticated deployment may do so.
+  const deployment = resolveDeploymentModel();
+  const ambientHost =
+    deployment.hostCredentials && deploymentFundsModel(provider, request.model.id, deployment);
+  const authContext = ambientHost ? undefined : noAmbientAuth;
   if (store) {
     return registerOpenAiCompatibleCatalog(
-      registerLocalProvider(supplementPiModels(builtinModels({ credentials: store }))),
+      registerLocalProvider(supplementPiModels(builtinModels({ credentials: store, authContext }))),
     );
   }
   if (
@@ -959,7 +1003,7 @@ export function modelsForRequest(
     request.model.id.trim()
   ) {
     const models = registerOpenAiCompatibleCatalog(
-      registerLocalProvider(supplementPiModels(builtinModels())),
+      registerLocalProvider(supplementPiModels(builtinModels({ authContext }))),
     );
     return registerOpenAiCompatibleRuntime(models, {
       modelId: request.model.id,
@@ -970,7 +1014,11 @@ export function modelsForRequest(
       contextWindow: request.model.contextWindow,
     });
   }
-  return catalogModels();
+  if (ambientHost) return catalogModels();
+  isolatedCatalogModels ??= registerOpenAiCompatibleCatalog(
+    registerLocalProvider(supplementPiModels(builtinModels({ authContext: noAmbientAuth }))),
+  );
+  return isolatedCatalogModels;
 }
 
 function toAgentTools(toolDefs: readonly ConnectorTool[], host: ToolHost): AgentTool[] {
@@ -1734,7 +1782,10 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     host.subagentGate.release();
     return `Subagent failed: ${message}`;
   }
-  const subagentModel = modelForCompletion(selectedModel.model, requestModel.maxTokens);
+  const subagentModel = modelForCompletion(
+    selectedModel.model,
+    managedCompletionTokens(requestModel, host.executionMode),
+  );
 
   const childDefs = host.request.tools.filter((tool) => !DELEGATION_TOOL_NAMES.has(tool.name));
   const nestedHost: ToolHost = {
@@ -1799,9 +1850,10 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
             preparedOptions,
             (event) => host.queue.push(event),
             host.modelCallObserver,
-            { operationKind: "subagent", agentId },
+            { operationKind: "subagent", agentId, fundingSource: requestModel.fundingSource },
             {
               prepareContext: contextPolicy.prepareContext,
+              beforeCall: requestModel.assertCredentialAvailable,
               imageTokens: estimatePiImageTokens,
               recordUsage: host.request.onUsage,
               onTiming: host.request.onTiming,
@@ -2549,6 +2601,7 @@ interface EventQueue {
 }
 
 interface ToolHost {
+  executionMode: ModelExecutionMode;
   context?: Partial<AdapterContext>;
   onContextDecision?: PiAgentRuntimeOptions["onContextDecision"];
   modelCallObserver?: ModelCallObserver;
@@ -2584,17 +2637,18 @@ function toolCallBudgetExceededMessage(limit: number) {
   return `I stopped after reaching the limit of ${limit} tool calls in this turn. Send another message to continue.`;
 }
 
-function toolCallBudgetFor(runId: string): ToolCallBudget {
+function toolCallBudgetFor(runId: string, mode: ModelExecutionMode): ToolCallBudget {
+  const limit = maxToolCallsPerTurn({ ...process.env, MODEL_EXECUTION_MODE: mode });
   const existing = toolCallBudgetsByRun.get(runId);
   if (existing) {
     existing.inFlight = 0;
-    existing.limit = maxToolCallsPerTurn();
+    existing.limit = limit;
     return existing;
   }
   const budget: ToolCallBudget = {
     count: 0,
     exceeded: false,
-    limit: maxToolCallsPerTurn(),
+    limit,
     inFlight: 0,
   };
   if (budget.limit > 0) toolCallBudgetsByRun.set(runId, budget);
@@ -2662,6 +2716,7 @@ interface RuntimeModelTarget {
 }
 
 interface FallbackStreamState {
+  executionMode: ModelExecutionMode;
   request: AgentRunRequest;
   getActive(): RuntimeModelTarget;
   signal: AbortSignal;
@@ -2894,7 +2949,10 @@ function fallbackAwareModelStream(
         const candidate: RuntimeModelTarget = {
           config,
           models: resolved.models,
-          model: modelForCompletion(resolved.model, config.maxTokens),
+          model: modelForCompletion(
+            resolved.model,
+            managedCompletionTokens(config, state.executionMode),
+          ),
           apiKey: resolved.apiKey,
           credentials: resolved.credentials,
         };

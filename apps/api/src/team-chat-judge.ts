@@ -7,11 +7,15 @@ import type {
   SecretStore,
 } from "@rakazo/adapter-kit";
 import {
+  assertStoredModelCredentialAvailable,
+  deploymentFundsModel,
   formatCurrentTimeInstruction,
   matchesFailedOAuthSecret,
+  modelProviderExecutionError,
   resolveModelAuth,
   serializeModelSecret,
   toOAuthCredential,
+  validateModelAuthAvailability,
 } from "@rakazo/adapters";
 import type { PrismaClient } from "@rakazo/db";
 import {
@@ -114,6 +118,7 @@ export function parseTeamChatEngagementDecision(
 }
 
 interface ModelTeamChatEngagementJudgeDeps {
+  modelExecutionMode?: "managed" | "self-hosted";
   prisma: PrismaClient;
   runtime: AgentRuntime;
   secrets: SecretStore;
@@ -208,10 +213,7 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
     const overrideCredential = requestedProvider
       ? await findModelCredential(this.deps.prisma, scope, requestedProvider)
       : null;
-    const explicitJudgeOverride = Boolean(this.deps.providerOverride && this.deps.modelOverride);
-    const useOverride = Boolean(
-      requestedProvider && requestedModel && (explicitJudgeOverride || overrideCredential),
-    );
+    const useOverride = Boolean(requestedProvider && requestedModel);
     const credential = useOverride ? overrideCredential : defaultCredential;
     const provider =
       (useOverride ? requestedProvider : null) ??
@@ -226,11 +228,24 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
     if (!provider || !modelId) return null;
 
     if (!credential) {
-      const apiKey =
-        provider === this.deps.deploymentProvider ? this.deps.deploymentModelKey : undefined;
-      return { model: { provider, id: modelId, ...(apiKey ? { apiKey } : {}) } };
+      if (
+        !deploymentFundsModel(
+          provider,
+          modelId,
+          {
+            provider: this.deps.deploymentProvider,
+            model: this.deps.deploymentModel,
+          },
+          this.deps.modelExecutionMode,
+        )
+      )
+        return null;
+      const apiKey = this.deps.deploymentModelKey;
+      if (!apiKey) return null;
+      return { model: { provider, id: modelId, fundingSource: "deployment", apiKey } };
     }
 
+    if (modelProviderExecutionError(provider, this.deps.modelExecutionMode)) return null;
     const secret = await this.deps.prisma.secret.findFirst({
       where: { id: credential.secretId, userId: bot.userId, spaceId: null },
     });
@@ -272,8 +287,11 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
           : undefined,
       });
     const plaintext = await this.deps.secrets.load(secret.ciphertext, secret.id);
+    if (validateModelAuthAvailability(provider, modelId, plaintext)) return null;
     const auth = await resolveModelAuth(plaintext, provider, { persist, retire });
     const parsed = auth.secret;
+    const assertCredentialAvailable = () =>
+      assertStoredModelCredentialAvailable(this.deps.prisma, bot.userId, credential, bot.spaceId);
     const limit = parsed.maxTokens !== undefined ? { maxTokens: parsed.maxTokens } : {};
     const context =
       parsed.kind === "oauth"
@@ -287,6 +305,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         model: {
           provider,
           id: modelId,
+          fundingSource: "user",
+          assertCredentialAvailable,
           ...limit,
           oauth: {
             credential: { ...parsed.credential },
@@ -309,6 +329,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         model: {
           provider,
           id: modelId,
+          fundingSource: "user",
+          assertCredentialAvailable,
           apiKey: parsed.apiKey,
           baseUrl: parsed.baseUrl,
           ...limit,
@@ -321,6 +343,8 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
         provider,
         id: modelId,
         apiKey: auth.apiKey,
+        fundingSource: "user",
+        assertCredentialAvailable,
         ...limit,
         ...context,
       },

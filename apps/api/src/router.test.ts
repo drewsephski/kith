@@ -2448,13 +2448,13 @@ describe("codex live catalog", () => {
     expect(ids).not.toContain("gpt-unknown-from-backend");
   });
 
-  it("never reads the catalog for an API-key credential and still lists Spark", async () => {
+  it("never reads or authorizes a Codex catalog with an incompatible API key", async () => {
     const read = vi.fn().mockResolvedValue([liveModel(spark)]);
     const { handler } = catalogDeps({ read, apiKeyOnly: true });
 
     const ids = await listIds(handler);
 
-    expect(ids).toContain(spark);
+    expect(ids).not.toContain(spark);
     expect(read).not.toHaveBeenCalled();
   });
 
@@ -2846,7 +2846,7 @@ describe("model set default auth", () => {
     return response;
   }
 
-  it("sets Spark from the API-key preference when a newer ChatGPT credential exists", async () => {
+  it("rejects an API-key preference for the Codex OAuth-only transport", async () => {
     const older = new Date("2026-01-01T00:00:00.000Z");
     const newer = new Date("2026-02-01T00:00:00.000Z");
     const apiCredential = {
@@ -2924,8 +2924,10 @@ describe("model set default auth", () => {
       modelId: spark,
     });
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ json: { ok: true } });
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      json: expect.objectContaining({ code: "BAD_REQUEST" }),
+    });
     expect(secretFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: "secret-api", userId: actor.userId, spaceId: null }),
@@ -2933,18 +2935,7 @@ describe("model set default auth", () => {
     );
     expect(load).toHaveBeenCalledWith("cipher-api", "secret-api");
     expect(load).not.toHaveBeenCalledWith("cipher-oauth", "secret-oauth");
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          spaceId_userId_credentialId: {
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            credentialId: "cred-api",
-          },
-        },
-        update: { modelId: spark, isDefault: true, thinkingLevel: null },
-      }),
-    );
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("does not rewrite a Spark API-key preference when another Codex model becomes the default", async () => {
@@ -3047,7 +3038,7 @@ describe("model set default auth", () => {
     });
   });
 
-  it("keeps the working space credential when the other Codex secret cannot be read", async () => {
+  it("does not treat an API key as a working Codex connection when OAuth is unreadable", async () => {
     const older = new Date("2026-01-01T00:00:00.000Z");
     const newer = new Date("2026-02-01T00:00:00.000Z");
     const apiCredential = {
@@ -3122,19 +3113,8 @@ describe("model set default auth", () => {
       modelId: luna,
     });
 
-    expect(response.status).toBe(200);
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          spaceId_userId_credentialId: {
-            spaceId: actor.spaceId,
-            userId: actor.userId,
-            credentialId: "cred-api",
-          },
-        },
-        update: { modelId: luna, isDefault: true, thinkingLevel: null },
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 
@@ -3339,7 +3319,7 @@ describe("bot model auth on save", () => {
     );
   });
 
-  it("accepts Spark when the preference that owns that model is an API key", async () => {
+  it("rejects Spark when its Codex preference contains an incompatible API key", async () => {
     const apiCredential = credentialRow("cred-api", "secret-api");
     const oauthCredential = credentialRow("cred-oauth", "secret-oauth");
     const { secretFindFirst, handler } = saveDeps({
@@ -3361,7 +3341,7 @@ describe("bot model auth on save", () => {
       modelId: spark,
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(400);
     expect(secretFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: "secret-api", userId: actor.userId, spaceId: null }),
@@ -3666,6 +3646,7 @@ describe("threads.endCall", () => {
     const created: { blocks?: unknown; clientNonce?: string }[] = [];
     const events: { type: string; payload: Record<string, unknown> }[] = [];
     const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ dayStart: new Date("2026-10-13T00:00:00Z") }]),
       thread: { update: vi.fn().mockResolvedValue({ nextMessageSeq: 3, nextEventSeq: 5 }) },
       message: {
         create: vi.fn(async ({ data }: { data: { blocks: unknown; clientNonce?: string } }) => {
@@ -3677,6 +3658,7 @@ describe("threads.endCall", () => {
       event: vi.fn(),
       task: { create: vi.fn().mockResolvedValue({ id: "task-1" }) },
       run: {
+        count: vi.fn().mockResolvedValue(1),
         create: vi.fn().mockResolvedValue({ id: "run-1" }),
         findUnique: vi.fn().mockResolvedValue({ status: "queued", startedAt: null }),
       },
@@ -3764,6 +3746,25 @@ describe("threads.endCall", () => {
     expect(events).toEqual([]);
     expect(tx.run.create).not.toHaveBeenCalled();
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("preserves a hang-up when the optional recap reaches the daily task quota", async () => {
+    vi.stubEnv("MAX_RUNS_PER_USER_PER_DAY", "1");
+    try {
+      const { call, created, events, tx, enqueue } = fixture();
+      const { response } = await call();
+      expect(response.status).toBe(200);
+      expect(created).toHaveLength(1);
+      expect(events.map((event) => event.type)).toEqual([
+        "thread.message.created",
+        "thread.call.ended",
+      ]);
+      expect(tx.task.create).not.toHaveBeenCalled();
+      expect(tx.run.create).not.toHaveBeenCalled();
+      expect(enqueue).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

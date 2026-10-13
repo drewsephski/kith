@@ -27,6 +27,7 @@ import {
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createThreadMessageInTransaction,
   IsolationError,
 } from "@rakazo/db";
@@ -514,6 +515,7 @@ export class CalendarService {
         status: "queued",
       },
     });
+    await assertRunCreationQuota(tx, actor.userId);
     const run = await tx.run.create({
       data: {
         spaceId: actor.spaceId,

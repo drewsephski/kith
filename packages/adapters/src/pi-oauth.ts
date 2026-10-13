@@ -25,6 +25,12 @@ import {
 } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
+import type { ModelExecutionMode } from "./deployment-model.js";
+import {
+  MANAGED_CHATGPT_CONNECTION_MESSAGE,
+  modelExecutionMode,
+  modelProviderExecutionError,
+} from "./deployment-model.js";
 import { createManualAnthropicOAuthLogin } from "./pi-anthropic-oauth.js";
 
 export const CHATGPT_OAUTH_PROVIDER = "openai-codex";
@@ -225,6 +231,37 @@ export function oauthCredentialAccountId(credential: OAuthCredential): string | 
       ? (namespaced as Record<string, unknown>)
       : undefined;
   return nonBlankString(claims?.chatgpt_account_id) ?? nonBlankString(payload.chatgpt_account_id);
+}
+
+/** ChatGPT plan tokens cannot be relabeled as API keys or another provider's OAuth. */
+export function isChatGptPlanToken(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return false;
+  const claims = payload[OPENAI_AUTH_CLAIMS_NAMESPACE];
+  return Boolean(
+    nonBlankString(payload.chatgpt_account_id) ||
+      (claims &&
+        typeof claims === "object" &&
+        nonBlankString((claims as Record<string, unknown>).chatgpt_account_id)),
+  );
+}
+
+export function modelSecretExecutionError(
+  provider: string,
+  plaintext: string,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): string | undefined {
+  const providerError = modelProviderExecutionError(provider, mode);
+  if (providerError) return providerError;
+  if (mode !== "managed") return undefined;
+  const secret = parseModelSecret(plaintext);
+  const token =
+    secret.kind === "oauth"
+      ? secret.credential.access
+      : secret.kind === "api_key"
+        ? secret.key
+        : secret.apiKey;
+  return token && isChatGptPlanToken(token) ? MANAGED_CHATGPT_CONNECTION_MESSAGE : undefined;
 }
 
 const retiredCredentialErrors = new WeakSet<object>();
@@ -583,6 +620,8 @@ export async function resolveModelAuth(
   provider: string,
   opts?: ResolveModelOpts,
 ): Promise<{ secret: StoredModelSecret; apiKey: string }> {
+  const executionError = modelSecretExecutionError(provider, plaintext);
+  if (executionError) throw new Error(executionError);
   const parsed = parseModelSecret(plaintext);
   if (parsed.kind === "api_key") return { secret: parsed, apiKey: parsed.key };
   if (parsed.kind === "openai_compatible") {
@@ -820,6 +859,8 @@ export class PiOAuthLogins {
     label?: string;
     signal?: AbortSignal;
   }): Promise<PiOAuthBegin> {
+    const executionError = modelProviderExecutionError(input.provider);
+    if (executionError) throw new Error(executionError);
     if (!SUBSCRIPTION_SIGN_IN_PROVIDERS[input.provider]) {
       throw new Error(
         "In-app subscription sign-in is only available for ChatGPT Plus/Pro, Claude Pro/Max, GitHub Copilot, and SuperGrok.",

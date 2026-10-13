@@ -416,6 +416,10 @@ export interface AgentSteeringMessage {
 export type CacheCapabilities = ConnectionCacheCapabilities;
 
 export interface AgentRunModel {
+  /** Recheck a server-owned credential before every actual provider attempt. */
+  assertCredentialAvailable?: () => Promise<void>;
+  /** Authoritative backend funding attribution; never inferred from a provider name. */
+  fundingSource?: "deployment" | "user";
   cacheCapabilities?: CacheCapabilities;
   provider: string;
   id: string;
@@ -454,6 +458,8 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Durable root scope for shared deployment quotas across delegated bot runs. */
+  rootRunId?: string;
   /** Backend receipt for a successful memory write in this durable run, across attempts. */
   memoryWriteConfirmed?: boolean;
   /** A prior failed/uncertain write for this input must not be retried after recovery. */
@@ -562,11 +568,20 @@ export interface AgentUsage {
 export type UsageOperationKind = "answer" | "setup" | "retrieval" | "subagent" | "compaction";
 
 export interface ModelCallObserver {
+  /** Hard total duration per attempt; reservations must outlive this timeout. */
+  timeoutMs?: number;
+  /** Validates the final provider payload before HTTP, including transformations by protocol adapters. */
+  validatePayload?: (payload: unknown) => void | Promise<void>;
   beforeCall(call: {
     provider: string;
     modelId: string;
     inputTokensEstimate: number;
     maxOutputTokens: number;
+    /** Conservative serialized request size, including images and tool schemas. */
+    requestBytes?: number;
+    /** Text, instructions and tools; excludes only typed inline image content. */
+    textRequestBytes?: number;
+    fundingSource?: "deployment" | "user";
     /** Explicit adapter-known write bucket required by this request, not a billing prediction. */
     cacheWriteRetention?: "1h";
   }): string | Promise<string>;

@@ -3,6 +3,7 @@ import type { CloudAgentProvider } from "@rakazo/adapter-kit";
 import { EmulatorCloudAgentProvider } from "./cloud-agent-emulator.js";
 import { resolveCloudAgentProvider } from "./cloud-agent-provider-env.js";
 import { CursorCloudAgentProvider } from "./cursor-cloud-agent.js";
+import { modelExecutionMode } from "./deployment-model.js";
 
 /** The composition root binds a credential to exactly one authorized Space. */
 export interface CloudAgentConnection {
@@ -32,6 +33,11 @@ export function createCloudAgentConnection(
     return { provider: new EmulatorCloudAgentProvider(), key: "emulator" };
   }
   if (kind !== "cursor") return null;
+  if (modelExecutionMode(source) === "managed") {
+    throw new Error(
+      "Managed Kith cannot fund external cloud agents. Disable CLOUD_AGENT_PROVIDER or use a self-hosted server.",
+    );
+  }
   const apiKey = source.CURSOR_API_KEY!.trim();
   const spaceId = source.CLOUD_AGENT_SPACE_ID!.trim();
   return {

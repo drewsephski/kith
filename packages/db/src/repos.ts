@@ -10,8 +10,13 @@ import { userVisibleMessages } from "@rakazo/core";
 import type { PrismaClient } from "./client.js";
 import { type ComputerMode, ensureComputerRecord, parseComputerMode } from "./computers.js";
 import { appendEventInTransaction } from "./events.js";
+import { assertRunCreationQuota } from "./execution-quotas.js";
 import { createThreadMessageInTransaction } from "./messages.js";
-import { BotSectionNameConflictError, IsolationError } from "./scope.js";
+import {
+  BotCreationRequestUnavailableError,
+  BotSectionNameConflictError,
+  IsolationError,
+} from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
 import { activeRunSelection, previewFromBlocks } from "./thread-listing.js";
 import { withTransactionRetry } from "./transaction-retry.js";
@@ -390,6 +395,8 @@ export function createRepos(prisma: PrismaClient) {
         spawnKey?: string;
         /** Launch retries must not revive an archived conversation. */
         rejectArchivedSpawnKey?: boolean;
+        /** Additional-bot setup; coalesce unfinished identity creation across devices. */
+        conversationalOnboarding?: boolean;
         /** Commit the first user task with its conversation; no empty launch window. */
         initialTask?: {
           prompt: string;
@@ -461,6 +468,105 @@ export function createRepos(prisma: PrismaClient) {
             spaceId: actor.spaceId,
             userId: actor.userId,
           });
+          if (input.conversationalOnboarding && input.spawnKey) {
+            // The space lock serializes creation on every device. Durable aliases
+            // retain each request's identity even after another device finishes setup.
+            const previousRequest = await tx.botCreationRequest.findUnique({
+              where: {
+                spaceId_userId_requestKey: {
+                  spaceId: actor.spaceId,
+                  userId: actor.userId,
+                  requestKey: input.spawnKey,
+                },
+              },
+              select: { botId: true },
+            });
+            if (previousRequest) {
+              if (!previousRequest.botId) throw new BotCreationRequestUnavailableError();
+              const previousBot = await tx.bot.findFirst({
+                where: {
+                  id: previousRequest.botId,
+                  spaceId: actor.spaceId,
+                  userId: actor.userId,
+                  archivedAt: null,
+                },
+                include: { thread: true, computer: true },
+              });
+              if (!previousBot) throw new BotCreationRequestUnavailableError();
+              return previousBot;
+            }
+            const candidates = await tx.bot.findMany({
+              where: {
+                spaceId: actor.spaceId,
+                userId: actor.userId,
+                archivedAt: null,
+                spawnKey: { startsWith: "onboarding:" },
+                thread: {
+                  AND: [{ messages: { none: { role: "user" } } }],
+                  messages: {
+                    some: {
+                      blocks: { array_contains: [{ kind: "choice", onboardingStage: "identity" }] },
+                    },
+                  },
+                },
+              },
+              include: {
+                thread: {
+                  include: {
+                    messages: {
+                      where: {
+                        blocks: {
+                          array_contains: [{ kind: "choice", onboardingStage: "identity" }],
+                        },
+                      },
+                      select: { blocks: true },
+                    },
+                  },
+                },
+                computer: true,
+              },
+              orderBy: { createdAt: "desc" },
+            });
+            const pending = candidates.find((candidate) =>
+              candidate.thread?.messages.some((message) =>
+                (message.blocks as MessageBlock[]).some(
+                  (block) =>
+                    block.kind === "choice" &&
+                    block.onboardingStage === "identity" &&
+                    !block.answerId,
+                ),
+              ),
+            );
+            if (pending?.thread) {
+              // Share the thread lock with identity advancement and user sends.
+              await tx.$executeRaw`SELECT id FROM threads WHERE id = ${pending.thread.id} FOR UPDATE`;
+              const current = await tx.message.findMany({
+                where: { threadId: pending.thread.id },
+                select: { blocks: true, role: true },
+              });
+              if (
+                !current.some((message) => message.role === "user") &&
+                current.some((message) =>
+                  (message.blocks as MessageBlock[]).some(
+                    (block) =>
+                      block.kind === "choice" &&
+                      block.onboardingStage === "identity" &&
+                      !block.answerId,
+                  ),
+                )
+              ) {
+                await tx.botCreationRequest.create({
+                  data: {
+                    spaceId: actor.spaceId,
+                    userId: actor.userId,
+                    botId: pending.id,
+                    requestKey: input.spawnKey,
+                  },
+                });
+                return pending;
+              }
+            }
+          }
           const positions = await tx.bot.aggregate({
             where: { spaceId: actor.spaceId, userId: actor.userId },
             _max: { position: true },
@@ -556,6 +662,7 @@ export function createRepos(prisma: PrismaClient) {
                 status: "queued",
               },
             });
+            await assertRunCreationQuota(tx, actor.userId);
             const run = await tx.run.create({
               data: {
                 spaceId: actor.spaceId,
@@ -585,10 +692,32 @@ export function createRepos(prisma: PrismaClient) {
             });
           }
           if (input.initialMessage) {
-            await createThreadMessageInTransaction(tx, {
+            const message = await createThreadMessageInTransaction(tx, {
               threadId: thread.id,
               ...input.initialMessage,
+              ...(input.conversationalOnboarding ? { botId: created.id, markUnread: false } : {}),
             });
+            if (input.conversationalOnboarding) {
+              await appendEventInTransaction(tx, {
+                spaceId: actor.spaceId,
+                botId: created.id,
+                threadId: thread.id,
+                type: "thread.message.created",
+                payload: {
+                  messageId: message.id,
+                  role: input.initialMessage.role,
+                  blocks: input.initialMessage.blocks,
+                },
+              });
+              await tx.botCreationRequest.create({
+                data: {
+                  spaceId: actor.spaceId,
+                  userId: actor.userId,
+                  botId: created.id,
+                  requestKey: input.spawnKey!,
+                },
+              });
+            }
           }
           if (input.computerMode === "dedicated") {
             const dedicated = await ensureComputerRecord(tx, {

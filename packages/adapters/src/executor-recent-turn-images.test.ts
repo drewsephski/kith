@@ -110,6 +110,7 @@ async function runWithModel(
   const setupStarted = new Promise<void>((resolve) => {
     markSetupStarted = resolve;
   });
+  vi.stubEnv("PI_DEFAULT_MODEL", modelId);
   let request: AgentRunRequest | undefined;
   const runtimeRun = vi.fn(async function* (next: AgentRunRequest) {
     request = next;

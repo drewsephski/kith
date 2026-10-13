@@ -3,7 +3,7 @@ import { listPiCatalog } from "./pi-models.js";
 import type { StoredModelSecret } from "./pi-oauth.js";
 import { CHATGPT_OAUTH_PROVIDER, parseModelSecret } from "./pi-oauth.js";
 
-/** Codex models that ChatGPT Plus/Pro sign-in cannot call. API-key auth still can. */
+/** Subscription exclusions; API-key models use the separate OpenAI provider. */
 export const OPENAI_CODEX_CHATGPT_SUBSCRIPTION_EXCLUDED_MODEL_IDS = new Set([
   "gpt-5.3-codex-spark",
 ]);
@@ -24,9 +24,9 @@ export function modelCredentialAuthKindFromPlaintext(plaintext: string): ModelCr
 }
 
 /**
- * ChatGPT subscription sign-in cannot call Codex Spark. A stored API key can.
- * Disconnected openai-codex browsing only offers that subscription sign-in, so Spark stays
- * hidden until an API key is stored.
+ * ChatGPT subscription sign-in cannot call statically excluded Codex models.
+ * The openai-codex transport requires OAuth; API-key models use OpenAI instead.
+ * A live per-account catalog can authorize a subscription model separately.
  */
 export function catalogModelAvailableForAuth(
   provider: string,
@@ -34,6 +34,8 @@ export function catalogModelAvailableForAuth(
   authKind: ModelCredentialAuthKind | "disconnected",
   providerAuth?: PiCatalogAuth,
 ): boolean {
+  if (authKind === "api_key" && providerAuth === "oauth") return false;
+  if (authKind === "oauth" && providerAuth === "api-key") return false;
   if (provider !== CHATGPT_OAUTH_PROVIDER) return true;
   const usesChatGptSubscription =
     authKind === "oauth" ||

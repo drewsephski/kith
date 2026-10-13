@@ -8,6 +8,14 @@ export class IsolationError extends Error {
   }
 }
 
+/** A confirmed creation request whose original bot was archived or deleted. */
+export class BotCreationRequestUnavailableError extends IsolationError {
+  constructor() {
+    super("This bot is no longer available.");
+    this.name = "BotCreationRequestUnavailableError";
+  }
+}
+
 /** Unique (spaceId, userId, name) collision when renaming a bot section. */
 export class BotSectionNameConflictError extends Error {
   constructor(message = "Section name already used") {

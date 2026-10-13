@@ -30,6 +30,7 @@ import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   answerWaitingRunWithTextInTransaction,
   appendEventInTransaction,
+  assertRunCreationQuota,
   cancelRunsInTransaction,
   createGroupRepos,
   createRepos,
@@ -924,6 +925,7 @@ export async function sendThreadMessage(
             status: "queued",
           },
         });
+        await assertRunCreationQuota(tx, actor.userId);
         const run = await tx.run.create({
           data: {
             spaceId: actor.spaceId,
@@ -1078,6 +1080,7 @@ export async function sendThreadMessage(
             status: "queued",
           },
         });
+        await assertRunCreationQuota(tx, actor.userId);
         const run = await tx.run.create({
           data: {
             spaceId: actor.spaceId,

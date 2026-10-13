@@ -58,3 +58,40 @@ export function resolveDeploymentModel(env: NodeJS.ProcessEnv = process.env) {
     hostCredentials,
   };
 }
+
+/** A managed service may not execute user subscription tokens on its shared servers. */
+export type ModelExecutionMode = "managed" | "self-hosted";
+
+export function modelExecutionMode(env: NodeJS.ProcessEnv = process.env): ModelExecutionMode {
+  const value = env.MODEL_EXECUTION_MODE?.trim();
+  if (value && value !== "managed" && value !== "self-hosted") {
+    throw new Error("MODEL_EXECUTION_MODE must be managed or self-hosted");
+  }
+  return value === "managed" ? "managed" : "self-hosted";
+}
+
+export const MANAGED_CHATGPT_CONNECTION_MESSAGE =
+  "ChatGPT plan connections require a local or self-hosted Kith server. Use an OpenAI API key on hosted Kith.";
+
+export function modelProviderExecutionError(
+  provider: string,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): string | undefined {
+  return mode === "managed" && provider === "openai-codex"
+    ? MANAGED_CHATGPT_CONNECTION_MESSAGE
+    : undefined;
+}
+
+/** Deployment funding is bound to one provider AND model, never a provider-wide key. */
+export function deploymentFundsModel(
+  provider: string,
+  modelId: string,
+  deployment: Pick<ReturnType<typeof resolveDeploymentModel>, "provider" | "model">,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): boolean {
+  return (
+    provider === deployment.provider &&
+    modelId === deployment.model &&
+    (mode !== "managed" || (provider === "openrouter" && modelId === DEFAULT_OPENROUTER_MODEL_ID))
+  );
+}

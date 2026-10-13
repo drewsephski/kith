@@ -113,4 +113,38 @@ describe("team chat engagement judge", () => {
       },
     });
   });
+  it("does not substitute deployment funding for a disconnected bot override", async () => {
+    const run = vi.fn(async function* () {
+      yield { type: "done", text: '{"act":false}' };
+    });
+    const judge = new ModelTeamChatEngagementJudge({
+      prisma: {
+        deploymentSettings: { findUnique: vi.fn(async () => null) },
+        spaceModelPreference: { findFirst: vi.fn(async () => null) },
+        userModelCredential: { findFirst: vi.fn(async () => null) },
+      } as never,
+      runtime: { run } as never,
+      secrets: {} as never,
+      deploymentProvider: "openrouter",
+      deploymentModel: "openai/gpt-6-luna",
+      deploymentModelKey: "fixture-deployment-key",
+      modelExecutionMode: "managed",
+    });
+    await expect(
+      judge.decide({
+        bot: {
+          id: "bot",
+          userId: "user",
+          spaceId: "space",
+          name: "Fixture",
+          modelProvider: "openrouter",
+          modelId: "anthropic/claude-sonnet-5",
+        },
+        channelId: "channel",
+        rules: "",
+        messages: [],
+      }),
+    ).resolves.toEqual({ act: false });
+    expect(run).not.toHaveBeenCalled();
+  });
 });

@@ -9,7 +9,11 @@ import {
   sanitizeMessagingLabel,
 } from "@rakazo/core";
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
-import { appendEventInTransaction, createThreadMessageInTransaction } from "@rakazo/db";
+import {
+  appendEventInTransaction,
+  assertRunCreationQuota,
+  createThreadMessageInTransaction,
+} from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import { currentBotMessageHop } from "./bot-messages.js";
 
@@ -20,6 +24,7 @@ export interface AgentConnectionDeps {
 }
 
 type ConnectionRun = {
+  rootRunId?: string | null;
   id: string;
   spaceId: string;
   threadId: string;
@@ -321,8 +326,10 @@ export async function messageConnectedAgent(
           status: "queued",
         },
       });
+      await assertRunCreationQuota(tx, targetIdentity.userId);
       const nextRun = await tx.run.create({
         data: {
+          rootRunId: run.rootRunId ?? run.id,
           spaceId: targetIdentity.spaceId,
           botId: target.id,
           threadId: targetThreadId,

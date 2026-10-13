@@ -991,7 +991,7 @@ describe("applyCodexLiveCatalog", () => {
     expect(fallback?.thinkingLevels).toEqual(staticEntry.thinkingLevels);
   });
 
-  it("keeps API-key-governed codex models outside the live gate", () => {
+  it("rejects API-key-governed Codex slots while retaining OAuth and OpenAI API-key models", () => {
     const mixedAuth: CodexCatalogSpaceAuth = {
       byProvider: { [CHATGPT_OAUTH_PROVIDER]: "oauth" },
       byModel: { [CHATGPT_OAUTH_PROVIDER]: { [SPARK]: "api_key" } },
@@ -1002,13 +1002,14 @@ describe("applyCodexLiveCatalog", () => {
     const merged = applyCodexLiveCatalog(
       mixedBase,
       mixedAuth,
-      liveFor({ "secret-a": [liveModel(LUNA)] }),
+      liveFor({ "secret-a": [liveModel(SPARK), liveModel(LUNA)] }),
     );
 
     const codexIds = merged
       .filter((entry) => entry.provider === CHATGPT_OAUTH_PROVIDER)
       .map((entry) => entry.id);
-    expect(codexIds).toEqual([SPARK, LUNA]);
+    expect(codexIds).toEqual([LUNA]);
+    expect(merged.some((entry) => entry.provider === "openai" && entry.id === SPARK)).toBe(true);
   });
 
   it("governs each model by the account that owns its credential", () => {

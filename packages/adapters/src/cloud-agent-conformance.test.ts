@@ -84,6 +84,22 @@ for (const [name, create] of Object.entries(factories)) {
 }
 
 describe("cloud agent composition", () => {
+  it("does not construct a deployment-funded live cloud agent on managed Kith", () => {
+    expect(() =>
+      createCloudAgentConnection({
+        MODEL_EXECUTION_MODE: "managed",
+        CLOUD_AGENT_PROVIDER: "cursor",
+        CURSOR_API_KEY: "fixture-key",
+        CLOUD_AGENT_SPACE_ID: "fixture-space",
+      }),
+    ).toThrow("Managed Kith cannot fund external cloud agents");
+    expect(
+      createCloudAgentConnection({
+        MODEL_EXECUTION_MODE: "managed",
+        CLOUD_AGENT_PROVIDER: "emulator",
+      })?.provider.describe().capabilities.offline,
+    ).toBe(true);
+  });
   it("fails closed without explicit credential and Space configuration", () => {
     for (const source of [
       {},

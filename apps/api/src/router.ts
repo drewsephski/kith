@@ -64,6 +64,7 @@ import {
   defaultCatalogModelId,
   deletePushToken,
   deploymentAutoReviewDefault,
+  deploymentFundsModel,
   destroyBot,
   displayBotWorkspacePath,
   enqueueTakeoverContinuation,
@@ -84,6 +85,8 @@ import {
   mapScratchpadItem,
   modelCredentialAuthKindsForSpace,
   modelCredentialDto,
+  modelProviderExecutionError,
+  modelSecretExecutionError,
   normalizeSecretDestination,
   PushSessionEndedError,
   parseModelSecret,
@@ -121,6 +124,7 @@ import {
   touchRunningComputer,
   UNAVAILABLE_MODEL_FOR_AUTH_MESSAGE,
   validateConnectedModelChoice,
+  validateHostedModelConnection,
   validateModelAuthAvailability,
   validateStoredModelAuth,
   verifyMcpInstall,
@@ -164,6 +168,8 @@ import {
 import type { PrismaClient, ThreadEvents } from "@rakazo/db";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
+  BotCreationRequestUnavailableError,
   BotSectionNameConflictError,
   CannotDeleteDefaultSpaceError,
   CannotDeleteLastSpaceError,
@@ -179,6 +185,7 @@ import {
   defaultModelCredentialCandidates,
   deleteEmptySpaceForMember,
   deleteUnreferencedCredentialSecret,
+  ExecutionQuotaError,
   findDefaultModelCredential,
   findDefaultVoiceCredential,
   findModelCredential,
@@ -245,6 +252,8 @@ import {
 } from "./memory-provider-config.js";
 import {
   chooseFocus,
+  chooseIdentity,
+  createConversationalBot,
   dismissFocus,
   markAppConnected,
   promptFocus,
@@ -590,6 +599,7 @@ export interface RouterDeps {
     teamChatJudgeModel?: string;
     defaultProvider: string;
     defaultModel: string;
+    modelExecutionMode?: "managed" | "self-hosted";
     deploymentModelConfigured?: boolean;
     deploymentModelHostCredentials?: boolean;
     webOrigin: string;
@@ -724,6 +734,7 @@ export async function enqueueBotIntroRun(deps: RouterDeps, actor: Actor, bot: Bo
         status: "queued",
       },
     });
+    await assertRunCreationQuota(tx, actor.userId);
     return tx.run.create({
       data: {
         spaceId: actor.spaceId,
@@ -773,7 +784,13 @@ export function createRouter(deps: RouterDeps) {
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
-    return next({ context: { ...context, actor: context.actor } });
+    try {
+      return await next({ context: { ...context, actor: context.actor } });
+    } catch (error) {
+      if (error instanceof ExecutionQuotaError)
+        throw new ORPCError("TOO_MANY_REQUESTS", { message: error.message });
+      throw error;
+    }
   });
 
   return os.router({
@@ -1104,6 +1121,7 @@ export function createRouter(deps: RouterDeps) {
           deps.prisma,
           deps.secrets,
           context.actor,
+          deps.env.modelExecutionMode,
         );
         const available = listAvailablePiCatalog(auth.byProvider, auth.byModel);
         const live = await codexLiveCatalogsForSpace(
@@ -1122,7 +1140,21 @@ export function createRouter(deps: RouterDeps) {
         const catalog = live.size > 0 ? applyCodexLiveCatalog(available, auth, live) : available;
         // The scripted fixture only exists to drive the scripted runtime; a real
         // runtime cannot execute it, so it stays out of the user-facing catalog.
-        return deps.env.agentRuntime === "scripted" ? [...catalog, scriptedCatalogEntry] : catalog;
+        const policyCatalog = catalog.map((entry) => {
+          const connectionUnavailableReason = modelProviderExecutionError(
+            entry.provider,
+            deps.env.modelExecutionMode,
+          );
+          return {
+            ...entry,
+            ...(connectionUnavailableReason
+              ? { connectionUnavailableReason, billing: connectionUnavailableReason }
+              : {}),
+          };
+        });
+        return deps.env.agentRuntime === "scripted"
+          ? [...policyCatalog, scriptedCatalogEntry]
+          : policyCatalog;
       }),
       credentials: authed.models.credentials.handler(async ({ context }) => {
         const rows = await deps.prisma.userModelCredential.findMany({
@@ -1178,6 +1210,7 @@ export function createRouter(deps: RouterDeps) {
             deps.prisma,
             deps.secrets,
             context.actor,
+            deps.env.modelExecutionMode,
           );
           const available = listAvailablePiCatalog(auth.byProvider, auth.byModel);
           const live = await codexLiveCatalogsForSpace(
@@ -1306,6 +1339,11 @@ export function createRouter(deps: RouterDeps) {
         }
       }),
       beginOAuth: authed.models.beginOAuth.handler(async ({ context, input }) => {
+        const policyError = modelProviderExecutionError(
+          input.provider,
+          deps.env.modelExecutionMode,
+        );
+        if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
         return deps.oauthLogins.begin({
           userId: context.actor.userId,
           spaceId: context.actor.spaceId,
@@ -1362,6 +1400,11 @@ export function createRouter(deps: RouterDeps) {
         return { ok: true as const };
       }),
       setDefault: authed.models.setDefault.handler(async ({ context, input }) => {
+        const policyError = modelProviderExecutionError(
+          input.provider,
+          deps.env.modelExecutionMode,
+        );
+        if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
         const loadSpaceModelState = async (
           client: Pick<PrismaClient, "spaceModelPreference" | "userModelCredential">,
         ) => {
@@ -2325,6 +2368,7 @@ export function createRouter(deps: RouterDeps) {
                 status: "queued",
               },
             });
+            await assertRunCreationQuota(tx, context.actor.userId);
             run = await tx.run.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -2399,6 +2443,27 @@ export function createRouter(deps: RouterDeps) {
               type: "thread.message.created",
               payload: { messageId: message.id, role: "bot", blocks, callId: input.callId },
             });
+            try {
+              await assertRunCreationQuota(tx, context.actor.userId);
+            } catch (error) {
+              if (!(error instanceof ExecutionQuotaError)) throw error;
+              // Hanging up is user intent, independent of an optional model-generated recap.
+              const ended = await appendEventInTransaction(tx, {
+                spaceId: context.actor.spaceId,
+                threadId,
+                botId,
+                type: "thread.call.ended",
+                payload: {
+                  botId,
+                  threadId,
+                  callId: input.callId,
+                  title: "",
+                  farewell: "",
+                  messageId: message.id,
+                },
+              });
+              return { runId: null, eventSeq: ended.seq };
+            }
             const task = await tx.task.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -2448,9 +2513,10 @@ export function createRouter(deps: RouterDeps) {
           getLogger().error("call end realtime notification", error);
         });
         // The queued run is durable; a missed wake is repaired by the reconciler.
-        await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
-          getLogger().error("call end enqueue", error);
-        });
+        if (committed.runId)
+          await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
+            getLogger().error("call end enqueue", error);
+          });
         return { ok: true as const };
       }),
       answer: authed.threads.answer.handler(async ({ context, input }) => {
@@ -3697,6 +3763,7 @@ export function createRouter(deps: RouterDeps) {
               select: { modelProvider: true, modelId: true, thinkingLevel: true },
             });
             if (!currentModel) throw new IsolationError();
+            await assertRunCreationQuota(tx, context.actor.userId);
             return tx.run.create({
               data: {
                 spaceId: context.actor.spaceId,
@@ -4517,6 +4584,21 @@ export function createRouter(deps: RouterDeps) {
       },
     },
     onboarding: {
+      create: authed.onboarding.create.handler(async ({ context, input }) => {
+        try {
+          return await createConversationalBot(onboardingDeps, context.actor, input.clientNonce);
+        } catch (error) {
+          if (error instanceof BotCreationRequestUnavailableError)
+            throw new ORPCError("ONBOARDING_TARGET_REMOVED", {
+              status: 409,
+              message: error.message,
+            });
+          throw mapSpaceLifecycleError(error);
+        }
+      }),
+      identity: authed.onboarding.identity.handler(async ({ context, input }) =>
+        chooseIdentity(onboardingDeps, context.actor, input.botId, input.messageId, input.identity),
+      ),
       start: authed.onboarding.start.handler(async ({ context, input }) => {
         await startOnboarding(onboardingDeps, context.actor, input.botId);
         return { ok: true as const };
@@ -6403,6 +6485,11 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     sandboxProvider: deps.env.sandboxProvider,
     avatarStyle: user.avatarStyle === "robot" ? "robot" : "organic",
     billingEnabled: Boolean(deps.billing) && !actor.isDeploymentOwner,
+    defaultModelFunding: setup.needsModel
+      ? "unavailable"
+      : setup.credential
+        ? "user"
+        : "deployment",
   };
 }
 
@@ -6416,11 +6503,22 @@ async function modelSetup(deps: RouterDeps, actor: Actor) {
     findDefaultModelCredential(deps.prisma, actor),
     deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
   ]);
-  const hasDeployment = Boolean(deps.env.deploymentModelConfigured);
+  const hasDeployment =
+    Boolean(deps.env.deploymentModelConfigured) &&
+    deploymentFundsModel(
+      settings?.defaultModelProvider ?? deps.env.defaultProvider,
+      settings?.defaultModelId ?? deps.env.defaultModel,
+      { provider: deps.env.defaultProvider, model: deps.env.defaultModel },
+      deps.env.modelExecutionMode,
+    );
   return {
     credential,
     settings,
-    needsModel: deps.env.agentRuntime !== "scripted" && !credential && !hasDeployment,
+    needsModel:
+      deps.env.agentRuntime !== "scripted" &&
+      (credential
+        ? Boolean(modelProviderExecutionError(credential.provider, deps.env.modelExecutionMode))
+        : !hasDeployment),
   };
 }
 
@@ -6746,6 +6844,12 @@ async function persistModelCredential(
   codexCatalog: CodexLiveCatalog,
 ) {
   throwIfAborted(input.signal);
+  const policyError = modelSecretExecutionError(
+    input.provider,
+    input.plaintext,
+    deps.env.modelExecutionMode,
+  );
+  if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
   const requestedModelId = usableModelId(input.modelId);
   const authError = requestedModelId
     ? validateModelAuthAvailability(input.provider, requestedModelId, input.plaintext)
@@ -6755,12 +6859,13 @@ async function persistModelCredential(
   if (
     authError &&
     requestedModelId &&
-    !(await codexLiveListsModel(
-      codexCatalog,
-      actor.userId,
-      parseModelSecret(input.plaintext),
-      requestedModelId,
-    ))
+    (input.provider !== CHATGPT_OAUTH_PROVIDER ||
+      !(await codexLiveListsModel(
+        codexCatalog,
+        actor.userId,
+        parseModelSecret(input.plaintext),
+        requestedModelId,
+      )))
   ) {
     throw new ORPCError("BAD_REQUEST", { message: authError });
   }
@@ -6771,6 +6876,20 @@ async function persistModelCredential(
   const allowedThinking = defaultModel
     ? await allowedThinkingLevels(deps, actor, input.provider, defaultModel)
     : undefined;
+  if (deps.env.modelExecutionMode === "managed" && defaultModel) {
+    try {
+      await validateHostedModelConnection({
+        provider: input.provider,
+        plaintext: input.plaintext,
+        modelId: defaultModel,
+        signal: input.signal,
+      });
+    } catch (error) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: error instanceof Error ? error.message : "Could not verify this model connection.",
+      });
+    }
+  }
   const stored = await deps.secrets.put(input.plaintext, {
     operationId: "cred",
     traceId: "cred",

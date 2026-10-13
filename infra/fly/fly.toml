@@ -11,6 +11,7 @@ kill_timeout = "60s"
 
 [env]
   NODE_ENV = "production"
+  MODEL_EXECUTION_MODE = "managed"
   DATA_DIR = "/data"
   API_HOST = "127.0.0.1"
   API_PORT = "3100"

@@ -57,6 +57,64 @@ async function run(usage?: object, onTiming?: (timing: AgentModelTiming) => void
 }
 
 describe("Pi usage accounting", () => {
+  it("rechecks a disconnected credential before reserving or opening a provider request", async () => {
+    const beforeCall = vi.fn(() => "reservation");
+    const afterCall = vi.fn();
+    const fetcher = vi.fn();
+    const stream = observedPiStream(
+      builtinModels(),
+      model,
+      { messages: [] },
+      { fetch: fetcher },
+      vi.fn(),
+      { beforeCall, afterCall },
+      undefined,
+      {
+        beforeCall: async () => {
+          throw new Error("Connect that model provider first");
+        },
+      },
+    );
+    for await (const _event of stream) {
+      /* Consume the deterministic error. */
+    }
+    expect((await stream.result()).errorMessage).toBe("Connect that model provider first");
+    expect(beforeCall).not.toHaveBeenCalled();
+    expect(afterCall).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("bounds total provider duration and settles a cancelled reservation as unknown usage", async () => {
+    const beforeCall = vi.fn(() => "bounded-reservation");
+    const afterCall = vi.fn();
+    const fetcher = vi.fn(
+      async (_url: unknown, init?: RequestInit): Promise<Response> =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Timed out", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const stream = observedPiStream(
+      builtinModels(),
+      model,
+      { messages: [] },
+      { apiKey: "fixture-key", fetch: fetcher },
+      vi.fn(),
+      { beforeCall, afterCall, timeoutMs: 10 },
+    );
+    for await (const _event of stream) {
+      /* Provider abort settles the financial admission receipt. */
+    }
+    expect((await stream.result()).stopReason).toBe("aborted");
+    expect(beforeCall).toHaveBeenCalledOnce();
+    expect(afterCall).toHaveBeenCalledWith(
+      "bounded-reservation",
+      expect.objectContaining({ inputTokens: null, outputTokens: null }),
+    );
+  });
   it("records provider headers and first text using sizes only", async () => {
     const timings: AgentModelTiming[] = [];
     const result = await run(undefined, (timing) => timings.push(timing));

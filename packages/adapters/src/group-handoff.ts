@@ -3,6 +3,7 @@ import { MessageBlock } from "@rakazo/contracts";
 import { botMessageHopExhausted, nextBotMessageHop, renderGroupMembersContext } from "@rakazo/core";
 import {
   appendEventInTransaction,
+  assertRunCreationQuota,
   createThreadMessageInTransaction,
   IsolationError,
   lockOwnedGroup,
@@ -16,6 +17,7 @@ export async function handoffToGroupBot(
   deps: Pick<ExecutorDeps, "prisma" | "events" | "jobs">,
   run: {
     id: string;
+    rootRunId?: string | null;
     spaceId: string;
     threadId: string;
     botId: string;
@@ -143,8 +145,10 @@ export async function handoffToGroupBot(
         status: "queued",
       },
     });
+    await assertRunCreationQuota(tx, run.userId);
     const nextRun = await tx.run.create({
       data: {
+        rootRunId: run.rootRunId ?? run.id,
         spaceId: run.spaceId,
         botId: targetId,
         threadId: run.threadId,

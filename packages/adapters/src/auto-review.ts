@@ -270,6 +270,8 @@ export async function runAutoReviewJudge(input: {
   runtime: AgentRuntime;
   checker: AutoReviewChecker;
   apiKey?: string;
+  fundingSource?: "deployment" | "user";
+  assertCredentialAvailable?: () => Promise<void>;
   accountId?: string;
   gatewayId?: string;
   baseUrl?: string;
@@ -280,6 +282,7 @@ export async function runAutoReviewJudge(input: {
   oauth?: AgentRunModel["oauth"];
   prompt: string;
   runId: string;
+  rootRunId?: string;
   spaceId: string;
   userId: string;
   botId: string;
@@ -300,6 +303,7 @@ export async function runAutoReviewJudge(input: {
         botId: input.botId,
         threadId: input.threadId,
         runId: `${input.runId}:auto-review`,
+        rootRunId: input.rootRunId ?? input.runId,
         usageOperationKind: "setup",
         onUsage: async (event) => {
           await input.onUsage?.(event);
@@ -315,6 +319,8 @@ export async function runAutoReviewJudge(input: {
           provider: input.checker.provider,
           id: input.checker.model,
           apiKey: input.oauth ? undefined : input.apiKey,
+          fundingSource: input.fundingSource,
+          assertCredentialAvailable: input.assertCredentialAvailable,
           accountId: input.accountId,
           gatewayId: input.gatewayId,
           baseUrl: input.baseUrl,
@@ -366,6 +372,8 @@ export type LlmAutoReviewOptions = {
   runtime: AgentRuntime;
   checker: AutoReviewChecker;
   apiKey?: string;
+  fundingSource?: "deployment" | "user";
+  assertCredentialAvailable?: () => Promise<void>;
   accountId?: string;
   gatewayId?: string;
   baseUrl?: string;
@@ -375,6 +383,7 @@ export type LlmAutoReviewOptions = {
   reasoning?: boolean;
   oauth?: AgentRunModel["oauth"];
   runId: string;
+  rootRunId?: string;
   spaceId: string;
   userId: string;
   botId: string;

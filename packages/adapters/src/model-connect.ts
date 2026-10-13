@@ -9,6 +9,7 @@ import {
 } from "@rakazo/contracts";
 import { modelIdSupportsImages, updateModelImageCapabilities } from "./model-vision.js";
 import { modelCredentialAuthKind } from "./pi-catalog-availability.js";
+import { catalogProviderProbeBaseUrl, probeCatalogProviderModels } from "./pi-models.js";
 import {
   CHATGPT_OAUTH_PROVIDER,
   parseModelSecret,
@@ -25,6 +26,52 @@ export type BuildModelConnectOptions = {
   /** Skip writing visionModelIds when prior plaintext was unavailable during key replacement. */
   omitVisionModelIds?: boolean;
 };
+
+/** Non-inference validation for hosted keys; subscription flows validate their own authorization. */
+export async function validateHostedModelConnection(
+  input: { provider: string; plaintext: string; modelId: string; signal?: AbortSignal },
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  const secret = parseModelSecret(input.plaintext);
+  if (secret.kind !== "api_key") return;
+  if (input.provider === "openrouter") {
+    // /models is public on OpenRouter and cannot prove that a key is valid.
+    const response = await fetchImpl("https://openrouter.ai/api/v1/auth/key", {
+      headers: { Authorization: `Bearer ${secret.key}`, Accept: "application/json" },
+      redirect: "error",
+      signal: input.signal
+        ? AbortSignal.any([input.signal, AbortSignal.timeout(10_000)])
+        : AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(
+        response.status === 401 || response.status === 403
+          ? "The provider rejected this API key. Connect a valid key."
+          : "Could not verify this API key. Try again.",
+      );
+    }
+    const body: unknown = await response.json();
+    if (
+      !body ||
+      typeof body !== "object" ||
+      !("data" in body) ||
+      !body.data ||
+      typeof body.data !== "object"
+    ) {
+      throw new Error("Could not verify this API key. Try again.");
+    }
+    return;
+  }
+  if (!catalogProviderProbeBaseUrl(input.provider)) return;
+  const models = await probeCatalogProviderModels(
+    { provider: input.provider, apiKey: secret.key },
+    fetchImpl,
+    input.signal,
+  );
+  if (!models.includes(input.modelId))
+    throw new Error("This model is not available with this API key. Choose another model.");
+}
 
 export function buildModelConnectPlaintext(
   input: ModelConnectInput,

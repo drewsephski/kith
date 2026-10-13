@@ -32,6 +32,7 @@ import {
   createJobReconciler,
   createMessagingContextLoader,
   createMessagingTeamChatSender,
+  createModelCallQuotaObserver,
   createRunExecutor,
   createRunSandbox,
   createRunSecretWriter,
@@ -117,6 +118,7 @@ import {
   wakeMessageRoutines,
 } from "./messaging-inbound.js";
 import { mountMessagingWebhookRoutes } from "./messaging-webhook.js";
+import { mountPrivateResponseCachePolicy } from "./private-response-cache.js";
 import { mountApiRequestBodyLimits } from "./request-body-limit.js";
 import { createRouter } from "./router.js";
 import { mountScreenTarget } from "./screen-proxy.js";
@@ -395,7 +397,15 @@ export async function createApp(
     (env.agentRuntime === "scripted"
       ? new ScriptedAgentRuntime()
       : new PiAgentRuntime({
+          modelExecutionMode: env.modelExecutionMode,
           sessionRoot: env.piSessionRecording ? piSessionsRoot(env.dataDir) : undefined,
+          modelCallObserverFor: (request, context) =>
+            createModelCallQuotaObserver(prisma, request, context, {
+              billingRequired: Boolean(
+                env.stripeSecretKey && env.stripeWebhookSecret && env.stripePriceId,
+              ),
+              mode: env.modelExecutionMode,
+            }),
         }));
   const notifications = new ExpoPushProvider(env.dataDir, (sessionId) =>
     pushSessionExpiresAt(prisma, sessionId),
@@ -455,6 +465,7 @@ export async function createApp(
   });
   // One provider instance so emulator launches and polls share the same Map.
   const cloudAgent = createCloudAgentConnection({
+    MODEL_EXECUTION_MODE: env.modelExecutionMode,
     CLOUD_AGENT_PROVIDER: env.cloudAgentProvider,
     CURSOR_API_KEY: env.cursorApiKey,
     CLOUD_AGENT_SPACE_ID: env.cloudAgentSpaceId,
@@ -496,6 +507,7 @@ export async function createApp(
     secretStore: secrets,
     secretHttp: remoteConnectors,
     mcpAllowPrivateEndpoint: env.mcpAllowPrivateEndpoint,
+    modelExecutionMode: env.modelExecutionMode,
     deploymentModelKey: env.deploymentModelKey,
     deploymentModelConfigured: env.deploymentModelConfigured,
     dataDir: env.dataDir,
@@ -600,6 +612,7 @@ export async function createApp(
       defaultModel: env.defaultModel,
       teamChatJudgeProvider: env.teamChatJudgeProvider,
       teamChatJudgeModel: env.teamChatJudgeModel,
+      modelExecutionMode: env.modelExecutionMode,
       deploymentModelConfigured: env.deploymentModelConfigured,
       deploymentModelHostCredentials: env.deploymentModelHostCredentials,
       webOrigin: env.webOrigin,
@@ -620,6 +633,8 @@ export async function createApp(
   });
   const app = new Hono();
   app.use("*", requestLogging(logger));
+  // Install before auth, RPC and request limits so private error replies are covered too.
+  mountPrivateResponseCachePolicy(app);
   app.use(
     "*",
     cors({
@@ -648,7 +663,6 @@ export async function createApp(
     }
   });
   app.get("/api/auth/capabilities", (c) => {
-    c.header("cache-control", "no-store");
     return c.json({
       sso: env.oidc
         ? { name: env.oidc.name, availability: auth.ssoAvailability() ?? "checking" }
@@ -870,6 +884,7 @@ export async function createApp(
               secrets,
               deploymentProvider: env.defaultProvider,
               deploymentModel: env.defaultModel,
+              modelExecutionMode: env.modelExecutionMode,
               deploymentModelKey: env.deploymentModelKey,
               providerOverride: env.teamChatJudgeProvider,
               modelOverride: env.teamChatJudgeModel,
@@ -880,6 +895,7 @@ export async function createApp(
               secrets,
               deploymentProvider: env.defaultProvider,
               deploymentModel: env.defaultModel,
+              modelExecutionMode: env.modelExecutionMode,
               deploymentModelKey: env.deploymentModelKey,
             });
       const bridge = new TeamChatBridge({

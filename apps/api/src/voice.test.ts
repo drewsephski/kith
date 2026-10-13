@@ -9,8 +9,10 @@ import {
   MAX_SPEAK_REQUEST_BYTES,
   MAX_TRANSCRIBE_REQUEST_BYTES,
   mountVoiceHttpRoutes,
+  persistVoiceCredential,
   synthesizeVoice,
   toVoiceStatus,
+  transcribeVoice,
   updateVoiceSpeechModel,
   type VoiceDeps,
 } from "./voice.js";
@@ -479,5 +481,52 @@ describe("synthesizeVoice", () => {
     await synthesizeVoice(deps, actor, { text: "Hello" });
 
     expect(synthesize.mock.calls[0]?.[0]).toMatchObject({ model: undefined });
+  });
+});
+
+describe("voice funding boundary", () => {
+  it("does not store a managed ChatGPT plan token as a voice API key", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    const payload = Buffer.from(
+      JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "fixture-account" } }),
+    ).toString("base64url");
+    const put = vi.fn();
+    try {
+      await expect(
+        persistVoiceCredential(
+          { secrets: { put } } as unknown as VoiceDeps,
+          { userId: "fixture-user", spaceId: "fixture-space" } as Actor,
+          { provider: "openai", plaintext: `fixture.${payload}.signature` },
+        ),
+      ).rejects.toThrow("ChatGPT plan connections require");
+      expect(put).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("never uses a deployment OpenAI key for speech or transcription", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+    vi.stubEnv("OPENAI_API_KEY", "fixture-deployment-key");
+    const load = vi.fn();
+    const deps = {
+      prisma: { spaceVoicePreference: { findFirst: vi.fn(async () => null) } },
+      secrets: { load },
+    } as unknown as VoiceDeps;
+    const actor = { userId: "fixture-user", spaceId: "fixture-space" } as Actor;
+    const provider = vi.spyOn(adapters, "createVoiceProvider");
+    try {
+      await expect(synthesizeVoice(deps, actor, { text: "Fixture speech" })).rejects.toThrow(
+        adapters.NoVoiceConfigured,
+      );
+      await expect(
+        transcribeVoice(deps, actor, { audio: new Uint8Array([1]), mimeType: "audio/webm" }),
+      ).rejects.toThrow(adapters.NoVoiceConfigured);
+      expect(load).not.toHaveBeenCalled();
+      expect(provider).not.toHaveBeenCalled();
+    } finally {
+      provider.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });
