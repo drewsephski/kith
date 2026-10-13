@@ -1533,7 +1533,9 @@ describe("createRunExecutor", () => {
     const executor = createRunExecutor({
       prisma,
       jobs: { enqueue, cancel, close: vi.fn(async () => undefined) },
-      events: { append },
+      events: {
+        append,
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
@@ -1614,7 +1616,9 @@ describe("createRunExecutor", () => {
           cancel: vi.fn(async () => undefined),
           close: vi.fn(async () => undefined),
         },
-        events: { append: vi.fn(async () => undefined) },
+        events: {
+          append: vi.fn(async () => undefined),
+        },
       } as unknown as Parameters<typeof createRunExecutor>[0]);
     }
 
@@ -1698,7 +1702,9 @@ describe("createRunExecutor", () => {
     const executor = createRunExecutor({
       prisma,
       jobs: { enqueue, cancel: vi.fn(async () => undefined), close: vi.fn(async () => undefined) },
-      events: { append: vi.fn(async () => undefined) },
+      events: {
+        append: vi.fn(async () => undefined),
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
@@ -1762,7 +1768,9 @@ describe("createRunExecutor", () => {
         cancel: vi.fn(async () => undefined),
         close: vi.fn(async () => undefined),
       },
-      events: { append },
+      events: {
+        append,
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
@@ -1834,7 +1842,9 @@ describe("createRunExecutor", () => {
         cancel: vi.fn(async () => undefined),
         close: vi.fn(async () => undefined),
       },
-      events: { append },
+      events: {
+        append,
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
@@ -1919,7 +1929,9 @@ description: Prepare standup notes
     const executor = createRunExecutor({
       prisma,
       jobs: { enqueue, cancel: vi.fn(async () => undefined), close: vi.fn(async () => undefined) },
-      events: { append: vi.fn(async () => undefined) },
+      events: {
+        append: vi.fn(async () => undefined),
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
@@ -1979,7 +1991,9 @@ description: Prepare standup notes
     const executor = createRunExecutor({
       prisma,
       jobs: { enqueue, cancel, close: vi.fn(async () => undefined) },
-      events: { append },
+      events: {
+        append,
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await expect(
@@ -2050,7 +2064,9 @@ description: Prepare standup notes
     const executor = createRunExecutor({
       prisma,
       jobs: { enqueue, cancel: vi.fn(async () => undefined), close: vi.fn(async () => undefined) },
-      events: { append: vi.fn(async () => undefined) },
+      events: {
+        append: vi.fn(async () => undefined),
+      },
     } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await expect(executor.wakeRoutine("routine-1", scheduledAt.toISOString())).rejects.toThrow(
@@ -2397,7 +2413,13 @@ description: Prepare standup notes
       },
       memoryProviders: { resolve: vi.fn(async () => null) },
       memory: { read: vi.fn(async () => ({ documents: [] })) },
-      events: { append: vi.fn(async () => undefined), finalizeRun },
+      events: {
+        async *follow() {
+          yield* [];
+        },
+        append: vi.fn(async () => undefined),
+        finalizeRun,
+      },
       jobs: { enqueue: vi.fn(async () => undefined) },
       secrets: [],
     } as unknown as Parameters<typeof createRunExecutor>[0]);
@@ -2505,7 +2527,13 @@ description: Prepare standup notes
       },
       memoryProviders: { resolve: vi.fn(async () => null) },
       memory: { read: vi.fn(async () => ({ documents: [] })) },
-      events: { append: vi.fn(async () => undefined), finalizeRun },
+      events: {
+        async *follow() {
+          yield* [];
+        },
+        append: vi.fn(async () => undefined),
+        finalizeRun,
+      },
       jobs: { enqueue: vi.fn(async () => undefined) },
       secrets: [],
     } as unknown as Parameters<typeof createRunExecutor>[0]);

@@ -41,6 +41,7 @@ beforeEach(() => {
   mocks.createDb.mockReturnValue({
     pool: applicationPool,
     prisma: {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       deploymentSettings: {
         upsert: async () => {
           throw startupBoundary;

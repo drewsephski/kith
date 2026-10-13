@@ -72,12 +72,23 @@ name: Kith mobile smoke
 - tapOn: "Bot actions"
 - tapOn: "Open computer"
 - extendedWaitUntil:
-    visible: "Open computer"
+    visible: "Start computer|Open computer"
     timeout: 30000
-- tapOn: "Open computer"
+# A new bot can share the team computer already started by earlier flows.
+# Start from the overview when stopped; otherwise open its current session.
+- runFlow:
+    when:
+      visible: "Start computer"
+    commands:
+      - tapOn: "Start computer"
+- runFlow:
+    when:
+      visible: "Open computer"
+    commands:
+      - tapOn: "Open computer"
 - extendedWaitUntil:
     visible: "Take control"
-    timeout: 30000
+    timeout: 90000
 - tapOn: "Take control"
 - extendedWaitUntil:
     visible: "You have control"

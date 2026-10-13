@@ -17,6 +17,7 @@ export * from "./messaging.js";
 export * from "./model-backups.js";
 export * from "./model-credentials.js";
 export * from "./repos.js";
+export * from "./schema-preflight.js";
 export * from "./scope.js";
 export * from "./sessions.js";
 export * from "./spaces.js";

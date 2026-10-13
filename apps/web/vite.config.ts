@@ -506,6 +506,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: {
         "/health": { target: api, changeOrigin: true },
+        "/ready": { target: api, changeOrigin: true },
         "/api": { target: api, changeOrigin: true },
         "/rpc": { target: api, changeOrigin: true },
       },
@@ -516,6 +517,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: [previewHost],
       proxy: {
         "/health": { target: api, changeOrigin: true },
+        "/ready": { target: api, changeOrigin: true },
         "/api": { target: api, changeOrigin: true },
         "/rpc": { target: api, changeOrigin: true },
       },

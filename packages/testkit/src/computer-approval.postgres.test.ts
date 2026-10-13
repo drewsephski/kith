@@ -6,7 +6,8 @@ import { ComposioEmulator, FakeSandboxProvider } from "@rakazo/adapters";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { discardBotIntroRun } from "./discard-bot-intro.js";
 import { sessionCookieHeader } from "./index.js";
-import { type ModelEmulatorStep, startModelEmulator } from "./model-emulator.js";
+import type { ModelEmulatorStep } from "./model-emulator.js";
+import { startModelEmulator } from "./model-emulator.js";
 
 type App = { request: (input: string, init?: RequestInit) => Promise<Response> };
 const databaseAvailable = process.env.VERIFY_DATABASE === "1" && Boolean(process.env.DATABASE_URL);
@@ -63,31 +64,34 @@ describe.skipIf(!databaseAvailable)("offline Pi computer approval", () => {
               arguments: approvedArgs,
             },
           },
-          {
-            expect(request) {
-              expect(JSON.stringify(request.messages)).toContain("approved clipboard content");
-            },
-            response: {
-              type: "tool",
-              id: "resumed-action",
-              name: "computer_act",
-              // The executor must restore exactly what the user approved, even if
-              // the model reconstructs different arguments after its run resumes.
-              arguments:
-                answer === "allow"
-                  ? {
+          ...(answer === "allow"
+            ? ([
+                {
+                  expect(request) {
+                    expect(JSON.stringify(request.messages)).toContain(
+                      "approved clipboard content",
+                    );
+                  },
+                  response: {
+                    type: "tool",
+                    id: "resumed-action",
+                    name: "computer_act",
+                    // The executor must restore exactly what the user approved, even if
+                    // the model reconstructs different arguments after its run resumes.
+                    arguments: {
                       ...approvedArgs,
                       actions: [{ kind: "type", text: "unapproved replacement" }],
-                    }
-                  : approvedArgs,
-            },
-          },
-          {
-            // A later identical computer_act in this same resume is a new occurrence,
-            // not a replay. This fixture only checks the approved request is restored.
-            expect: resultStep("resumed-action"),
-            response: { type: "text", text: "Finished the approval fixture." },
-          },
+                    },
+                  },
+                },
+                {
+                  // A later identical computer_act in this same resume is a new occurrence,
+                  // not a replay. This fixture only checks the approved request is restored.
+                  expect: resultStep("resumed-action"),
+                  response: { type: "text", text: "Finished the approval fixture." },
+                },
+              ] satisfies ModelEmulatorStep[])
+            : []),
         ],
       });
       const dataDir = await mkdtemp(path.join(tmpdir(), "rakazo-computer-approval-"));
@@ -202,6 +206,14 @@ describe.skipIf(!databaseAvailable)("offline Pi computer approval", () => {
         });
         await waitForRun("completed");
         model.assertComplete();
+        expect(model.requests).toHaveLength(answer === "allow" ? 3 : 1);
+        if (answer === "deny") {
+          const final = await handles.prisma.message.findFirstOrThrow({
+            where: { runId: sent.runId, role: "bot" },
+            orderBy: { seq: "desc" },
+          });
+          expect(final.blocks).toEqual([{ kind: "text", text: "The action was denied." }]);
+        }
         expect(act).toHaveBeenCalledTimes(answer === "allow" ? 1 : 0);
         if (answer === "allow") {
           expect(act.mock.calls[0]![1]).toEqual({

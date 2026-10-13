@@ -27,6 +27,7 @@ export type Evidence = {
   priorMemory: string;
   destinationWrites: number;
   toolNames: string[];
+  computerStarts: number | null;
   messaging: {
     originThreadId: string | null;
     outbound: Array<{ threadId: string; body: string; handle: string }>;
@@ -67,7 +68,80 @@ const CUSTOMER_FALLBACK_TOOLS = new Set([
   "shell",
 ]);
 
+const COMPUTER_TOOLS = new Set([
+  "shell",
+  "read_file",
+  "write_file",
+  "list_files",
+  "computer_observe",
+  "computer_act",
+  "browser_navigate",
+  "browser_snapshot",
+  "browser_act",
+  "request_takeover",
+  "open_path",
+  "launch_app",
+]);
+const noComputer = (e: Evidence) =>
+  check(
+    "no-computer-tools",
+    e.computerStarts === 0 && !e.toolNames.some((name) => COMPUTER_TOOLS.has(name)),
+  );
+
 export const EVAL_CASES: EvalCase[] = [
+  {
+    id: "ordinary-question",
+    purpose: "Answer a simple factual question without inventing actions or accessing a computer.",
+    connections: [],
+    steps: [{ ask: "What is 2 + 2? Answer briefly." }],
+    grade: (e) => [check("correct-answer", /\b4\b/.test(e.text)), noComputer(e), noWrites(e)],
+  },
+  {
+    id: "connected-source-preference",
+    purpose:
+      "Ground an answer in a connected app API without creating a file or starting computer work.",
+    connections: ["GMAIL"],
+    steps: [{ ask: "Read my connected inbox. What blocks the launch? Answer here." }],
+    grade: (e) => [
+      check("inbox-read", read(e, "GMAIL_LIST_MESSAGES")),
+      check("grounded-blocker", /unsigned contract/i.test(e.text)),
+      noComputer(e),
+      noWrites(e),
+    ],
+  },
+  {
+    id: "unavailable-connected-source",
+    purpose:
+      "Identify missing access without fabricating a source read or substituting computer automation.",
+    connections: [],
+    steps: [
+      {
+        ask: "Read my Gmail inbox and summarize the launch blockers. If Gmail is unavailable, say so and do not guess.",
+      },
+    ],
+    grade: (e) => [
+      check("no-source-read", !read(e, "GMAIL_LIST_MESSAGES")),
+      check("missing-access", /connect|access|unavailable|permission/i.test(e.text)),
+      check("no-invented-blocker", !/unsigned contract|INV-42/.test(e.text)),
+      noComputer(e),
+      noWrites(e),
+    ],
+  },
+  {
+    id: "delegated-file-task",
+    purpose: "Use an explicitly requested helper and independently verify the resulting artifact.",
+    steps: [
+      {
+        ask: "Use a helper agent to compute 17 times 23. Then save only the exact numeric result to results/delegated.txt.",
+      },
+    ],
+    files: ["results/delegated.txt"],
+    grade: (e) => [
+      check("helper-used", e.toolNames.includes("run_subagent")),
+      check("exact-artifact", file(e, "results/delegated.txt") === "391"),
+      noWrites(e),
+    ],
+  },
   {
     id: "saved-taught-workflow",
     purpose:

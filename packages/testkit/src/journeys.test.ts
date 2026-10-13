@@ -874,10 +874,12 @@ describeJourneys("required product journeys", () => {
         (await rpc<{ controlHolder: string }>(app, cookie, "computer/status", { botId: bot.id }))
           .controlHolder,
       ).toBe("none");
-      expect(
-        (await rpc<{ url: string | null }>(app, cookie, "computer/screenUrl", { botId: bot.id }))
-          .url,
-      ).toContain("view_only=true");
+      const expiredScreen = (
+        await rpc<{ url: string | null }>(app, cookie, "computer/screenUrl", { botId: bot.id })
+      ).url;
+      // The resumed run can finish and release its viewing lease before this read.
+      // A remaining screen must be read-only; no screen is also safely unavailable.
+      if (expiredScreen !== null) expect(expiredScreen).toContain("view_only=true");
       expect(
         (
           await raw(app, cookie, "computer/input", {
@@ -2455,11 +2457,73 @@ describeJourneys("required product journeys", () => {
     });
     await rpc(app, cookie, "computer/boot", { botId: bot.id });
     await rpc(app, cookie, "computer/takeover", { botId: bot.id });
-    void rpc(app, cookie, "threads/send", {
+    const active = await rpc<{ runId: string }>(app, cookie, "threads/send", {
       botId: bot.id,
       text: "keep working until I stop you",
     });
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await waitFor(
+      app,
+      cookie,
+      bot.id,
+      (snap) => snap.run?.id === active.runId && snap.run.status === "running",
+    );
+    const owner = await prisma.bot.findUniqueOrThrow({ where: { id: bot.id } });
+    const peer = await rpc<Bot>(app, cookie, "bots/create", { name: "Teaching peer" });
+    const group = await rpc<{ id: string; threadId: string }>(app, cookie, "groups/create", {
+      name: "Teaching scope",
+      botIds: [bot.id, peer.id],
+    });
+    const external = await prisma.externalConversation.create({
+      data: {
+        spaceId: owner.spaceId,
+        userId: owner.userId,
+        botId: bot.id,
+        provider: "fixture",
+        workspaceId: "synthetic-teaching",
+        externalKey: `teaching-${stamp}`,
+        conversationId: "synthetic-channel",
+      },
+    });
+    const detached = await prisma.thread.create({
+      data: {
+        spaceId: owner.spaceId,
+        userId: owner.userId,
+        externalConversationId: external.id,
+      },
+    });
+    // Hold synthetic leases rather than dispatching competing work into the
+    // teaching computer. Scope/bookkeeping is checked in the real database.
+    const scoped = await Promise.all(
+      [
+        { botId: bot.id, threadId: group.threadId },
+        { botId: bot.id, threadId: detached.id },
+        { botId: peer.id, threadId: group.threadId },
+      ].map(async (target) =>
+        prisma.task.create({
+          data: {
+            ...target,
+            spaceId: owner.spaceId,
+            userId: owner.userId,
+            prompt: "Synthetic teaching cancellation scope",
+            status: "running",
+            runs: {
+              create: {
+                ...target,
+                spaceId: owner.spaceId,
+                userId: owner.userId,
+                status: "running",
+                trigger: "user",
+                leaseOwner: "synthetic-teaching-worker",
+                leaseExpiresAt: new Date(Date.now() + 300_000),
+                leaseFence: 1,
+                attempts: { create: { fence: 1, status: "running" } },
+              },
+            },
+          },
+          include: { runs: true },
+        }),
+      ),
+    );
     const skill = await rpc<{
       id: string;
       status: string;
@@ -2470,6 +2534,20 @@ describeJourneys("required product journeys", () => {
       goal: "Export weekly CRM list",
     });
     expect(skill.status).toBe("recording");
+    for (const task of scoped.slice(0, 2)) {
+      const run = await prisma.run.findUniqueOrThrow({
+        where: { id: task.runs[0]!.id },
+        include: { task: true, attempts: true },
+      });
+      expect(run.status).toBe("cancelled");
+      expect(run.task.status).toBe("cancelled");
+      expect(run.attempts.every((attempt) => attempt.status === "cancelled")).toBe(true);
+      expect(await prisma.event.count({ where: { runId: run.id, type: "run.cancelled" } })).toBe(1);
+    }
+    expect(
+      (await prisma.run.findUniqueOrThrow({ where: { id: scoped[2]!.runs[0]!.id } })).status,
+    ).toBe("running");
+    await rpc(app, cookie, "threads/stop", { groupId: group.id });
     await rpc(app, cookie, "computer/input", {
       botId: bot.id,
       kind: "pointer",

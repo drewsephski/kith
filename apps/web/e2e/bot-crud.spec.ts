@@ -135,8 +135,7 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const sidePanel = page.getByTestId("side-panel");
   await expect(sidePanel).toHaveAttribute("data-panel", "computer");
   await expect(page.getByRole("button", { name: "Show settings" })).toBeVisible();
-  // Overlay may flash during boot or never appear (already ready/asleep/stopped). Assert panel
-  // chrome, then wait until any overlay has cleared — avoid Locator.or() strict-mode multi-hits.
+  // Opening a stopped computer stays passive; startup requires the explicit control.
   const bootOverlay = page.getByText(/Booting up .* computer/);
   await expect(sidePanel.getByTestId("computer-preview")).toBeVisible();
   await expect(bootOverlay).toBeHidden();
@@ -146,7 +145,11 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await expect(sidePanel.getByRole("button", { name: "Reset computer" })).toHaveCount(0);
   await expect(sidePanel.getByRole("button", { name: "Update computer" })).toHaveCount(0);
   await expect(sidePanel.getByRole("button", { name: "Take control" })).toHaveCount(0);
-  await expect(sidePanel.getByTestId("computer-more-button")).toHaveCount(0);
+  await expect(
+    sidePanel.getByRole("button", { name: "Start computer", exact: true }),
+  ).toBeVisible();
+  await expect(sidePanel.getByTestId("computer-more-button")).toBeVisible();
+  await expect(sidePanel.getByTestId("computer-more-menu")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "27b-computer-panel");
   await page.getByRole("button", { name: "Show settings" }).click();
 

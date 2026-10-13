@@ -39,7 +39,9 @@ function fixture(initial: Effect[] = []) {
         create,
       },
     },
-    events: { append },
+    events: {
+      append,
+    },
   } as unknown as Parameters<typeof recordEffect>[0];
   return { deps, create, append, stored };
 }

@@ -403,6 +403,9 @@ function fixture({
     },
     memoryProviders: { resolve: async () => null },
     events: {
+      async *follow() {
+        yield* [];
+      },
       append: vi.fn(async () => undefined),
       notify: vi.fn(async () => undefined),
       pauseRunForInput,
@@ -414,6 +417,7 @@ function fixture({
     shutdownSignal,
   } as unknown as Parameters<typeof createRunExecutor>[0]);
   return {
+    finalizeRun,
     writtenMessages,
     effects,
     results,
@@ -590,8 +594,27 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect.anything(),
     );
     expect(f.sharedMemoryState.content).toBe("Someone else edited");
-    expect(f.results.at(-1)).toEqual({ error: MEMORY_REVISION_CONFLICT_ERROR });
+    expect(f.results.at(-1)).toMatchObject({
+      error: MEMORY_REVISION_CONFLICT_ERROR,
+      safeToRetry: true,
+      document: { path: "MEMORY.md", content: "Someone else edited", revision: 2 },
+    });
   });
+
+  it.each([-1, "2", null, 1.5])(
+    "rejects invalid shared-memory revision %s",
+    async (expectedRevision) => {
+      const f = fixture({ name: "save_shared_memory", builtin: true });
+      f.setCalls([
+        { args: { path: "MEMORY.md", content: "coffee", expectedRevision }, executionId: "call-1" },
+      ]);
+      await f.run();
+      expect(f.commit).not.toHaveBeenCalled();
+      expect(f.results.at(-1)).toMatchObject({
+        error: "expectedRevision must be a nonnegative integer",
+      });
+    },
+  );
 
   it("rejects shared memory content over the size limit", async () => {
     const args = {
@@ -704,11 +727,41 @@ describe("connector read-only metadata and approval enforcement", () => {
       f.setCalls([{ args: { id: "item-1" }, executionId: "call-2" }]);
       await f.run();
       expect(f.execute).not.toHaveBeenCalled();
-      expect(f.results.at(-1)).toEqual({
-        error:
-          "The user denied this action. Do not retry or rephrase it; tell the user and ask what they want instead.",
-      });
+      // Neither the original call nor an alternate tool can be proposed by a
+      // restarted model after the durable human denial.
+      expect(f.results).toHaveLength(1);
+      expect(f.finalizeRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outcome: "completed",
+          blocks: [{ kind: "text", text: "The action was denied." }],
+        }),
+      );
       expect(f.pauseRunForInput).toHaveBeenCalledOnce();
+    });
+
+    it("ends a denied execution without losing completed receipts or replaying pending approvals", async () => {
+      const f = fixture({ catalog });
+      await f.run();
+      expect(f.effects[0]!.status).toBe("completed");
+      const completed = { ...f.effects[0]! };
+      f.effects.push(
+        {
+          ...completed,
+          id: "pending-approved",
+          idempotencyKey: "pending-approved",
+          status: "approved",
+        },
+        { ...completed, id: "denied-action", idempotencyKey: "denied-action", status: "denied" },
+      );
+      await f.run();
+      expect(f.execute).toHaveBeenCalledOnce();
+      expect(f.effects[0]).toEqual(completed);
+      expect(f.effects[1]!.status).toBe("approved");
+      expect(f.finalizeRun).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          blocks: [{ kind: "text", text: "The action was denied." }],
+        }),
+      );
     });
 
     it("consumes the saved approval after the user chooses always allow", async () => {

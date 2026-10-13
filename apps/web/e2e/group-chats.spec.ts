@@ -107,6 +107,8 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await page.unroute("**/rpc/groups/list");
   await page.unroute("**/rpc/threads/get");
   await page.reload();
+  await expect(page.getByRole("combobox", { name: "Message Draft team" })).toBeVisible();
+  await expect(page.getByTestId("bot-settings-trigger")).toHaveText("Draft team");
 
   await page.getByTestId("bot-settings-trigger").click();
   const desktopSettings = page.getByTestId("side-panel");

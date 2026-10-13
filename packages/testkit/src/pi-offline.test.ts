@@ -3,9 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AgentRunRequest, AgentRuntimeEvent, ConnectorTool } from "@rakazo/adapter-kit";
+import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import { PiAgentRuntime } from "@rakazo/adapters";
 import { afterEach, describe, expect, it } from "vitest";
-import { type ModelEmulatorRequest, startModelEmulator } from "./model-emulator.js";
+import type { ModelEmulatorRequest } from "./model-emulator.js";
+import { startModelEmulator } from "./model-emulator.js";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -50,6 +52,883 @@ function latestToolResult(request: ModelEmulatorRequest) {
 }
 
 describe("real Pi against an offline model HTTP endpoint", () => {
+  it("answers reported memory speech without saving or requesting continuation", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "text",
+            text: "Alice is describing a request to preserve a preference.",
+          },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let writes = 0;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "Alice said, Remember that I prefer cobalt. Explain this sentence.",
+          tools: [
+            {
+              name: "remember",
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          executeTool: async () => {
+            writes++;
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(writes).toBe(0);
+    expect(server.requests).toHaveLength(1);
+    expect(events.at(-1)?.type).toBe("done");
+  });
+
+  it("does not repeat an uncertain memory write through another alias", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "uncertain-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "memory.txt");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "first",
+            name: "remember",
+            arguments: { content: "coffee" },
+          },
+        },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "retry",
+            name: "save_memory",
+            arguments: { content: "coffee" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Your preference was saved." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let mutations = 0;
+    await expect(
+      collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "Remember I prefer coffee.",
+            tools: ["remember", "save_memory"].map((name) => ({
+              name,
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            })),
+            executeTool: async (_name, args) => {
+              mutations++;
+              await writeFile(file, String(args.content));
+              return { error: "Receipt unavailable", uncertain: true };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      ),
+    ).rejects.toThrow("Memory save couldn't be verified");
+    expect(mutations).toBe(1);
+    expect(await readFile(file, "utf8")).toBe("coffee");
+  });
+
+  it.each([false, true])(
+    "retries a definitive shared-memory conflict only when not uncertain: %s",
+    async (uncertain) => {
+      const server = await startModelEmulator({
+        steps: [
+          {
+            expect: (request) =>
+              expect(JSON.stringify(request.messages)).toContain("no write was applied"),
+            response: {
+              type: "tool",
+              id: "conflict",
+              name: "save_shared_memory",
+              arguments: { path: "MEMORY.md", content: "coffee" },
+            },
+          },
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "corrected-save",
+              name: "save_shared_memory",
+              arguments: { path: "MEMORY.md", content: "tea and coffee", expectedRevision: 1 },
+            },
+          },
+          { expect: () => {}, response: { type: "text", text: "Saved coffee and preserved tea." } },
+        ],
+      });
+      cleanups.push(() => server.close());
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-cas-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "MEMORY.md");
+      await writeFile(file, "tea");
+      let attempts = 0;
+      let writes = 0;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "Remember I prefer coffee.",
+            tools: ["save_shared_memory"].map((name) => ({
+              name,
+              description: "Shared memory",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  path: { type: "string" },
+                  content: { type: "string" },
+                  expectedRevision: { type: "integer" },
+                },
+              },
+            })),
+            executeTool: async (_name, args) => {
+              if (++attempts === 1)
+                return {
+                  error: MEMORY_REVISION_CONFLICT_ERROR,
+                  safeToRetry: true,
+                  uncertain,
+                  document: {
+                    path: "MEMORY.md",
+                    content: await readFile(file, "utf8"),
+                    revision: 1,
+                  },
+                };
+              expect(args.expectedRevision).toBe(1);
+              writes++;
+              await writeFile(file, String(args.content));
+              return { ok: true };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      if (uncertain) {
+        await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+        expect(await readFile(file, "utf8")).toBe("tea");
+        expect(attempts).toBe(1);
+        expect(writes).toBe(0);
+      } else {
+        await execution;
+        expect(await readFile(file, "utf8")).toBe("tea and coffee");
+        expect(attempts).toBe(2);
+        expect(writes).toBe(1);
+      }
+    },
+  );
+
+  it("keeps a known uncertain parent receipt blocking untouched child writes", async () => {
+    const server = await startModelEmulator({
+      steps: [{ expect: () => {}, response: { type: "text", text: "Both facts are saved." } }],
+    });
+    cleanups.push(() => server.close());
+    let writes = 0;
+    await expect(
+      collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "Remember I prefer dark mode. Remember my timezone is UTC.",
+            memoryRequestId: "parent",
+            memoryWriteAttempted: true,
+            memoryWriteReceipts: [
+              { requestId: "parent", confirmed: false },
+              { requestId: "parent:memory:0", confirmed: true },
+            ],
+            tools: [
+              {
+                name: "remember",
+                description: "Save memory",
+                inputSchema: { type: "object", properties: { content: { type: "string" } } },
+              },
+            ],
+            executeTool: async () => {
+              writes++;
+              return { ok: true };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      ),
+    ).rejects.toThrow("Memory save couldn't be verified");
+    expect(writes).toBe(0);
+    expect(server.requests).toHaveLength(1);
+  });
+
+  it.each([
+    "I want you to remember that I prefer coffee.",
+    "I'd like you to remember that I prefer coffee.",
+  ])("requires an actual persisted outcome for a desire-form request: %s", async (prompt) => {
+    const server = await startModelEmulator({
+      steps: [
+        { expect: () => {}, response: { type: "text", text: "Saved your preference." } },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "actual-save",
+            name: "remember",
+            arguments: { content: "coffee" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Saved coffee." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const dir = await mkdtemp(path.join(tmpdir(), "desire-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "fact.txt");
+    let writes = 0;
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt,
+          tools: [
+            {
+              name: "remember",
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          executeTool: async (_name, args) => {
+            writes++;
+            await writeFile(file, String(args.content));
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(await readFile(file, "utf8")).toBe("coffee");
+    expect(writes).toBe(1);
+    expect(server.requests).toHaveLength(3);
+  });
+
+  it("blocks changed-content writes for an already verified request", async () => {
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "save-once",
+            name: "remember",
+            arguments: { content: "coffee" },
+          },
+        },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "changed-retry",
+            name: "remember",
+            arguments: { content: "tea" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Saved coffee." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const dir = await mkdtemp(path.join(tmpdir(), "confirmed-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "fact.txt");
+    let writes = 0;
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "Remember I prefer coffee.",
+          tools: [
+            {
+              name: "remember",
+              description: "Save a fact",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          executeTool: async (_name, args) => {
+            writes++;
+            await writeFile(file, String(args.content));
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(writes).toBe(1);
+    expect(await readFile(file, "utf8")).toBe("coffee");
+  });
+
+  it.each(["initial", "steering", "pre-tool-refusal"])(
+    "continues an untouched %s save after another request is refused",
+    async (source) => {
+      const id = "partial-memory";
+      const prompt = "Remember I prefer dark mode. Remember my timezone is UTC.";
+      const server = await startModelEmulator({
+        steps: [
+          ...(source === "pre-tool-refusal"
+            ? []
+            : [
+                {
+                  expect: () => {},
+                  response: {
+                    type: "tool" as const,
+                    id: "denied-scope",
+                    name: "save_shared_memory",
+                    arguments: { content: "dark mode", memory_request_id: `${id}:memory:0` },
+                  },
+                },
+              ]),
+          {
+            expect: () => {},
+            response: { type: "text", text: "I cannot save the shared preference." },
+          },
+          {
+            expect: (request) =>
+              expect(JSON.stringify(request.messages.at(-1))).toContain(`${id}:memory:1`),
+            response: {
+              type: "tool",
+              id: "allowed-scope",
+              name: "remember",
+              arguments: { content: "UTC", memory_request_id: `${id}:memory:1` },
+            },
+          },
+          {
+            expect: () => {},
+            response: {
+              type: "text",
+              text: "Saved timezone UTC. I cannot save the shared preference.",
+            },
+          },
+          ...(source === "pre-tool-refusal"
+            ? [
+                {
+                  expect: () => {},
+                  response: {
+                    type: "tool" as const,
+                    id: "verify-blocker",
+                    name: "save_shared_memory",
+                    arguments: { content: "dark mode", memory_request_id: `${id}:memory:0` },
+                  },
+                },
+                {
+                  expect: () => {},
+                  response: {
+                    type: "text" as const,
+                    text: "Timezone UTC is saved. I cannot save the shared preference.",
+                  },
+                },
+              ]
+            : []),
+        ],
+      });
+      cleanups.push(() => server.close());
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-partial-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "fact.txt");
+      const calls: string[] = [];
+      let claimed = false;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: source !== "steering" ? prompt : "Hello",
+            memoryRequestId: id,
+            tools: ["save_shared_memory", "remember"].map((name) => ({
+              name,
+              description: "Save memory",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            })),
+            claimSteering: async () => {
+              if (source !== "steering" || claimed) return [];
+              claimed = true;
+              return [{ id, messageId: "partial-message", text: prompt }];
+            },
+            executeTool: async (name, args, _call, _route, observer) => {
+              calls.push(name);
+              if (name === "save_shared_memory") return { error: "Scope permission denied" };
+              await writeFile(file, String(args.content));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      if (source === "pre-tool-refusal") await execution;
+      else await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+      expect(calls).toEqual(
+        source === "pre-tool-refusal"
+          ? ["remember", "save_shared_memory"]
+          : ["save_shared_memory", "remember"],
+      );
+      expect(await readFile(file, "utf8")).toBe("UTC");
+      expect(server.requests).toHaveLength(source === "pre-tool-refusal" ? 5 : 4);
+    },
+  );
+
+  it.each(
+    ["initial", "steering", "recovered", "uncertain"].flatMap((source) =>
+      [". Remember", ", and remember"].map((join) => ({ source, join })),
+    ),
+  )(
+    "verifies both save directives in one $source message independently ($join)",
+    async ({ source, join }) => {
+      const prompt = `Remember I prefer dark mode${join} my timezone is UTC.`;
+      const id = source === "steering" ? "preferences" : "multi-input";
+      const firstId = `${id}:memory:0`;
+      const secondId = `${id}:memory:1`;
+      const dir = await mkdtemp(path.join(tmpdir(), "memory-directives-"));
+      cleanups.push(() => rm(dir, { recursive: true, force: true }));
+      const file = path.join(dir, "facts.json");
+      const writes = source === "recovered" ? ["dark mode"] : [];
+      await writeFile(file, JSON.stringify(writes));
+      const steps = [
+        ...(source === "recovered"
+          ? []
+          : [
+              {
+                expect: () => {},
+                response: (request: ModelEmulatorRequest) => ({
+                  type: "tool" as const,
+                  id: "first-save",
+                  name: "remember",
+                  arguments: {
+                    content: "dark mode",
+                    memory_request_id: JSON.stringify(request.messages).includes(firstId)
+                      ? firstId
+                      : id,
+                  },
+                }),
+              },
+            ]),
+        { expect: () => {}, response: { type: "text" as const, text: "Both facts were saved." } },
+        {
+          expect: (request: { messages: unknown[] }) =>
+            expect(JSON.stringify(request.messages.at(-1))).toContain(secondId),
+          response: {
+            type: "tool" as const,
+            id: "second-save",
+            name: "remember",
+            arguments: { content: "UTC", memory_request_id: secondId },
+          },
+        },
+        { expect: () => {}, response: { type: "text" as const, text: "Both facts were saved." } },
+      ];
+      const server = await startModelEmulator({ steps });
+      cleanups.push(() => server.close());
+      let claimed = false;
+      const execution = collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: source === "steering" ? "Hello" : prompt,
+            memoryRequestId: id,
+            ...(source === "recovered" || source === "uncertain"
+              ? {
+                  memoryWriteAttempted: source === "recovered",
+                  memoryWriteReceipts: [{ requestId: firstId, confirmed: source === "recovered" }],
+                }
+              : {}),
+            tools: [
+              {
+                name: "remember",
+                description: "Save a fact",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            claimSteering: async () => {
+              if (source !== "steering" || claimed) return [];
+              claimed = true;
+              return [{ id, messageId: "preferences-message", text: prompt }];
+            },
+            executeTool: async (_name, args, _call, _route, observer) => {
+              writes.push(String(args.content));
+              await writeFile(file, JSON.stringify(writes));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          new AbortController().signal,
+        ),
+      );
+      if (source === "uncertain") {
+        await expect(execution).rejects.toThrow("Memory save couldn't be verified");
+        expect(JSON.parse(await readFile(file, "utf8"))).toEqual(["UTC"]);
+      } else {
+        const events = await execution;
+        expect(JSON.parse(await readFile(file, "utf8"))).toEqual(["dark mode", "UTC"]);
+        expect(events.at(-1)?.type).toBe("done");
+      }
+      expect(server.requests).toHaveLength(source === "recovered" ? 3 : 4);
+    },
+  );
+
+  it("creates requested sign content without writing that content into memory", async () => {
+    const content = "Remember that I prefer cobalt.";
+    const dir = await mkdtemp(path.join(tmpdir(), "output-not-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const sign = path.join(dir, "sign.txt");
+    const memory = path.join(dir, "memory.txt");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: { type: "tool", id: "sign", name: "write_file", arguments: { content } },
+        },
+        { expect: () => {}, response: { type: "text", text: "Created the sign." } },
+        {
+          expect: () => {},
+          response: { type: "tool", id: "wrong-save", name: "remember", arguments: { content } },
+        },
+        {
+          expect: () => {},
+          response: { type: "text", text: "Created the sign and saved the preference." },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let memoryWrites = 0;
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: `Make a sign saying, ${content}`,
+          tools: ["write_file", "remember"].map((name) => ({
+            name,
+            description: name === "remember" ? "Save a durable fact" : "Write the requested sign",
+            inputSchema: {
+              type: "object",
+              properties: { content: { type: "string" } },
+              required: ["content"],
+            },
+          })),
+          executeTool: async (name, args) => {
+            if (name === "remember") memoryWrites++;
+            await writeFile(name === "remember" ? memory : sign, String(args.content));
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(await readFile(sign, "utf8")).toBe(content);
+    expect(memoryWrites).toBe(0);
+    expect(server.requests).toHaveLength(2);
+  });
+
+  it("completes every independent memory request in a batch without repeating the saved one", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "memory-batch-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const file = path.join(dir, "facts.json");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "pets-write",
+            name: "remember",
+            arguments: { content: "My dog is Pip.", memory_request_id: "pets" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Both facts were saved." } },
+        {
+          expect: (request) => expect(JSON.stringify(request.messages.at(-1))).toContain("drinks"),
+          response: {
+            type: "tool",
+            id: "drinks-write",
+            name: "remember",
+            arguments: { content: "I prefer coffee.", memory_request_id: "drinks" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Both facts were saved." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    const writes: Array<{ id?: string; content: string }> = [];
+    let claimed = false;
+    const events = await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "What is two plus two?",
+          tools: [
+            {
+              name: "remember",
+              description: "Save a fact",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          claimSteering: async () => {
+            if (claimed) return [];
+            claimed = true;
+            return [
+              { id: "drinks", messageId: "drinks-message", text: "Remember I prefer coffee." },
+              { id: "pets", messageId: "pets-message", text: "Remember my dog is Pip." },
+            ];
+          },
+          executeTool: async (_name, args, _call, _route, observer) => {
+            writes.push({ id: observer?.memoryRequestId, content: String(args.content) });
+            await writeFile(file, JSON.stringify(writes));
+            return { ok: true, memoryRequestId: observer?.memoryRequestId };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual([
+      { id: "pets", content: "My dog is Pip." },
+      { id: "drinks", content: "I prefer coffee." },
+    ]);
+    expect(server.requests).toHaveLength(4);
+    expect(
+      events
+        .filter((event) => event.type === "tool")
+        .map((event) => (event.type === "tool" ? event.memoryRequestId : undefined)),
+    ).toEqual(["pets", "drinks"]);
+  });
+
+  it.each([undefined, "foreign-request"])(
+    "rejects ambiguous or unknown steering identity before mutation: %s",
+    async (requestId) => {
+      const server = await startModelEmulator({
+        steps: [
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "invalid-source",
+              name: "remember",
+              arguments: {
+                content: "cobalt",
+                ...(requestId ? { memory_request_id: requestId } : {}),
+              },
+            },
+          },
+          {
+            expect: (request) =>
+              expect(String(latestToolResult(request)?.content)).toContain("memory_request_id"),
+            response: {
+              type: "tool",
+              id: "correct-source",
+              name: "remember",
+              arguments: { content: "violet", memory_request_id: "latest" },
+            },
+          },
+          { expect: () => {}, response: { type: "text", text: "Saved violet." } },
+        ],
+      });
+      cleanups.push(() => server.close());
+      let claimed = false;
+      const writes: string[] = [];
+      await collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: "What is two plus two?",
+            tools: [
+              {
+                name: "remember",
+                description: "Save a preference",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            claimSteering: async () => {
+              if (claimed) return [];
+              claimed = true;
+              return [
+                {
+                  id: "earlier",
+                  messageId: "earlier-message",
+                  text: "Remember I prefer cobalt.",
+                  memoryWriteConfirmed: true,
+                },
+                { id: "latest", messageId: "latest-message", text: "Remember I prefer violet." },
+              ];
+            },
+            executeTool: async (_name, args, _executionId, _route, observer) => {
+              expect(args).not.toHaveProperty("memory_request_id");
+              writes.push(String(args.content));
+              return { ok: true, memoryRequestId: observer?.memoryRequestId };
+            },
+          }),
+          { signal: new AbortController().signal },
+        ),
+      );
+      expect(writes).toEqual(["violet"]);
+      server.assertComplete();
+    },
+  );
+  it("requires the latest steering save's own receipt in a claimed batch", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-batch-"));
+    cleanups.push(() => rm(directory, { recursive: true, force: true }));
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "first-write",
+            name: "remember",
+            arguments: { content: "cobalt", memory_request_id: "first-save" },
+          },
+        },
+        {
+          expect: (request) => {
+            const result = String(latestToolResult(request)?.content);
+            expect(result).not.toContain("memoryRequestId");
+          },
+          response: { type: "text", text: "Remembered violet." },
+        },
+        {
+          expect: () => {},
+          response: {
+            type: "tool",
+            id: "second-write",
+            name: "remember",
+            arguments: { content: "violet", memory_request_id: "second-save" },
+          },
+        },
+        { expect: () => {}, response: { type: "text", text: "Saved violet." } },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let claimed = false;
+    const writes: string[] = [];
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: "What is two plus two?",
+          tools: [
+            {
+              name: "remember",
+              description: "Save a preference",
+              inputSchema: {
+                type: "object",
+                properties: { content: { type: "string" } },
+                required: ["content"],
+              },
+            },
+          ],
+          claimSteering: async () => {
+            if (claimed) return [];
+            claimed = true;
+            return [
+              { id: "first-save", messageId: "first-message", text: "Remember I prefer cobalt." },
+              { id: "second-save", messageId: "second-message", text: "Remember I prefer violet." },
+            ];
+          },
+          executeTool: async (_name, args, _executionId, _route, observer) => {
+            expect(args).not.toHaveProperty("memory_request_id");
+            writes.push(observer!.memoryRequestId!);
+            await writeFile(path.join(directory, "MEMORY.md"), String(args.content));
+            return { ok: true, memoryRequestId: observer!.memoryRequestId };
+          },
+        }),
+        { signal: new AbortController().signal },
+      ),
+    );
+    expect(writes).toEqual(["first-save", "second-save"]);
+    expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe("violet");
+    server.assertComplete();
+  });
+  it.each(["", "Also ", "Just "])(
+    "%spersists a memory write after an unsupported success claim with the default path omitted",
+    async (prefix) => {
+      const directory = await mkdtemp(path.join(tmpdir(), "kith-memory-default-"));
+      cleanups.push(() => rm(directory, { recursive: true, force: true }));
+      const content = "I prefer cobalt notebooks.";
+      const server = await startModelEmulator({
+        steps: [
+          { expect: () => {}, response: { type: "text", text: "Saved the preference." } },
+          {
+            expect: () => {},
+            response: {
+              type: "tool",
+              id: "memory-default",
+              name: "remember",
+              arguments: { content },
+            },
+          },
+          {
+            expect(request) {
+              expect(JSON.parse(String(latestToolResult(request)?.content))).toMatchObject({
+                ok: true,
+              });
+            },
+            response: { type: "text", text: "Saved the preference." },
+          },
+        ],
+      });
+      cleanups.push(() => server.close());
+      let writes = 0;
+      await collect(
+        new PiAgentRuntime().run(
+          runRequest(server.model, {
+            prompt: `${prefix}Remember that ${content}`,
+            tools: [
+              {
+                name: "remember",
+                description: "Store a durable fact",
+                inputSchema: {
+                  type: "object",
+                  properties: { content: { type: "string" }, path: { type: "string" } },
+                  required: ["content"],
+                },
+              },
+            ],
+            executeTool: async (name, args) => {
+              expect(name).toBe("remember");
+              writes++;
+              await writeFile(
+                path.join(directory, String(args.path ?? "MEMORY.md")),
+                String(args.content),
+              );
+              return { ok: true };
+            },
+          }),
+          { signal: new AbortController().signal },
+        ),
+      );
+      expect(await readFile(path.join(directory, "MEMORY.md"), "utf8")).toBe(content);
+      expect(writes).toBe(1);
+      server.assertComplete();
+    },
+  );
   it("continues a promise-only reply into real tool execution and a verified answer", async () => {
     const server = await startModelEmulator({
       steps: [

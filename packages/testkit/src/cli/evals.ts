@@ -455,6 +455,7 @@ async function main() {
               return {
                 ...handles,
                 harnessIssues: sandbox.harnessIssues,
+                computerStartCount: () => sandbox.provisions,
                 cacheDecisions,
                 historyDiagnostics,
                 toolLoopDiagnostics,

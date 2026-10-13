@@ -13,13 +13,21 @@ import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 import { afterAll, describe, expect, it } from "vitest";
 import { sessionCookieHeader } from "./index.js";
 
-if (process.env.VERIFY_PROVIDERS) loadRootEnv({ allowInTests: true });
+if (process.env.VERIFY_PROVIDERS === "1") loadRootEnv({ allowInTests: true });
 
-const liveE2b = Boolean(process.env.VERIFY_PROVIDERS && process.env.E2B_API_KEY);
-const liveBox = Boolean(process.env.VERIFY_PROVIDERS && process.env.BOX_API_KEY);
-const liveCreateos = Boolean(process.env.VERIFY_PROVIDERS && process.env.CREATEOS_SANDBOX_API_KEY);
-const livePi = Boolean(process.env.VERIFY_PROVIDERS && process.env.OPENROUTER_API_KEY);
-const livePiApp = Boolean(livePi && process.env.DATABASE_URL);
+const liveE2b = Boolean(process.env.VERIFY_PROVIDERS === "1" && process.env.E2B_API_KEY);
+const liveBox = Boolean(process.env.VERIFY_PROVIDERS === "1" && process.env.BOX_API_KEY);
+const liveCreateos = Boolean(
+  process.env.VERIFY_PROVIDERS === "1" && process.env.CREATEOS_SANDBOX_API_KEY,
+);
+const livePi = Boolean(
+  process.env.VERIFY_PROVIDERS === "1" &&
+    process.env.OPENROUTER_API_KEY &&
+    process.env.PI_DEFAULT_MODEL,
+);
+const livePiApp = Boolean(
+  livePi && process.env.VERIFY_DISPOSABLE_DATABASE === "1" && process.env.DATABASE_URL,
+);
 
 const describeE2b = liveE2b ? describe : describe.skip;
 const describeBox = liveBox ? describe : describe.skip;
@@ -165,7 +173,7 @@ describeCreateos("live CreateOS canary", () => {
 });
 
 describePi("live OpenRouter / Pi canary", () => {
-  it("streams a reply from deepseek/deepseek-v4-flash-0731", async () => {
+  it("streams a reply from the configured model", async () => {
     const runtime = new PiAgentRuntime();
     let text = "";
     for await (const event of runtime.run(
@@ -179,7 +187,7 @@ describePi("live OpenRouter / Pi canary", () => {
         tools: [],
         model: {
           provider: "openrouter",
-          id: "deepseek/deepseek-v4-flash-0731",
+          id: process.env.PI_DEFAULT_MODEL!,
           apiKey: process.env.OPENROUTER_API_KEY,
         },
       },

@@ -26,6 +26,7 @@ export type EvalApp = {
   jobs: JobPublisher;
   runtime: AgentRuntime;
   harnessIssues?: readonly string[];
+  computerStartCount?: () => number;
   connector?: { records: readonly unknown[] };
   awaitIdle?: () => Promise<void>;
   finalizeBackground?: () => Promise<void>;
@@ -578,6 +579,7 @@ export async function runTrial(
       priorMemory,
       destinationWrites: handles.connector?.records.length ?? 0,
       toolNames: [...seenTools.values()].map((event) => event.name),
+      computerStarts: handles.computerStartCount?.() ?? null,
       messaging: {
         originThreadId: messagingOriginThreadId,
         outbound: structuredClone(messaging.sent),

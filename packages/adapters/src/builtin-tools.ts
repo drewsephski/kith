@@ -576,6 +576,12 @@ export const builtinAgentTools: ConnectorTool[] = [
       properties: {
         path: { type: "string", description: "Document name, for example MEMORY.md." },
         content: { type: "string", description: "The document's complete new content." },
+        expectedRevision: {
+          type: "integer",
+          minimum: 0,
+          description:
+            "After a conflict, merge the returned document content and supply its revision. Never retry a stale replacement unchanged.",
+        },
       },
       required: ["path", "content"],
     },
@@ -1182,6 +1188,11 @@ export const agentConnectionTools: ConnectorTool[] = [
 export const MAX_SHARED_MEMORY_CHARS = 4_000;
 
 export function sharedMemorySaveError(args: Record<string, unknown>): string | undefined {
+  if (
+    args.expectedRevision !== undefined &&
+    (!Number.isSafeInteger(args.expectedRevision) || Number(args.expectedRevision) < 0)
+  )
+    return "expectedRevision must be a nonnegative integer";
   const path = String(args.path ?? "").trim();
   if (!path) return "path is required";
   const content = String(args.content ?? "");

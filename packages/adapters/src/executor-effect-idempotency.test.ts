@@ -1,4 +1,5 @@
 import type { AgentRunRequest } from "@rakazo/adapter-kit";
+import { MEMORY_REVISION_CONFLICT_ERROR } from "@rakazo/adapter-kit";
 import {
   legacyScopedToolEffectIdempotencyKey,
   toolEffectIdempotencyKey,
@@ -30,6 +31,7 @@ type Effect = {
   status: string;
   request: unknown;
   result?: unknown;
+  updatedAt?: Date;
   reviewDecision?: string;
 };
 
@@ -37,9 +39,13 @@ type ToolCall = {
   name: string;
   args: Record<string, unknown>;
   executionId: string;
+  memoryRequestId?: string;
 };
 
-function fixture(runId = "run-1") {
+function fixture(runId = "run-1", prompt = "Update shared state") {
+  let taskPrompt = prompt;
+  const answeredQuestions: Array<{ id: string; createdAt: Date; payload: { blocks: unknown[] } }> =
+    [];
   const effects: Effect[] = [];
   const results: unknown[] = [];
   const scratchpadRows: Array<{
@@ -64,7 +70,10 @@ function fixture(runId = "run-1") {
     trigger: "user",
     leaseFence: 0,
   };
-  const memoryCommit = vi.fn(async () => ({ revision: "rev-1" }));
+  const memoryCommit = vi.fn(async (_input: { content: string }) => ({ revision: "rev-1" }));
+  const memoryRead = vi.fn(async (_input: { scope: string; path?: string }) => ({
+    documents: [] as Array<{ id: string; path: string; content: string; revision: number }>,
+  }));
   const externalEffect = {
     findMany: vi.fn(
       async ({
@@ -101,12 +110,13 @@ function fixture(runId = "run-1") {
           (effect) => effect.id === where.id && effect.status === where.status,
         );
         if (!effect) return { count: 0 };
-        Object.assign(effect, data);
+        Object.assign(effect, data, { updatedAt: new Date() });
         return { count: 1 };
       },
     ),
   };
   const prisma = {
+    event: { findMany: vi.fn(async () => answeredQuestions) },
     run: {
       findUnique: vi.fn(async () => run),
       findUniqueOrThrow: vi.fn(async () => run),
@@ -132,9 +142,9 @@ function fixture(runId = "run-1") {
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
     thread: { findUniqueOrThrow: vi.fn(async () => ({ id: run.threadId, groupId: null })) },
-    message: { findMany: vi.fn(async () => []) },
+    message: { findMany: vi.fn(async () => []), findFirst: vi.fn(async () => null) },
     task: {
-      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: "Update shared state" })),
+      findUniqueOrThrow: vi.fn(async () => ({ id: run.taskId, prompt: taskPrompt })),
     },
     connection: { findMany: vi.fn(async () => []) },
     spaceModelPreference: { findFirst: vi.fn(async () => null) },
@@ -186,9 +196,18 @@ function fixture(runId = "run-1") {
   });
   const finalizeRun = vi.fn(async () => ({ continuationRunId: null }));
   let calls: ToolCall[] = [];
+  const steering: Array<{
+    id: string;
+    messageId: string;
+    text: string;
+    blocks: [];
+    claimedAt?: Date;
+  }> = [];
   const runtimeRun = vi.fn(async function* (request: AgentRunRequest) {
     for (const call of calls) {
-      const result = await request.executeTool!(call.name, call.args, call.executionId);
+      const result = await request.executeTool!(call.name, call.args, call.executionId, undefined, {
+        memoryRequestId: call.memoryRequestId,
+      });
       results.push(result);
     }
     yield { type: "done" as const, text: "Done" };
@@ -204,22 +223,37 @@ function fixture(runId = "run-1") {
     sandbox: { describe: () => ({ capabilities: { graphical: false } }) },
     memory: {
       describe: () => ({ capabilities: {} }),
-      read: async () => ({ documents: [] }),
+      read: memoryRead,
       search: async () => [],
       commit: memoryCommit,
       exportMarkdown: async function* () {},
     },
     memoryProviders: { resolve: async () => null },
-    events: { append: vi.fn(async () => undefined), pauseRunForInput, finalizeRun },
+    events: {
+      async *follow() {
+        yield* [];
+      },
+      append: vi.fn(async () => undefined),
+      pauseRunForInput,
+      finalizeRun,
+      claimSteering: vi.fn(async () => steering),
+    },
     jobs: { enqueue: vi.fn(async () => undefined) },
     secrets: [],
   } as unknown as Parameters<typeof createRunExecutor>[0]);
 
   return {
+    runtimeRun,
     effects,
     results,
     scratchpadRows,
     memoryCommit,
+    memoryRead,
+    steering,
+    answeredQuestions,
+    setPrompt(next: string) {
+      taskPrompt = next;
+    },
     setCalls(next: ToolCall[]) {
       calls = next;
     },
@@ -234,6 +268,315 @@ function fixture(runId = "run-1") {
 }
 
 describe("mutating tool effect idempotency keys", () => {
+  it.each(["same-attempt", "restart"])(
+    "blocks stale conflict retries and preserves the peer update after a revision-bound retry: %s",
+    async (mode) => {
+      const f = fixture("memory-cas-retry", "Remember I prefer coffee.");
+      const input = "memory-cas-retry:input:initial";
+      let content = "tea";
+      let revision = 1;
+      f.memoryRead.mockImplementation(async () => ({
+        documents: [{ id: "shared", path: "MEMORY.md", content, revision }],
+      }));
+      f.memoryCommit.mockImplementationOnce(async () => {
+        content = "tea and cocoa";
+        revision++;
+        throw new Error(MEMORY_REVISION_CONFLICT_ERROR);
+      });
+      f.memoryCommit.mockImplementation(async (args) => {
+        expect(args).toMatchObject({ expectedRevision: revision });
+        content = args.content;
+        return { revision: "rev-3" };
+      });
+      const call = {
+        name: "save_shared_memory",
+        args: { path: "MEMORY.md", content: "coffee" },
+        executionId: "first",
+        memoryRequestId: input,
+      };
+      const staleRetry = { ...call, executionId: "stale-retry" };
+      const staleRevision = {
+        ...call,
+        executionId: "stale-revision",
+        args: { ...call.args, expectedRevision: 1 },
+      };
+      const retry = {
+        ...call,
+        executionId: "retry",
+        args: { path: "MEMORY.md", content: "tea and cocoa and coffee", expectedRevision: 2 },
+      };
+      f.setCalls(mode === "same-attempt" ? [call, staleRetry, staleRevision, retry] : [call]);
+      await f.run();
+      if (mode === "restart") {
+        f.setCalls([staleRetry, staleRevision, retry]);
+        await f.run();
+      }
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      expect(f.results[0]).toMatchObject({
+        error: MEMORY_REVISION_CONFLICT_ERROR,
+        safeToRetry: true,
+        document: { content: "tea and cocoa", revision: 2 },
+      });
+      expect(f.results[1]).toMatchObject({ error: MEMORY_REVISION_CONFLICT_ERROR });
+      expect(f.results[2]).toMatchObject({ error: MEMORY_REVISION_CONFLICT_ERROR });
+      expect(content).toBe("tea and cocoa and coffee");
+      expect(f.results.at(-1)).toMatchObject({ ok: true });
+      expect(f.effects).toHaveLength(4);
+      expect(f.effects[0]!.idempotencyKey).not.toBe(f.effects[1]!.idempotencyKey);
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).not.toBe(true);
+    },
+  );
+
+  it.each(["same-attempt", "restart"])(
+    "reuses a confirmed request despite changed alias/content: %s",
+    async (mode) => {
+      const f = fixture("confirmed-input", "Remember I prefer coffee.");
+      const input = "confirmed-input:input:initial";
+      const first = {
+        name: "remember",
+        args: { content: "coffee" },
+        executionId: "first",
+        memoryRequestId: input,
+      };
+      const second = {
+        name: "save_memory",
+        args: { content: "tea" },
+        executionId: "second",
+        memoryRequestId: input,
+      };
+      f.setCalls(mode === "same-attempt" ? [first, second] : [first]);
+      await f.run();
+      if (mode === "restart") {
+        f.setCalls([second]);
+        await f.run();
+      }
+      expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+      expect(f.effects).toHaveLength(1);
+      expect(f.results.at(-1)).toMatchObject({ alreadyCompleted: true, memoryRequestId: input });
+    },
+  );
+  it.each([". Remember", ", and remember"])(
+    "restores per-directive receipts across restart: %s",
+    async (join) => {
+      const f = fixture("multi-save", `Remember I prefer dark mode${join} my timezone is UTC.`);
+      const first = "multi-save:input:initial:memory:0";
+      const second = "multi-save:input:initial:memory:1";
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "dark mode" },
+          executionId: "first",
+          memoryRequestId: first,
+        },
+      ]);
+      await f.run();
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "UTC" },
+          executionId: "second",
+          memoryRequestId: second,
+        },
+      ]);
+      await f.run();
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
+        { requestId: first, confirmed: true },
+      ]);
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "dark mode" },
+          executionId: "retry-first",
+          memoryRequestId: first,
+        },
+      ]);
+      await f.run();
+      expect(f.memoryCommit).toHaveBeenCalledTimes(2);
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteReceipts).toEqual([
+        { requestId: first, confirmed: true },
+        { requestId: second, confirmed: true },
+      ]);
+    },
+  );
+  it.each(["executing", "completed", "failed"])(
+    "restores %s input state and blocks a changed-payload memory retry after recovery",
+    async (status) => {
+      const f = fixture("uncertain-input-recovery", "Remember that I prefer coffee.");
+      const inputId = "uncertain-input-recovery:input:initial";
+      f.setCalls([
+        {
+          name: "remember",
+          args: { content: "coffee" },
+          executionId: "first",
+          memoryRequestId: inputId,
+        },
+      ]);
+      await f.run();
+      f.effects[0]!.status = status;
+      f.effects[0]!.result = {
+        error: "Receipt unavailable",
+        memoryRequestId: inputId,
+      };
+      f.setCalls([
+        {
+          name: "save_memory",
+          args: { content: "coffee (retried)" },
+          executionId: "retry",
+          memoryRequestId: inputId,
+        },
+      ]);
+      await f.run();
+      expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).toBe(true);
+      expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+      expect(f.results.at(-1)).toMatchObject({ uncertain: true });
+    },
+  );
+
+  it("restores only this run's successful memory receipt across attempts", async () => {
+    const f = fixture("memory-receipt-retry", "Remember: durable fact");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { path: "MEMORY.md", content: "durable fact" },
+        executionId: "memory-1",
+      },
+    ]);
+    await f.run();
+    f.setCalls([]);
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(true);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+    f.effects[0]!.result = { ok: false };
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+    f.effects[0]!.result = { ok: true };
+    f.effects[0]!.runId = "other-run";
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+  });
+  it("requires a new receipt when a human answer replaces the initial save prompt", async () => {
+    const f = fixture("answered-save-retry", "Remember that I prefer cobalt.");
+    f.setCalls([{ name: "remember", args: { content: "cobalt" }, executionId: "old-save" }]);
+    await f.run();
+    const oldCompletion = f.effects[0]!.updatedAt!;
+    f.setCalls([]);
+    f.setPrompt("Selected choice choice-1: Remember that I prefer violet.");
+    f.answeredQuestions.push({
+      id: "answered-input",
+      createdAt: new Date(oldCompletion.getTime() + 1),
+      payload: {
+        blocks: [
+          { kind: "ask", text: "Which preference?", status: "answered", answer: "choice-1" },
+        ],
+      },
+    });
+    await f.run();
+    expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteConfirmed).toBe(false);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+  });
+  it("restores only a receipt bound to the previously claimed steering request", async () => {
+    const f = fixture("steered-receipt-retry", "What is two plus two?");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { path: "MEMORY.md", content: "cobalt" },
+        executionId: "memory-1",
+        memoryRequestId: "steer",
+      },
+    ]);
+    await f.run();
+    const completedAt = f.effects[0]!.updatedAt!;
+    f.setCalls([]);
+    f.steering.push({
+      id: "steer",
+      messageId: "message",
+      text: "Remember I prefer cobalt.",
+      blocks: [],
+      claimedAt: new Date(completedAt.getTime() - 1),
+    });
+    await f.run();
+    const request = f.runtimeRun.mock.calls.at(-1)![0];
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(true);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+    f.steering[0]!.id = "other-steering";
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
+    f.steering[0]!.id = "steer";
+    delete f.steering[0]!.claimedAt;
+    expect((await request.claimSteering!([]))[0]!.memoryWriteConfirmed).toBe(false);
+  });
+  it("does not credit a sibling steering save with the same batch claim time", async () => {
+    const f = fixture("batch-save-retry", "What is two plus two?");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "memory-1",
+        memoryRequestId: "first-save",
+      },
+    ]);
+    await f.run();
+    const claimedAt = new Date(f.effects[0]!.updatedAt!.getTime() - 1);
+    f.setCalls([]);
+    f.steering.push(
+      {
+        id: "first-save",
+        messageId: "first-message",
+        text: "Remember I prefer cobalt.",
+        blocks: [],
+        claimedAt,
+      },
+      {
+        id: "second-save",
+        messageId: "second-message",
+        text: "Remember I prefer violet.",
+        blocks: [],
+        claimedAt,
+      },
+    );
+    await f.run();
+    const request = f.runtimeRun.mock.calls.at(-1)![0];
+    const replay = await request.claimSteering!([]);
+    expect(replay.map((item) => item.memoryWriteConfirmed)).toEqual([true, false]);
+    expect(f.memoryCommit).toHaveBeenCalledOnce();
+  });
+  it("restores a new preference with identical arguments without replaying an older request", async () => {
+    const f = fixture("preference-generations", "Update my preferences.");
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "first",
+        memoryRequestId: "save-1",
+      },
+      {
+        name: "remember",
+        args: { content: "violet" },
+        executionId: "second",
+        memoryRequestId: "save-2",
+      },
+    ]);
+    await f.run();
+    f.setCalls([
+      {
+        name: "remember",
+        args: { content: "cobalt" },
+        executionId: "third",
+        memoryRequestId: "save-3",
+      },
+    ]);
+    await f.run();
+    expect(f.memoryCommit.mock.calls.map(([input]) => input.content)).toEqual([
+      "cobalt",
+      "violet",
+      "cobalt",
+    ]);
+    await f.run();
+    expect(f.memoryCommit).toHaveBeenCalledTimes(3);
+    expect(
+      f.effects.map((effect) => (effect.result as { memoryRequestId?: string }).memoryRequestId),
+    ).toEqual(["save-1", "save-2", "save-3"]);
+  });
   it("executes different tools that share a reused provider tool-call id", async () => {
     const f = fixture("run-a");
     f.setCalls([
@@ -487,6 +830,22 @@ describe("mutating tool effect idempotency keys", () => {
       }),
     );
     expect(f.results[0]).toEqual({ ok: true });
+  });
+
+  it("reuses a completed mutation for repeated calls fulfilling the same memory input", async () => {
+    const f = fixture("same-memory-input");
+    f.setCalls(
+      ["first", "retry"].map((executionId) => ({
+        name: "remember",
+        args: { content: "coffee", path: "MEMORY.md" },
+        executionId,
+        memoryRequestId: "input-1",
+      })),
+    );
+    await f.run();
+    expect(f.memoryCommit).toHaveBeenCalledTimes(1);
+    expect(f.effects).toHaveLength(1);
+    expect(f.results).toHaveLength(2);
   });
 
   it("executes two identical-args mutating calls in one live run", async () => {

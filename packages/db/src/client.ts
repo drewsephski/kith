@@ -8,6 +8,8 @@ export type Db = PrismaClient;
 export interface DbClientOptions {
   poolMax?: number;
   applicationName?: string;
+  connectionTimeoutMillis?: number;
+  retryTooManyConnections?: boolean;
 }
 
 const DEFAULT_POOL_MAX = 4;
@@ -19,7 +21,7 @@ export function createPool(connectionString: string, options: DbClientOptions = 
     max: options.poolMax ?? DEFAULT_POOL_MAX,
     // Fail a checkout instead of queueing forever when Postgres is already at
     // max_connections (53300) or the pool is saturated.
-    connectionTimeoutMillis: 10_000,
+    connectionTimeoutMillis: options.connectionTimeoutMillis ?? 10_000,
     // 0 disables idle eviction. Dropping idle clients and reopening them on the
     // next job burst is how a tight Postgres hits 53300; keep what we already have.
     idleTimeoutMillis: 0,
@@ -33,7 +35,7 @@ export function createPool(connectionString: string, options: DbClientOptions = 
   pool.on("connect", (client) => {
     client.on("error", () => undefined);
   });
-  installConnectRetry(pool);
+  if (options.retryTooManyConnections !== false) installConnectRetry(pool);
   return pool;
 }
 

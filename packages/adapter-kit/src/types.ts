@@ -189,6 +189,8 @@ export interface AgentToolExecutionResult {
 export interface AgentToolExecutionObserver {
   /** Runtime-owned helper restriction; model arguments cannot enable delegation. */
   allowDelegation?: boolean;
+  /** Runtime-validated memory request identity; never taken directly from tool arguments. */
+  memoryRequestId?: string;
   /**
    * A shell command has already produced output and is still running.
    * Resolves with the final redacted result when the process exits.
@@ -401,6 +403,12 @@ export interface AgentSteeringMessage {
   text: string;
   /** Persisted history text before attachment paths are appended. */
   historyText?: string;
+  /** Backend confirmation for a previously claimed save, never for fresh steering. */
+  memoryWriteConfirmed?: boolean;
+  /** A prior failed/uncertain write for this input must not be retried after recovery. */
+  memoryWriteAttempted?: boolean;
+  /** Exact durable receipts for independently requested saves within an input. */
+  memoryWriteReceipts?: Array<{ requestId: string; confirmed: boolean }>;
   images?: AgentInputImage[];
 }
 
@@ -446,6 +454,12 @@ export type AgentContextStrategy = "current" | "retrieval" | "snapshots" | "cach
 export const DEFAULT_CONTEXT_STRATEGY: AgentContextStrategy = "retrieval";
 
 export interface AgentRunRequest {
+  /** Backend receipt for a successful memory write in this durable run, across attempts. */
+  memoryWriteConfirmed?: boolean;
+  /** A prior failed/uncertain write for this input must not be retried after recovery. */
+  memoryWriteAttempted?: boolean;
+  /** Exact durable receipts for independently requested saves within an input. */
+  memoryWriteReceipts?: Array<{ requestId: string; confirmed: boolean }>;
   /** Internal optimization; explicit model thinking preferences still win. */
   executionProfile?: "conversation" | "agent";
   /** Numeric protocol timing only. Never carries provider text or hidden reasoning. */
@@ -487,6 +501,8 @@ export interface AgentRunRequest {
    * When set, skip synthetic empty-turn fallbacks (including after tools).
    */
   allowSilentEmpty?: boolean;
+  /** Backend-owned identity of the current memory request across execution attempts. */
+  memoryRequestId?: string;
   /** Contextual fallback when a non-silent run produces no written response. */
   emptyResponseText?: string;
   executeTool?: (
@@ -565,7 +581,14 @@ export type AgentRuntimeEvent =
       /** Provider-generated tool status rather than assistant-authored narration. */
       activity?: true;
     }
-  | { type: "tool"; name: string; args: Record<string, unknown>; executionId: string }
+  | {
+      type: "tool";
+      name: string;
+      args: Record<string, unknown>;
+      executionId: string;
+      /** Runtime-validated input identity for memory progress; never rendered as arguments. */
+      memoryRequestId?: string;
+    }
   | {
       type: "ask";
       text: string;

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import type { CommandResult } from "@e2b/desktop";
 import {
   ApiClient,
+  CommandExitError,
   ConnectionConfig,
   Sandbox,
   SandboxNotFoundError,
@@ -382,6 +383,13 @@ export class E2BSandboxProvider implements SandboxProvider {
       if (result.stderr) yield { type: "stderr", data: result.stderr };
       yield { type: "exit", code: result.exitCode ?? 0 };
     } catch (error) {
+      if (error instanceof CommandExitError) {
+        context.signal.throwIfAborted();
+        if (error.stdout) yield { type: "stdout", data: error.stdout };
+        if (error.stderr) yield { type: "stderr", data: error.stderr };
+        yield { type: "exit", code: error.exitCode };
+        return;
+      }
       if (error instanceof TimeoutError) {
         yield {
           type: "stderr",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasRunResponseText,
   isAssistantResponding,
+  isRunResponding,
   runActivityText,
 } from "./assistant-response.js";
 
@@ -77,12 +78,14 @@ describe("run response text", () => {
 describe("assistant response animation", () => {
   it.each(["queued", "leased", "running"])("includes %s assistant turns", (status) => {
     expect(isAssistantResponding("first", [{ botId: "first", status }])).toBe(true);
+    expect(isRunResponding(status)).toBe(true);
   });
 
   it.each(["waiting_input", "waiting_takeover", "completed", "cancelled", "failed", undefined])(
     "does not animate %s turns",
     (status) => {
       expect(isAssistantResponding("first", [{ botId: "first", status }])).toBe(false);
+      expect(isRunResponding(status)).toBe(false);
     },
   );
 

@@ -4,9 +4,29 @@ import path from "node:path";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
 
+async function visibleWindow(app: ElectronApplication, matches: (page: Page) => Promise<boolean>) {
+  // Read crash/visibility state in the main process before touching renderer targets.
+  const visibleUrls = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .filter((win) => !win.isDestroyed() && win.isVisible() && !win.webContents.isCrashed())
+      .map((win) => win.webContents.getURL()),
+  );
+  for (const page of app.windows()) {
+    if (page.isClosed() || !visibleUrls.includes(page.url())) continue;
+    try {
+      const visible = await (await app.browserWindow(page)).evaluate((win) => win.isVisible());
+      if (visible && (await matches(page))) return page;
+    } catch {
+      // A crashed or closing window cannot be the user's recovery surface.
+    }
+  }
+  return undefined;
+}
+
 // The harness provides the real API, migrated disposable PostgreSQL, scripted
 // model and shared frontend. No production accounts or external providers.
 test("packaged Kith authenticates, persists work and consumes native commands", async () => {
+  const testInfo = test.info();
   const executable = process.env.RAKAZO_E2E_EXECUTABLE;
   const origin = process.env.PLAYWRIGHT_BASE_URL;
   if (!executable || !origin) throw new Error("Run through the packaged frontend harness");
@@ -92,43 +112,32 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await expect(newComposer).toBeEditable();
     const newRoute = restored.url();
     const restoredId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
-    const recovery = app.waitForEvent("window");
-    await app.evaluate(
-      ({ BrowserWindow }, windowId) =>
-        BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(),
-      restoredId,
-    );
-    const setup = await test.step("Observe renderer crash recovery", () => recovery, {
-      timeout: 20_000,
-    });
+    // Subscribe before the native crash. The recovery target is a new window;
+    // matching cached renderer URLs can miss it while the crashed target exits.
+    const recoveryWindow = app.waitForEvent("window", { timeout: 20_000 });
+    await app.evaluate(({ BrowserWindow }, windowId) => {
+      // Return the control request before crashing its renderer/debug target.
+      setTimeout(() => BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(), 100);
+    }, restoredId);
+    const setup = await recoveryWindow;
     await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();
+    expect(await (await app.browserWindow(setup)).evaluate((win) => win.isVisible())).toBe(true);
+    const recoveryScreenshot = testInfo.outputPath("packaged-renderer-recovery.png");
+    await setup.screenshot({ path: recoveryScreenshot });
+    await testInfo.attach("Packaged renderer recovery", {
+      path: recoveryScreenshot,
+      contentType: "image/png",
+    });
     await setup.getByRole("button", { name: "Continue", exact: true }).click();
+    let recoveredWindow: Page | undefined;
     await expect
       .poll(async () => {
-        const windows = app!.windows();
-        return Promise.all(
-          windows.map((window) =>
-            window
-              .getByRole("combobox", { name: /^Message/ })
-              .isEditable()
-              .catch(() => false),
-          ),
+        recoveredWindow = await visibleWindow(app!, (page) =>
+          page.getByRole("combobox", { name: /^Message/ }).isEditable(),
         );
+        return Boolean(recoveredWindow);
       })
-      .toContain(true);
-    const windows = app.windows();
-    let recoveredWindow: Page | undefined;
-    for (const window of windows) {
-      if (
-        await window
-          .getByRole("combobox", { name: /^Message/ })
-          .isEditable()
-          .catch(() => false)
-      ) {
-        recoveredWindow = window;
-        break;
-      }
-    }
+      .toBe(true);
     if (!recoveredWindow) throw new Error("Missing recovered authenticated application window");
     await recoveredWindow.goto(newRoute);
     await expect(
@@ -137,8 +146,32 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
         exact: true,
       }),
     ).toBeEditable();
+  } catch (error) {
+    if (app) {
+      const windows = await app
+        .evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()
+            .filter((win) => !win.isDestroyed())
+            .map((win) => ({
+              visible: win.isVisible(),
+              crashed: win.webContents.isCrashed(),
+              setup: win.webContents.getURL().includes("/setup.html"),
+            })),
+        )
+        .catch(() => []);
+      await testInfo.attach("Native window state", {
+        body: JSON.stringify(windows),
+        contentType: "application/json",
+      });
+    }
+    throw error;
   } finally {
-    await app?.close();
-    await rm(profile, { recursive: true, force: true });
+    const kill = setTimeout(() => app?.process().kill("SIGKILL"), 10_000);
+    try {
+      await app?.close();
+    } finally {
+      clearTimeout(kill);
+      await rm(profile, { recursive: true, force: true });
+    }
   }
 });

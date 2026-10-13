@@ -40,13 +40,9 @@ import {
   type TeachRecordingEvent,
   teachRecordingTtlMs,
 } from "@rakazo/core";
-import {
-  type createRepos,
-  expireComputerExecutionLeases,
-  IsolationError,
-  type PrismaClient,
-  type ThreadEvents,
-} from "@rakazo/db";
+import type { createRepos, PrismaClient, ThreadEvents } from "@rakazo/db";
+import { IsolationError } from "@rakazo/db";
+import { resolveThreadTarget, stopThreadRuns } from "./thread-target.js";
 
 type TaughtSkillRow = {
   id: string;
@@ -112,25 +108,24 @@ export async function assertTeachingSendAllowed(
 
 async function cancelActiveRuns(
   deps: TaughtSkillsDeps,
-  _actor: Actor,
+  actor: Actor,
   botId: string,
 ): Promise<void> {
-  const activeRuns = await deps.prisma.run.findMany({
-    where: { botId, status: { in: [...ACTIVE_RUN_STATUSES] } },
-    select: { id: true },
+  const target = await resolveThreadTarget(deps.prisma, actor, { botId });
+  if (target.kind !== "bot") throw new IsolationError();
+  const runs = await deps.prisma.run.findMany({
+    where: {
+      botId,
+      spaceId: actor.spaceId,
+      status: { in: [...ACTIVE_RUN_STATUSES] },
+    },
+    select: { threadId: true },
+    distinct: ["threadId"],
   });
-  await deps.prisma.run.updateMany({
-    where: { botId, status: { in: [...ACTIVE_RUN_STATUSES] } },
-    data: { status: "cancelled", completedAt: new Date() },
-  });
-  await expireComputerExecutionLeases(deps.prisma, { botId });
-  await deps.prisma.computer.updateMany({
-    where: { executionBotId: botId },
-    data: { executionRunId: null, executionBotId: null, executionLeaseExpiresAt: null },
-  });
-  await deps.prisma.event.deleteMany({
-    where: { type: "thread.progress", runId: { in: activeRuns.map((run) => run.id) } },
-  });
+  // These threads belong to the actor's own bot runs, including group and
+  // external conversations. Teaching cancels this bot without stopping peers.
+  for (const run of runs)
+    await stopThreadRuns(deps, actor, { ...target, threadId: run.threadId }, { botId });
 }
 
 async function ensureGraphicalComputer(

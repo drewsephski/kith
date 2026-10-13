@@ -1,9 +1,66 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { verifyForYouApi } from "./verify-for-you-api.mjs";
+import { verifyForYouApi, verifyHostedApi, verifyHostedPreflight } from "./verify-for-you-api.mjs";
 
 const unauthorized = () =>
   Response.json({ json: { code: "UNAUTHORIZED", status: 401 } }, { status: 401 });
+
+const hosted = async (url) =>
+  url.pathname === "/ready"
+    ? Response.json({ ok: true, degraded: false })
+    : url.pathname === "/api/auth/get-session"
+      ? Response.json(null)
+      : unauthorized();
+
+test("legacy-gateway preflight checks session compatibility while readiness remains mandatory for publishing", async () => {
+  const legacy = async (url) =>
+    url.pathname === "/ready" ? new Response("<html>old gateway</html>") : hosted(url);
+  await verifyHostedPreflight("https://api.example.test", legacy);
+  await assert.rejects(
+    verifyHostedApi("https://api.example.test", legacy),
+    /Hosted API unavailable: \/ready/,
+  );
+});
+
+test("checks an anonymous session as well as compatible routes", async () => {
+  const requests = [];
+  await verifyHostedApi("https://api.example.test", async (url, init) => {
+    requests.push({ url, init });
+    return hosted(url);
+  });
+  assert.equal(requests.length, 5);
+  for (const { init } of requests.filter(({ url }) => !url.pathname.startsWith("/rpc/"))) {
+    assert.equal(init.credentials, "omit");
+    assert.equal(init.redirect, "error");
+    assert.equal(init.cache, "no-store");
+    assert.ok(init.signal instanceof AbortSignal);
+  }
+});
+
+for (const route of ["/api/auth/get-session", "/ready"]) {
+  for (const response of [
+    () => new Response("private database quota details", { status: 500 }),
+    () => new Response("<html>SPA fallback</html>"),
+    () => Response.json({ ok: false }),
+    () => Response.json({ ok: true, degraded: true }),
+    () => Response.json({ session: { token: "synthetic-session" } }),
+  ]) {
+    test(`rejects unavailable or invalid ${route} without disclosing response data`, async () => {
+      await assert.rejects(
+        verifyHostedApi("https://api.example.test", async (url) =>
+          url.pathname === route ? response() : hosted(url),
+        ),
+        (error) => {
+          assert.equal(
+            error.message,
+            `Hosted API unavailable: ${route}. Restore the compatible backend first.`,
+          );
+          return true;
+        },
+      );
+    });
+  }
+}
 
 test("checks every For you route anonymously without accepting redirects", async () => {
   const requests = [];
