@@ -12,6 +12,7 @@ import {
   formatCurrentTimeInstruction,
   matchesFailedOAuthSecret,
   modelProviderExecutionError,
+  modelSecretExecutionError,
   resolveModelAuth,
   serializeModelSecret,
   toOAuthCredential,
@@ -287,6 +288,7 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
           : undefined,
       });
     const plaintext = await this.deps.secrets.load(secret.ciphertext, secret.id);
+    if (modelSecretExecutionError(provider, plaintext, this.deps.modelExecutionMode)) return null;
     if (validateModelAuthAvailability(provider, modelId, plaintext)) return null;
     const auth = await resolveModelAuth(plaintext, provider, { persist, retire });
     const parsed = auth.secret;

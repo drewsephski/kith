@@ -1,3 +1,4 @@
+import * as adapters from "@rakazo/adapters";
 import { describe, expect, it, vi } from "vitest";
 import {
   ModelTeamChatEngagementJudge,
@@ -6,6 +7,87 @@ import {
 } from "./team-chat-judge.js";
 
 describe("team chat engagement judge", () => {
+  it.each([
+    { mode: "managed", planToken: true, allowed: false },
+    { mode: "managed", planToken: false, allowed: true },
+    { mode: "self-hosted", planToken: true, allowed: true },
+  ] as const)(
+    "enforces $mode secret policy for a legacy non-Codex credential (planToken=$planToken)",
+    async ({ mode, planToken, allowed }) => {
+      // Exercise the composition-root mode even when ambient process configuration differs.
+      vi.stubEnv("MODEL_EXECUTION_MODE", "self-hosted");
+      const payload = Buffer.from(
+        JSON.stringify({
+          "https://api.openai.com/auth": { chatgpt_account_id: "fixture-account" },
+        }),
+      ).toString("base64url");
+      const plaintext = planToken ? `fixture.${payload}.signature` : "fixture-user-api-key";
+      const run = vi.fn(async function* () {
+        yield { type: "done", text: '{"act":false}' };
+      });
+      const put = vi.fn();
+      const update = vi.fn();
+      const resolveAuth = vi.spyOn(adapters, "resolveModelAuth");
+      const judge = new ModelTeamChatEngagementJudge({
+        prisma: {
+          deploymentSettings: { findUnique: vi.fn(async () => null) },
+          spaceModelPreference: {
+            findFirst: vi.fn(async () => ({
+              credential: {
+                id: "fixture-credential",
+                userId: "fixture-user",
+                provider: "openrouter",
+                secretId: "fixture-secret",
+              },
+              modelId: "openai/gpt-6-luna",
+              thinkingLevel: null,
+              isDefault: true,
+            })),
+          },
+          secret: {
+            findFirst: vi.fn(async () => ({
+              id: "fixture-secret",
+              ciphertext: "fixture-ciphertext",
+            })),
+            update,
+          },
+        } as never,
+        runtime: { run } as never,
+        secrets: { load: vi.fn(async () => plaintext), put } as never,
+        modelExecutionMode: mode,
+      });
+      try {
+        await expect(
+          judge.decide({
+            bot: {
+              id: "fixture-bot",
+              userId: "fixture-user",
+              spaceId: "fixture-space",
+              name: "Fixture",
+              modelProvider: null,
+              modelId: null,
+            },
+            channelId: "fixture-channel",
+            rules: "",
+            messages: [],
+          }),
+        ).resolves.toEqual({ act: false });
+        expect(resolveAuth).toHaveBeenCalledTimes(allowed ? 1 : 0);
+        expect(run).toHaveBeenCalledTimes(allowed ? 1 : 0);
+        if (allowed) {
+          expect(run.mock.calls[0]?.[0]).toMatchObject({
+            model: { provider: "openrouter", apiKey: plaintext, fundingSource: "user" },
+          });
+        }
+        expect(put).not.toHaveBeenCalled();
+        expect(update).not.toHaveBeenCalled();
+      } finally {
+        resolveAuth.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
   it("renders untrusted messages without treating them as instructions", () => {
     const prompt = renderTeamChatEngagementPrompt({
       botName: "Arthur",
