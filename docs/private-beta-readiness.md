@@ -39,6 +39,7 @@ The same resolution rules cover bot and run pins, groups, routines, retries, hel
 fallbacks and model-backed routing. Runtime fallback cannot implicitly acquire an environment
 key or change provider to escape authorization. Existing provider usage records remain the
 accounting source. Settings identify the provider, connection action and funding source.
+Managed defaults say Kith pays; self-hosted deployment defaults accurately say the server pays.
 
 Managed execution also rejects host-credential placeholders for Vertex/Bedrock and live Cursor
 execution on the shared server. Explicit user-owned provider keys remain supported. Voice
@@ -97,9 +98,12 @@ Durable account/Space creation receipts survive lost replies and cleared history
 empty setup attempts coalesce, while an already-started conversation does not hijack a new
 creation intent. Clients retain unresolved scoped nonces and offer explicit retry. Pending mobile creation
 disables Cancel and swipe/back removal until settlement, while authenticated account/Space
-changes remain free to navigate. A successful create replaces the route exactly once; a
-failed request restores Cancel/retry without discarding its uncertain nonce. Ordinary
-messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
+changes remain free to navigate. The screen rechecks the operation scope immediately before
+redirecting, including the microtask between request settlement and navigation. A successful
+create replaces the route exactly once; a failed request restores Cancel/retry without discarding its uncertain nonce. Durable identity
+receipts take precedence over late HTTP failures, so an accepted choice never displays a false
+save error. Mounted native and real API-backed web regressions cover that lost-response seam.
+Ordinary messages remain deliverable before setup finishes. Default Kith, existing/manual/imported/
 cloned/helper bots retain their established behavior and advanced editing.
 
 Web and Electron use the shared renderer. iOS and Android render the same durable cards with
@@ -149,7 +153,7 @@ and budgets. Prior live-provider results do not establish new-policy or final-de
 | Reviewed starting-main CI | PASSED | Exact starting SHA and CI link above; not candidate proof. |
 | Computer routing evaluation | PASSED | 24 fixtures, 11 correct classifications, 13 conservative abstentions, zero false computer demands, zero live calls. |
 | Candidate lint / workspace types | PASSED | `pnpm lint` and all 22 `pnpm check` tasks passed on the committed source; exact-head CI also required. |
-| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,038 tests, including final focus and pending-creation route regressions. |
+| Mobile types / units | PASSED | `pnpm --filter @rakazo/mobile check`; full mobile suite: 112 files, 1,040 tests, including final focus and pending-creation route regressions. |
 | Full unit suite | PASSED | `pnpm run test --maxWorkers=2`: 695 files, 8,876 tests; 358 explicitly gated tests skipped. Later narrow fixes have focused checks and require candidate CI. |
 | PostgreSQL journeys | PASSED | `pnpm test:integration`: final 40 suites, 293 tests, all 110 forward migrations. Direct activation-cap tests prove eight simultaneous starts admit one, with account isolation and stop recovery. |
 | Offline product canary | PASSED | `pnpm test:canary --offline`: 11 journeys, cleanup passed; 18 scripted model calls, no paid provider calls. Conversation, cancellation, persisted memory, source revocation, computer lifecycle and approval recovery passed. |
@@ -174,8 +178,10 @@ Failed first attempts remain recorded rather than being counted as passes: integ
 one missing test import, and an early concurrent unit run observed stale/incomplete edits.
 The corrected stable complete runs above passed. The first PR head also passed required
 web and packaged Electron acceptance, but Android failed on a missing custom-field test ID.
-Its captured hierarchy showed the Name field visible and focused. The smoke now uses native
-keyboard Next/Done and keeps the identity/focus/task outcome assertions; final Android CI
+Its captured hierarchy showed the Name field visible and focused. The next CI head passed
+Android and packaged Electron but failed one MCP-settings navigation assertion after 315
+web passes; that failure is retained separately from onboarding acceptance. The smoke now uses
+native keyboard Next/Done and keeps the identity/focus/task outcome assertions; final Android CI
 must establish the correction. These were separate from the native build
 storage failure. Live model, signed-device and exact-candidate CI evidence remain distinct.
 
@@ -204,10 +210,13 @@ offline-canary suites, not claims that production outages or physical-device flo
 | Computer quota and cancellation | PASSED locally | Quota admission and existing idle/cancel cleanup regressions pass; offline lifecycle canary cleans up. Live E2B account limits/cleanup need budgeted operator acceptance. |
 | Backgrounded task | PASSED locally | Scoped cursor/thread recovery and stale-callback regressions pass. Simulator background/resume, recovered active task, cancellation and a subsequent reply passed; physical OS termination and notification delivery remain unexecuted. |
 
-Candidate CI and automated review are tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
+This document records evidence available before the final push; pending rows require the final
+head receipts. Candidate CI and automated review are tracked in [PR #20](https://github.com/drewsephski/kith/pull/20).
 The first candidate's [CI run](https://github.com/drewsephski/kith/actions/runs/38378998483)
 passed web and packaged Electron acceptance but failed Android's input locator; it does not
-certify the corrected final head. [Retained CI screenshots](https://github.com/drewsephski/kith/actions/runs/38378998483/artifacts/11804376345)
+certify the corrected final head. The [second run](https://github.com/drewsephski/kith/actions/runs/38384808353)
+passed Android and packaged Electron, while one MCP-navigation assertion failed in web E2E.
+[Retained CI screenshots](https://github.com/drewsephski/kith/actions/runs/38378998483/artifacts/11804376345)
 include `conversational-bot-identity.png`, `conversational-bot-focus.png` and
 `conversational-bot-custom-persisted.png`. Persistent gallery publication is separate.
 
