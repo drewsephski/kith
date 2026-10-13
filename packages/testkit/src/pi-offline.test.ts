@@ -592,6 +592,58 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     },
   );
 
+  it("creates requested sign content without writing that content into memory", async () => {
+    const content = "Remember that I prefer cobalt.";
+    const dir = await mkdtemp(path.join(tmpdir(), "output-not-memory-"));
+    cleanups.push(() => rm(dir, { recursive: true, force: true }));
+    const sign = path.join(dir, "sign.txt");
+    const memory = path.join(dir, "memory.txt");
+    const server = await startModelEmulator({
+      steps: [
+        {
+          expect: () => {},
+          response: { type: "tool", id: "sign", name: "write_file", arguments: { content } },
+        },
+        { expect: () => {}, response: { type: "text", text: "Created the sign." } },
+        {
+          expect: () => {},
+          response: { type: "tool", id: "wrong-save", name: "remember", arguments: { content } },
+        },
+        {
+          expect: () => {},
+          response: { type: "text", text: "Created the sign and saved the preference." },
+        },
+      ],
+    });
+    cleanups.push(() => server.close());
+    let memoryWrites = 0;
+    await collect(
+      new PiAgentRuntime().run(
+        runRequest(server.model, {
+          prompt: `Make a sign saying, ${content}`,
+          tools: ["write_file", "remember"].map((name) => ({
+            name,
+            description: name === "remember" ? "Save a durable fact" : "Write the requested sign",
+            inputSchema: {
+              type: "object",
+              properties: { content: { type: "string" } },
+              required: ["content"],
+            },
+          })),
+          executeTool: async (name, args) => {
+            if (name === "remember") memoryWrites++;
+            await writeFile(name === "remember" ? memory : sign, String(args.content));
+            return { ok: true };
+          },
+        }),
+        new AbortController().signal,
+      ),
+    );
+    expect(await readFile(sign, "utf8")).toBe(content);
+    expect(memoryWrites).toBe(0);
+    expect(server.requests).toHaveLength(2);
+  });
+
   it("completes every independent memory request in a batch without repeating the saved one", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "memory-batch-"));
     cleanups.push(() => rm(dir, { recursive: true, force: true }));

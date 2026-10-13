@@ -19,6 +19,10 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
   const directive = prompt
     .replace(/^Selected choice [^:\n]+:\s*/i, "")
     .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
+  const unquoted = directive.replace(
+    /"(?:\\.|[^"\\])*(?:"|$)|(?<!\w)'(?:\\.|[^'\\])*(?:'(?!\w)|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)/g,
+    (quote) => " ".repeat(quote.length),
+  );
   const patterns = [
     /^\s*(?:please\s+)?remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
     /(?:^|[.!?,;\n…]\s*)(?:please\s+)?remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,
@@ -28,11 +32,26 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
   ];
   const starts = new Set<number>();
   const addStart = (start: number) => {
+    const tokenStart = start + (directive.slice(start).match(/^\s*/)?.[0].length ?? 0);
+    if (unquoted[tokenStart] !== directive[tokenStart]) return;
     const clause =
-      directive
+      unquoted
         .slice(0, start)
         .split(/[.!?;\n…]/)
         .at(-1) ?? "";
+    const hasEarlierDirective = [...starts].some(
+      (prior) => prior >= start - clause.length && prior < start,
+    );
+    // A comma in requested output is not an instruction boundary. Permit only
+    // a direct command, a courtesy prefix, or another already authorized save.
+    if (
+      clause.trim() &&
+      !hasEarlierDirective &&
+      !/^\s*(?:(?:hi|hello|hey)(?:\s+[\p{L}\p{N}_-]+){0,3}|ok(?:ay)?|thanks|thank\s+you|great|by\s+the\s+way|also)[,!:\s]*$/iu.test(
+        clause,
+      )
+    )
+      return;
     // Reported instructions are data, not authorization to persist their facts.
     if (
       !/\b(?:said|says|wrote|writes|told|asked|asks|quoted?|example|explain|sentence|phrase|reads|states|stated)\b/i.test(
@@ -42,18 +61,16 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
       starts.add(start);
     }
   };
+  const candidates = new Set<number>();
   for (const pattern of patterns) {
     for (const match of directive.matchAll(pattern)) {
       const delimiter = match[0].match(/^[.!?,;\n…]\s*/)?.[0] ?? "";
-      addStart((match.index ?? 0) + delimiter.length);
+      candidates.add((match.index ?? 0) + delimiter.length);
     }
   }
+  for (const start of [...candidates].sort((a, b) => a - b)) addStart(start);
   // A coordinating imperative is separate work only after a recognized request.
   // Mask quoted data without changing offsets or the actual text sent to the model.
-  const unquoted = directive.replace(
-    /"(?:\\.|[^"\\])*(?:"|$)|(?<!\w)'(?:\\.|[^'\\])*(?:'(?!\w)|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)/g,
-    (quote) => " ".repeat(quote.length),
-  );
   for (const match of unquoted.matchAll(/(?:\b(?:and|then|also)|&)\s+(?:(?:also|then)\s+)?/gi)) {
     const start = (match.index ?? 0) + match[0].length;
     if (![...starts].some((prior) => prior < (match.index ?? 0))) continue;

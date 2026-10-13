@@ -94,6 +94,22 @@ describe("fresh memory receipt boundary", () => {
     expect(memorySaveRequests(prompt, "input")).toEqual([]);
   });
   it.each([
+    "Make a sign saying, Remember that I prefer cobalt.",
+    "Create a poster with the text, Remember my timezone is UTC.",
+    "Print a caption reading, Save this to memory.",
+    "Draft a message containing, I want you to remember that I prefer coffee.",
+  ])("does not authorize requested output content: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([]);
+  });
+  it.each([
+    'Remember my preference is "coffee. Remember UTC".',
+    "Remember my preference is 'coffee. Remember UTC'.",
+    "Remember my preference is “coffee. Remember UTC”.",
+    'Remember: "coffee, Remember UTC".',
+  ])("preserves literal memory content as one request: %s", (prompt) => {
+    expect(memorySaveRequests(prompt, "input")).toEqual([{ id: "input", text: prompt }]);
+  });
+  it.each([
     "Alice said, Remember that I prefer cobalt.",
     "Explain the sentence, Remember my birthday.",
     "The note reads, Save this to memory.",
