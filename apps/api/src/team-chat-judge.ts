@@ -6,14 +6,17 @@ import type {
   ModelCredentialRetireReason,
   SecretStore,
 } from "@rakazo/adapter-kit";
+import type { CodexLiveCatalog } from "@rakazo/adapters";
 import {
   assertStoredModelCredentialAvailable,
+  codexLiveListsModel,
   deploymentFundsModel,
   formatCurrentTimeInstruction,
   matchesFailedOAuthSecret,
   modelExecutionMode,
   modelProviderExecutionError,
   modelSecretExecutionError,
+  parseModelSecret,
   resolveModelAuth,
   serializeModelSecret,
   toOAuthCredential,
@@ -121,6 +124,7 @@ export function parseTeamChatEngagementDecision(
 
 interface ModelTeamChatEngagementJudgeDeps {
   modelExecutionMode?: "managed" | "self-hosted";
+  codexCatalog?: CodexLiveCatalog;
   prisma: PrismaClient;
   runtime: AgentRuntime;
   secrets: SecretStore;
@@ -294,8 +298,26 @@ export class ModelTeamChatEngagementJudge implements TeamChatEngagementJudge {
       });
     const plaintext = await this.deps.secrets.load(secret.ciphertext, secret.id);
     if (modelSecretExecutionError(provider, plaintext, this.deps.modelExecutionMode)) return null;
-    if (validateModelAuthAvailability(provider, modelId, plaintext)) return null;
-    const auth = await resolveModelAuth(plaintext, provider, { persist, retire });
+    const resolveAuth = () => resolveModelAuth(plaintext, provider, { persist, retire });
+    let auth: Awaited<ReturnType<typeof resolveAuth>> | undefined;
+    if (validateModelAuthAvailability(provider, modelId, plaintext)) {
+      if (
+        provider !== "openai-codex" ||
+        !this.deps.codexCatalog ||
+        parseModelSecret(plaintext).kind !== "oauth"
+      )
+        return null;
+      // Resolve/refresh before consulting the same account-scoped availability
+      // helper as ordinary runs. Managed plan-token policy already rejected above.
+      auth = await resolveAuth();
+      if (
+        !(await codexLiveListsModel(this.deps.codexCatalog, bot.userId, auth.secret, modelId, {
+          waitMs: 8_000,
+        }))
+      )
+        return null;
+    }
+    auth ??= await resolveAuth();
     const parsed = auth.secret;
     const assertCredentialAvailable = () =>
       assertStoredModelCredentialAvailable(this.deps.prisma, bot.userId, credential, bot.spaceId);

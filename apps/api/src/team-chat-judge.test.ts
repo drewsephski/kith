@@ -144,6 +144,167 @@ describe("team chat engagement judge", () => {
     },
   );
 
+  it.each([
+    {
+      mode: "self-hosted",
+      oauth: true,
+      listed: true,
+      catalog: true,
+      expired: false,
+      allowed: true,
+    },
+    {
+      mode: "self-hosted",
+      oauth: true,
+      listed: false,
+      catalog: true,
+      expired: false,
+      allowed: false,
+    },
+    {
+      mode: "self-hosted",
+      oauth: true,
+      listed: true,
+      catalog: false,
+      expired: false,
+      allowed: false,
+    },
+    { mode: "managed", oauth: true, listed: true, catalog: true, expired: false, allowed: false },
+    {
+      mode: "self-hosted",
+      oauth: false,
+      listed: true,
+      catalog: true,
+      expired: false,
+      allowed: false,
+    },
+    { mode: "self-hosted", oauth: true, listed: true, catalog: true, expired: true, allowed: true },
+  ] as const)(
+    "honors scoped Codex availability ($mode, OAuth=$oauth, listed=$listed, expired=$expired)",
+    async (testCase) => {
+      vi.stubEnv("MODEL_EXECUTION_MODE", "self-hosted");
+      const payload = Buffer.from(
+        JSON.stringify({
+          "https://api.openai.com/auth": { chatgpt_account_id: "fixture-codex-account" },
+        }),
+      ).toString("base64url");
+      const storedAccess = `stored.${payload}.signature`;
+      const resolvedAccess = `resolved.${payload}.signature`;
+      const resolvedSecret = {
+        kind: "oauth" as const,
+        credential: {
+          type: "oauth" as const,
+          access: resolvedAccess,
+          refresh: "fixture-refresh",
+          expires: Date.now() + 3_600_000,
+        },
+      };
+      const plaintext = testCase.oauth
+        ? adapters.serializeModelSecret({
+            kind: "oauth",
+            credential: {
+              ...resolvedSecret.credential,
+              access: storedAccess,
+              expires: testCase.expired ? Date.now() - 1 : resolvedSecret.credential.expires,
+            },
+          })
+        : "fixture-user-api-key";
+      const resolveAuth = vi
+        .spyOn(adapters, "resolveModelAuth")
+        .mockResolvedValue({ secret: resolvedSecret, apiKey: resolvedAccess });
+      const read = vi.fn(async () =>
+        testCase.listed
+          ? [
+              {
+                slug: "gpt-5.3-codex-spark",
+                reasoningEfforts: [],
+                supportsImages: false,
+                supportsFastTier: false,
+              },
+            ]
+          : [],
+      );
+      const load = vi.fn(async () => plaintext);
+      const run = vi.fn(async function* () {
+        yield { type: "done", text: '{"act":true}' };
+      });
+      const judge = new ModelTeamChatEngagementJudge({
+        prisma: {
+          deploymentSettings: { findUnique: vi.fn(async () => null) },
+          spaceModelPreference: {
+            findFirst: vi.fn(async () => ({
+              credential: {
+                id: "fixture-credential",
+                userId: "fixture-user",
+                provider: "openai-codex",
+                secretId: "fixture-secret",
+              },
+              modelId: "gpt-5.3-codex-spark",
+              thinkingLevel: null,
+              isDefault: true,
+            })),
+          },
+          secret: {
+            findFirst: vi.fn(async () => ({
+              id: "fixture-secret",
+              ciphertext: "fixture-ciphertext",
+            })),
+          },
+        } as never,
+        runtime: { run } as never,
+        secrets: { load } as never,
+        modelExecutionMode: testCase.mode,
+        codexCatalog: testCase.catalog ? { read } : undefined,
+        deploymentProvider: "openrouter",
+        deploymentModel: "openai/gpt-6-luna",
+        deploymentModelKey: "fixture-deployment-key",
+      });
+      try {
+        await expect(
+          judge.decide({
+            bot: {
+              id: "fixture-bot",
+              userId: "fixture-user",
+              spaceId: "fixture-space",
+              name: "Fixture",
+              modelProvider: null,
+              modelId: null,
+            },
+            channelId: "fixture-channel",
+            rules: "",
+            messages: [],
+          }),
+        ).resolves.toEqual({ act: testCase.allowed });
+        const checksLive = testCase.mode === "self-hosted" && testCase.oauth && testCase.catalog;
+        expect(resolveAuth).toHaveBeenCalledTimes(checksLive ? 1 : 0);
+        expect(read).toHaveBeenCalledTimes(checksLive ? 1 : 0);
+        expect(run).toHaveBeenCalledTimes(testCase.allowed ? 1 : 0);
+        if (checksLive) {
+          const [userId, account] = read.mock.calls[0]! as unknown as [
+            string,
+            { accountId: string; accessToken: () => Promise<string | null> },
+          ];
+          expect(userId).toBe("fixture-user");
+          expect(account.accountId).toBe("fixture-codex-account");
+          await expect(account.accessToken()).resolves.toBe(resolvedAccess);
+        }
+        if (testCase.allowed)
+          expect(run.mock.calls[0]?.[0]).toMatchObject({
+            model: {
+              provider: "openai-codex",
+              id: "gpt-5.3-codex-spark",
+              fundingSource: "user",
+              oauth: { credential: resolvedSecret.credential },
+            },
+          });
+        if (testCase.mode === "managed") expect(load).not.toHaveBeenCalled();
+      } finally {
+        resolveAuth.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
   it("renders untrusted messages without treating them as instructions", () => {
     const prompt = renderTeamChatEngagementPrompt({
       botName: "Arthur",
