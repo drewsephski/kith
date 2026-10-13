@@ -170,18 +170,9 @@ describe("real Pi against an offline model HTTP endpoint", () => {
             expect: () => {},
             response: {
               type: "tool",
-              id: "read-current",
-              name: "read_shared_memory",
-              arguments: { path: "MEMORY.md" },
-            },
-          },
-          {
-            expect: () => {},
-            response: {
-              type: "tool",
               id: "corrected-save",
               name: "save_shared_memory",
-              arguments: { path: "MEMORY.md", content: "tea and coffee" },
+              arguments: { path: "MEMORY.md", content: "tea and coffee", expectedRevision: 1 },
             },
           },
           { expect: () => {}, response: { type: "text", text: "Saved coffee and preserved tea." } },
@@ -194,27 +185,35 @@ describe("real Pi against an offline model HTTP endpoint", () => {
       await writeFile(file, "tea");
       let attempts = 0;
       let writes = 0;
-      let reads = 0;
       const execution = collect(
         new PiAgentRuntime().run(
           runRequest(server.model, {
             prompt: "Remember I prefer coffee.",
-            tools: ["save_shared_memory", "read_shared_memory"].map((name) => ({
+            tools: ["save_shared_memory"].map((name) => ({
               name,
               description: "Shared memory",
               inputSchema: {
                 type: "object",
-                properties: { path: { type: "string" }, content: { type: "string" } },
+                properties: {
+                  path: { type: "string" },
+                  content: { type: "string" },
+                  expectedRevision: { type: "integer" },
+                },
               },
             })),
-            executeTool: async (name, args) => {
-              if (name === "read_shared_memory") {
-                reads++;
-                return { content: await readFile(file, "utf8") };
-              }
+            executeTool: async (_name, args) => {
               if (++attempts === 1)
-                return { error: MEMORY_REVISION_CONFLICT_ERROR, safeToRetry: true, uncertain };
-              expect(reads).toBe(1);
+                return {
+                  error: MEMORY_REVISION_CONFLICT_ERROR,
+                  safeToRetry: true,
+                  uncertain,
+                  document: {
+                    path: "MEMORY.md",
+                    content: await readFile(file, "utf8"),
+                    revision: 1,
+                  },
+                };
+              expect(args.expectedRevision).toBe(1);
               writes++;
               await writeFile(file, String(args.content));
               return { ok: true };

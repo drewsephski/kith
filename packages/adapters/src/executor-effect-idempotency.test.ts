@@ -71,6 +71,9 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     leaseFence: 0,
   };
   const memoryCommit = vi.fn(async (_input: { content: string }) => ({ revision: "rev-1" }));
+  const memoryRead = vi.fn(async (_input: { scope: string; path?: string }) => ({
+    documents: [] as Array<{ id: string; path: string; content: string; revision: number }>,
+  }));
   const externalEffect = {
     findMany: vi.fn(
       async ({
@@ -220,7 +223,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     sandbox: { describe: () => ({ capabilities: { graphical: false } }) },
     memory: {
       describe: () => ({ capabilities: {} }),
-      read: async () => ({ documents: [] }),
+      read: memoryRead,
       search: async () => [],
       commit: memoryCommit,
       exportMarkdown: async function* () {},
@@ -245,6 +248,7 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
     results,
     scratchpadRows,
     memoryCommit,
+    memoryRead,
     steering,
     answeredQuestions,
     setPrompt(next: string) {
@@ -265,31 +269,59 @@ function fixture(runId = "run-1", prompt = "Update shared state") {
 
 describe("mutating tool effect idempotency keys", () => {
   it.each(["same-attempt", "restart"])(
-    "permits an exact-args retry only after a durable nonmutating memory conflict: %s",
+    "blocks stale conflict retries and preserves the peer update after a revision-bound retry: %s",
     async (mode) => {
       const f = fixture("memory-cas-retry", "Remember I prefer coffee.");
       const input = "memory-cas-retry:input:initial";
-      f.memoryCommit.mockRejectedValueOnce(new Error(MEMORY_REVISION_CONFLICT_ERROR));
+      let content = "tea";
+      let revision = 1;
+      f.memoryRead.mockImplementation(async () => ({
+        documents: [{ id: "shared", path: "MEMORY.md", content, revision }],
+      }));
+      f.memoryCommit.mockImplementationOnce(async () => {
+        content = "tea and cocoa";
+        revision++;
+        throw new Error(MEMORY_REVISION_CONFLICT_ERROR);
+      });
+      f.memoryCommit.mockImplementation(async (args) => {
+        expect(args).toMatchObject({ expectedRevision: revision });
+        content = args.content;
+        return { revision: "rev-3" };
+      });
       const call = {
         name: "save_shared_memory",
         args: { path: "MEMORY.md", content: "coffee" },
         executionId: "first",
         memoryRequestId: input,
       };
-      const retry = { ...call, executionId: "retry" };
-      f.setCalls(mode === "same-attempt" ? [call, retry] : [call]);
+      const staleRetry = { ...call, executionId: "stale-retry" };
+      const staleRevision = {
+        ...call,
+        executionId: "stale-revision",
+        args: { ...call.args, expectedRevision: 1 },
+      };
+      const retry = {
+        ...call,
+        executionId: "retry",
+        args: { path: "MEMORY.md", content: "tea and cocoa and coffee", expectedRevision: 2 },
+      };
+      f.setCalls(mode === "same-attempt" ? [call, staleRetry, staleRevision, retry] : [call]);
       await f.run();
       if (mode === "restart") {
-        f.setCalls([retry]);
+        f.setCalls([staleRetry, staleRevision, retry]);
         await f.run();
       }
       expect(f.memoryCommit).toHaveBeenCalledTimes(2);
       expect(f.results[0]).toMatchObject({
         error: MEMORY_REVISION_CONFLICT_ERROR,
         safeToRetry: true,
+        document: { content: "tea and cocoa", revision: 2 },
       });
+      expect(f.results[1]).toMatchObject({ error: MEMORY_REVISION_CONFLICT_ERROR });
+      expect(f.results[2]).toMatchObject({ error: MEMORY_REVISION_CONFLICT_ERROR });
+      expect(content).toBe("tea and cocoa and coffee");
       expect(f.results.at(-1)).toMatchObject({ ok: true });
-      expect(f.effects).toHaveLength(2);
+      expect(f.effects).toHaveLength(4);
       expect(f.effects[0]!.idempotencyKey).not.toBe(f.effects[1]!.idempotencyKey);
       expect(f.runtimeRun.mock.calls.at(-1)?.[0].memoryWriteAttempted).not.toBe(true);
     },

@@ -594,8 +594,27 @@ describe("connector read-only metadata and approval enforcement", () => {
       expect.anything(),
     );
     expect(f.sharedMemoryState.content).toBe("Someone else edited");
-    expect(f.results.at(-1)).toEqual({ error: MEMORY_REVISION_CONFLICT_ERROR, safeToRetry: true });
+    expect(f.results.at(-1)).toMatchObject({
+      error: MEMORY_REVISION_CONFLICT_ERROR,
+      safeToRetry: true,
+      document: { path: "MEMORY.md", content: "Someone else edited", revision: 2 },
+    });
   });
+
+  it.each([-1, "2", null, 1.5])(
+    "rejects invalid shared-memory revision %s",
+    async (expectedRevision) => {
+      const f = fixture({ name: "save_shared_memory", builtin: true });
+      f.setCalls([
+        { args: { path: "MEMORY.md", content: "coffee", expectedRevision }, executionId: "call-1" },
+      ]);
+      await f.run();
+      expect(f.commit).not.toHaveBeenCalled();
+      expect(f.results.at(-1)).toMatchObject({
+        error: "expectedRevision must be a nonnegative integer",
+      });
+    },
+  );
 
   it("rejects shared memory content over the size limit", async () => {
     const args = {

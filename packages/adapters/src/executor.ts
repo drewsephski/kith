@@ -3687,6 +3687,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
 
         const uncertainMemoryInputs = new Set<string>();
         const memoryConflictRetries = new Map<string, number>();
+        const conflictedMemoryPaths = new Set<string>();
         let legacyUncertainMemory = false;
         for (const effect of priorMemoryEffects) {
           if (!isMemorySaveCall(effect.kind, {}, false)) continue;
@@ -3701,6 +3702,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             result?.uncertain !== true &&
             result?.error === MEMORY_REVISION_CONFLICT_ERROR
           ) {
+            const path = (effect.request as { path?: string } | null)?.path;
+            if (path) conflictedMemoryPaths.add(path.trim());
             const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;
             if (id) memoryConflictRetries.set(id, (memoryConflictRetries.get(id) ?? 0) + 1);
             continue;
@@ -5480,11 +5483,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 outcome?.error === MEMORY_REVISION_CONFLICT_ERROR &&
                 outcome.uncertain !== true &&
                 outcome.safeToRetry === true
-              )
+              ) {
                 memoryConflictRetries.set(
                   memoryRequestId,
                   (memoryConflictRetries.get(memoryRequestId) ?? 0) + 1,
                 );
+              }
               if (outcome?.ok === true && !outcome.error && outcome.uncertain !== true)
                 confirmedMemoryResults.set(memoryRequestId, {
                   result: boundResult,
@@ -6024,7 +6028,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
             // The save replaces the whole document. Pass the revision just read so a
             // concurrent edit is rejected instead of overwritten.
             const snapshot = await deps.memory.read({ scope: "user", path }, context);
-            const expectedRevision = snapshot.documents[0]?.revision ?? 0;
+            const current = snapshot.documents[0];
+            const revision = current?.revision ?? 0;
+            const conflictResult = (document: typeof current) => {
+              conflictedMemoryPaths.add(path);
+              return {
+                error: MEMORY_REVISION_CONFLICT_ERROR,
+                safeToRetry: true,
+                document: {
+                  path,
+                  content: document?.content ?? "",
+                  revision: document?.revision ?? 0,
+                },
+              };
+            };
+            // A conflict's content is returned to the model. Its retry must explicitly
+            // use that revision; never refresh the CAS token for a stale replacement.
+            if (conflictedMemoryPaths.has(path) && args.expectedRevision === undefined)
+              return finish(conflictResult(current));
+            const expectedRevision = (args.expectedRevision as number | undefined) ?? revision;
+            if (expectedRevision !== revision) return finish(conflictResult(current));
             try {
               const saved = await deps.memory.commit(
                 {
@@ -6041,8 +6064,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             } catch (error) {
               const message =
                 error instanceof Error ? error.message : "Could not save shared memory.";
-              if (message === MEMORY_REVISION_CONFLICT_ERROR)
-                return finish({ error: message, safeToRetry: true });
+              if (message === MEMORY_REVISION_CONFLICT_ERROR) {
+                const latest = await deps.memory.read({ scope: "user", path }, context);
+                return finish(conflictResult(latest.documents[0]));
+              }
               throw error;
             }
           }
