@@ -18,9 +18,9 @@ test("production publishing stops before building when the backend lacks For you
   });
   await assert.rejects(
     buildVercelWeb({ API_PROXY_TARGET: "https://api.example.com", VERCEL_ENV: "production" }),
-    /Deploy the compatible backend first/,
+    /(?:Deploy|Restore) the compatible backend first/,
   );
-  assert.equal(requests.length, 3);
+  assert.equal(requests.length, 5);
 });
 
 test("accepts public HTTPS roots and canonicalizes only a trailing slash", () => {
@@ -74,7 +74,10 @@ test("routes auth, RPC and screen requests to the backend without CDN caching", 
   }
   assert.equal(new RegExp(routes[0].src).test("/rpc-example"), false);
   assert.equal(new RegExp(routes[0].src).test("/api-key"), false);
-  assert.equal(routes[1].dest, "https://kith-example.fly.dev/health");
+  for (const route of ["health", "ready"]) {
+    const match = new RegExp(routes[1].src).exec(`/${route}`);
+    assert.equal(routes[1].dest.replace("$1", match[1]), `https://kith-example.fly.dev/${route}`);
+  }
   assert.deepEqual(routes[2], { handle: "filesystem" });
   assert.deepEqual(routes[3].methods, ["GET", "HEAD"]);
   assert.equal(routes[3].dest, "/index.html");
@@ -133,6 +136,7 @@ test("authenticates only the auth proxy handoff without sharing its token with s
     "/rpc/feed/stream",
     "/novnc/session/view/token",
     "/health",
+    "/ready",
     "/assets/index.js",
   ]) {
     assert.equal(routeFor(pathname)?.transforms, undefined);

@@ -76,11 +76,13 @@ import {
   formatSkillsCatalogInstruction,
   humanizeToolName,
   inferAttachmentMimeType,
+  isApprovalAskBlock,
   isCallClientNonce,
   isEmailActionEffect,
   isEmailSendTool,
   isMessagingChannelRun,
   isOneShotRoutineCrons,
+  isSecretAskBlock,
   isTerminal,
   messagingChannelId,
   messagingChannelPrivacyBlock,
@@ -337,6 +339,7 @@ import { actorMayUsePrivateEndpoint } from "./private-endpoint.js";
 import type { RemoteTransportDependencies } from "./remote-mcp.js";
 import { assertSafeRemoteUrl } from "./remote-mcp.js";
 import { loadReplyContext, messageToAgentHistoryText } from "./reply-context.js";
+import { watchRunCancellation } from "./run-cancellation.js";
 import {
   commitConsumedRunSecret,
   normalizeSecretAskPurpose,
@@ -388,6 +391,11 @@ import {
   takeoverContinuePlan,
 } from "./takeover-resume.js";
 import { TASK_CATALOG_GUIDANCE, taskCatalogFromTool } from "./task-catalog.js";
+import {
+  isMemorySaveCall,
+  needsFreshMemoryWrite,
+  UNVERIFIED_MEMORY_ERROR,
+} from "./task-completion.js";
 import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
 import {
   attachWorkspaceFileToThread,
@@ -3389,6 +3397,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
       let screenRelease: { computer: ComputerRef; context: AdapterContext } | undefined;
       let runAbortController: AbortController | null = null;
       let detachShutdown: (() => void) | undefined;
+      let stopCancellationWatch: (() => Promise<void>) | undefined;
       const heartbeat = setInterval(() => {
         void Promise.all([
           renewRunLease(deps, runId, workerId, fence),
@@ -3566,6 +3575,161 @@ export function createRunExecutor(deps: ExecutorDeps) {
           },
         });
 
+        // A human denial is authoritative for this execution, including alternate
+        // tools that could perform the same action. A later user request gets its
+        // own run; do not ask the model to reinterpret this denied continuation.
+        const deniedEffects =
+          fence > 1
+            ? await deps.prisma.externalEffect.findMany({
+                where: { runId, status: "denied" },
+                select: { id: true },
+              })
+            : [];
+        if (deniedEffects.length) {
+          const settled = await deps.events.finalizeRun({
+            spaceId: run.spaceId,
+            threadId: thread.id,
+            botId: bot.id,
+            runId,
+            taskId: run.taskId,
+            attemptId: attempt.id,
+            leaseOwner: workerId,
+            leaseFence: fence,
+            outcome: "completed",
+            blocks: [{ kind: "text", text: "The action was denied." }],
+          });
+          if (settled && settled.continuationRunId)
+            await deps.jobs
+              .enqueue(runContinueJob(settled.continuationRunId))
+              .catch((error) => getLogger().error("denied action continuation enqueue", error));
+          if (settled && run.trigger === "bot_message")
+            await returnBotMessageOutcome(
+              deps,
+              run,
+              { id: bot.id, name: bot.name },
+              "The action was denied.",
+              "status",
+            );
+          return;
+        }
+        const priorMemoryEffects =
+          fence > 1
+            ? await deps.prisma.externalEffect.findMany({
+                where: { runId },
+                select: { kind: true, status: true, request: true, result: true, updatedAt: true },
+              })
+            : [];
+        // An ordinary human answer replaces task.prompt. Earlier completed work
+        // remains durable, but cannot confirm a new save introduced by that answer.
+        const hasAnsweredQuestion = priorProgress.some((message) =>
+          hasAnsweredOrdinaryQuestion(message.blocks),
+        );
+        const answeredQuestions =
+          fence > 1 &&
+          (hasAnsweredQuestion ||
+            needsFreshMemoryWrite(task.prompt) ||
+            task.prompt.startsWith("Selected choice "))
+            ? await deps.prisma.event.findMany({
+                where: {
+                  runId,
+                  spaceId: run.spaceId,
+                  threadId: thread.id,
+                  type: "thread.message.updated",
+                  payload: {
+                    path: ["blocks"],
+                    array_contains: [{ kind: "ask", status: "answered" }],
+                  },
+                },
+                orderBy: { seq: "desc" },
+                select: { id: true, createdAt: true, payload: true },
+              })
+            : [];
+        const promptChanged = answeredQuestions.find((event) =>
+          hasAnsweredOrdinaryQuestion((event.payload as { blocks?: unknown })?.blocks),
+        );
+        const confirmedMemoryEffects = priorMemoryEffects.filter((effect) => {
+          const result = effect.result as {
+            ok?: boolean;
+            error?: unknown;
+            uncertain?: boolean;
+          } | null;
+          return (
+            effect.status === "completed" &&
+            isMemorySaveCall(effect.kind, {}, false) &&
+            result?.ok === true &&
+            !result.error &&
+            result.uncertain !== true
+          );
+        });
+        const confirmedMemoryResults = new Map<string, { result: unknown; identity: string }>();
+        for (const effect of confirmedMemoryEffects) {
+          const requestId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+          if (requestId) {
+            const { memoryRequestId: _storedId, ...storedArgs } = effect.request as Record<
+              string,
+              unknown
+            >;
+            confirmedMemoryResults.set(requestId, {
+              result: effect.result,
+              identity: toolEffectIdempotencyKey(runId, effect.kind, storedArgs, 0),
+            });
+          }
+        }
+        const initialMemoryRequestId = `${runId}:input:${promptChanged?.id ?? (hasAnsweredQuestion ? "unverified-answer" : "initial")}`;
+        const memoryWriteConfirmed =
+          !(hasAnsweredQuestion && !promptChanged) &&
+          confirmedMemoryEffects.some((effect) => {
+            const receiptId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+            return receiptId
+              ? receiptId === initialMemoryRequestId
+              : !promptChanged || effect.updatedAt >= promptChanged.createdAt;
+          });
+
+        const uncertainMemoryInputs = new Set<string>();
+        const memoryConflictRetries = new Map<string, number>();
+        const conflictedMemoryPaths = new Set<string>();
+        let legacyUncertainMemory = false;
+        for (const effect of priorMemoryEffects) {
+          if (!isMemorySaveCall(effect.kind, {}, false)) continue;
+          const result = effect.result as {
+            uncertain?: boolean;
+            error?: unknown;
+            ok?: boolean;
+          } | null;
+          if (
+            effect.status === "completed" &&
+            effect.kind === "save_shared_memory" &&
+            result?.uncertain !== true &&
+            result?.error === MEMORY_REVISION_CONFLICT_ERROR
+          ) {
+            const path = (effect.request as { path?: string } | null)?.path;
+            if (path) conflictedMemoryPaths.add(path.trim());
+            const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;
+            if (id) memoryConflictRetries.set(id, (memoryConflictRetries.get(id) ?? 0) + 1);
+            continue;
+          }
+          if (
+            effect.status !== "executing" &&
+            effect.status !== "failed" &&
+            result?.uncertain !== true &&
+            !(effect.status === "completed" && (result?.error || result?.ok !== true))
+          )
+            continue;
+          const id = (effect.request as { memoryRequestId?: string } | null)?.memoryRequestId;
+          if (id) uncertainMemoryInputs.add(id);
+          else legacyUncertainMemory = true;
+        }
+        const memoryWriteReceipts = [
+          ...confirmedMemoryEffects.flatMap((effect) => {
+            const requestId = (effect.result as { memoryRequestId?: string }).memoryRequestId;
+            return requestId ? [{ requestId, confirmed: true }] : [];
+          }),
+          ...[...uncertainMemoryInputs].map((requestId) => ({ requestId, confirmed: false })),
+        ];
+        const memoryWriteAttempted =
+          uncertainMemoryInputs.has(initialMemoryRequestId) ||
+          (legacyUncertainMemory && !promptChanged);
+
         const historySearchBeforeSeq =
           contextStrategy !== "current" && run.sourceMessageId
             ? (messages.find((message) => message.id === run.sourceMessageId)?.seq ??
@@ -3601,6 +3765,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 )
             : null;
         runAbortController = new AbortController();
+        stopCancellationWatch = watchRunCancellation(
+          deps.events,
+          thread.id,
+          runId,
+          thread.nextEventSeq - 1,
+          runAbortController,
+        );
         if (!leaseValid) runAbortController.abort();
         if (deps.shutdownSignal?.aborted) runAbortController.abort(deps.shutdownSignal.reason);
         const onShutdown = () => runAbortController?.abort(deps.shutdownSignal?.reason);
@@ -4497,6 +4668,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             };
           }
           let effectRequest: unknown = args;
+          let memoryRequestId = observer?.memoryRequestId;
           if (connectorCall.route && deps.connector?.resolveCall) {
             try {
               const resolved = await deps.connector.resolveCall(connectorCall, context);
@@ -4618,6 +4790,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
             if (resourceError) return { error: resourceError };
             const approvedRequest = approvedEffectReplays.take(nextApprovedTool)!;
+            if (isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId))) {
+              const storedId = (approvedRequest as { memoryRequestId?: unknown }).memoryRequestId;
+              memoryRequestId =
+                typeof storedId === "string"
+                  ? storedId
+                  : !promptChanged && observer?.memoryRequestId === initialMemoryRequestId
+                    ? initialMemoryRequestId
+                    : undefined;
+            }
             const approvedCatalog = catalogApprovalDetails(approvedRequest, CATALOG_APPROVAL_TOOL);
             if (approvedCatalog && !catalogRemapped) {
               // Shrink-to-direct: restore approved inner arguments, not the wrapper envelope.
@@ -4649,6 +4830,40 @@ export function createRunExecutor(deps: ExecutorDeps) {
               }
             }
           }
+          const memorySave = isMemorySaveCall(name, args, Boolean(liveRoute?.resourceId));
+          if (memorySave && memoryRequestId && confirmedMemoryResults.has(memoryRequestId)) {
+            const completed = confirmedMemoryResults.get(memoryRequestId)!;
+            return completed.identity === toolEffectIdempotencyKey(runId, name, args, 0)
+              ? completed.result
+              : {
+                  error:
+                    "This Memory request is already verified complete; do not change or repeat its write.",
+                  alreadyCompleted: true,
+                  memoryRequestId,
+                };
+          }
+          if (
+            memorySave &&
+            memoryRequestId &&
+            [...uncertainMemoryInputs].some(
+              (id) => memoryRequestId === id || memoryRequestId?.startsWith(`${id}:memory:`),
+            )
+          )
+            return uncertainEffectResult(name);
+          if (memorySave) {
+            if (
+              hasAnsweredQuestion &&
+              !promptChanged &&
+              (memoryRequestId === initialMemoryRequestId ||
+                memoryRequestId?.startsWith(`${initialMemoryRequestId}:memory:`))
+            )
+              return { error: UNVERIFIED_MEMORY_ERROR, uncertain: true };
+            // Only runtime metadata or the exact approved operation can bind a receipt.
+            const { memoryRequestId: _untrustedId, ...memoryArgs } = args;
+            args = memoryArgs;
+            effectRequest = memoryRequestId ? { ...args, memoryRequestId } : args;
+          }
+          const effectIdentityArgs = memorySave ? (effectRequest as Record<string, unknown>) : args;
           const viaConnector = !BUILTIN_AGENT_TOOL_NAMES.has(name);
           let connectorPreview:
             | Awaited<ReturnType<NonNullable<ConnectorProvider["approvalPreview"]>>>
@@ -4817,12 +5032,46 @@ export function createRunExecutor(deps: ExecutorDeps) {
           const occurrence =
             name === "request_secret"
               ? 0
-              : nextMutatingEffectOccurrence(replayEffectToolName, args);
-          const effectKey = emailSendAuthorized
+              : memorySave && memoryRequestId
+                ? (memoryConflictRetries.get(memoryRequestId) ?? 0)
+                : nextMutatingEffectOccurrence(replayEffectToolName, effectIdentityArgs);
+          let effectKey = emailSendAuthorized
             ? emailEffectKey
             : usesApprovalKey && occurrence === 0
-              ? approvalEffectKey(runId, replayEffectToolName, args)
-              : toolEffectIdempotencyKey(runId, replayEffectToolName, args, occurrence);
+              ? approvalEffectKey(runId, replayEffectToolName, effectIdentityArgs)
+              : toolEffectIdempotencyKey(
+                  runId,
+                  replayEffectToolName,
+                  effectIdentityArgs,
+                  occurrence,
+                );
+          if (
+            memorySave &&
+            memoryRequestId &&
+            !(await deps.prisma.externalEffect.findUnique({ where: { idempotencyKey: effectKey } }))
+          ) {
+            const legacyKey =
+              usesApprovalKey && occurrence === 0
+                ? approvalEffectKey(runId, replayEffectToolName, args)
+                : toolEffectIdempotencyKey(runId, replayEffectToolName, args, occurrence);
+            const legacy = await deps.prisma.externalEffect.findUnique({
+              where: { idempotencyKey: legacyKey },
+            });
+            const retryableConflict =
+              legacy?.status === "completed" &&
+              legacy.kind === "save_shared_memory" &&
+              (legacy.result as { error?: unknown } | null)?.error ===
+                MEMORY_REVISION_CONFLICT_ERROR;
+            if (legacy && !retryableConflict) {
+              // Keep legacy mutation identity; an unbound receipt cannot confirm new steering.
+              effectKey = legacyKey;
+              effectRequest = legacy.request;
+              memoryRequestId =
+                !promptChanged && observer?.memoryRequestId === initialMemoryRequestId
+                  ? initialMemoryRequestId
+                  : undefined;
+            }
+          }
           // Connector read-only hints must not bypass approval, review, or replay decisions.
           const applied = READ_ONLY_AGENT_TOOLS.has(name)
             ? undefined
@@ -5192,8 +5441,62 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   result,
                 )
               : Promise.resolve(true);
-          const finish = async (result: unknown) =>
-            (await persistEffectResult(result)) ? result : uncertainEffectResult(name);
+          const finish = async (result: unknown) => {
+            let boundResult = result;
+            if (memorySave && memoryRequestId && result && typeof result === "object") {
+              const record = result as Record<string, unknown>;
+              const details = record.kind === "agent_tool_result" ? record.details : undefined;
+              boundResult =
+                details && typeof details === "object"
+                  ? { ...record, details: { ...details, memoryRequestId } }
+                  : { ...record, memoryRequestId };
+            }
+            if (memorySave && memoryRequestId) {
+              const record =
+                boundResult && typeof boundResult === "object"
+                  ? (boundResult as Record<string, unknown>)
+                  : undefined;
+              const outcome =
+                record?.kind === "agent_tool_result"
+                  ? (record.details as Record<string, unknown> | undefined)
+                  : record;
+              const safeConflict =
+                name === "save_shared_memory" &&
+                outcome?.error === MEMORY_REVISION_CONFLICT_ERROR &&
+                outcome.uncertain !== true &&
+                outcome.safeToRetry === true;
+              if (
+                !safeConflict &&
+                (outcome?.ok !== true || outcome.error || outcome.uncertain === true)
+              )
+                uncertainMemoryInputs.add(memoryRequestId);
+            }
+            if (!(await persistEffectResult(boundResult))) return uncertainEffectResult(name);
+            if (memorySave && memoryRequestId && boundResult && typeof boundResult === "object") {
+              const record = boundResult as Record<string, unknown>;
+              const outcome =
+                record.kind === "agent_tool_result"
+                  ? (record.details as Record<string, unknown> | undefined)
+                  : record;
+              if (
+                name === "save_shared_memory" &&
+                outcome?.error === MEMORY_REVISION_CONFLICT_ERROR &&
+                outcome.uncertain !== true &&
+                outcome.safeToRetry === true
+              ) {
+                memoryConflictRetries.set(
+                  memoryRequestId,
+                  (memoryConflictRetries.get(memoryRequestId) ?? 0) + 1,
+                );
+              }
+              if (outcome?.ok === true && !outcome.error && outcome.uncertain !== true)
+                confirmedMemoryResults.set(memoryRequestId, {
+                  result: boundResult,
+                  identity: toolEffectIdempotencyKey(runId, name, args, 0),
+                });
+            }
+            return boundResult;
+          };
           const registerRunSecrets = (values: string[]) => {
             const additions = values.filter((value) => !runSecrets.includes(value));
             if (additions.length === 0) return;
@@ -5725,7 +6028,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
             // The save replaces the whole document. Pass the revision just read so a
             // concurrent edit is rejected instead of overwritten.
             const snapshot = await deps.memory.read({ scope: "user", path }, context);
-            const expectedRevision = snapshot.documents[0]?.revision ?? 0;
+            const current = snapshot.documents[0];
+            const revision = current?.revision ?? 0;
+            const conflictResult = (document: typeof current) => {
+              conflictedMemoryPaths.add(path);
+              return {
+                error: MEMORY_REVISION_CONFLICT_ERROR,
+                safeToRetry: true,
+                document: {
+                  path,
+                  content: document?.content ?? "",
+                  revision: document?.revision ?? 0,
+                },
+              };
+            };
+            // A conflict's content is returned to the model. Its retry must explicitly
+            // use that revision; never refresh the CAS token for a stale replacement.
+            if (conflictedMemoryPaths.has(path) && args.expectedRevision === undefined)
+              return finish(conflictResult(current));
+            const expectedRevision = (args.expectedRevision as number | undefined) ?? revision;
+            if (expectedRevision !== revision) return finish(conflictResult(current));
             try {
               const saved = await deps.memory.commit(
                 {
@@ -5742,7 +6064,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             } catch (error) {
               const message =
                 error instanceof Error ? error.message : "Could not save shared memory.";
-              if (message === MEMORY_REVISION_CONFLICT_ERROR) return finish({ error: message });
+              if (message === MEMORY_REVISION_CONFLICT_ERROR) {
+                const latest = await deps.memory.read({ scope: "user", path }, context);
+                return finish(conflictResult(latest.documents[0]));
+              }
               throw error;
             }
           }
@@ -7200,6 +7525,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
               resumeFromCheckpoint: takeoverResume?.checkpoint,
               script,
               allowSilentEmpty: allowSilentEmptyRun,
+              memoryWriteConfirmed,
+              memoryWriteAttempted,
+              memoryWriteReceipts,
+              memoryRequestId: initialMemoryRequestId,
               emptyResponseText,
               executeTool: scripted ? undefined : applyTool,
               resolveModel: scripted
@@ -7260,10 +7589,24 @@ export function createRunExecutor(deps: ExecutorDeps) {
                       (!computerAvailable
                         ? unavailableComputerFilesInstruction(item.blocks)
                         : deferredAttachmentFilesInstruction(item.blocks));
+                    const previousClaim = item.claimedAt;
                     return {
                       id: item.id,
                       messageId: item.messageId,
                       historyText: item.text,
+                      memoryWriteReceipts: previousClaim ? memoryWriteReceipts : [],
+                      memoryWriteAttempted: Boolean(
+                        previousClaim &&
+                          (uncertainMemoryInputs.has(item.id) || legacyUncertainMemory),
+                      ),
+                      memoryWriteConfirmed: Boolean(
+                        previousClaim &&
+                          confirmedMemoryEffects.some(
+                            (effect) =>
+                              (effect.result as { memoryRequestId?: string }).memoryRequestId ===
+                              item.id,
+                          ),
+                      ),
                       text: [
                         await loadReplyContext(deps.prisma, thread.id, item.messageId),
                         item.text,
@@ -7462,7 +7805,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
               });
               pendingToolNames.push(event.name);
               tryFlushPendingTools();
-              const loopGuard = advanceToolCallLoopGuard(toolCallStreak, event.name, event.args);
+              const loopGuard = advanceToolCallLoopGuard(
+                toolCallStreak,
+                event.name,
+                event.args,
+                event.memoryRequestId,
+              );
               toolCallStreak = loopGuard.streak;
               if (loopGuard.stuck) {
                 approvedEffectReplays.assertDrained();
@@ -7786,6 +8134,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
             error instanceof Error ? error.message : String(error),
             runSecrets,
           );
+          // The terminal failure replaces live progress on every client. Preserve
+          // already produced text and steps in the same fenced transaction, so a
+          // reload cannot erase partial work or imply that the run succeeded.
+          flushPendingTools();
+          const producedBlocks = redactBlocks(
+            appendTextSegment(messageSegments, currentTextSegment),
+            runSecrets,
+          );
+          // Missing memory receipts invalidate the model's confirmation prose.
+          // Retain independently recorded steps, but never persist that claim.
+          const partialBlocks =
+            message === UNVERIFIED_MEMORY_ERROR
+              ? producedBlocks.filter((block) => block.kind !== "text")
+              : producedBlocks;
           const failed = await deps.events.finalizeRun({
             spaceId: run.spaceId,
             threadId: thread.id,
@@ -7797,6 +8159,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             leaseFence: fence,
             outcome: "failed",
             error: message,
+            blocks: partialBlocks,
           });
           if (!failed) return;
           if (failed.continuationRunId) {
@@ -7886,6 +8249,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           ...setupStages,
         });
         detachShutdown?.();
+        await stopCancellationWatch?.();
         clearInterval(heartbeat);
         if (!retainComputerLease) {
           if (screenRelease) {
@@ -8849,6 +9213,20 @@ async function persistMessageInTransaction(
     },
   });
   return { message, eventSeq: event.seq };
+}
+
+function hasAnsweredOrdinaryQuestion(blocks: unknown): boolean {
+  const parsed = MessageBlockSchema.array().safeParse(blocks);
+  return (
+    parsed.success &&
+    parsed.data.some(
+      (block) =>
+        block.kind === "ask" &&
+        block.status === "answered" &&
+        !isApprovalAskBlock(block) &&
+        !isSecretAskBlock(block),
+    )
+  );
 }
 
 /** Provider tool IDs are unique only within a run, never across users or workflows. */

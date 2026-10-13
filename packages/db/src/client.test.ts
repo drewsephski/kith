@@ -1,3 +1,4 @@
+import { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDb,
@@ -112,4 +113,23 @@ describe("createPool", () => {
     expect(pool.listenerCount("connect")).toBeGreaterThan(0);
     expect(() => pool.emit("error", new Error("idle client lost"))).not.toThrow();
   });
+});
+
+it("readiness checkout uses one bounded connection and does not retry 53300", async () => {
+  const failure = Object.assign(new Error("capacity unavailable"), { code: "53300" });
+  const connect = vi.spyOn(Pool.prototype, "connect").mockRejectedValue(failure);
+  try {
+    const pool = createPool("postgres://fixture:fixture@127.0.0.1:9/fixture", {
+      poolMax: 1,
+      connectionTimeoutMillis: 2500,
+      retryTooManyConnections: false,
+    });
+    pools.push(pool);
+    expect(pool.options.max).toBe(1);
+    expect(pool.options.connectionTimeoutMillis).toBe(2500);
+    await expect(pool.connect()).rejects.toBe(failure);
+    expect(connect).toHaveBeenCalledTimes(1);
+  } finally {
+    connect.mockRestore();
+  }
 });

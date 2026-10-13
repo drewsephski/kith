@@ -211,10 +211,11 @@ tags:
 - extendedWaitUntil:
     visible: "Start computer"
     timeout: 10000
+- takeScreenshot: "18-computer-stopped"
 - tapOn: "Start computer"
 - extendedWaitUntil:
     visible: "Take control"
-    timeout: 10000
+    timeout: 90000
 - takeScreenshot: "18-computer"
 
 - openLink: "rakazo:///group-thread?groupId=${RAKAZO_SCREENSHOT_GROUP_ID}&name=Launch%20team"

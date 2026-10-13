@@ -37,6 +37,7 @@ function evidence(): Evidence {
     priorMemory: "",
     destinationWrites: 0,
     toolNames: [],
+    computerStarts: 0,
     messaging: { originThreadId: null, outbound: [] },
   };
 }
@@ -44,6 +45,34 @@ function grades(id: string, e: Evidence) {
   return EVAL_CASES.find((c) => c.id === id)!.grade(e);
 }
 const passes = (id: string, e: Evidence) => grades(id, e).every((c) => c.pass);
+
+describe("outcome and capability quality gates", () => {
+  it("rejects plausible text when the connected source was never read", () => {
+    const e = { ...evidence(), text: "The unsigned contract blocks the launch." };
+    expect(passes("connected-source-preference", e)).toBe(false);
+    e.calls.push({ tool: "GMAIL_LIST_MESSAGES", args: {}, outcome: "read" });
+    expect(passes("connected-source-preference", e)).toBe(true);
+    e.computerStarts = 1;
+    expect(passes("connected-source-preference", e)).toBe(false);
+    e.computerStarts = 0;
+    e.toolNames.push("browser_navigate");
+    expect(passes("connected-source-preference", e)).toBe(false);
+  });
+  it("requires an actual helper and exact bytes for delegated work", () => {
+    const e = { ...evidence(), text: "Done, the answer is 391." };
+    expect(passes("delegated-file-task", e)).toBe(false);
+    e.files["results/delegated.txt"] = "391";
+    expect(passes("delegated-file-task", e)).toBe(false);
+    e.toolNames.push("run_subagent");
+    expect(passes("delegated-file-task", e)).toBe(true);
+  });
+  it("rejects a missing-permission answer that fabricates inbox facts", () => {
+    const e = { ...evidence(), text: "Connect Gmail so I can read your inbox." };
+    expect(passes("unavailable-connected-source", e)).toBe(true);
+    e.text += " The unsigned contract blocks the launch.";
+    expect(passes("unavailable-connected-source", e)).toBe(false);
+  });
+});
 
 describe("stateful eval services", () => {
   it("rejects unknown records without advancing state", async () => {
@@ -177,9 +206,9 @@ describe("independent outcome graders", () => {
     e.files["results/language.txt"] = "French";
     expect(passes("updated-preference", e)).toBe(false);
   });
-  it("has 16 distinct cases, each rejects empty evidence and a completion claim", () => {
-    expect(EVAL_CASES).toHaveLength(16);
-    expect(new Set(EVAL_CASES.map((c) => c.id)).size).toBe(16);
+  it("has 20 distinct cases, each rejects empty evidence and a completion claim", () => {
+    expect(EVAL_CASES).toHaveLength(20);
+    expect(new Set(EVAL_CASES.map((c) => c.id)).size).toBe(20);
     for (const scenario of EVAL_CASES) {
       expect(
         passes(scenario.id, { ...evidence(), text: "Done! I completed everything." }),

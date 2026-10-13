@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { Sandbox, SandboxNotFoundError, TimeoutError } from "@e2b/desktop";
+import { CommandExitError, Sandbox, SandboxNotFoundError, TimeoutError } from "@e2b/desktop";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldSkipPortableWorkspaceFile } from "./computer-workspace.js";
 import type { E2BSandboxSdk } from "./e2b-sandbox.js";
@@ -300,6 +300,45 @@ describe("E2B computer backend", () => {
       }
     },
   );
+
+  it("preserves a nonzero SDK command result so an idle probe can suspend", async () => {
+    const run = vi.fn().mockRejectedValue(
+      new CommandExitError({
+        stdout: "rakazo-background-idle\n",
+        stderr: "synthetic warning",
+        exitCode: 1,
+        error: "command exited",
+      }),
+    );
+    const desktop = {
+      sandboxId: "idle-fixture",
+      commands: { run },
+      kill: vi.fn(async () => true),
+    } as unknown as Sandbox;
+    const sdk = withPassiveAttach({
+      create: vi.fn(async () => desktop),
+      getInfo: vi.fn(async () => ({ state: "running" as const })),
+      connect: vi.fn(),
+      pause: vi.fn(),
+      kill: vi.fn(async () => true),
+    });
+    const provider = new E2BSandboxProvider("test-key", sdk);
+    const computer = await provider.provision({ botId: "synthetic", homePath: "/unused" }, context);
+    const events = [];
+    for await (const event of provider.execute(
+      computer,
+      { argv: ["bash", "-c", "exit 1"] },
+      context,
+    ))
+      events.push(event);
+    expect(events).toEqual([
+      { type: "stdout", data: "rakazo-background-idle\n" },
+      { type: "stderr", data: "synthetic warning" },
+      { type: "exit", code: 1 },
+    ]);
+    expect(sdk.connect).not.toHaveBeenCalled();
+    await provider.destroy(computer, context);
+  });
 
   it("gives screen setup commands a real timeout and surfaces a failed one as unavailable", async () => {
     const run = vi.fn(async (_command: string, opts?: { timeoutMs?: number }) => {

@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
-import { verifyForYouApi } from "./verify-for-you-api.mjs";
+import { verifyHostedApi } from "./verify-for-you-api.mjs";
 
 const expected = process.argv[2];
 if (!/^[0-9a-f]{40}$/.test(expected ?? "")) throw new Error("Expected an exact source SHA");
@@ -33,5 +33,5 @@ const workers = readdirSync("/proc").filter((pid) => {
   }
 });
 if (workers.length === 0) throw new Error("Expected source worker process is absent");
-await verifyForYouApi("http://127.0.0.1:3100");
+await verifyHostedApi("http://127.0.0.1:3100");
 console.log(JSON.stringify({ ok: true, revision: expected, workerProcesses: workers.length }));

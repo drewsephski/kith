@@ -61,7 +61,12 @@ export interface ThreadEvents {
   pauseRunForInput(input: PauseRunForInput): Promise<boolean>;
   pauseRunForTakeover(input: PauseRunForTakeover): Promise<boolean>;
   sendUserMessage(input: SendUserMessageInput): Promise<SendUserMessageResult>;
-  follow(threadId: string, cursor: number, signal?: AbortSignal): AsyncGenerator<ProductEvent>;
+  follow(
+    threadId: string,
+    cursor: number,
+    signal?: AbortSignal,
+    options?: { catchUpMs?: number },
+  ): AsyncGenerator<ProductEvent>;
 }
 
 export interface ClearThreadInput {
@@ -106,6 +111,8 @@ export interface ClaimedSteeringMessage {
   messageId: string;
   text: string;
   blocks: MessageBlock[];
+  /** Present only when replaying a directive claimed by an earlier attempt. */
+  claimedAt?: Date;
 }
 
 export interface FinalizeRunResult {
@@ -135,7 +142,7 @@ export type FinalizeRunInput = FinalizeRunBase &
         blocks: MessageBlock[];
         markUnread?: boolean;
       }
-    | { outcome: "failed"; error: string }
+    | { outcome: "failed"; error: string; blocks?: MessageBlock[] }
   );
 
 export interface PauseRunForInput {
@@ -269,8 +276,15 @@ export function createThreadEvents(
     pauseRunForInput: (input) => pauseRunForInput(prisma, input, realtime),
     pauseRunForTakeover: (input) => pauseRunForTakeover(prisma, input, realtime),
     sendUserMessage: (input) => sendUserMessage(prisma, input, realtime),
-    follow: (threadId, cursor, signal) =>
-      followThreadEvents(prisma, threadId, cursor, realtime, signal, options.catchUpMs),
+    follow: (threadId, cursor, signal, followOptions) =>
+      followThreadEvents(
+        prisma,
+        threadId,
+        cursor,
+        realtime,
+        signal,
+        followOptions?.catchUpMs ?? options.catchUpMs,
+      ),
   };
 }
 
@@ -599,6 +613,7 @@ export async function claimSteering(
         messageId: item.messageId,
         text: blocksToAgentHistoryText(item.message.blocks as MessageBlock[]),
         blocks: item.message.blocks as MessageBlock[],
+        ...(item.claimedAt ? { claimedAt: item.claimedAt } : {}),
       })),
     };
   });
@@ -1254,7 +1269,7 @@ async function finalizeRunOnce(
     });
     if (task.count !== 1) throw new Error("Run task was not available to finalize");
 
-    if (input.outcome === "completed") {
+    if (input.blocks?.length) {
       const completedBlocks = completedRunBlocks(input.blocks, writableRun?.startedAt ?? null, now);
       if (completedBlocks.length > 0) {
         const message = await createThreadMessageInTransaction(tx, {
@@ -1263,7 +1278,7 @@ async function finalizeRunOnce(
           blocks: completedBlocks,
           botId: input.botId,
           runId: input.runId,
-          markUnread: input.markUnread,
+          markUnread: input.outcome === "completed" ? input.markUnread : true,
         });
         await appendEventInTransaction(tx, {
           spaceId: input.spaceId,
@@ -1488,11 +1503,30 @@ export async function* followThreadEvents(
 ): AsyncGenerator<ProductEvent> {
   let seq = cursor;
   const latch = new ChangeLatch();
-  const unsubscribe = realtime
-    ? await realtime
-        .subscribe(threadTopic(threadId), () => latch.notify())
-        .catch(() => async () => {})
-    : async () => {};
+  let finished = false;
+  let unsubscribe: (() => Promise<void>) | undefined;
+  let pollMs = realtime ? Math.min(catchUpMs, POLL_ONLY_CATCH_UP_MS) : catchUpMs;
+  if (realtime) {
+    // Durable reads must not wait for a broken or saturated push connection.
+    void Promise.resolve()
+      .then(() => realtime.subscribe(threadTopic(threadId), () => latch.notify()))
+      .then(
+        async (release) => {
+          if (finished) {
+            await release();
+            return;
+          }
+          unsubscribe = release;
+          pollMs = catchUpMs;
+          latch.notify();
+        },
+        () => {
+          pollMs = Math.min(catchUpMs, POLL_ONLY_CATCH_UP_MS);
+          latch.notify();
+        },
+      )
+      .catch(() => getLogger().warn("late realtime subscription cleanup failed"));
+  }
   try {
     while (!signal?.aborted) {
       const observedGeneration = latch.generation;
@@ -1506,10 +1540,11 @@ export async function* followThreadEvents(
         }
       } while (batchSize === EVENT_BATCH_SIZE && !signal?.aborted);
       if (signal?.aborted) break;
-      await latch.waitForChange(observedGeneration, catchUpMs, signal);
+      await latch.waitForChange(observedGeneration, pollMs, signal);
     }
   } finally {
-    await unsubscribe();
+    finished = true;
+    await unsubscribe?.();
   }
 }
 

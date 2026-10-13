@@ -9,6 +9,11 @@ import { FakeSandboxProvider } from "@rakazo/adapters";
 /** A model must not receive successful shell results for commands the fixture never ran. */
 export class EvalSandboxProvider extends FakeSandboxProvider {
   readonly harnessIssues: string[] = [];
+  provisions = 0;
+  override async provision(...args: Parameters<FakeSandboxProvider["provision"]>) {
+    this.provisions++;
+    return super.provision(...args);
+  }
 
   override async *execute(
     computer: ComputerRef,

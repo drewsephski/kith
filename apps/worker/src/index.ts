@@ -61,6 +61,7 @@ import {
   parsePositiveInteger,
   pushSessionExpiresAt,
   resolveDatabaseUrls,
+  verifyComputerActivitySchema,
 } from "@rakazo/db";
 import { SERVICE_NAMES } from "@rakazo/logging";
 import { createRootLogger } from "@rakazo/logging/axiom";
@@ -82,6 +83,13 @@ async function main() {
   });
   const { pool } = created;
   let { prisma } = created;
+  try {
+    await verifyComputerActivitySchema(prisma);
+  } catch (error) {
+    await prisma.$disconnect();
+    await pool.end();
+    throw error;
+  }
   const realtime = new PostgresRealtimeFanout({
     connectionString: realtimeDatabaseUrl,
     publisher: pool,

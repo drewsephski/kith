@@ -90,6 +90,7 @@ import {
   provisionMessagingIdentity,
   pushSessionExpiresAt,
   requireMembership,
+  verifyComputerActivitySchema,
 } from "@rakazo/db";
 import type { Logger } from "@rakazo/logging";
 import {
@@ -108,7 +109,7 @@ import { mountBillingRoutes } from "./billing-webhook.js";
 import { AUTH_CLIENT_IP_HEADER, authRequestWithClientIp } from "./client-ip.js";
 import type { AppEnv } from "./env.js";
 import { loadEnv } from "./env.js";
-import { healthRoutes } from "./health.js";
+import { checkDatabaseReadiness, healthRoutes } from "./health.js";
 import { mountLocalSettings } from "./local-settings.js";
 import {
   createMessagingInboundHandler,
@@ -203,6 +204,15 @@ export async function createApp(
         applicationName: "rakazo-api",
       });
   let { prisma } = created;
+  try {
+    await verifyComputerActivitySchema(prisma);
+  } catch (error) {
+    if (!prismaOverride) {
+      await created.prisma.$disconnect();
+      await created.pool?.end();
+    }
+    throw error;
+  }
   // Reuse one pool on direct-only deployments. Transaction-pooled deployments
   // need a separate direct pool for Graphile setup and realtime publication.
   const ownedJobPool =
@@ -990,22 +1000,36 @@ export async function createApp(
     })();
   }
 
+  const readinessPool = created.pool
+    ? createPool(env.databaseUrl, {
+        poolMax: 1,
+        applicationName: "kith-readiness",
+        connectionTimeoutMillis: 2_500,
+        retryTooManyConnections: false,
+      })
+    : undefined;
   app.route(
     "/",
-    healthRoutes(() => ({
-      runtime: env.agentRuntime,
-      sandbox: env.sandboxProvider,
-      composio: Boolean(stack.composio),
-      pipedream: Boolean(pipedream),
-      messaging: Boolean(messaging),
-      email: email?.describe().id ?? null,
-      billing: billingProvider?.describe().id ?? null,
-      jobs: jobKind,
-      realtime: realtime.describe().id,
-      secrets: secrets.describe(),
-      degraded: secrets.describe().capabilities.degraded ?? false,
-      revision: env.gitSha ?? null,
-    })),
+    healthRoutes(
+      () => ({
+        runtime: env.agentRuntime,
+        sandbox: env.sandboxProvider,
+        composio: Boolean(stack.composio),
+        pipedream: Boolean(pipedream),
+        messaging: Boolean(messaging),
+        email: email?.describe().id ?? null,
+        billing: billingProvider?.describe().id ?? null,
+        jobs: jobKind,
+        realtime: realtime.describe().id,
+        secrets: secrets.describe(),
+        degraded: secrets.describe().capabilities.degraded ?? false,
+        revision: env.gitSha ?? null,
+      }),
+      (signal) =>
+        readinessPool
+          ? checkDatabaseReadiness(readinessPool, signal)
+          : prisma.$transaction((tx) => tx.$queryRaw`SELECT 1`, { maxWait: 2_500, timeout: 2_500 }),
+    ),
   );
 
   return {
@@ -1051,6 +1075,7 @@ export async function createApp(
       await mcp.close();
       await prisma.$disconnect().catch(() => undefined);
       await created.pool?.end().catch(() => undefined);
+      await readinessPool?.end().catch(() => undefined);
       await ownedJobPool?.end().catch(() => undefined);
       await logger.flush({ timeoutMs: 2_000 });
     },

@@ -3097,10 +3097,13 @@ describe("stopThreadRuns", () => {
       thread: {
         update: vi.fn(async () => ({ nextEventSeq: ++nextEventSeq })),
       },
+      attempt: { updateMany: vi.fn() },
+      task: { updateMany: vi.fn() },
       run: {
+        updateMany: vi.fn(),
         updateManyAndReturn: vi.fn().mockResolvedValue([
-          { id: "run-a", botId: "bot-a" },
-          { id: "run-b", botId: "bot-b" },
+          { id: "run-a", botId: "bot-a", taskId: "task-a" },
+          { id: "run-b", botId: "bot-b", taskId: "task-b" },
         ]),
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
       },
@@ -3236,8 +3239,13 @@ describe("stopThreadRuns", () => {
       thread: {
         update: vi.fn().mockResolvedValue({ nextEventSeq: 5 }),
       },
+      attempt: { updateMany: vi.fn() },
+      task: { updateMany: vi.fn() },
       run: {
-        updateManyAndReturn: vi.fn().mockResolvedValue([{ id: "run-a", botId: "bot-a" }]),
+        updateMany: vi.fn(),
+        updateManyAndReturn: vi
+          .fn()
+          .mockResolvedValue([{ id: "run-a", botId: "bot-a", taskId: "task-a" }]),
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
       },
       steeringMessage: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
@@ -3343,10 +3351,13 @@ describe("stopThreadRuns", () => {
       thread: {
         update: vi.fn(async () => ({ nextEventSeq: ++nextEventSeq })),
       },
+      attempt: { updateMany: vi.fn() },
+      task: { updateMany: vi.fn() },
       run: {
+        updateMany: vi.fn(),
         updateManyAndReturn: vi.fn().mockResolvedValue([
-          { id: "run-a", botId: "bot-a" },
-          { id: "run-b", botId: "bot-b" },
+          { id: "run-a", botId: "bot-a", taskId: "task-a" },
+          { id: "run-b", botId: "bot-b", taskId: "task-b" },
         ]),
         // appendEventInTransaction re-reads the run after the flip.
         findUnique: vi.fn().mockResolvedValue({ status: "cancelled" }),
@@ -3426,13 +3437,33 @@ describe("stopThreadRuns", () => {
       where: { type: "thread.progress", runId: { in: ["run-a", "run-b"] } },
     });
     expect(notify).toHaveBeenCalledWith("thread-1", 3);
+    expect(transaction.task.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["task-a", "task-b"] } },
+      data: { status: "cancelled" },
+    });
+    expect(transaction.attempt.updateMany).toHaveBeenCalledWith({
+      where: { runId: { in: ["run-a", "run-b"] }, status: "running" },
+      data: { status: "cancelled", finishedAt: expect.any(Date) },
+    });
+    expect(transaction.run.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["run-a", "run-b"] } },
+      data: {
+        status: "cancelled",
+        completedAt: expect.any(Date),
+        leaseOwner: null,
+        leaseExpiresAt: null,
+      },
+    });
   });
 
   it("emits no event and skips the wake when nothing was running", async () => {
     const transaction = {
       $queryRaw: vi.fn(),
       thread: { update: vi.fn() },
+      attempt: { updateMany: vi.fn() },
+      task: { updateMany: vi.fn() },
       run: {
+        updateMany: vi.fn(),
         updateManyAndReturn: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
       },

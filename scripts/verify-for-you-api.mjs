@@ -53,6 +53,45 @@ export async function verifyForYouApi(origin, request = fetch) {
   );
 }
 
+/** A static page and liveness response can stay healthy while auth's DB is unavailable. */
+async function verifyAnonymousRoute(origin, request, route, validBody) {
+  try {
+    const response = await request(new URL(route, origin), {
+      credentials: "omit",
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await response.json();
+    if (!response.ok || !validBody(body)) {
+      throw new Error("Unexpected readiness response");
+    }
+  } catch {
+    throw new Error(`Hosted API unavailable: ${route}. Restore the compatible backend first.`);
+  }
+}
+
+/** Existing clients need session/RPC compatibility before an older gateway is upgraded. */
+export async function verifyHostedPreflight(origin, request = fetch) {
+  await Promise.all([
+    verifyForYouApi(origin, request),
+    verifyAnonymousRoute(origin, request, "/api/auth/get-session", (body) => body === null),
+  ]);
+}
+
+export async function verifyHostedApi(origin, request = fetch) {
+  await Promise.all([
+    verifyHostedPreflight(origin, request),
+    verifyAnonymousRoute(
+      origin,
+      request,
+      "/ready",
+      (body) => body?.ok === true && body?.degraded === false,
+    ),
+  ]);
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await verifyForYouApi(process.argv[2]);
+  if (process.argv[3] === "--preflight") await verifyHostedPreflight(process.argv[2]);
+  else await verifyHostedApi(process.argv[2]);
 }

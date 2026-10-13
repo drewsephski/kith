@@ -114,7 +114,7 @@ jobs:
           DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
       - run: pnpm test
       - name: Verify hosted frontend and backend compatibility checks
-        run: node --test scripts/verify-for-you-api.test.mjs scripts/deploy-hosted.test.mjs apps/web/scripts/vercel-build.test.mjs
+        run: node --test scripts/verify-for-you-api.test.mjs scripts/deploy-hosted.test.mjs scripts/preview-mobile-update.test.mjs apps/web/scripts/vercel-build.test.mjs
 
   test-integration:
     name: Postgres journeys
@@ -131,6 +131,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:integration
+      - name: Deterministic product provider acceptance
+        run: pnpm test:canary --offline
+      - name: Upload sanitized product acceptance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: product-agent-acceptance
+          path: test-report/acceptance/product.json
+          if-no-files-found: ignore
 
   test-e2e:
     name: Web E2E
@@ -141,6 +150,16 @@ jobs:
   mobile-native:
     name: Android native acceptance
     uses: ./.github/workflows/mobile-android-screenshots.yml
+
+  publish-mobile-preview:
+    name: Publish compatible preview update
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, check, build, test, test-integration, test-e2e, mobile-native]
+    uses: ./.github/workflows/mobile-preview.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
   publish-mobile-update:
     name: Publish compatible mobile update
@@ -221,12 +240,19 @@ jobs:
             fi
           done
 
+          if [[ "$publish" == true && "$blocked" == false ]]; then
+            runtime_needs_bump="$(node --input-type=module -e 'import { requiresNewNativeRuntime } from "./scripts/preview-mobile-update.mjs"; console.log(requiresNewNativeRuntime())')"
+            if [[ "$runtime_needs_bump" == true ]]; then
+              blocked=true
+            fi
+          fi
+
           if [[ "$blocked" == true ]]; then
             publish=false
             {
               echo "### Mobile OTA skipped"
               echo
-              echo "This revision changes native-sensitive mobile configuration, dependencies, modules, assets, or workflow files. Create new iOS and Android builds instead of publishing it to an older native runtime."
+              echo "Native-sensitive mobile changes require an app-version bump and new iOS and Android builds before publishing to the new runtime."
             } >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$publish" == true ]]; then
             {

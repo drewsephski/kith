@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { captureScreenshot, completeOnboarding, signup } from "./helpers";
 
+test("gateway readiness returns backend state instead of the SPA", async ({ request }) => {
+  const response = await request.get("/ready");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("application/json");
+  expect(response.headers()["cache-control"]).toBe("no-store");
+  expect(await response.json()).toEqual({ ok: true, degraded: false });
+});
+
 test("a failed overlay chunk keeps the shell and the draft, and Refresh loads it", async ({
   page,
 }, testInfo) => {

@@ -409,6 +409,9 @@ async function runWithModel(
     memoryProviders: { resolve: async () => null },
     artifacts: { get },
     events: {
+      async *follow() {
+        yield* [];
+      },
       append,
       finalizeRun,
       claimSteering: vi.fn(async () =>

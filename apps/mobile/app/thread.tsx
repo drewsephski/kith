@@ -27,6 +27,7 @@ import {
   isApprovalAskBlock,
   isAssistantResponding,
   isPeerReceiptBlocks,
+  isRunResponding,
   isRunTerminalEvent,
   isSecretAskBlock,
   latestAnswerableAskMessageId,
@@ -796,14 +797,16 @@ function Thread() {
     const seen = new Set<string>();
     const working = snap?.activeRuns ?? (snap?.run ? [snap.run] : []);
     return working.flatMap((run) => {
-      if (!run.botId || seen.has(run.botId) || !isWorkingStatus(run.status)) return [];
+      if (!run.botId || seen.has(run.botId) || !isRunResponding(run.status)) return [];
       const member = snap?.members?.find((candidate) => candidate.botId === run.botId);
       if (!member) return [];
       seen.add(run.botId);
       return [{ ...member, status: run.status, runId: run.id }];
     });
   }, [inGroup, snap?.activeRuns, snap?.members, snap?.run]);
-  const working = inGroup ? workingGroupBots.length > 0 : isWorkingStatus(currentBotStatus);
+  const working = inGroup
+    ? workingGroupBots.length > 0 || waitingGroupRuns.length > 0
+    : isWorkingStatus(currentBotStatus);
   const footerGroupBots = workingGroupBots.filter(
     (bot) => !hasRunResponseText(visibleMessages, bot.runId),
   );
@@ -2532,7 +2535,7 @@ function Thread() {
   }
 
   const workingFooter =
-    !inGroup && currentBot && isWorkingStatus(currentBotStatus) ? (
+    !inGroup && currentBot && isRunResponding(currentBotStatus) ? (
       <View
         accessibilityLabel={t("{name} is working", { name: currentBot.name })}
         accessibilityRole="text"

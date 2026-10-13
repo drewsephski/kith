@@ -92,6 +92,8 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     .getByTestId("integrations-advanced")
     .locator('[data-slot="collapsible-trigger"]')
     .click();
+  // The server list adds a row above these controls when its request settles.
+  await expect(page.getByText("Linear MCP", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Manage MCP servers", exact: true }).click();
   await expect(page.getByRole("heading", { name: "MCP servers" })).toBeVisible();
   await expect(page.getByText("Linear MCP", { exact: true })).toBeVisible();

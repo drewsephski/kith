@@ -4,6 +4,25 @@ import path from "node:path";
 import type { ElectronApplication, Page } from "@playwright/test";
 import { _electron as electron, expect, test } from "@playwright/test";
 
+async function visibleWindow(app: ElectronApplication, matches: (page: Page) => Promise<boolean>) {
+  // Read crash/visibility state in the main process before touching renderer targets.
+  const visibleUrls = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .filter((win) => !win.isDestroyed() && win.isVisible() && !win.webContents.isCrashed())
+      .map((win) => win.webContents.getURL()),
+  );
+  for (const page of app.windows()) {
+    if (page.isClosed() || !visibleUrls.includes(page.url())) continue;
+    try {
+      const visible = await (await app.browserWindow(page)).evaluate((win) => win.isVisible());
+      if (visible && (await matches(page))) return page;
+    } catch {
+      // A crashed or closing window cannot be the user's recovery surface.
+    }
+  }
+  return undefined;
+}
+
 // The harness provides the real API, migrated disposable PostgreSQL, scripted
 // model and shared frontend. No production accounts or external providers.
 test("packaged Kith authenticates, persists work and consumes native commands", async () => {
@@ -94,43 +113,31 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
     await expect(newComposer).toBeEditable();
     const newRoute = restored.url();
     const restoredId = await (await app.browserWindow(restored)).evaluate((win) => win.id);
-    const recovery = app.waitForEvent("window");
-    await app.evaluate(
-      ({ BrowserWindow }, windowId) =>
-        BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(),
-      restoredId,
-    );
-    const setup = await test.step("Observe renderer crash recovery", () => recovery, {
-      timeout: 20_000,
-    });
-    await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();
-    await setup.getByRole("button", { name: "Continue", exact: true }).click();
+    await app.evaluate(({ BrowserWindow }, windowId) => {
+      // Return the control request before crashing its renderer/debug target.
+      setTimeout(() => BrowserWindow.fromId(windowId)!.webContents.forcefullyCrashRenderer(), 100);
+    }, restoredId);
+    let setup: Page | undefined;
     await expect
       .poll(async () => {
-        const windows = app!.windows();
-        return Promise.all(
-          windows.map((window) =>
-            window
-              .getByRole("combobox", { name: /^Message/ })
-              .isEditable()
-              .catch(() => false),
-          ),
+        setup = await visibleWindow(app!, (page) =>
+          page.getByText("Kith stopped responding.", { exact: false }).isVisible(),
         );
+        return Boolean(setup);
       })
-      .toContain(true);
-    const windows = app.windows();
+      .toBe(true);
+    if (!setup) throw new Error("Missing visible renderer recovery window");
+    await expect(setup.getByText("Kith stopped responding.", { exact: false })).toBeVisible();
+    await setup.getByRole("button", { name: "Continue", exact: true }).click();
     let recoveredWindow: Page | undefined;
-    for (const window of windows) {
-      if (
-        await window
-          .getByRole("combobox", { name: /^Message/ })
-          .isEditable()
-          .catch(() => false)
-      ) {
-        recoveredWindow = window;
-        break;
-      }
-    }
+    await expect
+      .poll(async () => {
+        recoveredWindow = await visibleWindow(app!, (page) =>
+          page.getByRole("combobox", { name: /^Message/ }).isEditable(),
+        );
+        return Boolean(recoveredWindow);
+      })
+      .toBe(true);
     if (!recoveredWindow) throw new Error("Missing recovered authenticated application window");
     await waitForShownWindow(app, recoveredWindow);
     await recoveredWindow.goto(newRoute);
@@ -141,8 +148,13 @@ test("packaged Kith authenticates, persists work and consumes native commands", 
       }),
     ).toBeEditable();
   } finally {
-    await app?.close();
-    await rm(profile, { recursive: true, force: true });
+    const kill = setTimeout(() => app?.process().kill("SIGKILL"), 10_000);
+    try {
+      await app?.close();
+    } finally {
+      clearTimeout(kill);
+      await rm(profile, { recursive: true, force: true });
+    }
   }
 });
 

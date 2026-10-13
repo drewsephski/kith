@@ -3073,6 +3073,37 @@ describe("mobile thread event reduction", () => {
     expect(next?.messages).toEqual([]);
   });
 
+  it("retains the durable partial result once when failure replaces progress", () => {
+    const run = { id: "partial-run", status: "running" };
+    const partial = {
+      ...mobileMessage("partial-message", [
+        { kind: "text", text: "The file was saved; analysis is incomplete." },
+      ]),
+      runId: run.id,
+    };
+    const initial: MobileSnapshot = {
+      ...snapshot([
+        partial,
+        {
+          ...mobileMessage(`progress:${run.id}`, [{ kind: "progress", text: "Working" }]),
+          runId: run.id,
+        },
+      ]),
+      run,
+      activeRuns: [run],
+    };
+    const failure = {
+      type: "run.failed",
+      seq: 11,
+      runId: run.id,
+      payload: { error: "Stream interrupted" },
+    };
+    const settled = applyMobileThreadEvent(initial, failure);
+    expect(settled?.messages).toEqual([partial]);
+    expect(settled?.run?.status).toBe("failed");
+    expect(applyMobileThreadEvent(settled!, failure)?.messages).toEqual([partial]);
+  });
+
   it("updates a cloud agent card from thread.cloud_agent", () => {
     const initial = snapshot([
       mobileMessage("msg-ca", [

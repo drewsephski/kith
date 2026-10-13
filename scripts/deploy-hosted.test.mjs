@@ -16,7 +16,8 @@ function fixture(failure = "", delayed = false) {
     node: `
 echo "node $1" >> "$FIXTURE/log"
 [[ "$1" == scripts/verify-for-you-api.mjs ]] || exit 99
-[[ "$FAILURE" == for-you ]] && exit 1
+if [[ "$FAILURE" == for-you && -f "$FIXTURE/deployed" ]]; then exit 1; fi
+[[ "$FAILURE" == session-preflight ]] && exit 1
 exit 0`,
     timeout: `
 echo "timeout $1 $2" >> "$FIXTURE/log"
@@ -52,6 +53,10 @@ case "$1" in
       [[ "$FAILURE" == deploy ]] && exit 1
     fi ;;
   ssh)
+    if [[ ! -f "$FIXTURE/deployed" ]]; then
+      [[ "$FAILURE" == readiness-preflight ]] && exit 1
+      exit 0
+    fi
     count=0
     [[ -f "$FIXTURE/attempts" ]] && count=$(cat "$FIXTURE/attempts")
     echo $((count + 1)) > "$FIXTURE/attempts"
@@ -93,7 +98,7 @@ test("waits for supervised startup before reporting exact-source success", () =>
   try {
     const result = f.run();
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(f.log().match(/flyctl ssh/g)?.length, 3);
+    assert.equal(f.log().match(/flyctl ssh/g)?.length, 4);
     assert.match(f.log(), /node scripts\/verify-for-you-api\.mjs/);
     assert.doesNotMatch(f.log(), /--image/);
   } finally {
@@ -122,8 +127,8 @@ for (const failure of [
       assert.match(f.log(), /timeout --kill-after=5s 10m/);
       assert.match(f.log(), /timeout --kill-after=5s 5m/);
       if (failure === "ssh-timeout") {
-        assert.equal(f.log().match(/flyctl ssh/g)?.length, 5);
-        assert.equal(f.log().match(/timeout --kill-after=5s 30s/g)?.length, 6);
+        assert.equal(f.log().match(/flyctl ssh/g)?.length, 6);
+        assert.equal(f.log().match(/timeout --kill-after=5s 30s/g)?.length, 7);
       }
     } finally {
       f.close();
@@ -136,6 +141,27 @@ test("never deploys or rolls back when authentication preflight fails", () => {
   try {
     assert.notEqual(f.run().status, 0);
     assert.doesNotMatch(f.log(), /flyctl/);
+  } finally {
+    f.close();
+  }
+});
+
+test("never deploys or rolls back when the session or readiness probe fails", () => {
+  const f = fixture("session-preflight");
+  try {
+    assert.notEqual(f.run().status, 0);
+    assert.doesNotMatch(f.log(), /flyctl/);
+  } finally {
+    f.close();
+  }
+});
+
+test("never deploys or rolls back when direct API readiness fails", () => {
+  const f = fixture("readiness-preflight");
+  try {
+    assert.notEqual(f.run().status, 0);
+    assert.doesNotMatch(f.log(), /flyctl deploy|--image/);
+    assert.match(f.log(), /127\.0\.0\.1:3100\/ready/);
   } finally {
     f.close();
   }
