@@ -133,7 +133,9 @@ export default function ActivityScreen() {
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.55 }]}
             >
               <View style={styles.top}>
-                <Text style={styles.name}>{run.groupName ?? run.botName}</Text>
+                <Text style={styles.name}>
+                  {run.groupName ? `${run.botName} · ${run.groupName}` : run.botName}
+                </Text>
                 <Text style={styles.time}>{formatActivityRelativeTime(run.updatedAt)}</Text>
               </View>
               <Text style={styles.status}>{activityStatusLabel(run.status)}</Text>

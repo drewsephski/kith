@@ -44,7 +44,14 @@ test("Calendar onboarding is visible in the assistant conversation", async ({ pa
   await preferences.click();
   await expect(draft).toBeHidden();
   await preferences.click();
+  await expect(preferences).toHaveAttribute("aria-expanded", "true");
+  await expect(draft).toBeVisible();
   await expect(draft).toHaveValue("Leave preparation time before meetings.");
+  const preferencesPanel = draft.locator('xpath=ancestor::*[@data-slot="collapsible-content"]');
+  await expect(preferencesPanel).not.toHaveAttribute("data-starting-style");
+  await preferencesPanel.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
   await page.getByRole("button", { name: "Use your own Google OAuth app", exact: true }).click();
   await expect(page.getByLabel("OAuth Client ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("OAuth Client secret", { exact: true })).toHaveAttribute(
