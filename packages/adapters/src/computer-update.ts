@@ -53,7 +53,9 @@ export async function cancelComputerUpdate(prisma: PrismaClient, actor: Actor, i
       });
     } else {
       await tx.computerUpdate.updateMany({
-        where: { ...scope, status: { in: ["running", "interrupted"] } },
+        // Interrupted work already has an attended recovery path. A late Stop
+        // must not turn it into a state that requires a missing worker to settle.
+        where: { ...scope, status: "running" },
         data: { status: "stopping" },
       });
     }

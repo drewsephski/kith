@@ -3,6 +3,7 @@ import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
 import { replaceComputer } from "./computer-lifecycle.js";
 import {
   cancelComputerUpdate,
+  computerUpdateView,
   performComputerUpdate,
   queueComputerUpdate,
   reconcileComputerUpdates,
@@ -194,6 +195,19 @@ describe("background computer maintenance", () => {
     const { row, deps, computer } = fixture("running");
     await reconcileComputerUpdates(deps);
     expect(row.status).toBe("interrupted");
+    expect(computer.updateMany).not.toHaveBeenCalled();
+    expect(replacement).not.toHaveBeenCalled();
+  });
+  it("preserves attended recovery when Stop arrives after worker interruption", async () => {
+    const { row, deps, computer } = fixture("running");
+    await reconcileComputerUpdates(deps);
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(row.status).toBe("interrupted");
+    expect(computerUpdateView(row, true).canReleaseReservation).toBe(true);
     expect(computer.updateMany).not.toHaveBeenCalled();
     expect(replacement).not.toHaveBeenCalled();
   });
