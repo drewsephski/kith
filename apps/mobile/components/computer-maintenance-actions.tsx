@@ -12,7 +12,7 @@ import { iosAtLeast } from "../lib/native-controls";
 import { errorText } from "../lib/user-error";
 import { NativeSymbol } from "./native-symbol";
 
-type Action = "recover" | "reset" | "update";
+type Action = "recover" | "reset" | "update" | "stop";
 
 export function ComputerMaintenanceActions({
   botId,
@@ -32,11 +32,12 @@ export function ComputerMaintenanceActions({
   const busy = Boolean(computer?.busyBotName) || computer?.state === "booting" || pending !== null;
 
   async function run(action: Action) {
-    if (busy) return;
+    if (pending !== null || (busy && action !== "stop")) return;
     setPending(action);
     setError(null);
     try {
-      if (action === "recover") await computerUpdates.start(botId, "recover");
+      if (action === "stop") await rpc("computer/stop", { botId });
+      else if (action === "recover") await computerUpdates.start(botId, "recover");
       else if (action === "reset") await rpc("computer/reset", { botId });
       else await computerUpdates.start(botId);
       await onChanged();
@@ -64,7 +65,19 @@ export function ComputerMaintenanceActions({
     );
   }
 
+  const showStop = computer?.state === "booting" || computer?.state === "running";
   const actions = [
+    ...(showStop
+      ? [
+          {
+            id: "stop",
+            title: t("Stop computer"),
+            explanation: t("Stop computer"),
+            destructive: false,
+            onPress: () => void run("stop"),
+          },
+        ]
+      : []),
     {
       id: "recover",
       title: t("Recover computer"),
@@ -111,7 +124,7 @@ export function ComputerMaintenanceActions({
                     label: action.title,
                     description: action.explanation,
                     destructive: action.destructive,
-                    disabled: busy,
+                    disabled: action.id === "stop" ? pending !== null : busy,
                     onPress: action.onPress,
                   })),
                 },
@@ -122,7 +135,7 @@ export function ComputerMaintenanceActions({
     return () => {
       navigation.setOptions({ unstable_headerRightItems: () => [] });
     };
-  }, [navigation, hasComputer, canUpdate, busy, t, botId, onChanged]);
+  }, [navigation, hasComputer, canUpdate, showStop, busy, pending, t, botId, onChanged]);
 
   if (!computer) return null;
   return (
@@ -139,7 +152,10 @@ export function ComputerMaintenanceActions({
               {
                 id: action.id,
                 title: action.title,
-                attributes: { destructive: action.destructive, disabled: busy },
+                attributes: {
+                  destructive: action.destructive,
+                  disabled: action.id === "stop" ? pending !== null : busy,
+                },
               },
             ],
           }))}

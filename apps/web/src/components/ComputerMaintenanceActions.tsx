@@ -21,7 +21,7 @@ import { computerUpdates } from "../lib/computer-updates";
 import { rpc } from "../lib/rpc";
 import { errorText } from "../lib/user-error";
 
-type Action = "recover" | "reset" | "update";
+type Action = "recover" | "reset" | "update" | "stop";
 
 export function ComputerMaintenanceActions({
   botId,
@@ -48,14 +48,16 @@ export function ComputerMaintenanceActions({
     computer.state === "stopped";
   const showReset = showRecover;
   const showUpdate = computer.canUpdate;
-  const hasActions = showRecover || showReset || showUpdate;
+  const showStop = computer.state === "booting" || computer.state === "running";
+  const hasActions = showRecover || showReset || showUpdate || showStop;
   if (!hasActions) return null;
 
   async function run(action: Action) {
     setPending(action);
     setError(null);
     try {
-      if (action === "recover") await computerUpdates.start(botId, "recover");
+      if (action === "stop") await rpc.computer.stop({ botId });
+      else if (action === "recover") await computerUpdates.start(botId, "recover");
       else if (action === "reset") await rpc.computer.reset({ botId });
       else await computerUpdates.start(botId);
       setConfirmAction(null);
@@ -139,7 +141,7 @@ export function ComputerMaintenanceActions({
         <DropdownMenuTrigger
           data-testid="computer-more-button"
           aria-label={t`More computer actions`}
-          disabled={busy && pending === null}
+          disabled={busy && !showStop && pending === null}
           render={<Button variant="ghost" size="icon-sm" className="text-muted-foreground" />}
         >
           <MoreHorizontal />
@@ -149,6 +151,11 @@ export function ComputerMaintenanceActions({
           data-testid="computer-more-menu"
           className="w-auto min-w-44"
         >
+          {showStop ? (
+            <DropdownMenuItem disabled={pending !== null} onClick={() => void run("stop")}>
+              <Trans>Stop computer</Trans>
+            </DropdownMenuItem>
+          ) : null}
           {showRecover ? (
             <DropdownMenuItem
               closeOnClick={false}

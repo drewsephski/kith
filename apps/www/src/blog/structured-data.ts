@@ -22,7 +22,7 @@ export function blogPostStructuredData(input: {
         datePublished: input.published,
         dateModified: input.updated,
         author: {
-          "@type": "Person",
+          "@type": "Organization",
           name: BLOG_AUTHOR,
         },
         publisher: {

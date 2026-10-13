@@ -26,9 +26,11 @@ import { IntegrationSetup } from "./integrations/IntegrationSetup";
 export function CalendarConnection({
   botId,
   compact = false,
+  onConnectionChanged,
 }: {
   botId: string;
   compact?: boolean;
+  onConnectionChanged?: () => void;
 }) {
   const { t } = useLingui();
   const fieldId = useId();
@@ -40,6 +42,17 @@ export function CalendarConnection({
   const [accountId, setAccountId] = useState("");
   const [setupOpen, setSetupOpen] = useState(false);
   const connectionAttempt = useRef<AbortController | null>(null);
+  const previousConnection = useRef<string | null>(null);
+  const connectionChanged = useRef(onConnectionChanged);
+  connectionChanged.current = onConnectionChanged;
+  useEffect(() => {
+    if (!state) return;
+    const identity = JSON.stringify([state.status, state.connectionId, state.managedConnections]);
+    if (previousConnection.current !== null && previousConnection.current !== identity) {
+      connectionChanged.current?.();
+    }
+    previousConnection.current = identity;
+  }, [state]);
   useEffect(() => () => connectionAttempt.current?.abort(), [botId]);
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
@@ -151,7 +164,7 @@ export function CalendarConnection({
       <Button
         variant="ghost"
         aria-label={
-          state?.status === "connected"
+          state?.status === "connected" || state?.managedConnections?.length
             ? t`Calendar`
             : busy || state?.status === "pending"
               ? t`Connecting Calendar…`
@@ -161,7 +174,7 @@ export function CalendarConnection({
         className="app-no-drag max-w-full gap-2"
         disabled={busy || !state}
         onClick={() =>
-          state?.connectionId || (state?.managedConnections?.length ?? 0) > 1
+          state?.connectionId || (state?.managedConnections?.length ?? 0) > 0
             ? setOpen(true)
             : void connect()
         }
@@ -172,7 +185,7 @@ export function CalendarConnection({
           className="rounded-md bg-transparent p-0.5"
         />
         <span className={compact ? "hidden sm:inline" : "truncate"}>
-          {state?.status === "connected"
+          {state?.status === "connected" || state?.managedConnections?.length
             ? t`Calendar`
             : busy || state?.status === "pending"
               ? t`Connecting Calendar…`
@@ -313,7 +326,11 @@ export function CalendarConnection({
                 <Trans>Read-only access. Your briefing starts when you connect.</Trans>
               </p>
               <Button disabled={busy || !timezone} onClick={() => void connect()}>
-                <Trans>Connect Google Calendar</Trans>
+                {state.managedConnections?.length ? (
+                  <Trans>Enable briefing</Trans>
+                ) : (
+                  <Trans>Connect Google Calendar</Trans>
+                )}
               </Button>
             </div>
           ) : null}

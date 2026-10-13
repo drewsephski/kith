@@ -46,7 +46,7 @@ const response: ThreadMessage = {
 };
 it("keeps execution visible after an acknowledgement and falls back to honest generation", async () => {
   await render({ bots: [bot], messages: [response] });
-  expect(host.textContent).toBe("Preparing a response…");
+  expect(host.textContent).toBe("Working…");
   expect(host.querySelector("[data-avatar]")?.getAttribute("data-avatar")).toBe("false");
   await render({
     bots: [bot],
@@ -90,7 +90,7 @@ it("distinguishes a pending approval and simultaneous work by identity", async (
       },
     ],
   });
-  expect(host.textContent).toContain("Scout: Preparing a response…");
+  expect(host.textContent).toContain("Scout: Working…");
   expect(host.textContent).toContain("Helper: Waiting for approval");
   await render({
     latestRun: { id: "peer-run", status: "waiting_input" },

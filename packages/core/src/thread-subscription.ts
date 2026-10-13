@@ -12,6 +12,7 @@ export async function runThreadSubscription(options: {
   loadInitial: () => Promise<ThreadHead | null>;
   loadHead: () => Promise<ThreadHead | null>;
   refresh: () => Promise<unknown>;
+  shouldReconcile?: () => boolean;
   currentSnapshot: () => ThreadHead | null;
   subscribe: (cursor: number) => Promise<AsyncIterable<ProductEvent>>;
   onConnectionState?: (state: "connecting" | "connected" | "reconnecting") => void;
@@ -64,6 +65,19 @@ export async function runThreadSubscription(options: {
       const events = await options.subscribe(cursor);
       options.onConnectionState?.("connected");
       const iterator = events[Symbol.asyncIterator]();
+      let refreshing = false;
+      const reconciliation = options.shouldReconcile
+        ? setInterval(() => {
+            if (signal.aborted || refreshing || !options.shouldReconcile?.()) return;
+            refreshing = true;
+            void options
+              .refresh()
+              .catch(() => null)
+              .finally(() => {
+                refreshing = false;
+              });
+          }, 15_000)
+        : undefined;
       try {
         let pending: Promise<IteratorResult<ProductEvent>> | undefined;
         while (!signal.aborted) {
@@ -93,6 +107,7 @@ export async function runThreadSubscription(options: {
           options.onEvent(event, head);
         }
       } finally {
+        clearInterval(reconciliation);
         // Not awaited: a half-open iterator can take as long to close as it took to go quiet.
         void iterator.return?.(undefined).catch(() => {});
       }

@@ -1,0 +1,25 @@
+---
+import type { FaqItem } from "../alternatives";
+
+type Props = { items: readonly FaqItem[] };
+const { items } = Astro.props;
+---
+
+<div class="journey-faq">
+  {items.map((item) => (
+    <details data-faq-item>
+      <summary>
+        {item.question}
+        <svg class="journey-faq__indicator" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="m5 8 5 5 5-5" />
+        </svg>
+      </summary>
+      <div class="journey-faq__answer"><p>{item.answer}</p></div>
+    </details>
+  ))}
+</div>
+
+<script>
+  import { enhanceFaq } from "../faq";
+  enhanceFaq();
+</script>

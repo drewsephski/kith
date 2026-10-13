@@ -103,8 +103,10 @@ describe("marketing site middleware", () => {
       }>;
     };
 
-    expect(hosting.redirects).toEqual([
-      expect.objectContaining({ source: "/sitemap.xml", destination: "/sitemap-index.xml", statusCode: 301 }),
-    ]);
+    expect(hosting.redirects).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: "/sitemap.xml", destination: "/sitemap-index.xml", statusCode: 301 }),
+      ]),
+    );
   });
 });

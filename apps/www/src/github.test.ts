@@ -9,7 +9,7 @@ import {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  delete process.env.RAKAZO_GITHUB_STARS;
+  delete process.env.KITH_GITHUB_STARS;
 });
 
 describe("GitHub stars", () => {
@@ -24,8 +24,8 @@ describe("GitHub stars", () => {
 
   it("returns the fallback when GitHub does not settle before the deadline", async () => {
     vi.useFakeTimers();
-    const fetchImpl = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      new Promise<Response>(() => undefined),
+    const fetchImpl = vi.fn(
+      (_input: RequestInfo | URL, _init?: RequestInit) => new Promise<Response>(() => undefined),
     );
 
     const pending = fetchGithubStars(fetchImpl as typeof fetch);
@@ -36,7 +36,7 @@ describe("GitHub stars", () => {
   });
 
   it("does not contact GitHub when tests ask for an offline star count", async () => {
-    process.env.RAKAZO_GITHUB_STARS = "offline";
+    process.env.KITH_GITHUB_STARS = "offline";
     const fetchImpl = vi.fn(async () => Response.json({ stargazers_count: 12_345 }));
 
     await expect(fetchGithubStars(fetchImpl as unknown as typeof fetch)).resolves.toBeNull();

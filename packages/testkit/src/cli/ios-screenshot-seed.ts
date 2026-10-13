@@ -44,6 +44,7 @@ export async function seedIosScreenshotFixture(input: {
 }): Promise<IosScreenshotFixture> {
   const populated = await ensureUser(input.apiUrl, input.email, input.password, "Screenshot User");
   const empty = await ensureUser(input.apiUrl, input.emptyEmail, input.password, "Empty User");
+  await rpc(input.apiUrl, populated.headers, "assistant/ensure");
   for (const bot of await rpc<BotRow[]>(input.apiUrl, empty.headers, "bots/list")) {
     await rpc(input.apiUrl, empty.headers, "bots/remove", { botId: bot.id, deleteMemories: false });
   }

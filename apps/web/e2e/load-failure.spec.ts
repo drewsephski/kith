@@ -21,7 +21,7 @@ test("a failed overlay chunk keeps the shell and the draft, and Refresh loads it
 
   const pluginsChunk = /\/pages\/PluginsOverlay\.tsx/;
   await page.route(pluginsChunk, (route) => route.fulfill({ status: 404 }));
-  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await page.getByRole("button", { name: "Add connection", exact: true }).click();
 
   const failed = page.getByRole("alertdialog", { name: "Could not load" });
@@ -35,7 +35,7 @@ test("a failed overlay chunk keeps the shell and the draft, and Refresh loads it
   await page.unroute(pluginsChunk);
   await page.getByRole("button", { name: "Add connection", exact: true }).click();
   await failed.getByRole("button", { name: "Refresh", exact: true }).click();
-  await page.getByRole("button", { name: "Connections", exact: true }).click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).click();
   await page.getByRole("button", { name: "Add connection", exact: true }).click();
   await expect(page.getByPlaceholder("Search apps")).toBeVisible();
 });

@@ -12,6 +12,7 @@ export async function ensurePersonalAssistant(
     description: string;
     instructions: string;
     notifyOnFinish: boolean;
+    pinned?: boolean;
     computerMode: "team";
     spawnKey: string;
   }) => Promise<Bot>,
@@ -24,6 +25,7 @@ export async function ensurePersonalAssistant(
     description: "",
     instructions: PERSONAL_ASSISTANT_GUIDANCE,
     notifyOnFinish: true,
+    pinned: true,
     computerMode: "team",
     spawnKey: `assistant:first:${actor.userId}`,
   });
@@ -67,6 +69,8 @@ export async function personalAssistantBotId(
       create: { spaceId: actor.spaceId, userId: actor.userId, botId: bot.id },
       update: { botId: bot.id },
     });
+    // Set the initial preference once. Subsequent reads preserve an explicit unpin.
+    await tx.bot.updateMany({ where: { ...where, id: bot.id }, data: { pinned: true } });
     return bot.id;
   });
 }

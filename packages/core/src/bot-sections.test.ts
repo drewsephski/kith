@@ -7,6 +7,36 @@ const sections = [
 ];
 
 describe("groupBotsForSidebar", () => {
+  it("keeps an unassigned child with its pinned parent without pinning the child", () => {
+    const parent = {
+      id: "assistant",
+      pinned: true,
+      sectionId: null,
+      parentBotId: null,
+    };
+    const child = {
+      id: "child",
+      pinned: false,
+      sectionId: null,
+      parentBotId: parent.id,
+    };
+    const [group] = groupBotsForSidebar([parent, child], []);
+    expect(group?.bots).toEqual([parent, child]);
+    expect(nestRosterByParent(group?.bots ?? []).map((row) => row.depth)).toEqual([0, 1]);
+    expect(child.pinned).toBe(false);
+    expect(
+      groupBotsForSidebar([parent, { ...child, sectionId: "work" }], sections).map((group) =>
+        group.bots.map((bot) => bot.id),
+      ),
+    ).toEqual([["assistant"], ["child"]]);
+  });
+  it("keeps parent cycles and missing parents reachable", () => {
+    const bots = [
+      { id: "a", parentBotId: "b", pinned: false, sectionId: null },
+      { id: "b", parentBotId: "a", pinned: false, sectionId: null },
+    ];
+    expect(groupBotsForSidebar(bots, []).flatMap((group) => group.bots)).toEqual(bots);
+  });
   it("keeps pinned bots in one top-level group without duplicating them", () => {
     const groups = groupBotsForSidebar(
       [

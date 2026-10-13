@@ -248,6 +248,8 @@ export default function SignIn() {
                       {mode === "up" ? (
                         <TextInput
                           autoComplete="name"
+                          accessibilityLabel={t("Name")}
+                          testID="auth-name"
                           placeholder={t("Name")}
                           placeholderTextColor={tokens.mutedForeground}
                           value={name}
@@ -264,6 +266,8 @@ export default function SignIn() {
                       <TextInput
                         autoCapitalize="none"
                         autoComplete="email"
+                        accessibilityLabel={t("Email")}
+                        testID="auth-email"
                         keyboardType="email-address"
                         placeholder={t("Email")}
                         placeholderTextColor={tokens.mutedForeground}
@@ -280,6 +284,8 @@ export default function SignIn() {
                       {mode !== "forgot" ? (
                         <TextInput
                           autoComplete={mode === "in" ? "current-password" : "new-password"}
+                          accessibilityLabel={t("Password")}
+                          testID="auth-password"
                           placeholder={t("Password")}
                           placeholderTextColor={tokens.mutedForeground}
                           returnKeyType="go"

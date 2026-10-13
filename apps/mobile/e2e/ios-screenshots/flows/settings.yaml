@@ -117,3 +117,17 @@ name: Settings
     timeout: 10000
 - takeScreenshot: 16-language
 - tapOn: "Cancel"
+
+- openLink: "rakazo:///account"
+- tapOn:
+    text: "^Open$"
+    optional: true
+- scrollUntilVisible:
+    element: "Activity"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: ".*Done.*"
+    timeout: 15000
+- takeScreenshot: 17-activity

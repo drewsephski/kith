@@ -5,6 +5,8 @@ import type { ThreadEvent } from "./api";
 export async function recoverThreadSubscription(options: {
   signal: AbortSignal;
   isCurrent: () => boolean;
+  reconcile?: () => Promise<unknown>;
+  shouldReconcile?: () => boolean;
   snapshot: () => Promise<{ threadId: string; cursor?: number } | null | undefined>;
   subscribe: (cursor: number, receive: (event: ThreadEvent) => void) => Promise<void>;
   receive: (event: ThreadEvent) => void;
@@ -23,18 +25,35 @@ export async function recoverThreadSubscription(options: {
       if (identity !== snapshot.threadId) cursor = -1;
       identity = snapshot.threadId;
       cursor = Math.max(cursor, snapshot.cursor ?? -1);
-      await options.subscribe(cursor, (event) => {
-        if (
-          !current() ||
-          (event.threadId && event.threadId !== identity) ||
-          (event.seq !== undefined && event.seq <= cursor)
-        )
-          return;
-        cursor = Math.max(cursor, event.seq ?? -1);
-        retryMs = 250;
-        options.reconnecting(false);
-        options.receive(event);
-      });
+      let refreshing = false;
+      const timer = options.reconcile
+        ? setInterval(() => {
+            if (!current() || refreshing || !options.shouldReconcile?.()) return;
+            refreshing = true;
+            void options
+              .reconcile?.()
+              .catch(() => undefined)
+              .finally(() => {
+                refreshing = false;
+              });
+          }, 15_000)
+        : undefined;
+      try {
+        await options.subscribe(cursor, (event) => {
+          if (
+            !current() ||
+            (event.threadId && event.threadId !== identity) ||
+            (event.seq !== undefined && event.seq <= cursor)
+          )
+            return;
+          cursor = Math.max(cursor, event.seq ?? -1);
+          retryMs = 250;
+          options.reconnecting(false);
+          options.receive(event);
+        });
+      } finally {
+        clearInterval(timer);
+      }
     } catch (error) {
       if (current()) options.failed(error);
     }

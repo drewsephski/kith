@@ -1,4 +1,4 @@
-export const BLOG_AUTHOR = "Elie Steinbock";
+export const BLOG_AUTHOR = "Kith";
 
 export function formatPostDate(value: Date): string {
   return new Intl.DateTimeFormat("en-US", {

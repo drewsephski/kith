@@ -71,7 +71,9 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
               );
             },
           },
-          tool("remember", { content: MEMORY }),
+          // The product reads both bot and shared memory. Exercise the shared
+          // writer here; the runtime/product regressions also cover remember.
+          tool("save_shared_memory", { path: "MEMORY.md", content: MEMORY }),
           result("Remembered your preference.", /true/),
         ],
       };
@@ -80,7 +82,7 @@ export function acceptanceFixture(scenario: AcceptanceScenario) {
         prompt: "What is my saved preferred notebook color? Answer only the color; do not guess.",
         steps: [
           {
-            ...text("violet-731"),
+            ...text("Violet-731"),
             expect: (request: ModelEmulatorRequest) => {
               assert.ok(
                 JSON.stringify(request.messages).includes(MEMORY),

@@ -54,7 +54,7 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await expect(aside.locator("[data-sidebar-group]").getByText("Kith").first()).toBeVisible();
   await captureActivitySidebar(page, testInfo, "57-activity-mode-off");
 
-  const composer = page.getByPlaceholder(/Message/);
+  const composer = page.getByRole("combobox", { name: /^Message/ });
   await composer.fill("keep working until I stop you");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
@@ -68,6 +68,8 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   // Remount ActivityList so the first poll sees the in-flight run (15s interval otherwise).
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible({
@@ -81,11 +83,26 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   );
   await captureActivitySidebar(page, testInfo, "58-activity-now");
 
+  // Cancellation commits, but its reply is lost: a fresh server snapshot must
+  // reconcile the result rather than display a false Stop failure.
+  await page.route("**/rpc/threads/stop", async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    await route.fulfill({ status: 503, json: { message: "Fixture stop reply unavailable" } });
+  });
   await page.getByRole("button", { name: "Stop", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0);
+  await composer.fill("A follow-up draft");
+  await expect(page.getByRole("button", { name: "Send" })).toBeEnabled({ timeout: 30_000 });
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await composer.fill("");
+  await page.unroute("**/rpc/threads/stop");
+  await captureScreenshot(page, testInfo, "58b-stop-response-reconciled");
 
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
   await expect(page.getByText("Loading activity…")).toBeHidden({ timeout: 20_000 });
@@ -197,6 +214,8 @@ test("activity filters keep retry when a refresh fails", async ({ page }) => {
   await activityToggle.click();
   await page.reload();
   await openAdvancedNavigation(page);
+  await expect(activityToggle).toHaveAttribute("aria-pressed", "false");
+  await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityRow(page, "Kith")).toBeVisible({ timeout: 20_000 });
 

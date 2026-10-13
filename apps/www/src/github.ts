@@ -5,7 +5,7 @@ export const GITHUB_STARS_TIMEOUT_MS = 5_000;
 export const MAX_GITHUB_STARS_RESPONSE_BYTES = 64 * 1024;
 
 export async function fetchGithubStars(fetchImpl: typeof fetch = fetch): Promise<number | null> {
-  if (process.env.RAKAZO_GITHUB_STARS === "offline") return null;
+  if (process.env.KITH_GITHUB_STARS === "offline") return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), GITHUB_STARS_TIMEOUT_MS);
   try {
@@ -13,7 +13,7 @@ export async function fetchGithubStars(fetchImpl: typeof fetch = fetch): Promise
       fetchImpl(GITHUB_API_REPO, {
         headers: {
           Accept: "application/vnd.github+json",
-          "User-Agent": "rakazo-www",
+          "User-Agent": "kith-www",
         },
         signal: controller.signal,
       }),

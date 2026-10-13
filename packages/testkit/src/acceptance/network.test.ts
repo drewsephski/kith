@@ -1,5 +1,46 @@
+import { createServer } from "node:http";
 import { expect, it, vi } from "vitest";
 import { guardAcceptanceNetwork } from "./network.js";
+
+it("never follows an allowed endpoint redirect to another destination", async () => {
+  let redirectedRequests = 0;
+  const destination = createServer((_request, response) => {
+    redirectedRequests++;
+    response.end("synthetic");
+  });
+  await new Promise<void>((resolve) => destination.listen(0, "127.0.0.1", resolve));
+  const address = destination.address();
+  if (!address || typeof address === "string") throw new Error("Test listener unavailable");
+  const source = createServer((_request, response) => {
+    response.writeHead(302, { location: `http://127.0.0.1:${address.port}/destination` });
+    response.end();
+  });
+  await new Promise<void>((resolve) => source.listen(0, "127.0.0.1", resolve));
+  try {
+    const origin = source.address();
+    if (!origin || typeof origin === "string") throw new Error("Test listener unavailable");
+    const url = `http://127.0.0.1:${origin.port}`;
+    const guard = guardAcceptanceNetwork({
+      modelOrigin: url,
+      e2b: false,
+      maxRequests: 1,
+      deadline: Date.now() + 2000,
+    });
+    await expect(guard.fetch(new Request(url, { redirect: "follow" }))).rejects.toThrow();
+    expect(redirectedRequests).toBe(0);
+    expect(guard.requests).toBe(1);
+  } finally {
+    await Promise.all(
+      [source, destination].map(
+        (server) =>
+          new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+            server.closeAllConnections();
+          }),
+      ),
+    );
+  }
+});
 
 it("counts actual HTTP retries and blocks another model or connected account destination", async () => {
   const transport = vi.fn<typeof fetch>().mockResolvedValue(new Response("synthetic"));
@@ -19,6 +60,10 @@ it("counts actual HTTP retries and blocks another model or connected account des
   );
   await expect(guard.fetch("https://mail.example.test/private")).rejects.toThrow("destination");
   expect(transport).toHaveBeenCalledTimes(2);
+  expect(transport).toHaveBeenLastCalledWith(
+    "https://model.example.test/v1/chat/completions",
+    expect.objectContaining({ redirect: "error" }),
+  );
 });
 it("allows only HTTPS E2B domains and honors the overall runtime deadline", async () => {
   const transport = vi.fn<typeof fetch>().mockResolvedValue(new Response("synthetic"));

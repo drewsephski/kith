@@ -12,7 +12,10 @@ function database() {
       upsert: vi.fn().mockResolvedValue({}),
       delete: vi.fn().mockResolvedValue({}),
     },
-    bot: { findFirst: vi.fn().mockResolvedValue(null) },
+    bot: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    },
   };
   const prisma = {
     $transaction: async (run: (value: typeof tx) => Promise<string | null>) => run(tx),
@@ -32,6 +35,7 @@ describe("personal assistant binding", () => {
       select: { id: true },
     });
     expect(tx.personalAssistant.upsert).not.toHaveBeenCalled();
+    expect(tx.bot.updateMany).not.toHaveBeenCalled();
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
   });
 
@@ -53,6 +57,10 @@ describe("personal assistant binding", () => {
       where: { spaceId_userId: actor },
       create: { ...actor, botId: "first-root" },
       update: { botId: "first-root" },
+    });
+    expect(tx.bot.updateMany).toHaveBeenCalledWith({
+      where: { ...actor, id: "first-root", archivedAt: null },
+      data: { pinned: true },
     });
   });
 

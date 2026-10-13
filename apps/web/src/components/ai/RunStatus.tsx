@@ -35,7 +35,7 @@ export function RunStatus({
                 ? t`Queued…`
                 : bot.status === "leased"
                   ? t`Starting…`
-                  : t`Preparing a response…`));
+                  : t`Working…`));
           const name = bot.name ?? t`Bot`;
           return (
             <ActiveBotGlyph

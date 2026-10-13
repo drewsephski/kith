@@ -10,15 +10,14 @@ const starsLabel = stars === null ? "Star" : formatStarCount(stars);
 
 <BaseLayout
   title="Terms · Kith"
-  description="Service operator and open-source terms for Kith."
+  description="Service and open-source information for Kith."
 >
   <div class="container">
     <Header starsLabel={starsLabel} />
     <main id="main" class="privacy-copy">
       <h1>Terms of Service</h1>
-      <p>Kith is open-source software. The operator of the service you use is responsible for its policies, data handling, and any commercial terms. Contact that operator before sharing private information.</p>
-      <p>The fork does not claim to operate the upstream Rakazo service. Its <a href="https://rakazo.com/terms/" rel="noreferrer" target="_blank">upstream terms policy</a> describes that service and does not establish policies for a separate Kith deployment.</p>
-      <p>Self-hosting and service configuration are described in the <a href="https://github.com/drewsephski/kith/blob/main/docs/hosted-deployment.md">deployment guide</a>.</p>
+      <p>Kith is open-source software. The service operator is responsible for its policies, data handling, and any commercial terms. For questions about your account or the service, visit <a href="/support/">Support</a>.</p>
+      <p>Read the <a href="/privacy/">privacy policy</a> to understand how information is processed and the choices available to you. The <a href="https://github.com/drewsephski/kith/blob/main/LICENSE">Apache-2.0 license</a> covers the source code; it does not set the terms of the hosted service.</p>
     </main>
     <Footer />
   </div>

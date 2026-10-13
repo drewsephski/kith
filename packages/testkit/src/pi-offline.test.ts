@@ -992,7 +992,7 @@ describe("real Pi against an offline model HTTP endpoint", () => {
     expect(events).toContainEqual({ type: "progress", text: "Writing a file…", activity: true });
     expect(events).toContainEqual({
       type: "progress",
-      text: "Preparing a response…",
+      text: "Working…",
       activity: true,
     });
     expect(events).toContainEqual({

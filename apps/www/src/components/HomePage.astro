@@ -1,6 +1,7 @@
 ---
 import Button from "./Button.astro";
 import Footer from "./Footer.astro";
+import FaqAccordion from "./FaqAccordion.astro";
 import { getJourneyCopy } from "../i18n/journey";
 import Header from "./Header.astro";
 import { ProductDemo } from "./ProductDemo";
@@ -18,8 +19,6 @@ import { fetchGithubStars, formatStarCount } from "../github";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { homeStructuredData } from "../structured-data";
 import {
-  GITHUB_URL,
-  SELF_HOST_GUIDE_PATH,
   webStartHref,
   SITE_URL,
 } from "../site";
@@ -92,22 +91,16 @@ const structuredData = homeStructuredData({
         <ol>{journey.steps.map((step) => <li><h3>{step.title}</h3><p>{step.body}</p></li>)}</ol>
       </section>
 
-      <section id="selfhost" class="section journey-open">
+      <section id="your-choice" class="section journey-open">
         <div><h2 class="section-heading">{journey.openTitle}</h2><p class="section-copy">{journey.openBody}</p></div>
-        <div class="selfhost-cta">
-          <Button href={SELF_HOST_GUIDE_PATH} variant="secondary">{copy.openSource.readTheDocs}</Button>
-          <Button href={GITHUB_URL} variant="secondary" external>{copy.hero.viewOnGithub}</Button>
+        <div class="journey-choice-actions">
+          <Button href={locale === "en" ? "/blog/getting-started-with-kith/" : `${homeHref}#how-it-works`} variant="secondary">{journey.how}</Button>
         </div>
       </section>
 
       <section id="faq" class="section journey-faq-section" aria-labelledby="faq-heading">
         <h2 id="faq-heading" class="section-heading">{copy.faq.heading}</h2>
-        <div class="journey-faq">{journey.faq.map((item) => (
-          <details data-faq-item>
-            <summary>{item.question}<svg class="journey-faq__indicator" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 8 5 5 5-5" /></svg></summary>
-            <div class="journey-faq__answer"><p>{item.answer}</p></div>
-          </details>
-        ))}</div>
+        <FaqAccordion items={journey.faq} />
       </section>
 
       <section class="section journey-close">
@@ -129,8 +122,3 @@ const structuredData = homeStructuredData({
     />
   </div>
 </BaseLayout>
-
-<script>
-  import { enhanceFaq } from "../faq";
-  enhanceFaq();
-</script>

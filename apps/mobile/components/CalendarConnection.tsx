@@ -1,8 +1,10 @@
 import type { Connection, ConnectionCatalogItem, IntegrationSetupState } from "@rakazo/contracts";
 import { resolveFeaturedCatalogItem, waitForAppConnection } from "@rakazo/core";
+import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, AppState, Linking, View } from "react-native";
 import { captureApiRequestContext, rpc } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import { integrationsCacheScope, isIntegrationsScopeCurrent } from "../lib/integrations-cache";
 import { loadLastBotId } from "../lib/last-bot";
 import { errorText } from "../lib/user-error";
@@ -18,6 +20,8 @@ type State = {
   status: "connected" | "pending" | "disconnected" | "error";
 };
 export function CalendarConnection({ botId: requestedBotId }: { botId?: string } = {}) {
+  const router = useRouter();
+  const { t } = useI18n();
   const [state, setState] = useState<State | null>(null);
   const [busy, setBusy] = useState(false);
   const attempt = useRef<AbortController | null>(null);
@@ -167,7 +171,7 @@ export function CalendarConnection({ botId: requestedBotId }: { botId?: string }
         label={
           busy
             ? "Connecting Calendar…"
-            : state?.status === "connected"
+            : state?.status === "connected" || state?.managedConnections?.length
               ? "Google Calendar"
               : state?.status === "pending"
                 ? "Connecting Calendar…"
@@ -184,11 +188,18 @@ export function CalendarConnection({ botId: requestedBotId }: { botId?: string }
             return;
           }
           if (!state?.connectionId) {
-            chooseAccount();
+            if (state?.managedConnections?.length) {
+              Alert.alert("Google Calendar", undefined, [
+                { text: "Cancel", style: "cancel" },
+                { text: t("View schedule"), onPress: () => router.push("/(settings)/calendar") },
+                { text: t("Enable briefing"), onPress: chooseAccount },
+              ]);
+            } else chooseAccount();
             return;
           }
           Alert.alert("Google Calendar", undefined, [
             { text: "Cancel", style: "cancel" },
+            { text: t("View schedule"), onPress: () => router.push("/(settings)/calendar") },
             ...(state.status !== "connected" ? [{ text: "Connect", onPress: chooseAccount }] : []),
             {
               text: state.managedConnectionId ? "Disconnect briefing" : "Disconnect",

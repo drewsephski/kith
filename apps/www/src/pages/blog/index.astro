@@ -12,12 +12,13 @@ const posts = (await getCollection("blog")).sort(
 
 <SiteFrame
   title="Blog – Kith"
-  description="Notes on running an open source AI agent yourself, including setup and how Kith compares with other projects."
+  description="Practical ways to plan your day, delegate a task, and choose an AI assistant that fits your life."
 >
-  <h1>Blog</h1>
+  <h1>A little help, in practice</h1>
+  <p>Simple guides and real tasks to try with your assistant.</p>
   <nav class="blog-cats" aria-label="Categories">
     {
-      BLOG_CATEGORIES.map((category) => (
+      BLOG_CATEGORIES.filter((category) => posts.some((post) => post.data.category === category)).map((category) => (
         <a href={categoryPath(category)}>{CATEGORY_LABEL[category]}</a>
       ))
     }

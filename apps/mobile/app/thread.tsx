@@ -16,6 +16,7 @@ import {
   appendNewerThreadPage,
   attachmentsForThread,
   buildComposerMentionOptions,
+  captureThreadStop,
   cloudAgentHttpsUrl,
   formatFileSize,
   formatMessageTime,
@@ -43,6 +44,7 @@ import {
   SLASH_ACTIONS,
   selectedAskActionLabel,
   serializeComposerPrompt,
+  threadStopIsSettled,
   threadWindowMessages,
   timeSeparatorIds,
   truncateSlashDescription,
@@ -154,6 +156,7 @@ import { confirmDeleteBot, restoreArchivedBot } from "../lib/bot-lifecycle";
 import { findSwitchTarget, ringOnArrival, takeRingOnArrival } from "../lib/bot-switch";
 import { setCallProviderTranscribe, startCall, useCallSession } from "../lib/call-session";
 import { transparentColor } from "../lib/color";
+import { computerUpdates } from "../lib/computer-updates";
 import { loadDeviceVoiceEnabled } from "../lib/device-voice";
 import { available as dictationAvailable } from "../lib/dictation";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
@@ -1491,6 +1494,20 @@ function Thread() {
     void recoverThreadSubscription({
       signal: abort.signal,
       isCurrent,
+      reconcile: refresh,
+      shouldReconcile: () =>
+        AppState.currentState === "active" &&
+        navigation.isFocused() &&
+        Boolean(
+          snapRef.current?.activeRuns?.some((run) =>
+            ["queued", "leased", "running", "waiting_input", "waiting_takeover"].includes(
+              run.status,
+            ),
+          ) ||
+            ["queued", "leased", "running", "waiting_input", "waiting_takeover"].includes(
+              snapRef.current?.run?.status ?? "",
+            ),
+        ),
       snapshot: async () => {
         if (
           snapRef.current &&
@@ -1575,6 +1592,14 @@ function Thread() {
       abort.abort();
     };
   }, [botId, groupId, readOnly, markReadIfVisible, refreshMentionBots]);
+
+  useEffect(() => {
+    if (!botId && !groupId) return;
+    const scopeCurrent = captureMobileScreenScope();
+    return computerUpdates.subscribeSettled(() => {
+      if (scopeCurrent()) void refresh().catch(() => undefined);
+    });
+  }, [botId, groupId]);
 
   useEffect(() => {
     if (!botId && !groupId) return;
@@ -1855,6 +1880,13 @@ function Thread() {
     const targetBotId = botId;
     const targetGroupId = groupId;
     if ((!targetBotId && !targetGroupId) || sending) return;
+    const request = captureThreadStop(snapRef.current);
+    const scopeCurrent = captureMobileScreenScope();
+    const epoch = historyEpoch.current;
+    const current = () =>
+      scopeCurrent() &&
+      epoch === historyEpoch.current &&
+      isCurrentTarget(targetBotId, targetGroupId);
     setSending(true);
     try {
       await rpc(
@@ -1862,7 +1894,8 @@ function Thread() {
         targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },
       );
     } catch (err) {
-      if (isCurrentTarget(targetBotId, targetGroupId)) {
+      const next = current() ? await refresh().catch(() => null) : null;
+      if (current() && !threadStopIsSettled(request, next)) {
         Alert.alert(t("Failed to stop work"), errorText(err, t("Try again.")));
       }
       setSending(false);
@@ -2537,7 +2570,7 @@ function Thread() {
                 ? t("Queued…")
                 : currentBotStatus === "leased"
                   ? t("Starting…")
-                  : t("Preparing a response…")))}
+                  : t("Working…")))}
         </Text>
       </View>
     ) : inGroup && (workingGroupBots.length > 0 || waitingGroupRuns.length > 0) ? (
@@ -2611,7 +2644,7 @@ function Thread() {
                     ? t("Queued…")
                     : bot.status === "leased"
                       ? t("Starting…")
-                      : t("Preparing a response…")))}
+                      : t("Working…")))}
             </Text>
           ))}
         </View>

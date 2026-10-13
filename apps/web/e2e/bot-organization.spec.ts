@@ -21,6 +21,8 @@ test("pinned bots and sidebar sections persist", async ({ page }, testInfo) => {
   const bot = sidebar.getByRole("button", { name: /^Kith/ });
 
   await bot.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Unpin", exact: true }).click();
+  await bot.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Pin", exact: true }).click();
   await expect(sidebar.locator('[data-sidebar-group="pinned"]')).toContainText("Kith");
   await captureScreenshot(page, testInfo, "pinned-bots");
@@ -81,6 +83,9 @@ test("bots can be reordered by drag or keyboard and keep that order", async ({ p
   await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
+  await rpc(page, "bots/update", { botId: chiefId, pinned: false });
+  await page.reload();
+  await openAdvancedNavigation(page);
   const alpha = await rpc<{ id: string }>(page, "bots/create", {
     name: "Alpha",
     title: "",
@@ -274,6 +279,9 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
   await openAdvancedNavigation(page);
 
   const chiefId = activeBotId(page);
+  await rpc(page, "bots/update", { botId: chiefId, pinned: false });
+  await page.reload();
+  await openAdvancedNavigation(page);
   const partner = await rpc<{ id: string }>(page, "bots/create", {
     name: "Partner",
     title: "",

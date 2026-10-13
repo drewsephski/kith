@@ -1,6 +1,7 @@
 import type { AdapterContext } from "@rakazo/adapter-kit";
 import { computerControlExpireJobKey } from "@rakazo/adapter-kit";
-import { type ComputerUpdate, ComputerUpdateSchema } from "@rakazo/contracts";
+import type { Actor, ComputerUpdate } from "@rakazo/contracts";
+import { ComputerUpdateSchema } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import type { Prisma, PrismaClient, ThreadEvents } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
@@ -27,6 +28,40 @@ const STALE_MS = 10 * 60_000;
 const UNCONFIRMED_HANDBACK_STATUSES = ["reserving", "revoking"] as const;
 const PENDING_HANDBACK_STATUSES = ["reserving", "revoking", "revoked"] as const;
 
+/** A stop request retains the fence until the worker's provider calls have settled. */
+export async function cancelComputerUpdate(prisma: PrismaClient, actor: Actor, id: string) {
+  const scope = {
+    id,
+    computer: {
+      spaceId: actor.spaceId,
+      bots: { some: { userId: actor.userId, archivedAt: null } },
+    },
+  };
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.computerUpdate.findFirst({
+      where: scope,
+    });
+    if (!row) throw new Error("Computer operation is unavailable");
+    const queued = await tx.computerUpdate.updateMany({
+      where: { ...scope, status: "queued" },
+      data: { status: "cancelled" },
+    });
+    if (queued.count === 1) {
+      await tx.computer.updateMany({
+        where: { id: row.computerId, maintenanceId: id },
+        data: { maintenanceId: null },
+      });
+    } else {
+      await tx.computerUpdate.updateMany({
+        // Interrupted work already has an attended recovery path. A late Stop
+        // must not turn it into a state that requires a missing worker to settle.
+        where: { ...scope, status: "running" },
+        data: { status: "stopping" },
+      });
+    }
+  });
+}
+
 export function computerUpdateView(
   row: {
     action: string;
@@ -39,7 +74,7 @@ export function computerUpdateView(
   isDeploymentOwner = false,
 ): ComputerUpdate {
   return ComputerUpdateSchema.parse({
-    canReleaseReservation: isDeploymentOwner && row.status === "interrupted",
+    canReleaseReservation: isDeploymentOwner && ["interrupted", "stopping"].includes(row.status),
     action: row.action,
     id: row.id,
     botId: row.computer.bots.some((bot) => bot.id === row.botId)
@@ -529,6 +564,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
     include: { computer: true },
   });
   const controller = new AbortController();
+  const operationSignal = controller.signal;
   const heartbeat = setInterval(() => {
     void deps.prisma.computerUpdate
       .updateMany({ where: { id: updateId, status: "running" }, data: { updatedAt: new Date() } })
@@ -536,7 +572,7 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         if (result.count !== 1) controller.abort();
       })
       .catch(() => controller.abort());
-  }, 30_000);
+  }, 1500);
   try {
     const bot = await deps.prisma.bot.findFirst({
       where: { id: update.botId, computerId: update.computerId, archivedAt: null },
@@ -553,11 +589,11 @@ export async function performComputerUpdate(deps: Deps, updateId: string) {
         botId: update.botId,
         spaceId: update.computer.spaceId,
         userId: bot.userId,
-        signal: controller.signal,
+        signal: operationSignal,
       },
       "none",
       async (stage) => {
-        controller.signal.throwIfAborted();
+        operationSignal.throwIfAborted();
         const result = await deps.prisma.computerUpdate.updateMany({
           where: { id: updateId, status: "running" },
           data: { stage: update.action === "recover" && stage === "saving" ? "preparing" : stage },
@@ -583,10 +619,18 @@ async function finishUpdate(
   status: "completed" | "failed",
 ) {
   await prisma.$transaction(async (tx) => {
-    const finished = await tx.computerUpdate.updateMany({
+    let finished = await tx.computerUpdate.updateMany({
       where: { id, status: { in: ["running", "interrupted"] } },
       data: { status },
     });
+    // The row predicate determines which intent won; a read before this write
+    // cannot safely decide whether Stop arrived while the provider was settling.
+    if (finished.count !== 1) {
+      finished = await tx.computerUpdate.updateMany({
+        where: { id, status: "stopping" },
+        data: { status: "cancelled" },
+      });
+    }
     if (finished.count !== 1) return;
     await tx.computer.updateMany({
       where: { id: computerId, maintenanceId: id },
@@ -600,7 +644,10 @@ export async function reconcileComputerUpdates(deps: Pick<Deps, "prisma" | "jobs
     where: {
       OR: [
         { status: "queued" },
-        { status: "running", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
+        {
+          status: { in: ["running", "stopping"] },
+          updatedAt: { lt: new Date(Date.now() - STALE_MS) },
+        },
         { status: "reserving", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
         { status: "revoking", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
         { status: "revoked", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
@@ -655,8 +702,10 @@ export async function reconcileComputerUpdates(deps: Pick<Deps, "prisma" | "jobs
     } else {
       await deps.prisma.$transaction(async (tx) => {
         const stale = await tx.computerUpdate.updateMany({
-          where: { id: update.id, status: "running", updatedAt: update.updatedAt },
-          data: { status: "interrupted" },
+          where: { id: update.id, status: update.status, updatedAt: update.updatedAt },
+          // Stale cancellation remains cancellation intent. Refresh its timestamp
+          // so these reserved rows do not starve other work in the bounded scan.
+          data: { status: update.status === "stopping" ? "stopping" : "interrupted" },
         });
         // A stale heartbeat is not proof that provider calls have stopped. Only
         // the worker's settled path can release this reservation.

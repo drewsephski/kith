@@ -29,13 +29,18 @@ name: Fresh introduction and first assistant
 - takeScreenshot: 04-auth
 - runFlow: ../subflows/custom-server.yaml
 # This account has no bots; preparation must not require manual bot creation.
-- tapOn: "Sign in"
+- tapOn: "^Sign in$"
 - tapOn: "Email"
 - inputText: ${RAKAZO_SCREENSHOT_EMPTY_EMAIL}
-- tapOn: "Password"
+- tapOn: "^Password$"
 - inputText: ${RAKAZO_SCREENSHOT_PASSWORD}
 - hideKeyboard
-- tapOn: "Sign in"
+- tapOn: "^Sign in$"
+- extendedWaitUntil:
+    visible: ".*Kith.*Pinned.*"
+    timeout: 30000
+- takeScreenshot: 05-first-inbox
+- tapOn: ".*Kith.*Pinned.*"
 - extendedWaitUntil:
     visible: "What should I help you with first\\?"
     timeout: 30000

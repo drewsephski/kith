@@ -18,7 +18,7 @@ async function captureScreenshot(page: Page, testInfo: TestInfo, name: string) {
 
 test("homepage screenshots", async ({ page }, testInfo) => {
   // This is a capture job, enlarged to record the responsive and locale matrix.
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   for (const width of [320, 375, 768, 860, 1024, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
@@ -41,20 +41,36 @@ test("homepage screenshots", async ({ page }, testInfo) => {
   for (const path of [
     "download",
     "blog",
-    "blog/self-host-an-ai-agent",
+    "blog/getting-started-with-kith",
+    "blog/choosing-an-ai-assistant",
+    "blog/openclaw-vs-hermes-vs-kith",
+    "grok-bot-alternative",
+    "muse-alternative",
+    "dots-alternative",
+    "instinct-alternative",
+    "hark-alternative",
+    "hermes-alternative",
     "alternatives",
     "openclaw-alternative",
     "privacy",
     "terms",
     "about",
     "support",
-    "self-hosted-ai-agent",
   ]) {
     for (const width of [375, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/${path}/`);
       await page.waitForLoadState("load");
       await captureScreenshot(page, testInfo, `${path.replaceAll("/", "-")}-${width}`);
+      const faq = page.locator("[data-faq-item] summary");
+      if (await faq.count()) {
+        await faq.first().click();
+        await page.waitForFunction(() => {
+          const item = document.querySelector("[data-faq-item]");
+          return item?.getAnimations({ subtree: true }).length === 0;
+        });
+        await captureScreenshot(page, testInfo, `${path.replaceAll("/", "-")}-faq-open-${width}`);
+      }
     }
   }
 });

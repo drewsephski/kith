@@ -74,8 +74,25 @@ databaseSuite("Personal assistant provisioning (PostgreSQL, offline)", () => {
     expect(await ensurePersonalAssistant(prisma, actor, create)).toBe(ids[0]);
     expect(await prisma.bot.count({ where: { spaceId: actor.spaceId } })).toBe(1);
     expect(await prisma.personalAssistant.count({ where: { spaceId: actor.spaceId } })).toBe(1);
+    expect((await prisma.bot.findUniqueOrThrow({ where: { id: ids[0] } })).pinned).toBe(true);
     expect(await prisma.run.count({ where: { spaceId: actor.spaceId } })).toBe(0);
     expect(await prisma.task.count({ where: { spaceId: actor.spaceId } })).toBe(0);
+  });
+  it("preserves an explicit unpin on retry and leaves additional bots unpinned", async () => {
+    const id = await ensurePersonalAssistant(prisma, actor, create);
+    await prisma.bot.update({ where: { id }, data: { pinned: false } });
+    const added = await create({
+      name: "Added",
+      title: "",
+      description: "",
+      instructions: "",
+      computerMode: "team",
+      notifyOnFinish: true,
+      spawnKey: "added",
+    });
+    expect(added.pinned).toBe(false);
+    expect(await ensurePersonalAssistant(prisma, actor, create)).toBe(id);
+    expect((await prisma.bot.findUniqueOrThrow({ where: { id } })).pinned).toBe(false);
   });
   it("preserves an existing assistant instead of creating a replacement", async () => {
     const bot = await create({

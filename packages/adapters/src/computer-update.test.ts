@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as ComputerLifecycleModule from "./computer-lifecycle.js";
 import { replaceComputer } from "./computer-lifecycle.js";
 import {
+  cancelComputerUpdate,
+  computerUpdateView,
   performComputerUpdate,
   queueComputerUpdate,
   reconcileComputerUpdates,
@@ -39,6 +41,7 @@ function fixture(status = "queued") {
     findUniqueOrThrow: vi.fn(async () => row.computer),
   };
   const computerUpdate = {
+    findFirst: vi.fn(async () => row),
     create: vi.fn(async () => row),
     findUniqueOrThrow: vi.fn(async () => row),
     findMany: vi.fn(async () => [row]),
@@ -66,6 +69,100 @@ function fixture(status = "queued") {
   return { row, computer, computerUpdate, deps, jobs };
 }
 describe("background computer maintenance", () => {
+  it("exposes attended stopping recovery only to the deployment owner", () => {
+    const { row } = fixture("stopping");
+    expect(computerUpdateView(row, true).canReleaseReservation).toBe(true);
+    expect(computerUpdateView(row, false).canReleaseReservation).toBe(false);
+  });
+  it("stops queued work before the worker can claim it", async () => {
+    const { row, deps, computer } = fixture();
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+    await performComputerUpdate(deps, row.id);
+    expect(replacement).not.toHaveBeenCalled();
+  });
+  it("scopes a stop request and preserves a running worker's reservation", async () => {
+    const { row, deps, computer, computerUpdate } = fixture("running");
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(computerUpdate.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: row.id,
+        computer: { spaceId: "space", bots: { some: { userId: "user", archivedAt: null } } },
+      },
+    });
+    expect(row.status).toBe("stopping");
+    expect(computer.updateMany).not.toHaveBeenCalled();
+  });
+  it("keeps the reservation until a stopped provider operation settles", async () => {
+    vi.useFakeTimers();
+    const { row, computer, deps } = fixture();
+    let settle: (() => void) | undefined;
+    replacement.mockImplementationOnce(async (_deps, _id, _mode, context) => {
+      await new Promise<void>((resolve) => {
+        settle = resolve;
+      });
+      context.signal.throwIfAborted();
+      return {} as Awaited<ReturnType<typeof replaceComputer>>;
+    });
+    const running = performComputerUpdate(deps, row.id);
+    await vi.advanceTimersByTimeAsync(0);
+    row.status = "stopping";
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(computer.updateMany).not.toHaveBeenCalled();
+    settle?.();
+    await running;
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+  });
+  it("schedules idle sleep when a successful replacement finishes after a late stop", async () => {
+    const { row, computer, deps, jobs } = fixture();
+    replacement.mockImplementationOnce(async () => {
+      row.status = "stopping";
+      return { kind: "e2b" } as Awaited<ReturnType<typeof replaceComputer>>;
+    });
+    await performComputerUpdate(deps, row.id);
+    expect(row.status).toBe("cancelled");
+    expect(computer.updateMany).toHaveBeenCalledOnce();
+    expect(jobs.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "computer.sleep",
+        payload: { computerId: row.computerId },
+      }),
+    );
+    await performComputerUpdate(deps, row.id);
+    expect(replacement).toHaveBeenCalledOnce();
+    expect(jobs.enqueue).toHaveBeenCalledOnce();
+  });
+  it.each(["completed", "failed"] as const)(
+    "preserves Stop arriving at the %s terminal write",
+    async (terminal) => {
+      const { row, computer, computerUpdate, deps } = fixture();
+      const write = computerUpdate.updateMany.getMockImplementation()!;
+      computerUpdate.updateMany.mockImplementation(async (args) => {
+        if (args.data.status === terminal) row.status = "stopping";
+        return write(args);
+      });
+      if (terminal === "failed") replacement.mockRejectedValueOnce(new Error("offline"));
+      else
+        replacement.mockResolvedValueOnce({ kind: "fake" } as Awaited<
+          ReturnType<typeof replaceComputer>
+        >);
+      await performComputerUpdate(deps, row.id);
+      expect(row.status).toBe("cancelled");
+      expect(computer.updateMany).toHaveBeenCalledOnce();
+      await performComputerUpdate(deps, row.id);
+      expect(replacement).toHaveBeenCalledOnce();
+    },
+  );
   it("persists stages and releases its reservation only after completion; redelivery is harmless", async () => {
     const { row, computer, deps } = fixture();
     replacement.mockImplementationOnce(async (_deps, _id, _mode, _ctx, _holder, progress) => {
@@ -106,6 +203,19 @@ describe("background computer maintenance", () => {
     expect(computer.updateMany).not.toHaveBeenCalled();
     expect(replacement).not.toHaveBeenCalled();
   });
+  it("preserves attended recovery when Stop arrives after worker interruption", async () => {
+    const { row, deps, computer } = fixture("running");
+    await reconcileComputerUpdates(deps);
+    await cancelComputerUpdate(
+      deps.prisma,
+      { userId: "user", spaceId: "space", email: "reader@example.test", isDeploymentOwner: false },
+      row.id,
+    );
+    expect(row.status).toBe("interrupted");
+    expect(computerUpdateView(row, true).canReleaseReservation).toBe(true);
+    expect(computer.updateMany).not.toHaveBeenCalled();
+    expect(replacement).not.toHaveBeenCalled();
+  });
   it("releases an interrupted reservation only after the worker has settled", async () => {
     const { row, deps, computer } = fixture();
     let release!: () => void;
@@ -127,6 +237,41 @@ describe("background computer maintenance", () => {
     expect(row.status).toBe("failed");
     expect(computer.updateMany).toHaveBeenCalledOnce();
   });
+
+  it.each(["completed", "failed"] as const)(
+    "retains stale Stop intent until a late worker returns %s",
+    async (terminal) => {
+      const { row, deps, computer } = fixture();
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      replacement.mockImplementationOnce(async () => {
+        await pending;
+        if (terminal === "failed") throw new Error("offline");
+        return { kind: "fake" } as Awaited<ReturnType<typeof replaceComputer>>;
+      });
+      const work = performComputerUpdate(deps, row.id);
+      await vi.waitFor(() => expect(replacement).toHaveBeenCalled());
+      await cancelComputerUpdate(
+        deps.prisma,
+        {
+          userId: "user",
+          spaceId: "space",
+          email: "reader@example.test",
+          isDeploymentOwner: false,
+        },
+        row.id,
+      );
+      await reconcileComputerUpdates(deps);
+      expect(row.status).toBe("stopping");
+      expect(computer.updateMany).not.toHaveBeenCalled();
+      release();
+      await work;
+      expect(row.status).toBe("cancelled");
+      expect(computer.updateMany).toHaveBeenCalledOnce();
+    },
+  );
 
   it("rejects a busy computer before publishing an operation", async () => {
     const { row, deps, computer, jobs } = fixture();

@@ -62,17 +62,36 @@ export async function captureScreenshot(page: Page, testInfo: TestInfo, name: st
   await testInfo.attach(name, { contentType: "image/png", path: screenshotPath });
 }
 
+export async function newConversation(page: Page) {
+  await page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "New", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New conversation", exact: true }).last().click();
+}
+
 /** Advanced roster workflows are intentionally disclosed separately from the main assistant. */
 export async function openAdvancedNavigation(page: Page) {
-  const trigger = page.getByRole("button", { name: "Advanced navigation", exact: true });
+  await expect(page.getByTestId("shell-root")).toHaveAttribute("data-ready", "true");
+  const trigger = page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "More options", exact: true });
   await expect(page.getByTestId("bots-sidebar")).toBeVisible();
-  if (await trigger.isVisible()) await trigger.click();
+  if (await trigger.isVisible()) {
+    await trigger.click();
+    await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
+  }
   await expect(page.getByTestId("create-menu-trigger")).toBeVisible();
 }
 
 export async function openNewBot(page: Page) {
-  const advanced = page.getByRole("button", { name: "Advanced navigation", exact: true });
-  if (await advanced.isVisible()) await advanced.click();
+  const advanced = page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "More options", exact: true });
+  if (await advanced.isVisible()) {
+    await advanced.click();
+    await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
+  }
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-bot").click();
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "create");
@@ -80,8 +99,13 @@ export async function openNewBot(page: Page) {
 }
 
 export async function openNewGroup(page: Page) {
-  const advanced = page.getByRole("button", { name: "Advanced navigation", exact: true });
-  if (await advanced.isVisible()) await advanced.click();
+  const advanced = page
+    .getByTestId("kith-navigation")
+    .getByRole("button", { name: "More options", exact: true });
+  if (await advanced.isVisible()) {
+    await advanced.click();
+    await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
+  }
   await page.getByTestId("create-menu-trigger").click();
   await page.getByTestId("create-new-group").click();
 }

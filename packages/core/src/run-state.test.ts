@@ -1,6 +1,68 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { assertTransition, canTransition, isConversationalRun } from "./run-state.js";
+import {
+  assertTransition,
+  canTransition,
+  captureThreadStop,
+  isConversationalRun,
+  threadStopIsSettled,
+} from "./run-state.js";
+
+describe("Stop response reconciliation", () => {
+  const request = captureThreadStop({
+    threadId: "thread-1",
+    run: { id: "run-1", status: "running" },
+  });
+  it.each(["cancelled", "completed", "failed"])(
+    "accepts authoritative %s after a lost reply",
+    (status) => {
+      expect(
+        threadStopIsSettled(request, { threadId: "thread-1", run: { id: "run-1", status } }),
+      ).toBe(true);
+    },
+  );
+  it("does not mistake missing, foreign, or contradictory state for settlement", () => {
+    expect(threadStopIsSettled(request, null)).toBe(false);
+    expect(threadStopIsSettled(request, { threadId: "thread-2", settledRunIds: ["run-1"] })).toBe(
+      false,
+    );
+    expect(threadStopIsSettled(request, { threadId: "thread-1", activeRuns: [] })).toBe(false);
+    expect(
+      threadStopIsSettled(request, {
+        threadId: "thread-1",
+        settledRunIds: ["run-1"],
+        activeRuns: [{ id: "run-1", status: "running" }],
+      }),
+    ).toBe(false);
+  });
+  it("requires every captured group run to settle and does not affect a newer run", () => {
+    const group = captureThreadStop({
+      threadId: "group-1",
+      activeRuns: [
+        { id: "run-1", status: "running" },
+        { id: "run-2", status: "queued" },
+      ],
+    });
+    expect(threadStopIsSettled(group, { threadId: "group-1", settledRunIds: ["run-1"] })).toBe(
+      false,
+    );
+    expect(
+      threadStopIsSettled(group, {
+        threadId: "group-1",
+        settledRunIds: ["run-1", "run-2"],
+        activeRuns: [{ id: "run-3", status: "running" }],
+      }),
+    ).toBe(true);
+  });
+  it("cannot claim a stop without an active request identity", () => {
+    expect(
+      captureThreadStop({ threadId: "thread-1", run: { id: "run-1", status: "completed" } }),
+    ).toBeNull();
+    expect(threadStopIsSettled(null, { threadId: "thread-1", settledRunIds: ["run-1"] })).toBe(
+      false,
+    );
+  });
+});
 
 describe("run state machine", () => {
   it("allows takeover resume onto a lease", () => {

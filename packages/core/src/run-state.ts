@@ -50,6 +50,42 @@ export function isTerminal(status: RunStatus): boolean {
   return TERMINAL.includes(status);
 }
 
+type StopSnapshot = {
+  threadId: string;
+  run?: { id: string; status: string } | null;
+  activeRuns?: readonly { id: string; status: string }[];
+  settledRunIds?: readonly string[];
+};
+
+export function captureThreadStop(snapshot: StopSnapshot | null | undefined) {
+  if (!snapshot) return null;
+  const runs = [...(snapshot.activeRuns ?? []), ...(snapshot.run ? [snapshot.run] : [])];
+  const runIds = [
+    ...new Set(
+      runs.filter((run) => ACTIVE_RUN_STATUSES.some((s) => s === run.status)).map((run) => run.id),
+    ),
+  ];
+  return runIds.length ? { threadId: snapshot.threadId, runIds } : null;
+}
+
+/** A lost Stop reply is not a failure if a fresh scoped snapshot proves its runs ended. */
+export function threadStopIsSettled(
+  request: ReturnType<typeof captureThreadStop>,
+  snapshot: StopSnapshot | null | undefined,
+): boolean {
+  if (!request || !snapshot || request.threadId !== snapshot.threadId) return false;
+  return request.runIds.every((id) => {
+    const runs = [...(snapshot.activeRuns ?? []), ...(snapshot.run ? [snapshot.run] : [])].filter(
+      (run) => run.id === id,
+    );
+    if (runs.some((run) => !TERMINAL.some((status) => status === run.status))) return false;
+    return Boolean(
+      snapshot.settledRunIds?.includes(id) ||
+        runs.some((run) => TERMINAL.some((status) => status === run.status)),
+    );
+  });
+}
+
 /** Whether a run's turn is part of the thread's conversation and may take user steering. */
 export function isConversationalRun(trigger: string | null | undefined): boolean {
   return !NON_CONVERSATIONAL_RUN_TRIGGERS.has(trigger ?? "");

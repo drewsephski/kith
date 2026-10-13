@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { COMPUTER_UPDATE_STAGES, type ComputerUpdate } from "@rakazo/contracts";
+import type { ComputerUpdate } from "@rakazo/contracts";
+import { COMPUTER_UPDATE_STAGES } from "@rakazo/contracts";
 import { computerUpdateNeedsAttention, computerUpdateStages } from "@rakazo/core";
 import {
   AlertDialog,
@@ -16,7 +17,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@rakazo/ui-web";
-import { CheckCircle2, Circle, CircleAlert, LoaderCircle } from "lucide-react";
+import { CheckCircle2, Circle, CircleAlert, LoaderCircle, Square } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { computerUpdates } from "../lib/computer-updates";
 import { LoadingState } from "./ai/primitives";
@@ -27,25 +28,13 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
     computerUpdates.subscribe,
     computerUpdates.getSnapshot,
   );
-  const previous = useRef<ComputerUpdate[]>([]);
   const completed = useRef(onCompleted);
   completed.current = onCompleted;
   const [error, setError] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const [releaseId, setReleaseId] = useState<string | null>(null);
   useEffect(() => computerUpdates.watch(), []);
-  useEffect(() => {
-    if (
-      previous.current.some(
-        (old) =>
-          old.status !== "failed" &&
-          (!updates.some((item) => item.id === old.id) ||
-            updates.some((item) => item.id === old.id && item.status === "failed")),
-      )
-    )
-      completed.current();
-    previous.current = updates;
-  }, [updates]);
+  useEffect(() => computerUpdates.subscribeSettled(() => completed.current()), []);
   const labels = [
     t`Getting ready`,
     t`Saving your workspace`,
@@ -54,17 +43,21 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
     t`Reconnecting`,
   ];
   const title = (update: ComputerUpdate) =>
-    computerUpdateNeedsAttention(update)
-      ? update.action === "recover"
-        ? t`Recovery failed`
-        : t`Update failed`
-      : update.action === "recover"
-        ? update.mode === "team"
-          ? t`Recovering Team Computer`
-          : t`Recovering ${update.name}’s Computer`
-        : update.mode === "team"
-          ? t`Updating Team Computer`
-          : t`Updating ${update.name}’s Computer`;
+    update.status === "stopping"
+      ? t`Stopping…`
+      : update.status === "cancelled"
+        ? t`Stopped`
+        : computerUpdateNeedsAttention(update)
+          ? update.action === "recover"
+            ? t`Recovery failed`
+            : t`Update failed`
+          : update.action === "recover"
+            ? update.mode === "team"
+              ? t`Recovering Team Computer`
+              : t`Recovering ${update.name}’s Computer`
+            : update.mode === "team"
+              ? t`Updating Team Computer`
+              : t`Updating ${update.name}’s Computer`;
   const selected = updates.find((update) => update.id === openId);
   return (
     <>
@@ -79,7 +72,9 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               computerUpdates.open(update.id);
             }}
           >
-            {computerUpdateNeedsAttention(update) ? (
+            {update.status === "cancelled" ? (
+              <Square className="size-4 text-muted-foreground" aria-hidden="true" />
+            ) : computerUpdateNeedsAttention(update) ? (
               <CircleAlert className="text-destructive" />
             ) : (
               <LoadingState
@@ -141,6 +136,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                           "size-5 shrink-0",
                           index === current &&
                             !computerUpdateNeedsAttention(selected) &&
+                            selected.status !== "cancelled" &&
                             "animate-spin motion-reduce:animate-none",
                           index === current && selected.status === "failed" && "text-destructive",
                         )}
@@ -166,7 +162,9 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               </p>
             ) : (
               <span role="status" className="sr-only">
-                {labels[COMPUTER_UPDATE_STAGES.indexOf(selected.stage)]}
+                {selected.status === "cancelled"
+                  ? title(selected)
+                  : labels[COMPUTER_UPDATE_STAGES.indexOf(selected.stage)]}
               </span>
             )}
             {error ? (
@@ -175,12 +173,29 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               </p>
             ) : null}
             <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
-              {selected.status === "interrupted" && selected.canReleaseReservation ? (
+              {["queued", "running", "stopping"].includes(selected.status) ? (
+                <Button
+                  variant="outline"
+                  disabled={recovering || selected.status === "stopping"}
+                  onClick={() => {
+                    setRecovering(true);
+                    setError(false);
+                    void computerUpdates
+                      .cancel(selected.id)
+                      .catch(() => setError(true))
+                      .finally(() => setRecovering(false));
+                  }}
+                >
+                  {selected.status === "stopping" ? <Trans>Stopping…</Trans> : <Trans>Stop</Trans>}
+                </Button>
+              ) : null}
+              {["interrupted", "stopping"].includes(selected.status) &&
+              selected.canReleaseReservation ? (
                 <Button variant="outline" onClick={() => setReleaseId(selected.id)}>
                   <Trans>Release computer</Trans>
                 </Button>
               ) : null}
-              {selected.status === "failed" ? (
+              {["failed", "cancelled"].includes(selected.status) ? (
                 <Button
                   variant="outline"
                   onClick={() =>

@@ -108,7 +108,8 @@ test("logout protects bot deep links and sign-in restores the session", async ({
   const protectedBotPath = new URL(page.url()).pathname;
   await expect(page.getByPlaceholder("Message Kith")).toBeVisible();
 
-  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
+  await page.getByRole("button", { name: "More options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
@@ -214,7 +215,8 @@ test("changes and recovers an email password", async ({ page }, testInfo) => {
   await completeOnboarding(page);
   await page.waitForURL(/\/app\/[^/]+$/);
 
-  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
+  await page.getByRole("button", { name: "More options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");
@@ -307,7 +309,8 @@ test("password-off account settings hide password changes and retain password de
       },
     }),
   );
-  await page.getByRole("button", { name: "Advanced navigation", exact: true }).click();
+  await page.getByRole("button", { name: "More options", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Workspace", exact: true }).click();
   await page.getByTestId("user-menu-trigger").click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const settings = page.getByTestId("user-settings");

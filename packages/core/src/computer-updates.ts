@@ -1,4 +1,5 @@
-import { COMPUTER_UPDATE_STAGES, type ComputerUpdate } from "@rakazo/contracts";
+import type { ComputerUpdate } from "@rakazo/contracts";
+import { COMPUTER_UPDATE_STAGES } from "@rakazo/contracts";
 
 /** Shared polling and local presentation state; the server owns operation lifetime. */
 export function createComputerUpdates(client: {
@@ -6,6 +7,7 @@ export function createComputerUpdates(client: {
   start: (botId: string, action: "update" | "recover") => Promise<ComputerUpdate>;
   dismiss: (id: string) => Promise<unknown>;
   releaseInterrupted: (id: string) => Promise<unknown>;
+  cancel?: (id: string) => Promise<unknown>;
 }) {
   let state: { updates: ComputerUpdate[]; openId: string | null } = { updates: [], openId: null };
   const listeners = new Set<() => void>();
@@ -43,6 +45,22 @@ export function createComputerUpdates(client: {
         listeners.delete(listener);
       };
     },
+    subscribeSettled(listener: () => void) {
+      let previous = state.updates;
+      const receive = () => {
+        const settled = previous.some((old) => {
+          if (["failed", "cancelled"].includes(old.status)) return false;
+          const current = state.updates.find((item) => item.id === old.id);
+          return !current || ["failed", "cancelled"].includes(current.status);
+        });
+        previous = state.updates;
+        if (settled) listener();
+      };
+      listeners.add(receive);
+      return () => {
+        listeners.delete(receive);
+      };
+    },
     watch() {
       const epoch = ++generation;
       void poll(epoch);
@@ -72,6 +90,14 @@ export function createComputerUpdates(client: {
     async releaseInterrupted(id: string) {
       const epoch = generation;
       await client.releaseInterrupted(id);
+      if (epoch !== generation) return;
+      revision++;
+      await poll(epoch);
+    },
+    async cancel(id: string) {
+      if (!client.cancel) throw new Error("Stopping this operation is unavailable");
+      const epoch = generation;
+      await client.cancel(id);
       if (epoch !== generation) return;
       revision++;
       await poll(epoch);

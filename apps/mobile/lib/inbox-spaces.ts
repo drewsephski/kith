@@ -1,14 +1,7 @@
 import type { SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { groupBotsForSidebar, nestRosterByParent } from "@rakazo/core";
-import {
-  adoptDeletedSpaceFallback,
-  type MobileBot,
-  type MobileGroup,
-  type MobileSpace,
-  rpc,
-  selectedSpaceId,
-  selectSpace,
-} from "./api";
+import { nestRosterByParent } from "@rakazo/core";
+import type { MobileBot, MobileGroup, MobileMe, MobileSpace, MobileSpaceNavigation } from "./api";
+import { adoptDeletedSpaceFallback, rpc, selectedSpaceId, selectSpace } from "./api";
 
 export type InboxSpace = Pick<
   MobileSpace,
@@ -19,6 +12,7 @@ export type InboxSpace = Pick<
 };
 
 export type InboxSpaceItem =
+  | { type: "pins"; key: string; chats: InboxPinnedChat[] }
   | {
       type: "bot";
       bot: MobileBot | SpaceBot;
@@ -27,6 +21,18 @@ export type InboxSpaceItem =
     }
   | { type: "group"; group: MobileGroup | SpaceGroup }
   | { type: "heading"; key: string; title: string; space?: InboxSpace };
+
+export type InboxPinnedChat =
+  | { type: "bot"; bot: MobileBot | SpaceBot }
+  | { type: "group"; group: MobileGroup | SpaceGroup };
+
+export function fetchInboxOverview() {
+  return Promise.all([
+    rpc<MobileSpaceNavigation>("spaces/list"),
+    rpc<MobileMe>("me"),
+    rpc<{ botId: string | null }>("assistant/get").catch(() => ({ botId: null })),
+  ]);
+}
 
 export function canDeleteInboxSpace(
   space: Pick<InboxSpace, "isDefault" | "hasContent" | "canDelete">,
@@ -42,6 +48,7 @@ export function inboxNeedsCreateHint(items: readonly { type: string }[]): boolea
 export function spaceInboxItems(
   spaces: InboxSpace[],
   collapsedParentIds: ReadonlySet<string> = new Set(),
+  assistantId?: string | null,
 ): InboxSpaceItem[] {
   return spaces.flatMap((space): InboxSpaceItem[] => {
     const chats = [
@@ -65,21 +72,28 @@ export function spaceInboxItems(
     if (spaces.length > 1 || !space.isDefault || chats.length === 0) {
       items.push({ type: "heading", key: space.id, title: space.name, space });
     }
-    for (const group of groupBotsForSidebar(chats, space.botSections)) {
-      if (group.title) {
-        items.push({ type: "heading", key: `${space.id}:${group.key}`, title: group.title });
-      }
-      for (const row of nestRosterByParent(group.bots, collapsedParentIds)) {
-        if (row.item.type === "bot") {
-          items.push({
-            type: "bot",
-            bot: row.item.bot,
-            depth: row.depth,
-            hasChildren: row.hasChildren,
-          });
-        } else {
-          items.push({ type: "group", group: row.item.group });
-        }
+    const pinned = chats
+      .filter((chat) => chat.pinned)
+      .sort((a, b) => Number(b.id === assistantId) - Number(a.id === assistantId));
+    if (pinned.length) items.push({ type: "pins", key: space.id, chats: pinned });
+    // Labels decorate rows; they do not split the inbox into separate lists.
+    const recent = chats
+      .filter((chat) => !chat.pinned)
+      .sort((a, b) => {
+        const updated = (chat: (typeof chats)[number]) =>
+          Date.parse((chat.type === "bot" ? chat.bot : chat.group).updatedAt ?? "") || 0;
+        return updated(b) - updated(a);
+      });
+    for (const row of nestRosterByParent(recent, collapsedParentIds)) {
+      if (row.item.type === "bot") {
+        items.push({
+          type: "bot",
+          bot: row.item.bot,
+          depth: row.depth,
+          hasChildren: row.hasChildren,
+        });
+      } else {
+        items.push({ type: "group", group: row.item.group });
       }
     }
     return items;

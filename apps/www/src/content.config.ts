@@ -9,7 +9,7 @@ const blog = defineCollection({
     description: z.string(),
     published: z.coerce.date(),
     updated: z.coerce.date(),
-    author: z.literal("Elie Steinbock"),
+    author: z.literal("Kith"),
     category: z.enum(["comparisons", "guides", "roundups", "product"]),
     tldr: z.string(),
     sources: z.array(z.object({ label: z.string(), href: z.string().url() })).min(1),

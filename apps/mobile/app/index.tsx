@@ -1,6 +1,5 @@
 import { MenuView } from "@expo/ui/community/menu";
-import type { RunActivityRow, SearchHit, SpaceBot, SpaceGroup } from "@rakazo/contracts";
-import { normalizeCreateBotProfile } from "@rakazo/contracts";
+import type { SearchHit, SpaceBot, SpaceGroup } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
 import { botColors } from "@rakazo/ui-tokens";
 import { Redirect, useFocusEffect, useNavigation, useRouter } from "expo-router";
@@ -10,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -22,17 +22,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BotAvatar } from "../components/bot-avatar";
 import { BotOrganizeModal } from "../components/bot-organize-modal";
 import { GroupAvatar } from "../components/group-avatar";
+import { InboxChatMenu } from "../components/inbox-chat-menu";
 import { FlatList } from "../components/minimal-scroll";
 import { NativeActionButton } from "../components/native-action-button";
 import { NativeSymbol } from "../components/native-symbol";
-import { WorkingIndicator } from "../components/WorkingIndicator";
-import {
-  activityDestination,
-  activityStatusLabel,
-  fetchSpaceActivity,
-  formatActivityRelativeTime,
-} from "../lib/activity";
-import { loadActivityMode, saveActivityMode } from "../lib/activity-mode";
 import type {
   MobileBot,
   MobileBotSection,
@@ -51,13 +44,13 @@ import {
   selectSpace,
 } from "../lib/api";
 import { mobileTokens, resolveMobileAppearance } from "../lib/appearance";
-import { mobileBotAvatarPresentation } from "../lib/bot-avatar";
-import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
+import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import { t, useI18n } from "../lib/i18n";
-import { botTag, filterBots, formatThreadTime, userInitials } from "../lib/inbox";
+import { filterBots, formatThreadTime, userInitials } from "../lib/inbox";
 import type { InboxSpace, InboxSpaceItem } from "../lib/inbox-spaces";
 import {
   canDeleteInboxSpace,
+  fetchInboxOverview,
   inboxNeedsCreateHint,
   removeInboxSpace,
   retryInboxSpaceFallback,
@@ -98,6 +91,7 @@ export default function Home() {
   const [groups, setGroups] = useState<MobileGroup[]>([]);
   const [botSections, setBotSections] = useState<MobileBotSection[]>([]);
   const [spaces, setSpaces] = useState<MobileSpace[]>([]);
+  const [assistantId, setAssistantId] = useState<string | null>(null);
   const [me, setMe] = useState<MobileMe | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -114,15 +108,10 @@ export default function Home() {
   const [organizeTarget, setOrganizeTarget] = useState<{
     kind: "bot" | "group";
     id: string;
+    mode: "create" | "rename";
+    scope: string;
   } | null>(null);
-  const [activityMode, setActivityMode] = useState(false);
-  const [activity, setActivity] = useState<{ active: RunActivityRow[]; recent: RunActivityRow[] }>({
-    active: [],
-    recent: [],
-  });
-  const activityRequestId = useRef(0);
   const inboxRequestId = useRef(0);
-  const creatingBotRef = useRef(false);
   const openedInitialAssistant = useRef<string | null>(null);
   const preparingInitialAssistant = useRef<string | null>(null);
   const [preparingAssistant, setPreparingAssistant] = useState(false);
@@ -142,18 +131,6 @@ export default function Home() {
     });
   }, []);
 
-  useEffect(() => {
-    void loadActivityMode().then(setActivityMode);
-  }, []);
-
-  const toggleActivityMode = useCallback(() => {
-    setActivityMode((on) => {
-      const next = !on;
-      void saveActivityMode(next);
-      return next;
-    });
-  }, []);
-
   const loadBots = useCallback(async () => {
     if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
     const requestId = ++inboxRequestId.current;
@@ -168,10 +145,7 @@ export default function Home() {
     let defaultSpace: string | null = null;
     setError(null);
     try {
-      const [navigation, nextMe] = await Promise.all([
-        rpc<MobileSpaceNavigation>("spaces/list"),
-        rpc<MobileMe>("me"),
-      ]);
+      const [navigation, nextMe, assistant] = await fetchInboxOverview();
       defaultSpace = nextMe.spaceId;
       if (!current()) return;
       if (!(await selectInitialSpace(nextMe.spaceId))) {
@@ -183,6 +157,7 @@ export default function Home() {
       setGroups(navigation.current.groups);
       setSpaces(navigation.spaces);
       setMe(nextMe);
+      setAssistantId(assistant.botId);
       const assistantScope = `${endpoint}:${session}:${nextMe.spaceId}`;
       if (
         openedInitialAssistant.current !== assistantScope &&
@@ -197,9 +172,15 @@ export default function Home() {
         await rpc("onboarding/start", { botId: assistant.botId });
         await rpc("onboarding/promptFocus", { botId: assistant.botId });
         if (!current()) return;
+        setAssistantId(assistant.botId);
         openedInitialAssistant.current = assistantScope;
         preparingInitialAssistant.current = null;
-        router.push({ pathname: "/thread", params: { botId: assistant.botId, name: "Kith" } });
+        const refreshed = await rpc<MobileSpaceNavigation>("spaces/list");
+        if (!current()) return;
+        setBots(refreshed.current.bots);
+        setBotSections(refreshed.current.botSections);
+        setGroups(refreshed.current.groups);
+        setSpaces(refreshed.spaces);
       }
     } catch (err) {
       if (!current()) return;
@@ -250,46 +231,6 @@ export default function Home() {
         if (timer !== undefined) clearTimeout(timer);
       };
     }, [hasSession, loadBots]),
-  );
-
-  const loadActivity = useCallback(async () => {
-    if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-    if (!hasSession || !activityMode || searching || query.trim()) {
-      activityRequestId.current += 1;
-      setActivity({ active: [], recent: [] });
-      return;
-    }
-    const requestId = ++activityRequestId.current;
-    try {
-      const next = await fetchSpaceActivity();
-      if (requestId !== activityRequestId.current) return;
-      setActivity(next);
-    } catch {
-      // Keep the last good snapshot on transient RPC failures; only drop stale responses.
-      if (requestId !== activityRequestId.current) return;
-    }
-  }, [activityMode, hasSession, query, searching]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!hasSession || !activityMode || searching || query.trim()) return;
-      let cancelled = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-
-      const tick = async () => {
-        await loadActivity();
-        if (!cancelled) {
-          timer = setTimeout(() => void tick(), 15_000);
-        }
-      };
-
-      void tick();
-      return () => {
-        cancelled = true;
-        activityRequestId.current += 1;
-        if (timer !== undefined) clearTimeout(timer);
-      };
-    }, [activityMode, hasSession, loadActivity, query, searching]),
   );
 
   const searchScope = mobileScreenScopeKey();
@@ -371,8 +312,9 @@ export default function Home() {
               },
             ]
           : [];
-    return spaceInboxItems(sidebarSpaces, collapsedRosterParents);
+    return spaceInboxItems(sidebarSpaces, collapsedRosterParents, assistantId);
   }, [
+    assistantId,
     botSections,
     collapsedRosterParents,
     locale,
@@ -385,31 +327,144 @@ export default function Home() {
     visibleGroups,
   ]);
   const initials = userInitials(me?.name ?? "");
-  const organizeChat = organizeTarget
-    ? organizeTarget.kind === "bot"
-      ? bots.find((bot) => bot.id === organizeTarget.id)
-      : groups.find((group) => group.id === organizeTarget.id)
-    : null;
+  const organizeChat =
+    organizeTarget && organizeTarget.scope === mobileScreenScopeKey()
+      ? organizeTarget.kind === "bot"
+        ? bots.find((bot) => bot.id === organizeTarget.id)
+        : groups.find((group) => group.id === organizeTarget.id)
+      : null;
   const insets = useSafeAreaInsets();
-  // Liquid Glass uses the native bar: glass bar items, a native menu, and bottom search.
+  // Keep creation and search in the native navigation bar.
   const nativeHeader = iosAtLeast(26);
   const navigation = useNavigation();
   const router = useRouter();
+
+  function chatLabel(chat: MobileBot | SpaceBot | MobileGroup | SpaceGroup) {
+    const sections =
+      chat.spaceId === me?.spaceId
+        ? botSections
+        : spaces.find((space) => space.id === chat.spaceId)?.botSections;
+    return sections?.find((section) => section.id === chat.sectionId)?.name;
+  }
+
+  function openChat(kind: "bot" | "group", chat: { id: string; name: string; spaceId?: string }) {
+    if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
+    void openMobileSpace(chat.spaceId, () =>
+      kind === "bot"
+        ? router.push({ pathname: "/thread", params: { botId: chat.id, name: chat.name } })
+        : router.push({ pathname: "/group-thread", params: { groupId: chat.id, name: chat.name } }),
+    );
+  }
+
+  function handleChatAction(
+    kind: "bot" | "group",
+    chat: MobileBot | SpaceBot | MobileGroup | SpaceGroup,
+    action: string,
+  ) {
+    if (
+      chat.spaceId !== me?.spaceId ||
+      spaceActionRef.current.busy ||
+      spaceActionRef.current.recoveryId
+    )
+      return;
+    const scope = mobileScreenScopeKey();
+    const current = () => scope === mobileScreenScopeKey() && selectedSpaceId() === chat.spaceId;
+    const target = { [`${kind}Id`]: chat.id };
+    const perform = async (path: string, input: Record<string, unknown> = target) => {
+      if (!current()) return false;
+      try {
+        await rpc(path, input);
+        if (current()) await refreshBots();
+        return current();
+      } catch (cause) {
+        if (current()) Alert.alert(t("Could not update chat"), errorText(cause, t("Try again.")));
+        return false;
+      }
+    };
+    if (action === "read") void perform(chat.unread ? "threads/markRead" : "threads/markUnread");
+    else if (action === "pin") void perform(`${kind}s/update`, { ...target, pinned: !chat.pinned });
+    else if (action === "settings") {
+      router.push(
+        kind === "bot"
+          ? { pathname: "/bot-settings", params: { botId: chat.id } }
+          : { pathname: "/group-settings", params: { groupId: chat.id } },
+      );
+    } else if (action === "notifications" && "notifyOnFinish" in chat) {
+      void (async () => {
+        if (!(await perform("bots/update", { ...target, notifyOnFinish: !chat.notifyOnFinish })))
+          return;
+        const token = await loadSessionToken();
+        if (!current()) return;
+        await resumeLiveNotifications(currentApiBase(), token, chat.spaceId ?? "").catch(
+          () => undefined,
+        );
+        if (current() && chat.notifyOnFinish && "threadId" in chat)
+          await dismissThreadNotifications({ threadId: chat.threadId }).catch(() => undefined);
+      })();
+    } else if (action.startsWith("label:")) {
+      void perform(`${kind}s/update`, { ...target, sectionId: action.slice(6) || null });
+    } else if (action === "new-label" || action === "rename-label") {
+      if (Platform.OS === "ios") {
+        const section = botSections.find((item) => item.id === chat.sectionId);
+        const rename = action === "rename-label" && section;
+        Alert.prompt(
+          rename ? t("Rename label") : t("New label"),
+          undefined,
+          [
+            { text: t("Cancel"), style: "cancel" },
+            {
+              text: rename ? t("Save") : t("Create"),
+              onPress: (name: string | undefined) => {
+                if (!name?.trim()) return;
+                void perform(
+                  rename ? "botSections/update" : "botSections/create",
+                  rename
+                    ? { sectionId: section.id, name: name.trim() }
+                    : { ...target, name: name.trim() },
+                );
+              },
+            },
+          ],
+          "plain-text",
+          rename ? section.name : "",
+        );
+        return;
+      }
+      setOrganizeTarget({
+        kind,
+        id: chat.id,
+        mode: action === "new-label" ? "create" : "rename",
+        scope,
+      });
+    } else if (action === "hide") void perform(`${kind}s/archive`);
+    else if (action === "delete") {
+      if (kind === "bot")
+        confirmDeleteBot(
+          chat,
+          () => {
+            if (current()) void refreshBots();
+          },
+          current,
+        );
+      else
+        Alert.alert(chat.name, t("Delete this group? Bots and their solo threads are kept."), [
+          { text: t("Cancel"), style: "cancel" },
+          { text: t("Delete"), style: "destructive", onPress: () => void perform("groups/remove") },
+        ]);
+    }
+  }
 
   async function chooseInboxSpace(spaceId: string) {
     if (spaceActionRef.current.busy) return;
     spaceActionRef.current.busy = true;
     setSpaceBusy(true);
     inboxRequestId.current += 1;
-    activityRequestId.current += 1;
-    setActivity({ active: [], recent: [] });
     try {
       const refresh = async () => {
         spaceActionRef.current.recoveryId = null;
         setSpaceRecoveryId(null);
         spaceActionRef.current.busy = false;
         await refreshBots();
-        await loadActivity();
       };
       const selected =
         spaceActionRef.current.recoveryId === spaceId
@@ -436,13 +491,10 @@ export default function Home() {
     spaceActionRef.current.busy = true;
     setSpaceBusy(true);
     inboxRequestId.current += 1;
-    activityRequestId.current += 1;
     try {
       const recoveryId = await removeInboxSpace(space.id, async () => {
         spaceActionRef.current.busy = false;
-        setActivity({ active: [], recent: [] });
         await refreshBots();
-        await loadActivity();
       });
       if (recoveryId) {
         spaceActionRef.current.recoveryId = recoveryId;
@@ -478,45 +530,14 @@ export default function Home() {
     );
   }
 
-  const createQuickBot = useCallback(async () => {
-    if (creatingBotRef.current || spaceActionRef.current.busy || spaceActionRef.current.recoveryId)
-      return;
-    creatingBotRef.current = true;
-    try {
-      // Authoritative roster so a slow home fetch does not treat later bots as first.
-      // A failed list is unknown — use the delayed path rather than assuming first.
-      const existing = await rpc<MobileBot[]>("bots/list").catch(() => null);
-      const isFirstBot = existing !== null && existing.length === 0;
-      const bot = await rpc<MobileBot>("bots/create", {
-        ...normalizeCreateBotProfile({ name: "New Bot", title: "", description: "" }),
-        notifyOnFinish: true,
-        computerMode: "team",
-      });
-      void refreshBots().catch(() => undefined);
-      allowFocusPrompt(bot.id);
-      router.push({ pathname: "/thread", params: { botId: bot.id, name: bot.name } });
-      void (async () => {
-        const started = await rpc("onboarding/start", { botId: bot.id })
-          .then(() => true)
-          .catch(() => false);
-        if (!started) return;
-        scheduleFocusPrompt(bot.id, isFirstBot);
-      })();
-    } catch (err) {
-      setError(errorText(err, t("Could not create bot")));
-    } finally {
-      creatingBotRef.current = false;
-    }
-  }, [refreshBots, router, t]);
-
   const runCreateAction = useCallback(
     (action: "bot" | "group" | "space") => {
       if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-      if (action === "bot") void createQuickBot();
+      if (action === "bot") router.push("/new");
       else if (action === "group") router.push("/new-group");
       else router.push("/new-space");
     },
-    [createQuickBot, router],
+    [router],
   );
 
   useLayoutEffect(() => {
@@ -542,13 +563,6 @@ export default function Home() {
           accessibilityLabel: t("For you"),
           icon: { type: "sfSymbol" as const, name: "lightbulb" },
           onPress: () => router.push("/for-you"),
-        },
-        {
-          type: "button" as const,
-          accessibilityLabel: t("Activity"),
-          icon: { type: "sfSymbol" as const, name: activityMode ? "bell.fill" : "bell" },
-          selected: activityMode,
-          onPress: toggleActivityMode,
         },
         {
           type: "button" as const,
@@ -585,6 +599,8 @@ export default function Home() {
         },
       ],
       headerSearchBarOptions: {
+        placement: "integratedButton",
+        allowToolbarIntegration: false,
         placeholder: t("Search"),
         hideWhenScrolling: false,
         autoCapitalize: "none",
@@ -597,19 +613,7 @@ export default function Home() {
         },
       },
     });
-  }, [
-    nativeHeader,
-    navigation,
-    ready,
-    hasSession,
-    initials,
-    activityMode,
-    toggleActivityMode,
-    runCreateAction,
-    router,
-    t,
-    locale,
-  ]);
+  }, [nativeHeader, navigation, ready, hasSession, initials, runCreateAction, router, t, locale]);
 
   if (!ready) {
     return (
@@ -630,19 +634,6 @@ export default function Home() {
             </HeaderButton>
           </View>
           <View style={styles.headerActions}>
-            <HeaderButton
-              accessibilityLabel={t("Activity")}
-              active={activityMode}
-              accent
-              onPress={toggleActivityMode}
-            >
-              <NativeSymbol
-                ios={activityMode ? "bell.fill" : "bell"}
-                android={activityMode ? "notifications" : "notifications-outline"}
-                size={17}
-                color={activityMode ? tokens.primaryForeground : tokens.foreground}
-              />
-            </HeaderButton>
             <HeaderButton
               accessibilityLabel={t("Search")}
               active={searching}
@@ -695,6 +686,7 @@ export default function Home() {
         data={listData}
         keyExtractor={(item) => {
           if (item.type === "heading") return `heading-${item.key}`;
+          if (item.type === "pins") return `pins-${item.key}`;
           if (item.type === "bot") return item.bot.id;
           if (item.type === "group") return `group-${item.group.id}`;
           return searchHitListKey(item.hit);
@@ -713,7 +705,6 @@ export default function Home() {
             refreshing={refreshing}
             onRefresh={() => {
               void refreshBots();
-              void loadActivity();
             }}
             tintColor={native.secondaryLabel}
             colors={[tokens.mutedForeground]}
@@ -775,12 +766,6 @@ export default function Home() {
                 <Text style={styles.spaceTitle}>{t("Try again.")}</Text>
               </Pressable>
             ) : null}
-            {activityMode &&
-            !searching &&
-            !query.trim() &&
-            (activity.active.length > 0 || activity.recent.length > 0) ? (
-              <ActivitySection activity={activity} bots={bots} />
-            ) : null}
           </>
         }
         ListEmptyComponent={
@@ -810,7 +795,60 @@ export default function Home() {
           ) : null
         }
         renderItem={({ item }) =>
-          item.type === "search" ? (
+          item.type === "pins" ? (
+            <View style={styles.pinnedGrid}>
+              {item.chats.map((entry) => {
+                const chat = entry.type === "bot" ? entry.bot : entry.group;
+                return (
+                  <InboxChatMenu
+                    key={chat.id}
+                    chat={chat}
+                    sections={botSections}
+                    enabled={chat.spaceId === me?.spaceId}
+                    compact
+                    style={styles.pinnedCell}
+                    onAction={(action) => handleChatAction(entry.type, chat, action)}
+                  >
+                    {(onLongPress) => (
+                      <Pressable
+                        onLongPress={onLongPress}
+                        accessibilityRole="button"
+                        accessibilityLabel={[
+                          chat.name,
+                          t("Pinned"),
+                          chat.unread ? t("unread") : null,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                        onPress={() => openChat(entry.type, chat)}
+                        style={({ pressed }) => [styles.pinnedChat, pressed && styles.rowPressed]}
+                      >
+                        <View>
+                          {entry.type === "bot" ? (
+                            <BotAvatar
+                              color={entry.bot.color || FALLBACK_COLOR}
+                              identity={chat.id}
+                              status={entry.bot.status}
+                              size={84}
+                              muted={!entry.bot.notifyOnFinish}
+                            />
+                          ) : (
+                            <GroupAvatar members={entry.group.members} size={84} />
+                          )}
+                          {chat.unread ? (
+                            <View style={[styles.unreadDot, styles.pinnedUnread]} />
+                          ) : null}
+                        </View>
+                        <Text style={styles.pinnedName} numberOfLines={2}>
+                          {chat.name}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </InboxChatMenu>
+                );
+              })}
+            </View>
+          ) : item.type === "search" ? (
             <SearchRow
               hit={item.hit}
               onPress={() => {
@@ -869,55 +907,51 @@ export default function Home() {
             ) : (
               <Text style={styles.sectionHeading}>{item.title}</Text>
             )
-          ) : item.type === "group" ? (
-            <GroupRow
-              group={item.group}
-              onPress={() => {
-                if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-                void openMobileSpace(item.group.spaceId, () =>
-                  router.push({
-                    pathname: "/group-thread",
-                    params: { groupId: item.group.id, name: item.group.name },
-                  }),
-                );
-              }}
-              onLongPress={
-                item.group.spaceId === me?.spaceId
-                  ? () => setOrganizeTarget({ kind: "group", id: item.group.id })
-                  : undefined
-              }
-            />
           ) : (
-            <BotRow
-              bot={item.bot}
-              depth={item.depth}
-              hasChildren={item.hasChildren}
-              collapsed={collapsedRosterParents.has(item.bot.id)}
-              onToggleChildren={() => toggleRosterParent(item.bot.id)}
-              onPress={() => {
-                if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-                void openMobileSpace(item.bot.spaceId, () =>
-                  router.push({
-                    pathname: "/thread",
-                    params: { botId: item.bot.id, name: item.bot.name },
-                  }),
-                );
-              }}
-              onLongPress={
-                item.bot.spaceId === me?.spaceId
-                  ? () => setOrganizeTarget({ kind: "bot", id: item.bot.id })
-                  : undefined
+            <InboxChatMenu
+              chat={item.type === "bot" ? item.bot : item.group}
+              sections={botSections}
+              enabled={
+                (item.type === "bot" ? item.bot.spaceId : item.group.spaceId) === me?.spaceId
               }
-            />
+              onAction={(action) =>
+                handleChatAction(item.type, item.type === "bot" ? item.bot : item.group, action)
+              }
+            >
+              {(onLongPress) =>
+                item.type === "group" ? (
+                  <GroupRow
+                    group={item.group}
+                    tag={chatLabel(item.group)}
+                    onLongPress={onLongPress}
+                    onPress={() => openChat("group", item.group)}
+                  />
+                ) : (
+                  <BotRow
+                    bot={item.bot}
+                    tag={chatLabel(item.bot)}
+                    depth={item.depth}
+                    hasChildren={item.hasChildren}
+                    collapsed={collapsedRosterParents.has(item.bot.id)}
+                    onToggleChildren={() => toggleRosterParent(item.bot.id)}
+                    onLongPress={onLongPress}
+                    onPress={() => openChat("bot", item.bot)}
+                  />
+                )
+              }
+            </InboxChatMenu>
           )
         }
       />
       {organizeChat && organizeTarget ? (
         <BotOrganizeModal
           bot={organizeChat}
+          labelsOnly
+          initialMode={organizeTarget.mode}
           sections={botSections}
           onClose={() => setOrganizeTarget(null)}
           onUpdate={async (update) => {
+            if (organizeTarget.scope !== mobileScreenScopeKey()) return;
             await rpc(`${organizeTarget.kind}s/update`, {
               [`${organizeTarget.kind}Id`]: organizeChat.id,
               ...update,
@@ -937,6 +971,7 @@ export default function Home() {
             await loadBots();
           }}
           onCreateSection={async (name) => {
+            if (organizeTarget.scope !== mobileScreenScopeKey()) return;
             await rpc("botSections/create", {
               [`${organizeTarget.kind}Id`]: organizeChat.id,
               name,
@@ -944,6 +979,7 @@ export default function Home() {
             await loadBots();
           }}
           onRenameSection={async (sectionId, name) => {
+            if (organizeTarget.scope !== mobileScreenScopeKey()) return;
             await rpc("botSections/update", { sectionId, name });
             await loadBots();
           }}
@@ -953,85 +989,11 @@ export default function Home() {
   );
 }
 
-function ActivitySection({
-  activity,
-  bots,
-}: {
-  activity: { active: RunActivityRow[]; recent: RunActivityRow[] };
-  bots: MobileBot[];
-}) {
-  const styles = useThemedStyles(createHomeStyles);
-  const { t } = useI18n();
-  const router = useRouter();
-  const botsById = useMemo(() => new Map(bots.map((bot) => [bot.id, bot])), [bots]);
-  const openRun = (run: RunActivityRow) => router.push(activityDestination(run));
-
-  return (
-    <View style={styles.activitySection}>
-      {activity.active.length > 0 ? (
-        <>
-          <Text style={styles.sectionHeading}>{t("Now")}</Text>
-          {activity.active.map((run) => (
-            <ActivityRow
-              key={run.runId}
-              run={run}
-              bot={botsById.get(run.botId)}
-              onPress={() => openRun(run)}
-            />
-          ))}
-        </>
-      ) : null}
-      {activity.recent.length > 0 ? (
-        <>
-          <Text style={[styles.sectionHeading, activity.active.length > 0 && styles.activityGap]}>
-            {t("Recent")}
-          </Text>
-          {activity.recent.map((run) => (
-            <ActivityRow
-              key={run.runId}
-              run={run}
-              bot={botsById.get(run.botId)}
-              onPress={() => openRun(run)}
-            />
-          ))}
-        </>
-      ) : null}
-    </View>
-  );
-}
-
-function ActivityRow({
-  run,
-  bot,
-  onPress,
-}: {
-  run: RunActivityRow;
-  bot?: MobileBot;
-  onPress: () => void;
-}) {
-  const title = run.groupName ? `${run.botName} · ${run.groupName}` : run.botName;
-  const status = activityStatusLabel(run.status);
-  const preview = run.promptSnippet ? `${run.promptSnippet} · ${status}` : status;
-  return (
-    <ConversationRow
-      title={title}
-      preview={preview}
-      time={formatActivityRelativeTime(run.updatedAt)}
-      accessibilityLabel={`${title}, ${status}`}
-      onPress={onPress}
-      avatar={
-        <BotAvatar identity={run.botId} color={bot?.color ?? FALLBACK_COLOR} status={run.status} />
-      }
-    />
-  );
-}
-
 function ConversationRow({
   title,
   preview,
   time,
   avatar,
-  indicator,
   tag,
   unread,
   depth = 0,
@@ -1047,7 +1009,6 @@ function ConversationRow({
   preview: string;
   time: string;
   avatar: ReactNode;
-  indicator?: ReactNode;
   tag?: string | null;
   unread?: boolean;
   depth?: number;
@@ -1116,14 +1077,15 @@ function ConversationRow({
             ) : null}
           </View>
           <View style={styles.rowMeta}>
-            {indicator}
             {time ? <Text style={styles.time}>{time}</Text> : null}
-            {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
           </View>
         </View>
-        <Text style={[styles.preview, unread && styles.unreadPreview]} numberOfLines={1}>
-          {preview}
-        </Text>
+        <View style={styles.previewRow}>
+          <Text style={styles.preview} numberOfLines={1}>
+            {preview}
+          </Text>
+          {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
+        </View>
       </View>
     </Pressable>
   );
@@ -1134,13 +1096,11 @@ function HeaderButton({
   onPress,
   accessibilityLabel,
   active = false,
-  accent = false,
 }: {
   children: ReactNode;
   onPress: () => void;
   accessibilityLabel: string;
   active?: boolean;
-  accent?: boolean;
 }) {
   const styles = useThemedStyles(createHomeStyles);
   return (
@@ -1152,9 +1112,7 @@ function HeaderButton({
       hitSlop={4}
       style={({ pressed }) => [
         styles.headerButton,
-        accent && active
-          ? styles.headerButtonAccent
-          : (active || pressed) && styles.headerButtonActive,
+        (active || pressed) && styles.headerButtonActive,
       ]}
     >
       {children}
@@ -1186,6 +1144,7 @@ function SearchRow({ hit, onPress }: { hit: SearchHit; onPress: () => void }) {
 
 function BotRow({
   bot,
+  tag,
   depth = 0,
   hasChildren = false,
   collapsed = false,
@@ -1194,6 +1153,7 @@ function BotRow({
   onLongPress,
 }: {
   bot: MobileBot | SpaceBot;
+  tag?: string | null;
   depth?: number;
   hasChildren?: boolean;
   collapsed?: boolean;
@@ -1202,14 +1162,9 @@ function BotRow({
   onLongPress?: () => void;
 }) {
   const { t } = useI18n();
-  const preview = previewSnippet(bot.preview, 40) || bot.title || t("No messages yet");
+  const preview = previewSnippet(bot.preview, 200) || bot.title || t("No messages yet");
   const time = bot.updatedAt ? formatThreadTime(bot.updatedAt) : "";
-  const tag = botTag(bot.title, bot.name);
   const working = ACTIVE_RUN_STATUSES.some((status) => status === bot.status);
-  // Only flat avatars carry a usable color; image avatars fall back to the muted dot.
-  const presentation = mobileBotAvatarPresentation(bot.color || FALLBACK_COLOR);
-  const tint =
-    presentation.kind === "shape" || presentation.kind === "color" ? presentation.color : undefined;
   // Spelled out because an explicit label replaces the one built from the row's children.
   const label = [
     bot.name,
@@ -1239,10 +1194,10 @@ function BotRow({
       }
       onPress={onPress}
       onLongPress={onLongPress}
-      indicator={working ? <WorkingIndicator compact tint={tint} /> : null}
       avatar={
         <BotAvatar
           color={bot.color || FALLBACK_COLOR}
+          size={44}
           identity={bot.id}
           status={bot.status}
           muted={!bot.notifyOnFinish}
@@ -1254,20 +1209,23 @@ function BotRow({
 
 function GroupRow({
   group,
+  tag,
   onPress,
   onLongPress,
 }: {
   group: MobileGroup | SpaceGroup;
+  tag?: string | null;
   onPress: () => void;
   onLongPress?: () => void;
 }) {
   const { t } = useI18n();
   const preview =
-    previewSnippet(group.preview, 40) || group.members.map((member) => member.name).join(", ");
+    previewSnippet(group.preview, 200) || group.members.map((member) => member.name).join(", ");
   const time = group.updatedAt ? formatThreadTime(group.updatedAt) : "";
   return (
     <ConversationRow
       title={group.name}
+      tag={tag}
       preview={preview}
       time={time}
       unread={group.unread}
@@ -1277,7 +1235,7 @@ function GroupRow({
       accessibilityHint={onLongPress ? t("Long press to pin or move to a section") : undefined}
       onPress={onPress}
       onLongPress={onLongPress}
-      avatar={<GroupAvatar members={group.members} size={54} />}
+      avatar={<GroupAvatar members={group.members} size={44} />}
     />
   );
 }
@@ -1304,9 +1262,7 @@ function createHomeStyles() {
     headerActions: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 2,
-      borderRadius: 22,
-      backgroundColor: native.fillPressed,
+      gap: 6,
     },
     circleButton: {
       width: 44,
@@ -1317,18 +1273,16 @@ function createHomeStyles() {
       backgroundColor: native.fillPressed,
     },
     headerButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: native.fill,
       overflow: "hidden",
     },
     headerButtonActive: {
       backgroundColor: native.fill,
-    },
-    headerButtonAccent: {
-      backgroundColor: tokens.primary,
     },
     profileInitials: {
       color: native.label,
@@ -1363,12 +1317,37 @@ function createHomeStyles() {
       paddingHorizontal: 20,
       paddingTop: 28,
     },
+    pinnedGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 10,
+      paddingTop: 20,
+      paddingBottom: 24,
+    },
+    pinnedCell: { width: "33.333333%" },
+    pinnedChat: { alignItems: "center", gap: 10, paddingHorizontal: 6, paddingVertical: 8 },
+    pinnedName: {
+      color: native.secondaryLabel,
+      fontSize: 16,
+      fontWeight: "600",
+      textAlign: "center",
+    },
+    pinnedUnread: {
+      position: "absolute",
+      bottom: 2,
+      right: 2,
+      borderWidth: 2,
+      borderColor: native.page,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
     row: {
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 10,
-      gap: 12,
+      paddingVertical: 18,
+      gap: 14,
     },
     treeToggle: {
       width: 20,
@@ -1411,30 +1390,28 @@ function createHomeStyles() {
     },
     tag: {
       flexShrink: 1,
-      borderRadius: 999,
+      borderRadius: 8,
       backgroundColor: native.fill,
       paddingHorizontal: 7,
       paddingVertical: 2,
     },
     tagLabel: {
       color: native.secondaryLabel,
-      fontSize: 11,
-      fontWeight: "500",
+      fontSize: 14,
+      fontWeight: "600",
       writingDirection: "auto",
     },
     time: {
       color: native.secondaryLabel,
-      fontSize: 15,
+      fontSize: 14,
     },
+    previewRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     preview: {
+      flex: 1,
       color: native.secondaryLabel,
-      fontSize: 15,
-      lineHeight: 20,
+      fontSize: 16,
+      lineHeight: 22,
       writingDirection: "auto",
-    },
-    unreadPreview: {
-      color: native.label,
-      fontWeight: "600",
     },
     unreadDot: {
       width: 8,
@@ -1477,15 +1454,6 @@ function createHomeStyles() {
       paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 4,
-    },
-    activitySection: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: native.fillPressed,
-      marginBottom: 4,
-      paddingBottom: 4,
-    },
-    activityGap: {
-      paddingTop: 16,
     },
     groupAvatar: {
       width: 48,

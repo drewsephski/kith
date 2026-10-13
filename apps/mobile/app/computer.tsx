@@ -40,6 +40,7 @@ import {
   NATIVE_COMPUTER_KEYBOARD_BOOT,
 } from "../lib/computer-keyboard";
 import { createComputerRefresh } from "../lib/computer-refresh";
+import { computerUpdates } from "../lib/computer-updates";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
 import { iosAtLeast } from "../lib/native-controls";
@@ -153,6 +154,14 @@ export default function Computer() {
   const refreshAfterMaintenance = useCallback(async () => {
     await refresh();
   }, [refresh]);
+
+  useEffect(
+    () =>
+      computerUpdates.subscribeSettled(() => {
+        if (scopeActive()) void refreshAfterMaintenance().catch(() => undefined);
+      }),
+    [scopeActive, refreshAfterMaintenance],
+  );
 
   useEffect(() => {
     setComputer(null);

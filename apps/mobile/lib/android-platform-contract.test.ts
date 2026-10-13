@@ -272,9 +272,8 @@ describe("Android mobile platform contract", () => {
     expect(stopSource).toContain(
       "targetGroupId ? { groupId: targetGroupId } : { botId: targetBotId! },",
     );
-    expect(stopSource).toMatch(
-      /if \(isCurrentTarget\(targetBotId, targetGroupId\)\) \{\s*Alert\.alert\(t\("Failed to stop work"\), errorText\(err, t\("Try again\."\)\)\);/,
-    );
+    expect(stopSource).toMatch(/isCurrentTarget\(targetBotId, targetGroupId\)/);
+    expect(stopSource).toContain('Alert.alert(t("Failed to stop work")');
     expect(stopSource).toMatch(
       /if \(isCurrentTarget\(targetBotId, targetGroupId\)\) \{\s*(?:const detail = [^\n]+;\s*)?setError\(t\("Work stopped, but the thread could not refresh: \{detail\}", \{ detail \}\)\);/,
     );

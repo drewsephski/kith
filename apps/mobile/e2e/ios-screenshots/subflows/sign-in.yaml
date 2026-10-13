@@ -5,16 +5,16 @@ appId: com.kith.agent
     when:
       visible: "Sign up for Kith"
     commands:
-      - tapOn: "Sign in"
+      - tapOn: "^Sign in$"
 - extendedWaitUntil:
     visible: "Sign in to Kith"
     timeout: 15000
 - tapOn: "Email"
 - inputText: ${RAKAZO_ACTIVE_EMAIL}
-- tapOn: "Password"
+- tapOn: "^Password$"
 - inputText: ${RAKAZO_SCREENSHOT_PASSWORD}
 - hideKeyboard
-- tapOn: "Sign in"
+- tapOn: "^Sign in$"
 - tapOn:
     text: "Not Now"
     optional: true

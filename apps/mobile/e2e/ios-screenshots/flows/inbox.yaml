@@ -9,12 +9,27 @@ name: Inbox
     visible: ".*Researcher.*"
     timeout: 20000
 - takeScreenshot: 01-inbox
-- tapOn: "Activity"
+- assertNotVisible: "Activity"
+- longPressOn: ".*Writer.*"
+- assertVisible: "Pin"
+- assertVisible: "Label"
+- assertVisible: "Delete"
+- takeScreenshot: 02-chat-menu
+- tapOn: "Pin"
 - extendedWaitUntil:
-    visible: ".*Recent.*"
+    visible: ".*Writer.*Pinned.*"
     timeout: 15000
-- takeScreenshot: 02-activity
-- tapOn: "Activity"
+- takeScreenshot: 02b-pinned-chat
+- longPressOn: ".*Writer.*Pinned.*"
+- tapOn: "Unpin"
+- tapOn: "Create"
+- assertVisible: "New bot"
+- assertVisible: "New group"
+- assertVisible: "New space"
+- takeScreenshot: 02c-create-menu
+- tapOn: "New bot"
+- assertVisible: "Name this bot"
+- tapOn: "Cancel"
 - openLink: "rakazo:///artifacts"
 - extendedWaitUntil:
     visible: ".*launch-notes.txt.*|.*No artifacts yet.*|.*Artifacts.*"

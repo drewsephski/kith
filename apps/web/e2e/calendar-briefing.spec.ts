@@ -44,7 +44,14 @@ test("Calendar onboarding is visible in the assistant conversation", async ({ pa
   await preferences.click();
   await expect(draft).toBeHidden();
   await preferences.click();
+  await expect(preferences).toHaveAttribute("aria-expanded", "true");
+  await expect(draft).toBeVisible();
   await expect(draft).toHaveValue("Leave preparation time before meetings.");
+  const preferencesPanel = draft.locator('xpath=ancestor::*[@data-slot="collapsible-content"]');
+  await expect(preferencesPanel).not.toHaveAttribute("data-starting-style");
+  await preferencesPanel.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map((animation) => animation.finished));
+  });
   await page.getByRole("button", { name: "Use your own Google OAuth app", exact: true }).click();
   await expect(page.getByLabel("OAuth Client ID", { exact: true })).toBeVisible();
   await expect(page.getByLabel("OAuth Client secret", { exact: true })).toHaveAttribute(
@@ -208,9 +215,10 @@ test("Calendar reuses a managed account without OAuth client setup or a second s
   );
   await completeOnboarding(page);
   const botId = activeBotId(page);
-  await page.getByRole("button", { name: "Connections", exact: true }).last().click();
+  await page.getByRole("button", { name: "Integrations", exact: true }).last().click();
   await page.getByRole("button", { name: "Calendar briefing", exact: true }).click();
-  await page.getByRole("button", { name: "Connect Google Calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  await page.getByRole("button", { name: "Enable briefing", exact: true }).click();
   await expect(page.getByRole("button", { name: "Calendar", exact: true })).toBeVisible();
   expect(request).toMatchObject({ connectionId: "work-account", botId });
   expect(signIns).toBe(0);

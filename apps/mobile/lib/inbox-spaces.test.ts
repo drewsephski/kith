@@ -8,6 +8,7 @@ import {
 } from "./api";
 import {
   canDeleteInboxSpace,
+  fetchInboxOverview,
   type InboxSpace,
   inboxNeedsCreateHint,
   removeInboxSpace,
@@ -58,6 +59,29 @@ const bot: MobileBot = {
   autoSpeak: false,
 };
 
+describe("fetchInboxOverview", () => {
+  it("keeps existing chats available when optional assistant identity is unavailable", async () => {
+    vi.mocked(rpc).mockImplementation(async (proc) => {
+      if (proc === "assistant/get") throw new Error("temporary lookup failure");
+      if (proc === "spaces/list") return { current: { bots: [bot], groups: [] }, spaces: [] };
+      if (proc === "me") return { userId: "user-one", spaceId: "space-one" };
+      throw new Error("unexpected request");
+    });
+    const [navigation, me, assistant] = await fetchInboxOverview();
+    expect(navigation.current.bots).toEqual([bot]);
+    expect(me.spaceId).toBe("space-one");
+    expect(assistant.botId).toBeNull();
+  });
+
+  it.each(["spaces/list", "me"])("retains required %s failures", async (failed) => {
+    vi.mocked(rpc).mockImplementation(async (proc) => {
+      if (proc === failed) throw new Error("required request failed");
+      return proc === "assistant/get" ? { botId: "assistant-one" } : {};
+    });
+    await expect(fetchInboxOverview()).rejects.toThrow("required request failed");
+  });
+});
+
 describe("spaceInboxItems", () => {
   it("keeps an empty space visible and selectable by its own id", () => {
     const empty = space();
@@ -82,7 +106,7 @@ describe("spaceInboxItems", () => {
     expect(inboxNeedsCreateHint([])).toBe(false);
   });
 
-  it("renders space actions once, separate from pinned and named bot sections", () => {
+  it("renders space actions once, separates pins, and keeps labels in the chat list", () => {
     const work = space({
       bots: [
         { ...bot, pinned: true },
@@ -99,7 +123,13 @@ describe("spaceInboxItems", () => {
       ],
     });
     const headings = spaceInboxItems([work]).filter((item) => item.type === "heading");
-    expect(headings.map((item) => item.title)).toEqual(["Work", "Pinned", "Research"]);
+    expect(headings.map((item) => item.title)).toEqual(["Work"]);
+    const items = spaceInboxItems([work]);
+    expect(items.map((item) => item.type)).toEqual(["heading", "pins", "bot"]);
+    expect(items[1]).toMatchObject({
+      type: "pins",
+      chats: [{ type: "bot", bot: { id: "bot-1" } }],
+    });
     expect(headings.filter((item) => item.space)).toEqual([
       { type: "heading", key: work.id, title: work.name, space: work },
     ]);
@@ -120,6 +150,46 @@ describe("spaceInboxItems", () => {
     const items = spaceInboxItems([space({ isDefault: true, bots: [bot], groups: [group] })]);
     expect(items.map((item) => item.type)).toEqual(["bot", "group"]);
     expect(items[0]).toMatchObject({ type: "bot", depth: 0, hasChildren: false });
+  });
+  it("puts the assistant first in pins and sorts remaining chats by latest message", () => {
+    const items = spaceInboxItems(
+      [
+        space({
+          isDefault: true,
+          bots: [
+            { ...bot, id: "older" },
+            { ...bot, id: "other-pin", pinned: true },
+            { ...bot, id: "assistant", pinned: true },
+            { ...bot, id: "latest", updatedAt: "2026-02-01T00:00:00.000Z" },
+          ],
+        }),
+      ],
+      new Set(),
+      "assistant",
+    );
+    expect(items.map((item) => (item.type === "bot" ? item.bot.id : item.type))).toEqual([
+      "pins",
+      "latest",
+      "older",
+    ]);
+    expect(items[0]).toMatchObject({
+      chats: [{ bot: { id: "assistant" } }, { bot: { id: "other-pin" } }],
+    });
+  });
+  it("keeps a pinned parent's unpinned child reachable in the list", () => {
+    const items = spaceInboxItems([
+      space({
+        isDefault: true,
+        bots: [
+          { ...bot, id: "parent", pinned: true },
+          { ...bot, id: "child", parentBotId: "parent" },
+        ],
+      }),
+    ]);
+    expect(items).toMatchObject([
+      { type: "pins" },
+      { type: "bot", bot: { id: "child" }, depth: 0 },
+    ]);
   });
 
   it("nests child bots under their parent and can collapse them", () => {

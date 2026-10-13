@@ -33,17 +33,21 @@ export function ComputerUpdateProgress() {
     t("Reconnecting"),
   ];
   const title = (update: ComputerUpdate) =>
-    computerUpdateNeedsAttention(update)
-      ? update.action === "recover"
-        ? t("Recovery failed")
-        : t("Update failed")
-      : update.action === "recover"
-        ? update.mode === "team"
-          ? t("Recovering Team Computer")
-          : t("Recovering {name}’s Computer", { name: update.name })
-        : update.mode === "team"
-          ? t("Updating Team Computer")
-          : t("Updating {name}’s Computer", { name: update.name });
+    update.status === "stopping"
+      ? t("Stopping…")
+      : update.status === "cancelled"
+        ? t("Stopped")
+        : computerUpdateNeedsAttention(update)
+          ? update.action === "recover"
+            ? t("Recovery failed")
+            : t("Update failed")
+          : update.action === "recover"
+            ? update.mode === "team"
+              ? t("Recovering Team Computer")
+              : t("Recovering {name}’s Computer", { name: update.name })
+            : update.mode === "team"
+              ? t("Updating Team Computer")
+              : t("Updating {name}’s Computer", { name: update.name });
   const selected = updates.find((item) => item.id === openId);
   if (!authenticated) return null;
   return (
@@ -65,7 +69,7 @@ export function ComputerUpdateProgress() {
                 { backgroundColor: tokens.card, borderColor: tokens.border },
               ]}
             >
-              {!computerUpdateNeedsAttention(update) ? (
+              {["queued", "running", "stopping"].includes(update.status) ? (
                 <ActivityIndicator color={tokens.foreground} />
               ) : null}
               <View>
@@ -100,7 +104,7 @@ export function ComputerUpdateProgress() {
                 const current = computerUpdateStages(selected.action).indexOf(selected.stage);
                 return (
                   <View key={stage} style={styles.step}>
-                    {index === current ? (
+                    {index === current && selected.status !== "cancelled" ? (
                       <ActivityIndicator color={tokens.foreground} />
                     ) : (
                       <NativeSymbol
@@ -122,12 +126,29 @@ export function ComputerUpdateProgress() {
                 );
               })
             )}
+            {["queued", "running", "stopping"].includes(selected.status) ? (
+              <NativeActionButton
+                label={selected.status === "stopping" ? t("Stopping…") : t("Stop")}
+                prominence="secondary"
+                fill
+                busy={busy || selected.status === "stopping"}
+                onPress={() => {
+                  setBusy(true);
+                  setError(false);
+                  void computerUpdates
+                    .cancel(selected.id)
+                    .catch(() => setError(true))
+                    .finally(() => setBusy(false));
+                }}
+              />
+            ) : null}
             {error ? (
               <Text accessibilityRole="alert" style={{ color: tokens.destructive }}>
                 {t("Could not complete action")}
               </Text>
             ) : null}
-            {selected.status === "interrupted" && selected.canReleaseReservation ? (
+            {["interrupted", "stopping"].includes(selected.status) &&
+            selected.canReleaseReservation ? (
               <NativeActionButton
                 label={t("Release computer")}
                 prominence="secondary"
@@ -171,11 +192,15 @@ export function ComputerUpdateProgress() {
               />
             ) : null}
             <NativeActionButton
-              label={selected.status === "failed" ? t("Dismiss") : t("Continue in Background")}
+              label={
+                ["failed", "cancelled"].includes(selected.status)
+                  ? t("Dismiss")
+                  : t("Continue in Background")
+              }
               prominence="secondary"
               fill
               onPress={() => {
-                if (selected.status === "failed")
+                if (["failed", "cancelled"].includes(selected.status))
                   void computerUpdates.dismiss(selected.id).catch(() => setError(true));
                 else computerUpdates.open(null);
               }}

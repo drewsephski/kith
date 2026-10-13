@@ -1,7 +1,9 @@
 import type { CalendarEvent, CalendarSnapshot } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  calendarAgendaEvents,
   calendarConflicts,
+  calendarEventUrl,
   calendarTime,
   renderCalendarBriefing,
   tomorrowWindow,
@@ -30,6 +32,49 @@ const snapshot = (events: CalendarEvent[]): CalendarSnapshot => ({
 });
 
 describe("calendar briefing facts", () => {
+  it("orders timed events by their instant across UTC offsets and date boundaries", () => {
+    const events = [
+      event({ id: "later", start: "2026-10-10T10:00:00-07:00" }),
+      event({ id: "earlier", start: "2026-10-10T12:30:00+02:00" }),
+      event({ id: "first", start: "2026-10-11T00:00:00+14:00" }),
+    ];
+    expect(calendarAgendaEvents([snapshot(events)]).map((item) => item.id)).toEqual([
+      "first",
+      "earlier",
+      "later",
+    ]);
+  });
+  it("places all-day events at the start of their local date alongside timed events", () => {
+    const events = [
+      event({ id: "tomorrow", allDay: true, start: "2026-10-11", end: "2026-10-12" }),
+      event({ id: "today", allDay: true, start: "2026-10-10", end: "2026-10-11" }),
+      event({ id: "night-before", start: "2026-10-10T04:30:00Z" }),
+      event(),
+    ];
+    expect(calendarAgendaEvents([snapshot(events)]).map((item) => item.id)).toEqual([
+      "night-before",
+      "today",
+      "event-a",
+      "tomorrow",
+    ]);
+  });
+  it("keeps distinct simultaneous events, removes exact duplicates, and excludes declined invitations", () => {
+    const events = [
+      event(),
+      event({ id: "another" }),
+      event(),
+      event({ id: "declined", response: "declined" }),
+    ];
+    expect(calendarAgendaEvents([snapshot(events)]).map((item) => item.id)).toEqual([
+      "event-a",
+      "another",
+    ]);
+  });
+  it("opens only credential-free HTTPS event links on every surface", () => {
+    expect(calendarEventUrl("https://calendar.google.com/calendar/event?eid=fixture")).toBeTruthy();
+    expect(calendarEventUrl("javascript:alert(1)")).toBeNull();
+    expect(calendarEventUrl("https://name:password@example.test/event")).toBeNull();
+  });
   it("makes overnight meeting dates explicit", () => {
     expect(
       calendarTime(

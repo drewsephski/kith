@@ -8,7 +8,12 @@ import {
   ATTACHMENT_MAX_COUNT,
 } from "./attachments.js";
 import { BotSecretMetadata, BotSecretPutInput, StoredBotSecretName } from "./bot-secrets.js";
-import { CalendarOAuthConfigSchema, CalendarReceiptSchema, CalendarTimezone } from "./calendar.js";
+import {
+  CalendarOAuthConfigSchema,
+  CalendarReceiptSchema,
+  CalendarSnapshotSchema,
+  CalendarTimezone,
+} from "./calendar.js";
 import { ConversationSuggestionsSchema } from "./conversation-suggestions.js";
 import {
   ActionApprovalRuleSchema,
@@ -456,6 +461,7 @@ export const appContract = {
     reset: oc.input(botId).output(ComputerStatusSchema),
     update: oc.input(botId).output(ComputerUpdateSchema),
     updates: oc.output(z.array(ComputerUpdateSchema)),
+    cancelUpdate: oc.input(z.object({ id: Id })).output(z.object({ ok: z.literal(true) })),
     releaseInterrupted: oc
       .input(z.object({ id: Id, workersStopped: z.literal(true) }))
       .output(z.object({ ok: z.literal(true) })),
@@ -554,6 +560,11 @@ export const appContract = {
       .output(z.object({ routineId: Id })),
   },
   calendar: {
+    agenda: oc
+      .input(z.object({ timezone: CalendarTimezone }))
+      .output(
+        z.object({ snapshots: z.array(CalendarSnapshotSchema).max(3), unavailable: z.boolean() }),
+      ),
     status: oc.output(
       z.object({
         configured: z.boolean(),

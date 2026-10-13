@@ -43,7 +43,7 @@ test("computer maintenance shows durable background progress and failure recover
       json: { id: updating.id, workersStopped: true },
     });
     releases++;
-    updates = [{ ...updating, status: "failed" }];
+    updates = [{ ...updating, status: updates[0]?.status === "stopping" ? "cancelled" : "failed" }];
     return route.fulfill({ json: { json: { ok: true } } });
   });
   await page.getByTitle("Agent computer").click();
@@ -93,6 +93,15 @@ test("computer maintenance shows durable background progress and failure recover
   await page.reload();
   await page.getByRole("button", { name: /Updating Team Computer/ }).click();
   await expect(dialog).toBeVisible();
+  updates = [{ ...updating, status: "stopping", canReleaseReservation: true }];
+  await dialog.getByRole("button", { name: "Release computer", exact: true }).click();
+  const stoppingConfirmation = page.getByRole("alertdialog");
+  await captureScreenshot(page, testInfo, "computer-update-stopping-release");
+  await stoppingConfirmation
+    .getByRole("button", { name: "Nothing is still running", exact: true })
+    .click();
+  await expect(dialog.getByRole("button", { name: "Dismiss", exact: true })).toBeVisible();
+  expect(releases).toBe(1);
   updates = [{ ...updating, status: "interrupted" }];
   await expect(
     dialog.getByText("Recovery is unavailable until the previous operation has stopped."),
@@ -104,11 +113,11 @@ test("computer maintenance shows durable background progress and failure recover
   const confirmation = page.getByRole("alertdialog");
   await captureScreenshot(page, testInfo, "computer-update-release-confirmation");
   await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
-  expect(releases).toBe(0);
+  expect(releases).toBe(1);
   await dialog.getByRole("button", { name: "Release computer", exact: true }).click();
   await confirmation.getByRole("button", { name: "Nothing is still running", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "Recover computer", exact: true })).toBeVisible();
-  expect(releases).toBe(1);
+  expect(releases).toBe(2);
   await expect(dialog.getByRole("heading")).toHaveText("Update failed");
   await captureScreenshot(page, testInfo, "computer-update-failed");
   await dialog.getByRole("button", { name: "Recover computer" }).click();

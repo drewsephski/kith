@@ -1,11 +1,11 @@
 ---
 type Props = {
   otherName: string;
-  rakazo: readonly string[];
+  kith: readonly string[];
   other: readonly string[];
 };
 
-const { otherName, rakazo, other } = Astro.props;
+const { otherName, kith, other } = Astro.props;
 ---
 
 <figure class="vs-card">
@@ -13,7 +13,7 @@ const { otherName, rakazo, other } = Astro.props;
     <div class="vs-card__col">
       <p class="vs-card__name">Kith</p>
       <ul>
-        {rakazo.map((item) => <li>{item}</li>)}
+        {kith.map((item) => <li>{item}</li>)}
       </ul>
     </div>
     <p class="vs-card__vs" aria-hidden="true">vs</p>

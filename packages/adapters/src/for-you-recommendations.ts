@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { AdapterContext, MemoryStore, TaskMeeting } from "@rakazo/adapter-kit";
 import type { Actor, ForYouDiscovery, ForYouRecommendation, TaskSource } from "@rakazo/contracts";
+import { TaskMailSchema } from "@rakazo/contracts";
 import { taskSourceId, taskStarterApp } from "@rakazo/core";
 import type { Prisma } from "@rakazo/db";
 import { z } from "zod";
@@ -8,7 +9,17 @@ import { loadAgentMemoryContext } from "./memory-context.js";
 import type { TaskStarterDependencies } from "./task-starter-service.js";
 import { assertStarterConnections } from "./task-starter-service.js";
 
+const ConnectionEvidence = z.object({
+  id: z.string(),
+  connectorId: z.string(),
+  provider: z.string(),
+  providerRef: z.string(),
+  displayName: z.string(),
+});
+const CALENDAR_WINDOW_MS = 7 * 86400_000;
+const MAIL_QUERY = "in:inbox is:unread newer_than:7d -category:promotions -category:social";
 const Evidence = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("mail"), connection: ConnectionEvidence, mail: TaskMailSchema }),
   z.object({
     kind: z.literal("meeting"),
     connection: z.object({
@@ -90,14 +101,19 @@ export class ForYouRecommendations {
       if (this.pending >= 8) return { recommendations: [], unavailable: true };
       this.pending++;
       if (this.cache.size >= 128) this.cache.delete(this.cache.keys().next().value!);
-      const result = this.read(scope, now).finally(() => this.pending--);
+      const result = this.read(scope, now)
+        .catch((error) => {
+          this.cache.delete(key);
+          throw error;
+        })
+        .finally(() => this.pending--);
       entry = { expires: now.getTime() + 60_000, result };
       this.cache.set(key, entry);
     }
     const { candidates, unavailable, retrievedAt } = await entry.result;
     await this.assertScope(actor, assistantId);
     const recommendations: ForYouRecommendation[] = [];
-    for (const candidate of candidates.slice(0, 6)) {
+    for (const candidate of candidates) {
       // Revocation/completion is checked even on a cached discovery result.
       if (!(await this.current(scope, candidate.evidence, false))) continue;
       const fingerprint = hash(candidate.evidence);
@@ -258,6 +274,28 @@ export class ForYouRecommendations {
     }
     try {
       await assertStarterConnections(this.deps.prisma, scope, [evidence.connection]);
+      if (evidence.kind === "mail") {
+        if (Date.parse(evidence.mail.date) < Date.now() - CALENDAR_WINDOW_MS) return false;
+        if (!reread) return true;
+        const context = this.context(scope);
+        const platform = await this.deps.integrationSettings.taskPlatform(
+          evidence.connection,
+          context,
+        );
+        const result = await platform.searchMail(
+          {
+            connection: evidence.connection,
+            query: MAIL_QUERY,
+            maxMessages: 10,
+            includeThreadContext: false,
+          },
+          context,
+        );
+        await assertStarterConnections(this.deps.prisma, scope, [evidence.connection]);
+        return result.messages.some(
+          (message) => hash(TaskMailSchema.parse(message)) === hash(evidence.mail),
+        );
+      }
       if (Date.parse(evidence.meeting.start) <= Date.now()) return false;
       if (!reread) return true;
       const context = this.context(scope);
@@ -269,7 +307,7 @@ export class ForYouRecommendations {
         {
           connection: evidence.connection,
           timeMin: new Date().toISOString(),
-          timeMax: new Date(Date.now() + 48 * 60 * 60_000).toISOString(),
+          timeMax: new Date(Date.now() + CALENDAR_WINDOW_MS).toISOString(),
           maxMeetings: 12,
           maxCalendars: 2,
           maxPages: 1,
@@ -300,7 +338,7 @@ export class ForYouRecommendations {
           connectorId: { in: ["composio", "pipedream"] },
         },
         orderBy: { createdAt: "asc" },
-        take: 30,
+        take: 31,
       }),
       this.deps.prisma.scratchpadItem.findMany({
         where: {
@@ -347,9 +385,19 @@ export class ForYouRecommendations {
         updatedAt: row.updatedAt.toISOString(),
       },
     }));
-    const calendars = accounts.filter((c) => taskStarterApp(c.provider) === "calendar").slice(0, 2);
+    const sourceAccounts = accounts.slice(0, 30);
+    const calendarAccounts = sourceAccounts.filter(
+      (c) => taskStarterApp(c.provider) === "calendar",
+    );
+    const inboxAccounts = sourceAccounts.filter((c) => taskStarterApp(c.provider) === "gmail");
+    const calendars = calendarAccounts.slice(0, 2);
+    const inboxes = inboxAccounts.slice(0, 2);
+    const incomplete =
+      accounts.length > sourceAccounts.length ||
+      calendarAccounts.length > calendars.length ||
+      inboxAccounts.length > inboxes.length;
     const batches = await Promise.allSettled(
-      calendars.map(async (connection) => {
+      [...calendars, ...inboxes].map(async (connection) => {
         const c = {
           id: connection.id,
           provider: connection.provider,
@@ -359,11 +407,37 @@ export class ForYouRecommendations {
         };
         await assertStarterConnections(this.deps.prisma, scope, [c]);
         const platform = await this.deps.integrationSettings.taskPlatform(c, context);
+        if (taskStarterApp(c.provider) === "gmail") {
+          const result = await platform.searchMail(
+            { connection: c, query: MAIL_QUERY, maxMessages: 10, includeThreadContext: false },
+            context,
+          );
+          await assertStarterConnections(this.deps.prisma, scope, [c]);
+          return {
+            complete: result.complete,
+            candidates: result.messages
+              .slice(0, 10)
+              .filter(
+                (mail) =>
+                  mail.connectionId === c.id &&
+                  mail.subject.trim() &&
+                  Date.parse(mail.date) >= now.getTime() - CALENDAR_WINDOW_MS &&
+                  Date.parse(mail.date) <= now.getTime(),
+              )
+              .map(
+                (mail): Candidate => ({
+                  key: `mail:${taskSourceId(c.id, mail.id)}`,
+                  score: 12 + affinity(`${mail.subject} ${mail.snippet}`),
+                  evidence: { kind: "mail", connection: c, mail: TaskMailSchema.parse(mail) },
+                }),
+              ),
+          };
+        }
         const result = await platform.upcomingMeetings(
           {
             connection: c,
             timeMin: now.toISOString(),
-            timeMax: new Date(now.getTime() + 48 * 60 * 60_000).toISOString(),
+            timeMax: new Date(now.getTime() + CALENDAR_WINDOW_MS).toISOString(),
             maxMeetings: 12,
             maxCalendars: 2,
             maxPages: 1,
@@ -371,31 +445,34 @@ export class ForYouRecommendations {
           context,
         );
         await assertStarterConnections(this.deps.prisma, scope, [c]);
-        return result.meetings
-          .slice(0, 12)
-          .filter(
-            (m) =>
-              m.connectionId === c.id &&
-              m.title.trim() &&
-              Date.parse(m.start) > now.getTime() &&
-              Date.parse(m.start) < now.getTime() + 48 * 60 * 60_000,
-          )
-          .map(
-            (meeting: TaskMeeting): Candidate => ({
-              key: `meeting:${taskSourceId(c.id, meeting.id)}`,
-              score:
-                20 +
-                affinity(meeting.title) +
-                (Date.parse(meeting.start) < now.getTime() + 86400_000 ? 5 : 0),
-              evidence: { kind: "meeting", connection: c, meeting },
-            }),
-          );
+        return {
+          complete: result.complete,
+          candidates: result.meetings
+            .slice(0, 12)
+            .filter(
+              (m) =>
+                m.connectionId === c.id &&
+                m.title.trim() &&
+                Date.parse(m.start) > now.getTime() &&
+                Date.parse(m.start) < now.getTime() + CALENDAR_WINDOW_MS,
+            )
+            .map(
+              (meeting: TaskMeeting): Candidate => ({
+                key: `meeting:${taskSourceId(c.id, meeting.id)}`,
+                score:
+                  20 +
+                  affinity(meeting.title) +
+                  (Date.parse(meeting.start) < now.getTime() + 86400_000 ? 5 : 0),
+                evidence: { kind: "meeting", connection: c, meeting },
+              }),
+            ),
+        };
       }),
     );
     const seen = new Set<string>();
     for (const batch of batches)
       if (batch.status === "fulfilled")
-        for (const candidate of batch.value) {
+        for (const candidate of batch.value.candidates) {
           const meeting = candidate.evidence.kind === "meeting" ? candidate.evidence.meeting : null;
           const duplicate = meeting
             ? hash([meeting.title, meeting.start, meeting.end, [...meeting.attendees].sort()])
@@ -407,7 +484,7 @@ export class ForYouRecommendations {
         }
     return {
       candidates: candidates.sort((a, b) => b.score - a.score || a.key.localeCompare(b.key)),
-      unavailable: batches.some((b) => b.status === "rejected"),
+      unavailable: incomplete || batches.some((b) => b.status === "rejected" || !b.value.complete),
       retrievedAt: now,
     };
   }
@@ -420,25 +497,32 @@ export class ForYouRecommendations {
     expiresAt: Date,
   ): ForYouRecommendation {
     const meeting = evidence.kind === "meeting" ? evidence.meeting : null;
+    const mail = evidence.kind === "mail" ? evidence.mail : null;
     const source: TaskSource = {
-      id: meeting
-        ? taskSourceId(meeting.connectionId, meeting.id)
-        : evidence.kind === "task"
-          ? evidence.id
-          : "",
+      id: mail
+        ? taskSourceId(mail.connectionId, mail.id)
+        : meeting
+          ? taskSourceId(meeting.connectionId, meeting.id)
+          : evidence.kind === "task"
+            ? evidence.id
+            : "",
       connectionId:
-        meeting?.connectionId ?? (evidence.kind === "task" ? evidence.botId : "saved-work"),
-      title: meeting?.title ?? (evidence.kind === "task" ? evidence.title : ""),
-      url: meeting ? safeUrl(meeting.url) : null,
+        mail?.connectionId ??
+        meeting?.connectionId ??
+        (evidence.kind === "task" ? evidence.botId : "saved-work"),
+      title: mail?.subject ?? meeting?.title ?? (evidence.kind === "task" ? evidence.title : ""),
+      url: mail ? safeUrl(mail.url) : meeting ? safeUrl(meeting.url) : null,
       retrievedAt: now.toISOString(),
     };
     return {
       id: identity(id, fingerprint),
       kind: evidence.kind,
-      title: `${meeting ? "Prepare for" : "Continue"} “${source.title.slice(0, 120)}”`,
-      description: meeting
-        ? "An upcoming event on your calendar."
-        : "An unfinished item in your saved work.",
+      title: `${mail ? "Review" : meeting ? "Prepare for" : "Continue"} “${source.title.slice(0, 120)}”`,
+      description: mail
+        ? "A recent unread conversation in your inbox."
+        : meeting
+          ? "An upcoming event on your calendar."
+          : "An unfinished item in your saved work.",
       sources: [source],
       discoveredAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),

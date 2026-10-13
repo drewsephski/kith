@@ -172,7 +172,7 @@ describe("account preferences", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("coerces unknown stored avatar styles to robot on me", async () => {
+  it("uses organic for unknown stored avatar styles on me", async () => {
     const { actor, handler } = preferencesDeps("custom-cdn");
 
     const { response } = await handler.handle(
@@ -186,7 +186,7 @@ describe("account preferences", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      json: expect.objectContaining({ avatarStyle: "robot" }),
+      json: expect.objectContaining({ avatarStyle: "organic" }),
     });
   });
 });
@@ -1831,10 +1831,10 @@ describe("integration setup authorization", () => {
 });
 
 describe("interrupted computer reservation release", () => {
-  function fixture() {
+  function fixture(status = "interrupted") {
     const order: string[] = [];
     const computerUpdate = {
-      findFirst: vi.fn(async () => ({ id: "update-1", computerId: "computer-1" })),
+      findFirst: vi.fn(async () => ({ id: "update-1", computerId: "computer-1", status })),
       updateMany: vi.fn(async () => {
         order.push("operation");
         return { count: 1 };
@@ -1891,7 +1891,7 @@ describe("interrupted computer reservation release", () => {
     expect(computerUpdate.findFirst).toHaveBeenCalledWith({
       where: {
         id: "update-1",
-        status: "interrupted",
+        status: { in: ["interrupted", "stopping"] },
         computer: { spaceId: "space-1", bots: { some: { userId: "user-1", archivedAt: null } } },
       },
     });
@@ -1904,6 +1904,26 @@ describe("interrupted computer reservation release", () => {
       data: { maintenanceId: null, state: "error" },
     });
     expect(order).toEqual(["operation", "computer"]);
+  });
+  it("retains cancellation when the owner confirms a stopped worker has settled", async () => {
+    const { call, computerUpdate, computer } = fixture("stopping");
+    const { response } = await call(true, true);
+    expect(response.status).toBe(200);
+    expect(computerUpdate.updateMany).toHaveBeenCalledWith({
+      where: { id: "update-1", status: "stopping" },
+      data: { status: "cancelled" },
+    });
+    expect(computer.updateMany).toHaveBeenCalledWith({
+      where: { id: "computer-1", maintenanceId: "update-1" },
+      data: { maintenanceId: null, state: "error" },
+    });
+  });
+  it("does not release a newer reservation when the terminal status wins the CAS", async () => {
+    const { call, computerUpdate, computer } = fixture("stopping");
+    computerUpdate.updateMany.mockResolvedValueOnce({ count: 0 });
+    const { response } = await call(true, true);
+    expect(response.status).toBe(409);
+    expect(computer.updateMany).not.toHaveBeenCalled();
   });
 });
 

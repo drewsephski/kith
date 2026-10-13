@@ -14,6 +14,8 @@ test("titled sidebar section expands and collapses", async ({ page }, testInfo) 
   const bot = sidebar.getByRole("button", { name: /^Kith/ });
 
   await bot.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Unpin", exact: true }).click();
+  await bot.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Move to", exact: true }).hover();
   await page.getByRole("menu", { name: "Move to", exact: true }).getByText("New section").click();
   const dialog = page.getByRole("dialog", { name: "New section" });

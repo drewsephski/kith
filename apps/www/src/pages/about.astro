@@ -1,42 +1,18 @@
 ---
-import Footer from "../components/Footer.astro";
-import Header from "../components/Header.astro";
-import { fetchGithubStars, formatStarCount } from "../github";
-import BaseLayout from "../layouts/BaseLayout.astro";
-import { GITHUB_URL, SELF_HOST_GUIDE_PATH } from "../site";
-
-const stars = await fetchGithubStars();
-const starsLabel = stars === null ? "Star" : formatStarCount(stars);
+import SiteFrame from "../components/SiteFrame.astro";
+import Button from "../components/Button.astro";
+import { GITHUB_URL, WEB_START_URL } from "../site";
 ---
-
-<BaseLayout
-  title="About · Kith"
-  description="How Kith is building an open source Grok Bot alternative that people can understand and control."
->
-  <div class="container">
-    <Header starsLabel={starsLabel} />
-    <main id="main" class="privacy-copy">
-      <h1>About Kith</h1>
-      <p>
-        Kith is an open source Grok Bot alternative for persistent AI teammates: bots that can use a browser and shell,
-        remember the work around a job, run routines on a schedule, and ask for approval when they reach a
-        boundary. It is designed for practical operational work rather than one-off chat.
-      </p>
-      <h2>Why we are building it</h2>
-      <p>
-        Useful agents should be understandable and controllable by the people who run them. Kith keeps
-        routines in readable Markdown, supports multiple model providers, records actions in an audit log, and
-        lets operators keep model keys, browser sessions, and deployment infrastructure under their own
-        control. The same bots and routines work across the web, desktop, and mobile clients.
-      </p>
-      <h2>Open by default</h2>
-      <p>
-        Kith is an Apache-2.0 fork of the upstream Rakazo project. The project accepts
-        public issues and contributions on <a href={GITHUB_URL}>GitHub</a>. To run Kith on your own
-        infrastructure, start with the <a href={SELF_HOST_GUIDE_PATH}>self-hosting guide</a>. For product or account help,
-        contact the operator of the service you use.
-      </p>
-    </main>
-    <Footer />
-  </div>
-</BaseLayout>
+<SiteFrame title="About Kith" description="A personal AI assistant that remembers context and helps with the work around your day.">
+  <h1>A little help with the work around your day</h1>
+  <p>Kith is your personal AI assistant. Start a conversation, share what matters, and return to the same assistant when you need help again.</p>
+  <h2>Built around real tasks</h2>
+  <p>Prepare for a meeting. Find the email you meant to reply to. Compare a few options before making a decision. Kith can work with the information you share and the accounts you choose to connect.</p>
+  <h2>Context that carries forward</h2>
+  <p>Your preferences and saved memories help Kith understand the next task. Review them, change them, or ask Kith to forget. Add a focused bot when you want a separate helper for a recurring job.</p>
+  <h2>Room for your judgment</h2>
+  <p>Follow sources, review results, and respond to requests for approval. Kith can make mistakes, so check important details before acting on them.</p>
+  <h2>Open about how it works</h2>
+  <p>Kith’s source code is available on <a href={GITHUB_URL}>GitHub</a> under Apache-2.0. For everyday use, start in the app. For account or product questions, visit <a href="/support/">Support</a>.</p>
+  <div class="alt-actions"><Button href={WEB_START_URL}>Get started</Button></div>
+</SiteFrame>

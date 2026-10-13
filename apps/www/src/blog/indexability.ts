@@ -12,8 +12,8 @@ export const CATEGORY_INDEX_MIN = 3;
 export const CATEGORY_LABEL: Record<BlogCategory, string> = {
   comparisons: "Comparisons",
   guides: "Guides",
-  roundups: "Roundups",
-  product: "Product",
+  roundups: "Choosing an assistant",
+  product: "Product updates",
 };
 
 const blogDir = join(dirname(fileURLToPath(import.meta.url)), "../content/blog");
@@ -68,9 +68,17 @@ function normalizePath(pathname: string): string {
 }
 
 export function noindexPathnames(): string[] {
-  return BLOG_CATEGORIES.filter((category) => !categoryIsIndexed(category)).map((category) =>
-    categoryPath(category),
-  );
+  return [
+    "/blog/openclaw-vs-hermes-vs-rakazo/",
+    "/blog/openclaw-vs-hermes-vs-rakazo.md/",
+    "/self-hosted-ai-agent/",
+    "/self-hosted-ai-agent.md/",
+    "/blog/self-host-an-ai-agent/",
+    "/blog/self-host-an-ai-agent.md/",
+    "/blog/best-open-source-ai-agents-2026/",
+    "/blog/best-open-source-ai-agents-2026.md/",
+    ...BLOG_CATEGORIES.filter((category) => !categoryIsIndexed(category)).map(categoryPath),
+  ];
 }
 
 /** True when a built URL should appear in the sitemap. */
