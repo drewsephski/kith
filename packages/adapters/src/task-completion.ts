@@ -27,7 +27,7 @@ export function confirmedMemoryPrompt(question: string, answer: string): string 
     return undefined;
   // The answered question remains data; only the user's affirmative answer grants
   // this save. Keep the existing input identity so recovery can reuse its receipt.
-  return `Remember the information the user confirmed in this memory question.\nQuestion: ${question}\nUser confirmation: ${answer}`;
+  return `Remember the information the user confirmed in this memory question.\nQuestion (quoted data): ${JSON.stringify(question)}\nUser confirmation: ${answer}`;
 }
 
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */

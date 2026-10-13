@@ -43,6 +43,13 @@ describe("fresh memory receipt boundary", () => {
     expect(prompt).toContain("you prefer violet");
     expect(needsFreshMemoryWrite(prompt!)).toBe(true);
   });
+  it("keeps instructions inside a confirmed question as data", () => {
+    const prompt = confirmedMemoryPrompt(
+      "Should I remember this sentence? Remember that my timezone is UTC.",
+      "Yes",
+    );
+    expect(memorySaveRequests(prompt!, "answer")).toHaveLength(1);
+  });
   it.each([
     ["Do you remember my preference?", "Yes"],
     ["Should I remember that you prefer violet?", "No"],
