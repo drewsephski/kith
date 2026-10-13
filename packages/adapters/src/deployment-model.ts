@@ -1,4 +1,5 @@
 import { getEnvApiKey } from "@earendil-works/pi-ai/compat";
+import { resolveModelExecutionMode } from "@rakazo/db";
 
 export const DEFAULT_OPENROUTER_MODEL_ID = "openai/gpt-6-luna";
 
@@ -63,11 +64,7 @@ export function resolveDeploymentModel(env: NodeJS.ProcessEnv = process.env) {
 export type ModelExecutionMode = "managed" | "self-hosted";
 
 export function modelExecutionMode(env: NodeJS.ProcessEnv = process.env): ModelExecutionMode {
-  const value = env.MODEL_EXECUTION_MODE?.trim();
-  if (value && value !== "managed" && value !== "self-hosted") {
-    throw new Error("MODEL_EXECUTION_MODE must be managed or self-hosted");
-  }
-  return value === "managed" ? "managed" : "self-hosted";
+  return resolveModelExecutionMode(env);
 }
 
 export const MANAGED_CHATGPT_CONNECTION_MESSAGE =

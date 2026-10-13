@@ -155,7 +155,7 @@ const FALLBACK_AGENT_TOOL_NAME = "connector_tool";
 
 /** Optional self-host fuse. Unset, empty, or 0 means unlimited (default). */
 export function maxToolCallsPerTurn(env: NodeJS.ProcessEnv = process.env): number {
-  if (env.MODEL_EXECUTION_MODE === "managed")
+  if (modelExecutionMode(env) === "managed")
     return executionLimit("MAX_TOOL_CALLS_PER_TURN", 40, env);
   const raw = env.MAX_TOOL_CALLS_PER_TURN?.trim();
   if (!raw) return 0;

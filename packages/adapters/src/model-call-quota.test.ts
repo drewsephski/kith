@@ -2,9 +2,11 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import type { AdapterContext, AgentRunRequest } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
+import { resolveMaxComputersPerUser } from "@rakazo/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { claimComputerActivation } from "./computer-demand.js";
 import { createModelCallQuotaObserver, managedCompletionTokens } from "./model-call-quota.js";
-import { PiAgentRuntime } from "./pi-runtime.js";
+import { maxToolCallsPerTurn, PiAgentRuntime } from "./pi-runtime.js";
 import { observedPiStream } from "./pi-usage.js";
 
 const request = { runId: "fixture-child", rootRunId: "fixture-root" } as AgentRunRequest;
@@ -40,6 +42,36 @@ function fixture(counts = { daily: 0n, run: 0n, active: 0n }) {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("managed model-call admission", () => {
+  it("keeps whitespace-managed computer and tool quotas enabled", async () => {
+    vi.stubEnv("MODEL_EXECUTION_MODE", " managed ");
+    vi.stubEnv("SANDBOX_MAX_COMPUTERS_PER_USER", undefined);
+    vi.stubEnv("SANDBOX_MAX_ACTIVE_COMPUTERS_PER_USER", undefined);
+    expect(resolveMaxComputersPerUser()).toBe(3);
+    expect(() => resolveMaxComputersPerUser("0")).toThrow("positive integer");
+    expect(maxToolCallsPerTurn({ MODEL_EXECUTION_MODE: " managed " })).toBe(40);
+    expect(() =>
+      maxToolCallsPerTurn({ MODEL_EXECUTION_MODE: " managed ", MAX_TOOL_CALLS_PER_TURN: "0" }),
+    ).toThrow("positive integer");
+    const updateMany = vi.fn();
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      computer: { count: vi.fn().mockResolvedValue(1), updateMany },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (run: (tx: unknown) => unknown) => run(tx)),
+      computer: { updateMany },
+    } as unknown as PrismaClient;
+    await expect(
+      claimComputerActivation(prisma, {
+        userId: "fixture-user",
+        computerId: "fixture-computer",
+        kind: "e2b",
+        where: { id: "fixture-computer" },
+        data: { state: "booting" },
+      }),
+    ).rejects.toThrow("Computer limit reached");
+    expect(updateMany).not.toHaveBeenCalled();
+  });
   it("fails closed when a managed runtime was composed without durable admission", async () => {
     const runtime = new PiAgentRuntime({ modelExecutionMode: "managed" });
     const input = {

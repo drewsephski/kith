@@ -1,6 +1,6 @@
 import type { AdapterContext } from "@rakazo/adapter-kit";
 import type { PrismaClient } from "@rakazo/db";
-import { ExecutionQuotaError, executionLimit, Prisma } from "@rakazo/db";
+import { ExecutionQuotaError, executionLimit, Prisma, resolveModelExecutionMode } from "@rakazo/db";
 import { executionProfile } from "./execution-profile.js";
 
 /** Preparation hints only. Textual intent never grants computer authority. */
@@ -90,7 +90,7 @@ export async function claimComputerActivation(
       },
     });
     if (active >= limit) {
-      if (process.env.MODEL_EXECUTION_MODE === "managed")
+      if (resolveModelExecutionMode() === "managed")
         throw new ExecutionQuotaError("Computer limit reached. Stop another computer, then retry.");
       return { count: 0 };
     }

@@ -1,7 +1,7 @@
 import type { ComputerMode } from "@rakazo/contracts";
 import type { PrismaClient } from "./client.js";
 import { Prisma } from "./client.js";
-import { executionLimit } from "./execution-quotas.js";
+import { executionLimit, resolveModelExecutionMode } from "./execution-quotas.js";
 import { withTransactionRetry } from "./transaction-retry.js";
 
 export type { ComputerMode } from "@rakazo/contracts";
@@ -40,7 +40,7 @@ type ExecutionLeaseDb = Pick<PrismaClient, "computerExecutionLease">;
 export function resolveMaxComputersPerUser(
   value = process.env.SANDBOX_MAX_COMPUTERS_PER_USER,
 ): number {
-  if (process.env.MODEL_EXECUTION_MODE === "managed")
+  if (resolveModelExecutionMode() === "managed")
     return executionLimit("SANDBOX_MAX_COMPUTERS_PER_USER", 3, {
       ...process.env,
       SANDBOX_MAX_COMPUTERS_PER_USER: value,

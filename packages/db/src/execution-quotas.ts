@@ -7,13 +7,23 @@ export class ExecutionQuotaError extends Error {
   }
 }
 
+/** One validated mode for model authorization and every execution quota boundary. */
+export function resolveModelExecutionMode(
+  env: NodeJS.ProcessEnv = process.env,
+): "managed" | "self-hosted" {
+  const value = env.MODEL_EXECUTION_MODE?.trim();
+  if (value && value !== "managed" && value !== "self-hosted")
+    throw new Error("MODEL_EXECUTION_MODE must be managed or self-hosted");
+  return value === "managed" ? "managed" : "self-hosted";
+}
+
 /** A managed limit cannot be disabled accidentally with zero or invalid configuration. */
 export function executionLimit(
   name: string,
   managedDefault: number,
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  const managed = env.MODEL_EXECUTION_MODE === "managed";
+  const managed = resolveModelExecutionMode(env) === "managed";
   const raw = env[name]?.trim();
   if (!raw) return managed ? managedDefault : 0;
   const value = Number(raw);
