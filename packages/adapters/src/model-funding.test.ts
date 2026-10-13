@@ -5,15 +5,20 @@ import {
   deploymentFundsModel,
   MANAGED_CHATGPT_CONNECTION_MESSAGE,
   modelExecutionMode,
+  modelProviderApiKeyError,
   modelProviderExecutionError,
 } from "./deployment-model.js";
 import { createRunExecutor } from "./executor.js";
-import { validateHostedModelConnection } from "./model-connect.js";
+import { modelCredentialDto, validateHostedModelConnection } from "./model-connect.js";
 import {
   assertStoredModelCredentialAvailable,
+  modelCredentialAuthKindsForSpace,
+  readStoredModelAuth,
   validateModelAuthAvailability,
 } from "./model-selection.js";
+import { listPiCatalog } from "./pi-models.js";
 import { modelSecretExecutionError, PiOAuthLogins, resolveModelAuth } from "./pi-oauth.js";
+import { resolveRuntimeModel } from "./pi-runtime.js";
 
 const scope = { userId: "fixture-user", spaceId: "fixture-space" };
 const luna = { provider: "openrouter", model: "openai/gpt-6-luna" };
@@ -85,6 +90,21 @@ function executor(
 afterEach(() => vi.unstubAllEnvs());
 
 describe("model funding policy", () => {
+  it("rejects the installed Vertex transport's actual ADC sentinel", () => {
+    const transport = readFileSync(
+      new URL(import.meta.resolve("@earendil-works/pi-ai/api/google-vertex")),
+      "utf8",
+    );
+    const marker = /GCP_VERTEX_CREDENTIALS_MARKER\s*=\s*"([^"]+)"/.exec(transport)?.[1];
+    // This external-adapter contract check fails if an upgrade changes its sentinel.
+    expect(marker).toBeDefined();
+    expect(modelProviderApiKeyError("google-vertex", marker, "managed")).toMatch(
+      /user-owned API key/,
+    );
+    expect(
+      modelProviderApiKeyError("google-vertex", "fixture-real-key", "managed"),
+    ).toBeUndefined();
+  });
   it("binds managed deployment funding to the configured Luna pair", () => {
     expect(deploymentFundsModel(luna.provider, luna.model, luna, "managed")).toBe(true);
     expect(deploymentFundsModel("openrouter", "anthropic/claude-sonnet-5", luna, "managed")).toBe(
@@ -273,6 +293,102 @@ describe("model funding policy", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["google-vertex", "amazon-bedrock"])(
+    "requires a real per-request key for managed %s and preserves self-hosted host auth",
+    async (provider) => {
+      expect(modelProviderApiKeyError(provider, "<authenticated>", "managed")).toMatch(
+        /user-owned API key/,
+      );
+      expect(modelProviderApiKeyError(provider, undefined, "managed")).toMatch(
+        /user-owned API key/,
+      );
+      expect(modelProviderApiKeyError(provider, "fixture-user-key", "managed")).toBeUndefined();
+      expect(modelProviderApiKeyError(provider, undefined, "self-hosted")).toBeUndefined();
+      const model = listPiCatalog().find((entry) => entry.provider === provider)!;
+      expect(model).toBeDefined();
+      expect(() =>
+        resolveRuntimeModel(
+          { provider, id: model.id, apiKey: "<authenticated>", fundingSource: "user" },
+          "managed",
+        ),
+      ).toThrow(/user-owned API key/);
+      expect(
+        resolveRuntimeModel(
+          { provider, id: model.id, apiKey: "fixture-user-key", fundingSource: "user" },
+          "managed",
+        ).apiKey,
+      ).toBe("fixture-user-key");
+      const fetch = vi.fn<typeof globalThis.fetch>();
+      await expect(
+        validateHostedModelConnection(
+          { provider, plaintext: "<authenticated>", modelId: model.id },
+          fetch,
+        ),
+      ).rejects.toThrow(/user-owned API key/);
+      expect(fetch).not.toHaveBeenCalled();
+      vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+      expect(
+        modelCredentialDto(
+          { id: "fixture-credential", provider, label: "Fixture", isDefault: true },
+          "<authenticated>",
+        ).hasKey,
+      ).toBe(false);
+    },
+  );
+
+  it.each(["<authenticated>", "gcp-vertex-credentials", "  gcp-vertex-credentials  "])(
+    "marks managed Vertex host placeholder %s unavailable in the catalog and stored selection",
+    async (key) => {
+      vi.stubEnv("MODEL_EXECUTION_MODE", "managed");
+      const provider = "google-vertex";
+      const model = listPiCatalog().find((entry) => entry.provider === provider)!;
+      const prisma = {
+        userModelCredential: { findMany: vi.fn(async () => [{ ...byok, provider }]) },
+        spaceModelPreference: { findMany: vi.fn(async () => []) },
+        secret: {
+          findMany: vi.fn(async () => [{ id: byok.secretId, ciphertext: "fixture-ciphertext" }]),
+          findFirst: vi.fn(async () => ({ id: byok.secretId, ciphertext: "fixture-ciphertext" })),
+        },
+      } as unknown as PrismaClient;
+      const load = vi.fn(async () => key);
+      const auth = await modelCredentialAuthKindsForSpace(prisma, { load }, scope, "managed");
+      expect(auth.byProvider[provider]).toBeUndefined();
+      expect(auth.unavailableByModel?.[provider]?.[model.id]).toMatch(/user-owned API key/);
+      expect(
+        await readStoredModelAuth(
+          prisma,
+          { load },
+          scope.userId,
+          byok.secretId,
+          provider,
+          model.id,
+        ),
+      ).toEqual({ status: "rejected", message: expect.stringMatching(/user-owned API key/) });
+    },
+  );
+
+  it.each(["gcp-vertex-credentials", "  gcp-vertex-credentials  "])(
+    "rejects the SDK Vertex sentinel %s before hosted save and runtime SDK access",
+    async (key) => {
+      const provider = "google-vertex";
+      const model = listPiCatalog().find((entry) => entry.provider === provider)!;
+      expect(modelSecretExecutionError(provider, key, "managed")).toMatch(/user-owned API key/);
+      expect(() =>
+        resolveRuntimeModel(
+          { provider, id: model.id, apiKey: key, fundingSource: "user" },
+          "managed",
+        ),
+      ).toThrow(/user-owned API key/);
+      const fetch = vi.fn<typeof globalThis.fetch>();
+      await expect(
+        validateHostedModelConnection({ provider, plaintext: key, modelId: model.id }, fetch),
+      ).rejects.toThrow(/user-owned API key/);
+      expect(fetch).not.toHaveBeenCalled();
+      expect(modelProviderApiKeyError(provider, key, "self-hosted")).toBeUndefined();
+      expect(modelProviderApiKeyError("amazon-bedrock", key, "managed")).toBeUndefined();
+    },
+  );
+
   it("cannot use an OAuth plan token for another provider's API-key-only model", () => {
     const token = JSON.stringify({
       kind: "oauth",
@@ -286,3 +402,5 @@ describe("model funding policy", () => {
     expect(validateModelAuthAvailability("google", "gemini-2.5-pro", token)).toBeTruthy();
   });
 });
+
+import { readFileSync } from "node:fs";

@@ -16,7 +16,7 @@ import {
 import type { CodexLiveCatalog, CodexLiveReadOptions } from "./pi-codex-catalog.js";
 import { codexLiveListsModel } from "./pi-codex-catalog.js";
 import { listPiCatalog, scriptedCatalogEntry } from "./pi-models.js";
-import { isChatGptPlanToken, parseModelSecret } from "./pi-oauth.js";
+import { isChatGptPlanToken, modelSecretExecutionError, parseModelSecret } from "./pi-oauth.js";
 import { OPENAI_COMPATIBLE_PROVIDER_ID } from "./pi-openai-compatible-provider.js";
 
 type ModelCredential = Awaited<ReturnType<typeof findDefaultModelCredential>>;
@@ -48,6 +48,7 @@ export class UnavailableModelForAuthError extends Error {
 }
 
 export type SpaceCatalogAuth = {
+  unavailableByModel?: Partial<Record<string, Partial<Record<string, string>>>>;
   byProvider: Partial<Record<string, ModelCredentialAuthKind>>;
   /** Model-specific kinds. `"disconnected"` blocks the provider fallback. */
   byModel: Partial<
@@ -159,18 +160,32 @@ export async function modelCredentialAuthKindsForSpace(
   const ciphertextById = new Map(secrets.map((secret) => [secret.id, secret.ciphertext]));
   // Every catalog model of a provider shares one secret; load each once per operation.
   const kindBySecretId = new Map<string, Promise<ModelCredentialAuthKind | undefined>>();
-  const decryptKind = async (secretId: string): Promise<ModelCredentialAuthKind | undefined> => {
+  const policyErrorBySecretId = new Map<string, string>();
+  const decryptKind = async (
+    secretId: string,
+    provider: string,
+  ): Promise<ModelCredentialAuthKind | undefined> => {
     const ciphertext = ciphertextById.get(secretId);
     if (!ciphertext) return undefined;
     try {
-      return modelCredentialAuthKindFromPlaintext(await secretStore.load(ciphertext, secretId));
+      const plaintext = await secretStore.load(ciphertext, secretId);
+      const policyError = modelSecretExecutionError(provider, plaintext, executionMode);
+      if (policyError) {
+        policyErrorBySecretId.set(secretId, policyError);
+        return undefined;
+      }
+      return modelCredentialAuthKindFromPlaintext(plaintext);
     } catch (error) {
       if (error instanceof SecretStoreUnavailableError) throw error;
       return undefined;
     }
   };
-  const readKind = (secretId: string): Promise<ModelCredentialAuthKind | undefined> => {
-    if (!kindBySecretId.has(secretId)) kindBySecretId.set(secretId, decryptKind(secretId));
+  const readKind = (
+    secretId: string,
+    provider: string,
+  ): Promise<ModelCredentialAuthKind | undefined> => {
+    if (!kindBySecretId.has(secretId))
+      kindBySecretId.set(secretId, decryptKind(secretId, provider));
     return kindBySecretId.get(secretId)!;
   };
 
@@ -181,7 +196,13 @@ export async function modelCredentialAuthKindsForSpace(
     secretIdByModel: {},
   };
   for (const selection of selections) {
-    const kind = await readKind(selection.secretId);
+    const kind = await readKind(selection.secretId, selection.provider);
+    const policyError = policyErrorBySecretId.get(selection.secretId);
+    if (policyError) {
+      auth.unavailableByModel ??= {};
+      auth.unavailableByModel[selection.provider] ??= {};
+      auth.unavailableByModel[selection.provider]![selection.modelId] = policyError;
+    }
     if (selection.modelSpecific) {
       const models = auth.byModel[selection.provider] ?? {};
       models[selection.modelId] = kind ?? "disconnected";
@@ -282,7 +303,9 @@ export async function prepareStoredModelAuth(
   }
   let message: string | undefined;
   try {
-    message = validateModelAuthAvailability(provider, modelId, plaintext);
+    message =
+      modelSecretExecutionError(provider, plaintext) ??
+      validateModelAuthAvailability(provider, modelId, plaintext);
   } catch {
     // A secret that decrypts but does not parse is as unreadable as a corrupt one.
     return { ref: secret.ciphertext, auth: { status: "unreadable" } };

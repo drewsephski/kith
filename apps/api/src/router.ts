@@ -1141,10 +1141,9 @@ export function createRouter(deps: RouterDeps) {
         // The scripted fixture only exists to drive the scripted runtime; a real
         // runtime cannot execute it, so it stays out of the user-facing catalog.
         const policyCatalog = catalog.map((entry) => {
-          const connectionUnavailableReason = modelProviderExecutionError(
-            entry.provider,
-            deps.env.modelExecutionMode,
-          );
+          const connectionUnavailableReason =
+            modelProviderExecutionError(entry.provider, deps.env.modelExecutionMode) ??
+            auth.unavailableByModel?.[entry.provider]?.[entry.id];
           return {
             ...entry,
             ...(connectionUnavailableReason
@@ -1226,6 +1225,8 @@ export function createRouter(deps: RouterDeps) {
           );
           const catalog = live.size > 0 ? applyCodexLiveCatalog(available, auth, live) : available;
           for (const choice of input) {
+            const policyError = auth.unavailableByModel?.[choice.provider]?.[choice.modelId];
+            if (policyError) throw new ORPCError("BAD_REQUEST", { message: policyError });
             const credential = await findModelCredential(
               deps.prisma,
               context.actor,

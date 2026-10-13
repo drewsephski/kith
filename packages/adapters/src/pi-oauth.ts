@@ -29,6 +29,7 @@ import type { ModelExecutionMode } from "./deployment-model.js";
 import {
   MANAGED_CHATGPT_CONNECTION_MESSAGE,
   modelExecutionMode,
+  modelProviderApiKeyError,
   modelProviderExecutionError,
 } from "./deployment-model.js";
 import { createManualAnthropicOAuthLogin } from "./pi-anthropic-oauth.js";
@@ -261,6 +262,12 @@ export function modelSecretExecutionError(
       : secret.kind === "api_key"
         ? secret.key
         : secret.apiKey;
+  const keyError = modelProviderApiKeyError(
+    provider,
+    secret.kind === "oauth" ? undefined : token,
+    mode,
+  );
+  if (keyError) return keyError;
   return token && isChatGptPlanToken(token) ? MANAGED_CHATGPT_CONNECTION_MESSAGE : undefined;
 }
 

@@ -12,6 +12,7 @@ import { modelCredentialAuthKind } from "./pi-catalog-availability.js";
 import { catalogProviderProbeBaseUrl, probeCatalogProviderModels } from "./pi-models.js";
 import {
   CHATGPT_OAUTH_PROVIDER,
+  modelSecretExecutionError,
   parseModelSecret,
   type StoredModelSecret,
   serializeModelSecret,
@@ -32,6 +33,8 @@ export async function validateHostedModelConnection(
   input: { provider: string; plaintext: string; modelId: string; signal?: AbortSignal },
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
+  const policyError = modelSecretExecutionError(input.provider, input.plaintext, "managed");
+  if (policyError) throw new Error(policyError);
   const secret = parseModelSecret(input.plaintext);
   if (secret.kind !== "api_key") return;
   if (input.provider === "openrouter") {
@@ -274,7 +277,9 @@ export function modelCredentialDto(
     id: row.id,
     provider: row.provider,
     label: row.label,
-    hasKey: storedModelSecretHasApiKey(plaintext),
+    hasKey:
+      storedModelSecretHasApiKey(plaintext) &&
+      !(plaintext && modelSecretExecutionError(row.provider, plaintext)),
     isDefault: row.isDefault,
     ...(row.defaultModel ? { modelId: row.defaultModel } : {}),
     // Space-scoped effort stored beside the preference's modelId; the

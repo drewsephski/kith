@@ -42,6 +42,7 @@ import {
   DEFAULT_OPENROUTER_MODEL_ID,
   deploymentFundsModel,
   modelExecutionMode,
+  modelProviderApiKeyError,
   modelProviderExecutionError,
   resolveDeploymentModel,
 } from "./deployment-model.js";
@@ -258,7 +259,7 @@ export class PiAgentRuntime implements AgentRuntime {
       let trackedBudget: ToolCallBudget | undefined;
       let resumeHost: ToolHost | undefined;
       try {
-        const selectedModel = resolveRuntimeModel(request.model);
+        const selectedModel = resolveRuntimeModel(request.model, this.executionMode);
         if (!selectedModel.model) {
           queue.push({
             type: "text",
@@ -913,7 +914,10 @@ function configuredOpenRouterModel(
   };
 }
 
-export function resolveRuntimeModel(modelConfig: AgentRunRequest["model"]): {
+export function resolveRuntimeModel(
+  modelConfig: AgentRunRequest["model"],
+  mode: ModelExecutionMode = modelExecutionMode(),
+): {
   provider: string;
   modelId: string;
   models: Models;
@@ -923,7 +927,9 @@ export function resolveRuntimeModel(modelConfig: AgentRunRequest["model"]): {
   credentials: PiRuntimeCredentialStore | undefined;
 } {
   const provider = modelConfig.provider === "scripted" ? "openrouter" : modelConfig.provider;
-  const executionError = modelProviderExecutionError(provider);
+  const executionError =
+    modelProviderExecutionError(provider, mode) ??
+    modelProviderApiKeyError(provider, modelConfig.apiKey, mode);
   if (executionError) throw new Error(executionError);
   const envDefaultModel = process.env.PI_DEFAULT_MODEL?.trim();
   const envDefaultProvider = process.env.PI_DEFAULT_PROVIDER?.trim() || "openrouter";
@@ -1768,7 +1774,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
           provider: host.activeModel.model.provider,
           modelId: host.activeModel.model.id,
         }
-      : resolveRuntimeModel(requestModel);
+      : resolveRuntimeModel(requestModel, host.executionMode);
   if (!selectedModel.model) {
     const message = `Unknown model ${selectedModel.provider}/${selectedModel.modelId}`;
     host.queue.push({
@@ -2938,7 +2944,7 @@ function fallbackAwareModelStream(
         if (!config.apiKey && !config.oauth && config.provider !== OPENAI_COMPATIBLE_PROVIDER_ID) {
           continue;
         }
-        const resolved = resolveRuntimeModel(config);
+        const resolved = resolveRuntimeModel(config, state.executionMode);
         if (
           !resolved.model ||
           resolved.model.provider !== config.provider ||

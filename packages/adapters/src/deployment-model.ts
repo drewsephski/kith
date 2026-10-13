@@ -82,6 +82,21 @@ export function modelProviderExecutionError(
     : undefined;
 }
 
+/** Host SDK transports must receive a real per-request key on the managed server. */
+export function modelProviderApiKeyError(
+  provider: string,
+  apiKey: string | undefined,
+  mode: ModelExecutionMode = modelExecutionMode(),
+): string | undefined {
+  if (mode !== "managed" || !Object.hasOwn(HOST_CREDENTIAL_SOURCES, provider)) return undefined;
+  const key = apiKey?.trim();
+  // Pi's Vertex transport treats this literal as ADC, not as an API key.
+  const vertexHostMarker = provider === "google-vertex" && key === "gcp-vertex-credentials";
+  return !key || vertexHostMarker || /^<[^>]+>$/.test(key)
+    ? "Connect a user-owned API key for this provider. Host credentials require a self-hosted Kith server."
+    : undefined;
+}
+
 /** Deployment funding is bound to one provider AND model, never a provider-wide key. */
 export function deploymentFundsModel(
   provider: string,
