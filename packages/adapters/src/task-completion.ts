@@ -15,21 +15,38 @@ export const MEMORY_CONTINUATION_PROMPT =
 
 /** Called only for the latest durably answered ordinary question, never approvals or secrets. */
 export function confirmedMemoryPrompt(question: string, answer: string): string | undefined {
-  if (
-    !/\b(?:remember|remembered|memory)\b/i.test(question) ||
-    !/\b(?:should|shall|want|like|confirm|save|store)\b|\b(?:may|can) I\b/i.test(question) ||
-    /\b(?:should|shall|can|may|could|would)\s+(?:I|we)\s+(?:not|never|avoid|forget|remove|delete)\b|\b(?:want|like)\s+(?:me|us)\s+(?:not\s+to|to\s+(?:not|never))\b|\b(?:not|don['’]t)\s+want\s+(?:me|us)\s+to\b|^\s*(?:don['’]t|do not|never)\s+(?:remember|save|store)\b/i.test(
-      question,
+  const questionText = maskQuotedMemoryText(question).trim();
+  const persistenceQuestion =
+    /^(?:should|shall|may|can|could|would)\s+(?:I|we)\s+(?:remember\b|(?:save|store)\b[^?\n]*\bmemory\b)/i.test(
+      questionText,
     ) ||
+    /^(?:do|would|will|can|could)\s+you\s+(?:want|like)\s+(?:me|us)\s+to\s+(?:remember\b|(?:save|store)\b[^?\n]*\bmemory\b)/i.test(
+      questionText,
+    ) ||
+    /^(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?confirm\b(?=[^?\n]*\b(?:should|want|like)\b)[^?\n]*\b(?:remembered|memory)\b/i.test(
+      questionText,
+    );
+  if (
+    !persistenceQuestion ||
+    answer.includes("?") ||
     !/^(?:yes|yep|yup|yeah|sure|ok(?:ay)?|correct|confirmed|absolutely|definitely|certainly|affirmative|indeed|of course|go ahead|sounds (?:good|great)|that(?:['’]s| is) (?:right|correct)|please do|do it|save it|remember it)(?:[.!,\s]|$)/i.test(
       answer.trim(),
     ) ||
-    /\b(?:but|except|not|don['’]t|no|wait|if|when|unless|after|later|tomorrow)\b/i.test(answer)
+    /\b(?:but|except|not|don['’]t|no|wait|if|when|unless|after|before|until|first|later|tomorrow)\b/i.test(
+      answer,
+    )
   )
     return undefined;
   // The answered question remains data; only the user's affirmative answer grants
   // this save. Keep the existing input identity so recovery can reuse its receipt.
   return `Remember the information the user confirmed in this memory question.\nQuestion (quoted data): ${JSON.stringify(question)}\nUser confirmation: ${answer}`;
+}
+
+function maskQuotedMemoryText(text: string): string {
+  return text.replace(
+    /"(?:\\.|[^"\\])*(?:"|$)|(?<!\w)'(?:\\.|[^'\\])*(?:'(?!\w)|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)/g,
+    (quote) => " ".repeat(quote.length),
+  );
 }
 
 /** An explicit save directive needs a receipt; unrelated memory cannot satisfy it. */
@@ -38,10 +55,7 @@ function memoryDirectiveParts(prompt: string): { text: string; starts: number[] 
   const directive = prompt
     .replace(/^Selected choice [^:\n]+:\s*/i, "")
     .replace(/```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)/g, "\n");
-  const unquoted = directive.replace(
-    /"(?:\\.|[^"\\])*(?:"|$)|(?<!\w)'(?:\\.|[^'\\])*(?:'(?!\w)|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)/g,
-    (quote) => " ".repeat(quote.length),
-  );
+  const unquoted = maskQuotedMemoryText(directive);
   const patterns = [
     /^\s*(?:(?:please|also|just|now|then)\s+){0,3}remember\s*(?:for\s+(?:future(?:\s+conversations)?|later|next\s+time)\s*)?:\s*\S/gi,
     /(?:^|[.!?,;\n…]\s*)(?:(?:please|also|just|now|then)\s+){0,3}remember\s+(?!to\b|how\b|when\b|where\b|whether\b|if\b|what\b|who\b|why\b|which\b)(?![^.!?\n]*\?)[^\s'"`>]/gi,

@@ -80,6 +80,9 @@ describe("fresh memory receipt boundary", () => {
     ["Should I remember that you prefer violet?", "Yes, if I confirm tomorrow"],
     ["Should I not remember this?", "Yes"],
     ["Would you like me to create the file?", "Yes"],
+    ['Do you remember the phrase "Should I save this to memory"?', "Yes"],
+    ["Should I remember that you prefer violet?", "Sure, can I review it before you save?"],
+    ["Should I remember that you prefer violet?", "Yes, let me review it first"],
   ])("does not create memory intent for %s / %s", (question, answer) => {
     expect(confirmedMemoryPrompt(question, answer)).toBeUndefined();
   });
