@@ -218,7 +218,7 @@
       "refersTo": "card",
       "description": "Existing marketing card primitive; the consumer benefits remain open columns.",
       "html": "<article class=\"ds-card\"><h3>Personal assistant</h3><p>Useful work, through conversation.</p></article>",
-      "css": ".ds-card{background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:20px;padding:26px;box-shadow:var(--shadow-soft);font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-card h3{margin:0;font-family:Aeonik,Geist,sans-serif;font-size:20px;font-weight:500;letter-spacing:-.02em}.ds-card p{margin:10px 0 0;font-size:15px;line-height:1.6}"
+      "css": ".ds-card{background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:20px;padding:26px;box-shadow:var(--shadow-soft);font-family:Geist,ui-sans-serif,system-ui,sans-serif}.ds-card h3{margin:0;font-family:Geist,sans-serif;font-size:20px;font-weight:500;letter-spacing:-.02em}.ds-card p{margin:10px 0 0;font-size:15px;line-height:1.6}"
     },
     {
       "name": "FAQ Disclosure",
@@ -231,7 +231,7 @@
   ],
   "narrative": {
     "northStar": "Neutral surfaces, ink, quiet companion",
-    "overview": "The original blue companion gives the site its friendly identity. Neutral surfaces, ink platform links, generous space, and modest prose connect the marketing site to the conversation product. Aeonik headings distinguish the public site while Geist carries reading and controls.\n\nThis record describes the shipped Astro site, especially its consumer homepage and platform pages. Sources are `src/styles/global.css`, `src/components/HomePage.astro`, `src/components/Button.astro`, `src/components/Header.astro`, `src/layouts/BaseLayout.astro`, and `../../packages/ui-tokens/src/index.ts`. Desktop and narrow marketing captures and the release-status fallback are recorded in `../web/.impeccable/review/`; their configured placeholder origins do not verify production domains or installers.",
+    "overview": "The original blue companion gives the site its friendly identity. Neutral surfaces, ink platform links, generous space, and modest prose connect the marketing site to the conversation product. Geist unifies the public site, with medium headings and regular reading text and controls.\n\nThis record describes the shipped Astro site, especially its consumer homepage and platform pages. Sources are `src/styles/global.css`, `src/components/HomePage.astro`, `src/components/Button.astro`, `src/components/Header.astro`, `src/layouts/BaseLayout.astro`, and `../../packages/ui-tokens/src/index.ts`. Desktop and narrow marketing captures and the release-status fallback are recorded in `../web/.impeccable/review/`; their configured placeholder origins do not verify production domains or installers.",
     "keyCharacteristics": [
       "Neutral surfaces and ink functional controls.",
       "Original blue companion, reused without alteration.",
