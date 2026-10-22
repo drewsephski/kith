@@ -3,14 +3,6 @@
 
 @source "../../../../packages/ui-web/src/button.tsx";
 
-@font-face {
-  font-family: "Aeonik";
-  src: url("/fonts/aeonik-medium.woff") format("woff");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --page: var(--background);
   --surface: var(--card);
@@ -177,7 +169,7 @@ button {
 }
 
 .brand-lockup__word {
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 21px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -381,7 +373,7 @@ button.button--secondary:focus-visible {
 .guide h1 {
   margin: 0;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-weight: 500;
   letter-spacing: -0.02em;
 }
@@ -537,7 +529,7 @@ button.button--secondary:focus-visible {
 .comparison-card h3 {
   margin: 0;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 20px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -771,7 +763,7 @@ button.button--secondary:focus-visible {
   max-width: 390px;
   margin: 0;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 30px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -927,7 +919,7 @@ button.button--secondary:focus-visible {
 
 .stat-value {
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 30px;
   letter-spacing: -0.02em;
 }
@@ -2221,7 +2213,7 @@ button.button--secondary:focus-visible {
 .privacy-copy h2 {
   margin: 44px 0 12px;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 22px;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -2265,7 +2257,7 @@ button.button--secondary:focus-visible {
 .alt-page h1 {
   margin: 0 0 18px;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2.25rem, 5vw, 44px);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -2275,7 +2267,7 @@ button.button--secondary:focus-visible {
 .alt-page h2 {
   margin: 48px 0 12px;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -2456,7 +2448,7 @@ button.button--secondary:focus-visible {
 .guide h2 {
   margin: 2.4rem 0 0.7rem;
   color: var(--ink);
-  font-family: Aeonik, Geist, ui-sans-serif, system-ui, sans-serif;
+  font-family: Geist, ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(1.6rem, 3vw, 2rem);
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -3094,7 +3086,7 @@ button.button--secondary:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 .journey-benefits h2 {
-  font-family: Aeonik, Geist, sans-serif;
+  font-family: Geist, sans-serif;
   font-size: clamp(25px, 2.4vw, 30px);
   line-height: 1.25;
   font-weight: 500;
@@ -3247,7 +3239,7 @@ button.button--secondary:focus-visible {
   margin-inline: auto;
 }
 .platform-page h1 {
-  font-family: Aeonik, Geist, sans-serif;
+  font-family: Geist, sans-serif;
   font-size: clamp(36px, 5vw, 56px);
   line-height: 1.15;
   letter-spacing: -0.03em;

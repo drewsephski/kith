@@ -14,7 +14,7 @@ colors:
   ring: "#24262B"
 typography:
   headline:
-    fontFamily: "Aeonik, Geist, ui-sans-serif, system-ui, sans-serif"
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
     fontWeight: 500
     letterSpacing: "-0.02em"
   body:
@@ -63,7 +63,7 @@ components:
 
 **Creative North Star: "Neutral surfaces, ink, quiet companion"**
 
-The original blue companion gives the site its friendly identity. Neutral surfaces, ink platform links, generous space, and modest prose connect the marketing site to the conversation product. Aeonik headings distinguish the public site while Geist carries reading and controls.
+The original blue companion gives the site its friendly identity. Neutral surfaces, ink platform links, generous space, and modest prose connect the marketing site to the conversation product. Geist unifies the public site, with medium headings and regular reading text and controls.
 
 This record describes the shipped Astro site, especially its consumer homepage and platform pages. Sources are `src/styles/global.css`, `src/components/HomePage.astro`, `src/components/Button.astro`, `src/components/Header.astro`, `src/layouts/BaseLayout.astro`, and `../../packages/ui-tokens/src/index.ts`. Desktop and narrow marketing captures and the release-status fallback are recorded in `../web/.impeccable/review/`; their configured placeholder origins do not verify production domains or installers.
 
@@ -92,8 +92,10 @@ The light site inherits the shared semantic palette; frontmatter records those s
 
 ## Typography
 
-**Display and heading font:** the locally supplied medium Aeonik face, falling back to Geist and system sans-serif.
+**Display and heading font:** Geist at medium weight, with system sans-serif fallbacks.
 **Body font:** Geist with system sans-serif fallbacks. Technical examples use Geist Mono with a monospace fallback.
+
+Geist and Geist Mono are loaded by the existing Google Fonts stylesheet in `src/layouts/BaseLayout.astro`. Both are distributed under the [SIL Open Font License 1.1](https://github.com/vercel/geist-font/blob/main/LICENSE.txt). No proprietary font files are needed for the marketing site.
 
 Headings use medium weight and restrained negative tracking; paragraphs stay regular. The consumer hero uses a responsive headline (42–70px, line height 1.08); supporting benefit headings use 30px with a 1.2 line height. General section headings use a 36–42px clamp with a 1.1 line height. Repeated reading text uses the body role; the hero lead rises to 18px and returns to 16px on narrow screens. Compact navigation and metadata use approximately 14px.
 
