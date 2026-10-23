@@ -1,6 +1,6 @@
 # Dependency patches
 
-## expo-modules-core 57.0.22
+## expo-modules-core 57.0.24
 
 Android CI crashed in `convertSharedObject` while opening a bot-creation deep
 link. The native object still had an ID after Hermes collected its weak JS
